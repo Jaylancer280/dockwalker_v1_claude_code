@@ -11,7 +11,7 @@
     "lint": "npm run lint --workspace=apps/web",
     "type-check": "npm run type-check --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "engines": {
     "node": ">=20"

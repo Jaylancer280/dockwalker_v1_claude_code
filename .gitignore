@@ -38,3 +38,5 @@ ios/
 # misc
 *.tsbuildinfo
 npm-debug.log*
+
+.vercel
