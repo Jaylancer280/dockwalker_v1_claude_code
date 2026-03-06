@@ -4,3 +4,9 @@ npx lint-staged
 bash .husky/check-no-console-log.sh
 bash .husky/check-no-todo.sh
 bash .husky/check-rollbacks.sh
+
+# Type check
+npm run type-check
+
+# Run tests
+npm test

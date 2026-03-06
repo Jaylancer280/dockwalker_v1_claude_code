@@ -9,7 +9,10 @@
     "noEmit": true,
     "declaration": true,
     "resolveJsonModule": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "paths": {
+      "@dockwalker/types": ["../types/src"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
