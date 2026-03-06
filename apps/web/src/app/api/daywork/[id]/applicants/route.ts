@@ -1,0 +1,103 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+
+/**
+ * GET /api/daywork/:id/applicants
+ * Returns applicants for a daywork posting. Employer/agent only (must own the posting).
+ */
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: dayworkId } = await params;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Verify user owns this daywork posting
+  const { data: daywork } = await supabase
+    .from('dayworks')
+    .select('id, poster_person_id, start_date, end_date')
+    .eq('id', dayworkId)
+    .single();
+
+  if (!daywork) {
+    return NextResponse.json({ error: 'Daywork not found' }, { status: 404 });
+  }
+
+  if (daywork.poster_person_id !== user.id) {
+    return NextResponse.json({ error: 'You do not own this posting' }, { status: 403 });
+  }
+
+  // Get applications with crew profile data
+  const { data: applications, error } = await supabase
+    .from('applications')
+    .select(
+      `
+      id, crew_person_id, status, message, created_at,
+      profiles:crew_person_id(
+        display_name,
+        primary_role_id,
+        certification_ids,
+        experience_bracket_id,
+        vessel_size_exposure_ids,
+        bio,
+        location_port_id,
+        yacht_roles:primary_role_id(name, department),
+        experience_brackets:experience_bracket_id(label),
+        ports:location_port_id(name, cities(name, regions(name)))
+      )
+    `,
+    )
+    .eq('daywork_id', dayworkId)
+    .in('status', ['applied', 'viewed'])
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Enrich with availability overlap for the daywork dates
+  const crewIds = (applications ?? []).map((a) => a.crew_person_id);
+
+  const availabilityMap: Record<string, number> = {};
+  if (crewIds.length > 0) {
+    const { data: availWindows } = await supabase
+      .from('availability_windows')
+      .select('person_id, date')
+      .in('person_id', crewIds)
+      .gte('date', daywork.start_date)
+      .lte('date', daywork.end_date)
+      .gt('expires_at', new Date().toISOString());
+
+    // Count available days per crew member within the daywork range
+    for (const w of availWindows ?? []) {
+      availabilityMap[w.person_id] = (availabilityMap[w.person_id] ?? 0) + 1;
+    }
+  }
+
+  // Count past completed engagements per crew member
+  const engagementCountMap: Record<string, number> = {};
+  if (crewIds.length > 0) {
+    const { data: pastEngagements } = await supabase
+      .from('active_engagements')
+      .select('crew_person_id')
+      .in('crew_person_id', crewIds)
+      .eq('status', 'completed');
+
+    for (const e of pastEngagements ?? []) {
+      engagementCountMap[e.crew_person_id] = (engagementCountMap[e.crew_person_id] ?? 0) + 1;
+    }
+  }
+
+  const enriched = (applications ?? []).map((app) => ({
+    ...app,
+    available_days: availabilityMap[app.crew_person_id] ?? 0,
+    past_daywork_count: engagementCountMap[app.crew_person_id] ?? 0,
+  }));
+
+  return NextResponse.json({ applicants: enriched });
+}

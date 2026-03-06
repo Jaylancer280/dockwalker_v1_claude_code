@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build
+.next/
+out/
+dist/
+build/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# supabase
+supabase/.temp/
+supabase/.branches/
+
+# ide
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# os
+.DS_Store
+Thumbs.db
+
+# capacitor
+android/
+ios/
+
+# claude code sessions
+.claude/
+
+# misc
+*.tsbuildinfo
+npm-debug.log*

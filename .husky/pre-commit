@@ -1,0 +1,6 @@
+npx lint-staged
+
+# Custom checks on staged files
+bash .husky/check-no-console-log.sh
+bash .husky/check-no-todo.sh
+bash .husky/check-rollbacks.sh

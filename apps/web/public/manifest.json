@@ -1,0 +1,19 @@
+{
+  "name": "DockWalker",
+  "short_name": "DockWalker",
+  "description": "Superyacht daywork hiring — find crew or find work",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0B1A2E",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/images/brand/dw_app_icon_cropped.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"]
+}

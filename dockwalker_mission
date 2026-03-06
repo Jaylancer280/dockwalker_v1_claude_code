@@ -1,0 +1,325 @@
+APP NAME (WORKING): DockWalker
+
+CORE THESIS
+DockWalker is a hyper-focused, two-sided, real-time daywork hiring app for the superyacht industry. It exists to eliminate friction in short-term crew hiring (1–14 day engagements), especially for green crew entering the industry, while remaining fully usable for experienced crew.
+
+It is NOT a full-time hiring marketplace.
+It is NOT a reputation scoring system.
+It is NOT a social network.
+It is NOT a vessel management system.
+It is NOT a gamified career app.
+It is NOT a long-term contract platform.
+
+It is a fast, structured, low-friction dispatch layer for maritime professionals seeking daywork oportunities.
+
+------------------------------------------------------------
+1. USERS
+------------------------------------------------------------
+
+USER TYPES:
+- Crew (green + experienced)
+- Employer (Captain, Chief Engineer, Bosun, HOD, Management rep)
+- Dual-role users allowed (crew who can also post)
+
+CREW CHARACTERISTICS:
+- Often dockwalking
+- Frequently changing availability
+- Limited formal CV structure
+- High sensitivity to time and cash flow
+- Cannot "post a job" as the "crew" variant of their profile
+
+EMPLOYER CHARACTERISTICS:
+- Time constrained
+- Needs short-term cover urgently
+- Wants structured filtering
+- Risk aware but pragmatic
+- Cannot "apply for job" as the "employer" variant of their profile
+
+Crew can act as employers (crew-crew hiring circumstances), employers cannot act as crew (apply).
+
+------------------------------------------------------------
+2. CORE PROBLEM SOLVED
+------------------------------------------------------------
+
+CURRENT STATE:
+- WhatsApp blasts
+- Dockwalking chaos
+- Agency calls
+- CV PDF spam
+- No structured filtering
+- No persistent structured interaction record
+
+TARGET STATE:
+- Structured job post
+- Structured applicant pool
+- One-tap/easy apply
+- One-tap/easy accept/reject
+- Persistent in-app secure messaging (near real time, does not have to be instant)
+- Clear state transitions
+
+------------------------------------------------------------
+3. VALUE PROPOSITION
+------------------------------------------------------------
+
+FOR CREW:
+- Increased probability of paid daywork
+- Reduced dockwalking randomness
+- Clear visibility into live jobs
+- Structured application history
+- Fast mobile-first application flow
+
+FOR EMPLOYERS:
+- Filterable applicant pool
+- Structured role/cert data
+- Reduced scramble time
+- Simple accept/reject mechanics
+- Persistent chat + hiring record
+
+------------------------------------------------------------
+4. CORE EXPERIENCE FLOW
+------------------------------------------------------------
+
+CREW SIDE (TINDER-LIKE MECHANIC)
+
+A. Job Discovery:
+- One job shown at a time.
+- Swipe Right type of mechanic = Apply.
+- Swipe Left type of mechanic = Pass.
+- Tap = View full structured details.
+
+Job Card Fields:
+- Vessel size (exact length or length band)
+- Vessel type (private/charter/NDA)
+- Role needed
+- Duration (start date + end date + working days count)
+- Location (limited to granularity level of region, (med/Caribbean etc) city and port/marina
+- Day rate (optional but encouraged)
+- Required certs
+- Experience bracket
+- Meals provided (breakfast/lunch/dinner/combination of any)
+- Special notes
+
+B. Apply:
+- Single tap confirmation after initial application CTA.
+- Structured profile auto-attached.
+- Optional 250-char message with application.
+- No CV uploads required.
+
+C. Application State:
+- Applied
+- Viewed
+- Rejected (neutral/non-shaming)
+- Accepted
+- Cancelled
+- Completed
+
+D. Messaging:
+- Opens ONLY after employer accepts.
+- No auto-deletion.
+- No disappearing messages.
+- All messages retained "on server" (append only) unless removed by the user (UI level/one sided).
+
+------------------------------------------------------------
+
+EMPLOYER SIDE (use the same fields between post daywork and viewed daywork card)
+
+A. Post Daywork:
+Fields:
+- Role
+- Location
+- Duration
+- Start date
+- Vessel size band
+- Required certs
+- Experience bracket
+- Optional rate
+- Optional notes
+
+B. Applicant Stack (Tinder-style)
+- One applicant at a time.
+- Swipe Right = Accept.
+- Swipe Left = Reject.
+- Tap = Full structured profile.
+
+Applicant View:
+- Role history summary
+- Certifications
+- Availability status
+- Location proximity
+- Past daywork count (no rating)
+- Experience duration bands
+
+C. Accept:
+- State change → Confirmed.
+- Messaging auto-opens.
+
+------------------------------------------------------------
+5. MINIMAL EVENT MODEL (APPEND-ONLY)
+------------------------------------------------------------
+
+PERSON.CREATED
+PROFILE.UPDATED
+AVAILABILITY.SET
+DAYWORK.POSTED
+DAYWORK.APPLIED
+DAYWORK.REJECTED
+DAYWORK.ACCEPTED
+DAYWORK.CANCELLED
+DAYWORK.COMPLETED
+MESSAGE.SENT
+
+All state derived from events.
+No hard deletes.
+No silent mutation of history.
+
+------------------------------------------------------------
+6. MATCH LOGIC (NO SCORING)
+------------------------------------------------------------
+
+Filtering only, not ranking.
+
+Eligibility:
+- Role match
+- Cert requirements
+- Location radius
+- Availability overlap
+
+Sorting:
+- Most recently active
+- Closest proximity
+- Role-aligned tenure
+
+No public scores.
+No star ratings.
+No reputation numbers.
+
+------------------------------------------------------------
+7. INTELLIGENCE LAYER (SUBTLE, NON-GAMIFIED)
+------------------------------------------------------------
+
+Derived but not surfaced as “scores.”
+
+Internal use:
+- Experience summary bands
+- Availability reliability (internal)
+- Engagement frequency
+
+Displayed:
+- Total months in role
+- Vessel size exposure bands
+- Last active date
+
+No qualitative judgment metrics.
+
+------------------------------------------------------------
+8. TRUST & SAFETY
+------------------------------------------------------------
+
+- Optional ID verification badge.
+- Soft moderation.
+- No public reviews.
+- No blacklists.
+- Clear cancellation logging.
+
+------------------------------------------------------------
+9. MONETIZATION
+------------------------------------------------------------
+
+Phase 1:
+- Crew free to use, transactional costs for additional features in the future...
+- Employers:
+  
+
+
+No boosts.
+No priority listing manipulation.
+No pay-to-rank.
+
+------------------------------------------------------------
+10. GEOGRAPHIC STRATEGY
+------------------------------------------------------------
+
+Launch in top 7 ports only (use these as default locations and have canonical set port lists for each location if multiple ports/marinas exist):
+- Antibes
+- Palma
+- Fort Lauderdale
+- Caribbean
+- Bahamas
+- Dubai/UAE
+- Turkey
+
+Density > scale.
+
+------------------------------------------------------------
+11. EXPLICIT NEGATIVE SPACE
+------------------------------------------------------------
+
+This app is NOT:
+- A long-term contract marketplace.
+- A reputation scoring engine.
+- A crew social network.
+- A vessel PMS.
+- An agency replacement.
+- A salary negotiation platform.
+- A review/rating system.
+- A gamified progression tool.
+
+If a feature:
+- Requires scoring,
+- Requires ranking,
+- Introduces public reputation,
+- Encourages vanity metrics,
+- Adds feed-based engagement,
+- Adds complex matching algorithms,
+- Adds AI recommendation feeds,
+
+→ It is OUT OF SCOPE.
+
+------------------------------------------------------------
+12. ASSESSMENT CRITERIA (FOR LLM IMPLEMENTATION)
+------------------------------------------------------------
+
+The app is correct if:
+
+1. A green crew member can apply to a job in <5 seconds.
+2. An employer can post a job in <60 seconds.
+3. An employer can accept a candidate in 1-3 swipe/confirmation actions.
+4. Messaging opens only after acceptance.
+5. All states are event-derived.
+6. No scoring system exists.
+7. No ranking system exists.
+8. No hidden algorithmic biasing exists.
+9. All filters are explicit and visible.
+10. The system can scale from daywork → long-term later without schema breakage.
+11. A crew member with any level of experience can join, showcase their experience on their profile and find the app useful for daywork searching
+
+The app is incorrect if:
+
+- It becomes a profile directory without liquidity.
+- It introduces reputation scoring.
+- It overcomplicates onboarding.
+- It attempts to solve full hiring.
+- It introduces feature creep.
+- It adds social feed mechanics.
+- It monetizes crew visibility unfairly.
+
+------------------------------------------------------------
+END STATE VISION (PHASE 1 COMPLETE)
+------------------------------------------------------------
+
+DockWalker becomes:
+
+“The default fast-dispatch layer for superyacht daywork in [Port X].”
+
+Crew check it daily.
+Captains rely on it when scrambling.
+Transactions happen inside it.
+No politics.
+No predatory mechanics.
+No inflated gamification.
+
+Simple.
+Fast.
+Structured.
+Fair.
+Transactional.

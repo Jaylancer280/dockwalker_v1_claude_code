@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type Check
+        run: npm run type-check
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run Tests
+        run: npm test
+
+  database:
+    name: Database Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase
+        run: supabase start -x realtime,storage,imgproxy,edge-runtime,logflare,vector,pgbouncer
+
+      - name: Verify migrations apply
+        run: supabase db reset
+
+      - name: Check rollback files exist
+        run: |
+          MISSING=0
+          for migration in supabase/migrations/*.sql; do
+            basename=$(basename "$migration" .sql)
+            rollback="supabase/rollbacks/${basename}.down.sql"
+            if [ ! -f "$rollback" ]; then
+              echo "MISSING rollback: $rollback (for $migration)"
+              MISSING=1
+            fi
+          done
+          if [ $MISSING -eq 1 ]; then
+            echo "ERROR: Not all migrations have corresponding rollback files."
+            exit 1
+          fi
+          echo "All migrations have rollback files."
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
