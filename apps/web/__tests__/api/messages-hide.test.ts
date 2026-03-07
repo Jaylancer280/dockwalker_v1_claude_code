@@ -4,6 +4,7 @@ import { POST } from '@/app/api/messages/[engagementId]/hide/route';
 const mockGetUser = vi.fn();
 const mockFromAuth = vi.fn();
 const mockFromService = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
@@ -12,6 +13,7 @@ vi.mock('@/lib/supabase/server', () => ({
   })),
   createServiceClient: vi.fn(async () => ({
     from: mockFromService,
+    rpc: mockRpc,
   })),
 }));
 
@@ -145,17 +147,20 @@ describe('POST /api/messages/:engagementId/hide', () => {
       }),
     );
     mockFromService
-      .mockReturnValueOnce(makeChain({ id: 'm1', hidden_by: [] }))
-      .mockReturnValueOnce({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      });
+      .mockReturnValueOnce(makeChain({ id: 'm1', hidden_by: [] }));
+    mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(
       makeRequest({ messageId: 'm1' }),
       makeParams('e1'),
     );
     expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'MESSAGE.HIDDEN',
+        p_aggregate_id: 'm1',
+      }),
+    );
   });
 });

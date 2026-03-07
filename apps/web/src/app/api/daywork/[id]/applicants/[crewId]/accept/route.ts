@@ -61,11 +61,14 @@ export async function POST(
   }
 
   // Check for double-booking (overlapping accepted engagements)
-  const { data: overlap } = await serviceClient.rpc('check_no_overlap', {
+  const { data: overlap, error: overlapError } = await serviceClient.rpc('check_no_overlap', {
     p_crew_person_id: crewId,
-    p_start_date: daywork.start_date,
-    p_end_date: daywork.end_date,
+    p_daywork_id: dayworkId,
   });
+
+  if (overlapError) {
+    return NextResponse.json({ error: overlapError.message }, { status: 500 });
+  }
 
   if (overlap === false) {
     return NextResponse.json(

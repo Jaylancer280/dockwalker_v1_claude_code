@@ -61,10 +61,16 @@ export async function POST(
     return NextResponse.json({ success: true });
   }
 
-  const { error } = await serviceClient
-    .from('messages')
-    .update({ hidden_by: [...currentHidden, user.id] })
-    .eq('id', messageId);
+  const { error } = await serviceClient.rpc('append_event', {
+    p_event_type: 'MESSAGE.HIDDEN',
+    p_aggregate_id: messageId,
+    p_aggregate_type: 'message',
+    p_role_context: engagement.crew_person_id === user.id ? 'crew' : 'employer',
+    p_payload: {
+      engagement_id: engagementId,
+    },
+    p_person_id: user.id,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

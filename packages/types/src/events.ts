@@ -4,6 +4,7 @@ import type { RoleContext } from './enums';
 export type EventType =
   // Person aggregate
   | 'PERSON.CREATED'
+  | 'PERSON.HAT_CHANGED'
   | 'PERSON.DEACTIVATED'
   | 'PERSON.DATA_SCRUBBED'
   // Profile (person aggregate)
@@ -30,7 +31,8 @@ export type EventType =
   // Availability (person aggregate)
   | 'AVAILABILITY.SET'
   // Message aggregate
-  | 'MESSAGE.SENT';
+  | 'MESSAGE.SENT'
+  | 'MESSAGE.HIDDEN';
 
 /** Aggregate types that events reference */
 export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message';

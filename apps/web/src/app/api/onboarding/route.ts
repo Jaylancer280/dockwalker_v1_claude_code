@@ -4,7 +4,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
 /**
  * POST /api/onboarding
  *
- * Creates PERSON.CREATED + PROFILE.CREATED events in a single request.
+ * Creates PERSON.CREATED + PROFILE.CREATED atomically in a single request.
  * Called at the end of the onboarding flow.
  *
  * Body: {
@@ -51,26 +51,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    // 1. PERSON.CREATED
-    const { error: personError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'PERSON.CREATED',
-      p_aggregate_id: user.id,
-      p_aggregate_type: 'person',
-      p_role_context: currentHat,
-      p_payload: {
-        identity_type: identityType,
-        current_hat: currentHat,
-      },
-      p_person_id: user.id,
-    });
-
-    if (personError) {
-      throw new Error(`PERSON.CREATED failed: ${personError.message}`);
-    }
-
-    // 2. PROFILE.CREATED
     const profilePayload = {
-      identity_type: identityType,
       display_name: profile.displayName,
       // Crew fields
       primary_role_id: profile.primaryRoleId || null,
@@ -85,17 +66,15 @@ export async function POST(request: Request) {
       location_port_id: profile.locationPortId || null,
     };
 
-    const { error: profileError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'PROFILE.CREATED',
-      p_aggregate_id: user.id,
-      p_aggregate_type: 'person',
-      p_role_context: currentHat,
-      p_payload: profilePayload,
+    const { error } = await serviceClient.rpc('onboard_person', {
+      p_identity_type: identityType,
+      p_current_hat: currentHat,
+      p_profile: profilePayload,
       p_person_id: user.id,
     });
 
-    if (profileError) {
-      throw new Error(`PROFILE.CREATED failed: ${profileError.message}`);
+    if (error) {
+      throw new Error(error.message);
     }
 
     return NextResponse.json({ success: true });

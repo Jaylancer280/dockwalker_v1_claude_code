@@ -204,6 +204,7 @@ State what was built, suggest commit message, confirm pre-commit passes.
 ### Completed Stages
 
 - [Stages 1-11] Core infrastructure, all API routes, all pages, bottom navbar, templates, chat
+- [Stage 12] Polish + Deploy — error boundary, not-found page, loading states, fetch error handling
 
 ### Current Schema Version
 

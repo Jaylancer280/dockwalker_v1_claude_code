@@ -51,21 +51,27 @@ export default function ReviewApplicantsPage() {
   const { id: dayworkId } = useParams<{ id: string }>();
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
 
   const loadApplicants = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/daywork/${dayworkId}/applicants`);
-    const data = await res.json();
-    if (data.applicants) setApplicants(data.applicants);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/daywork/${dayworkId}/applicants`);
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      if (data.applicants) setApplicants(data.applicants);
+      setError(null);
+    } catch {
+      setError('Failed to load applicants. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [dayworkId]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadApplicants();
   }, [loadApplicants]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Fire DAYWORK.VIEWED when a card is shown
   const viewedRef = useRef<Set<string>>(new Set());
@@ -128,7 +134,16 @@ export default function ReviewApplicantsPage() {
             </div>
           )}
 
-          {!loading && applicants.length === 0 && (
+          {!loading && error && (
+            <div className="flex flex-col items-center gap-2 pt-20 text-center">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="outline" size="sm" onClick={loadApplicants}>
+                Retry
+              </Button>
+            </div>
+          )}
+
+          {!loading && !error && applicants.length === 0 && (
             <Card className="w-full">
               <CardHeader>
                 <div className="flex items-center gap-2">

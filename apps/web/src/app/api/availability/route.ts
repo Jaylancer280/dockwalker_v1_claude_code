@@ -143,8 +143,8 @@ export async function POST(request: Request) {
  * Body: { dates: string[] } — array of YYYY-MM-DD
  */
 export async function DELETE(request: Request) {
-  const supabase = await createClient();
   const serviceClient = await createServiceClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
@@ -161,12 +161,25 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'dates array is required' }, { status: 400 });
   }
 
-  // Delete by setting expiry to now (keeps event log intact, expires immediately)
-  const { error } = await serviceClient
-    .from('availability_windows')
-    .update({ expires_at: new Date().toISOString() })
-    .eq('person_id', user.id)
-    .in('date', dates);
+  const invalidDate = dates.some((date) => {
+    if (typeof date !== 'string') {
+      return true;
+    }
+
+    return Number.isNaN(new Date(date).getTime());
+  });
+
+  if (invalidDate) {
+    return NextResponse.json(
+      { error: 'All dates must be valid YYYY-MM-DD strings' },
+      { status: 400 },
+    );
+  }
+
+  const { error } = await serviceClient.rpc('clear_availability_dates', {
+    p_person_id: user.id,
+    p_dates: dates,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

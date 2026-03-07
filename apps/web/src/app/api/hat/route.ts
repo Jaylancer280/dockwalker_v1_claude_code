@@ -49,10 +49,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, hat });
   }
 
-  const { error } = await serviceClient
-    .from('persons')
-    .update({ current_hat: hat })
-    .eq('id', user.id);
+  const { error } = await serviceClient.rpc('append_event', {
+    p_event_type: 'PERSON.HAT_CHANGED',
+    p_aggregate_id: user.id,
+    p_aggregate_type: 'person',
+    p_role_context: hat,
+    p_payload: {
+      current_hat: hat,
+    },
+    p_person_id: user.id,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -4,7 +4,6 @@ import { GET, POST, DELETE } from '@/app/api/availability/route';
 const mockGetUser = vi.fn();
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-const mockFromService = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
@@ -13,7 +12,6 @@ vi.mock('@/lib/supabase/server', () => ({
   })),
   createServiceClient: vi.fn(async () => ({
     rpc: mockRpc,
-    from: mockFromService,
   })),
 }));
 
@@ -218,13 +216,7 @@ describe('DELETE /api/availability', () => {
 
   it('returns 200 on successful clear', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromService.mockReturnValueOnce({
-      update: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          in: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      }),
-    });
+    mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await DELETE(
       makeDeleteRequest({ dates: ['2026-04-01', '2026-04-02'] }),
@@ -232,5 +224,21 @@ describe('DELETE /api/availability', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.cleared).toBe(2);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'clear_availability_dates',
+      expect.objectContaining({
+        p_person_id: 'u1',
+        p_dates: ['2026-04-01', '2026-04-02'],
+      }),
+    );
+  });
+
+  it('returns 400 when a date is invalid', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+
+    const res = await DELETE(
+      makeDeleteRequest({ dates: ['not-a-date'] }),
+    );
+    expect(res.status).toBe(400);
   });
 });

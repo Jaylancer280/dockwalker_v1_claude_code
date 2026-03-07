@@ -38,7 +38,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   }
 
   try {
-    // Complete the daywork
     const { error: eventError } = await serviceClient.rpc('append_event', {
       p_event_type: 'DAYWORK.COMPLETED',
       p_aggregate_id: dayworkId,
@@ -50,28 +49,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
 
     if (eventError) {
       throw new Error(eventError.message);
-    }
-
-    // Mark all active engagements for this daywork as completed
-    const { error: engError } = await serviceClient
-      .from('active_engagements')
-      .update({ status: 'completed' })
-      .eq('daywork_id', dayworkId)
-      .eq('status', 'active');
-
-    if (engError) {
-      throw new Error(engError.message);
-    }
-
-    // Mark all accepted applications as completed
-    const { error: appError } = await serviceClient
-      .from('applications')
-      .update({ status: 'completed', updated_at: new Date().toISOString() })
-      .eq('daywork_id', dayworkId)
-      .eq('status', 'accepted');
-
-    if (appError) {
-      throw new Error(appError.message);
     }
 
     return NextResponse.json({ success: true });

@@ -133,7 +133,15 @@ describe('POST /api/daywork/:id/apply', () => {
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith(
       'append_event',
-      expect.objectContaining({ p_event_type: 'DAYWORK.APPLIED' }),
+      expect.objectContaining({
+        p_event_type: 'DAYWORK.APPLIED',
+        p_payload: expect.objectContaining({
+          id: expect.any(String),
+          daywork_id: 'd1',
+          crew_person_id: 'u1',
+          message: 'Keen!',
+        }),
+      }),
     );
   });
 });

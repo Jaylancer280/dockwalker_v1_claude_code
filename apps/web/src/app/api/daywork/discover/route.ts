@@ -1,6 +1,39 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+interface DiscoverDayworkRow {
+  id: string;
+  vessel_id: string;
+  start_date: string;
+  end_date: string;
+  working_days: number;
+  day_rate: number | null;
+  meals: string[];
+  notes: string | null;
+  status: string;
+  created_at: string;
+  poster_person_id: string;
+  yacht_roles: { id: string; name: string; department: string } | null;
+  ports: {
+    id: string;
+    name: string;
+    cities: { name: string; regions: { name: string } } | null;
+  } | null;
+  experience_brackets: { label: string } | null;
+  required_certification_ids: string[] | null;
+}
+
+interface PublicVesselRow {
+  id: string;
+  imo_number: string | null;
+  name: string;
+  vessel_type: string;
+  size_band_id: string;
+  size_band_label: string | null;
+  nda_flag: boolean;
+  owner_person_id: string;
+}
+
 /**
  * GET /api/daywork/discover?sort=recency|proximity|tenure&roleId=&portId=
  * Returns active daywork postings for crew discovery.
@@ -55,11 +88,10 @@ export async function GET(request: Request) {
     .from('dayworks')
     .select(
       `
-      id, start_date, end_date, working_days, day_rate, meals, notes, status, created_at,
+      id, vessel_id, start_date, end_date, working_days, day_rate, meals, notes, status, created_at,
       poster_person_id,
       yacht_roles(id, name, department),
       ports(id, name, cities(name, regions(name))),
-      vessels(name, nda_flag, vessel_type, vessel_size_bands(label)),
       experience_brackets(label),
       required_certification_ids
     `,
@@ -95,7 +127,7 @@ export async function GET(request: Request) {
   }
 
   // Client-side filtering
-  const filtered = (dayworks ?? []).filter((dw) => {
+  const filtered = ((dayworks ?? []) as unknown as DiscoverDayworkRow[]).filter((dw) => {
     // Exclude already interacted
     if (excludedIds.includes(dw.id)) return false;
 
@@ -120,5 +152,40 @@ export async function GET(request: Request) {
     return true;
   });
 
-  return NextResponse.json({ dayworks: filtered });
+  const vesselIds = [...new Set(filtered.map((dw) => dw.vessel_id).filter(Boolean))];
+  const vesselEntries: Array<[string, PublicVesselRow | null]> = await Promise.all(
+    vesselIds.map(async (vesselId): Promise<[string, PublicVesselRow | null]> => {
+      const { data, error } = await supabase.rpc('get_vessel_public', {
+        p_vessel_id: vesselId,
+      });
+
+      if (error) {
+        return [vesselId, null];
+      }
+
+      const vessel = Array.isArray(data) ? data[0] : data;
+
+      return vessel ? [vesselId, vessel as PublicVesselRow] : [vesselId, null];
+    }),
+  );
+
+  const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
+
+  const hydrated = filtered.map((daywork) => {
+    const vessel = vesselMap.get(daywork.vessel_id);
+
+    return {
+      ...daywork,
+      vessels: vessel
+        ? {
+            name: vessel.name,
+            nda_flag: vessel.nda_flag,
+            vessel_type: vessel.vessel_type,
+            vessel_size_bands: vessel.size_band_label ? { label: vessel.size_band_label } : null,
+          }
+        : null,
+    };
+  });
+
+  return NextResponse.json({ dayworks: hydrated });
 }

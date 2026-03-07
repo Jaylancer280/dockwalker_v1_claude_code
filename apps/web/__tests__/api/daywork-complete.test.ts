@@ -4,7 +4,6 @@ import { POST } from '@/app/api/daywork/[id]/complete/route';
 const mockGetUser = vi.fn();
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-const mockUpdate = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
@@ -13,9 +12,6 @@ vi.mock('@/lib/supabase/server', () => ({
   })),
   createServiceClient: vi.fn(async () => ({
     rpc: mockRpc,
-    from: vi.fn(() => ({
-      update: mockUpdate,
-    })),
   })),
 }));
 
@@ -34,11 +30,6 @@ const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 describe('POST /api/daywork/:id/complete', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUpdate.mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ error: null }),
-      }),
-    });
   });
 
   it('returns 401 when unauthenticated', async () => {

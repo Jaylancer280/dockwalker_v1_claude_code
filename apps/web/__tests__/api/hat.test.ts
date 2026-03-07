@@ -6,8 +6,7 @@ const mockGetUser = vi.fn();
 const mockSelect = vi.fn();
 const mockEq = vi.fn();
 const mockSingle = vi.fn();
-const mockUpdate = vi.fn();
-const mockUpdateEq = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({
@@ -17,9 +16,7 @@ vi.mock('@/lib/supabase/server', () => ({
     })),
   })),
   createServiceClient: vi.fn(async () => ({
-    from: vi.fn(() => ({
-      update: mockUpdate,
-    })),
+    rpc: mockRpc,
   })),
 }));
 
@@ -39,8 +36,6 @@ describe('POST /api/hat', () => {
     mockSelect.mockReturnValue({ eq: mockEq });
     mockEq.mockReturnValue({ single: mockSingle });
 
-    // Default chain: from().update().eq()
-    mockUpdate.mockReturnValue({ eq: mockUpdateEq });
   });
 
   it('returns 401 when unauthenticated', async () => {
@@ -87,8 +82,7 @@ describe('POST /api/hat', () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.hat).toBe('employer');
-    // Should not have called update
-    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockRpc).not.toHaveBeenCalled();
   });
 
   it('returns 200 and switches hat for crew identity', async () => {
@@ -96,12 +90,19 @@ describe('POST /api/hat', () => {
     mockSingle.mockResolvedValue({
       data: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
     });
-    mockUpdateEq.mockResolvedValue({ error: null });
+    mockRpc.mockResolvedValue({ error: null });
 
     const res = await POST(makeRequest({ hat: 'employer' }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.hat).toBe('employer');
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'PERSON.HAT_CHANGED',
+        p_payload: { current_hat: 'employer' },
+      }),
+    );
   });
 });

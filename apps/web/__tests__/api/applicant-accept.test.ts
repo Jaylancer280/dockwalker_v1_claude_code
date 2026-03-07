@@ -184,6 +184,10 @@ describe('POST /api/daywork/:id/applicants/:crewId/accept', () => {
       makeParams('d1', 'c1'),
     );
     expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenNthCalledWith(1, 'check_no_overlap', {
+      p_crew_person_id: 'c1',
+      p_daywork_id: 'd1',
+    });
     expect(mockRpc).toHaveBeenCalledWith(
       'append_event',
       expect.objectContaining({ p_event_type: 'DAYWORK.ACCEPTED' }),

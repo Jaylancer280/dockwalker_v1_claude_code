@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Trash2,
   Play,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,27 +56,32 @@ export default function MyPostingsPage() {
   const [completedPostings, setCompletedPostings] = useState<DayworkPosting[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [completing, setCompleting] = useState<string | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    const [activeRes, completedRes, templatesRes] = await Promise.all([
-      fetch('/api/daywork/mine?status=active').then((r) => r.json()),
-      fetch('/api/daywork/mine?status=completed,cancelled').then((r) => r.json()),
-      fetch('/api/daywork/templates').then((r) => r.json()),
-    ]);
-    if (activeRes.dayworks) setActivePostings(activeRes.dayworks);
-    if (completedRes.dayworks) setCompletedPostings(completedRes.dayworks);
-    if (templatesRes.templates) setTemplates(templatesRes.templates);
-    setLoading(false);
+    try {
+      const [activeRes, completedRes, templatesRes] = await Promise.all([
+        fetch('/api/daywork/mine?status=active').then((r) => r.json()),
+        fetch('/api/daywork/mine?status=completed,cancelled').then((r) => r.json()),
+        fetch('/api/daywork/templates').then((r) => r.json()),
+      ]);
+      if (activeRes.dayworks) setActivePostings(activeRes.dayworks);
+      if (completedRes.dayworks) setCompletedPostings(completedRes.dayworks);
+      if (templatesRes.templates) setTemplates(templatesRes.templates);
+      setError(null);
+    } catch {
+      setError('Failed to load data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadData();
   }, [loadData]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleCancel(dayworkId: string) {
     setCancelling(dayworkId);
@@ -206,6 +212,15 @@ export default function MyPostingsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
+        {error && (
+          <div className="mb-4 flex flex-col items-center gap-2 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={loadData}>
+              Retry
+            </Button>
+          </div>
+        )}
+
         <Tabs defaultValue="active">
           <TabsList className="w-full">
             <TabsTrigger value="active" className="flex-1">
@@ -220,7 +235,11 @@ export default function MyPostingsPage() {
           </TabsList>
 
           <TabsContent value="active" className="flex flex-col gap-3 pt-2">
-            {loading && <p className="text-center text-sm text-muted-foreground">Loading...</p>}
+            {loading && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
             {!loading && activePostings.length === 0 && (
               <Card>
                 <CardHeader>
@@ -236,7 +255,11 @@ export default function MyPostingsPage() {
           </TabsContent>
 
           <TabsContent value="completed" className="flex flex-col gap-3 pt-2">
-            {loading && <p className="text-center text-sm text-muted-foreground">Loading...</p>}
+            {loading && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
             {!loading && completedPostings.length === 0 && (
               <Card>
                 <CardHeader>
@@ -254,7 +277,11 @@ export default function MyPostingsPage() {
           </TabsContent>
 
           <TabsContent value="templates" className="flex flex-col gap-3 pt-2">
-            {loading && <p className="text-center text-sm text-muted-foreground">Loading...</p>}
+            {loading && (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
             {!loading && templates.length === 0 && (
               <Card>
                 <CardHeader>

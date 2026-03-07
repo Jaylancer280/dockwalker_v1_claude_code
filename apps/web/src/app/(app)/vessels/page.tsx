@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Ship, Plus, ShieldAlert } from 'lucide-react';
+import { Ship, Plus, ShieldAlert, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,16 +45,23 @@ export default function VesselsPage() {
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [sizeBands, setSizeBands] = useState<SizeBand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const loadVessels = useCallback(async () => {
-    const res = await fetch('/api/vessels');
-    const data = await res.json();
-    if (data.vessels) setVessels(data.vessels);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/vessels');
+      if (!res.ok) throw new Error('Failed to load vessels');
+      const data = await res.json();
+      if (data.vessels) setVessels(data.vessels);
+      setError(null);
+    } catch {
+      setError('Failed to load vessels. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- initial data load */
   useEffect(() => {
     loadVessels();
     async function loadSizeBands() {
@@ -67,7 +74,6 @@ export default function VesselsPage() {
     }
     loadSizeBands();
   }, [loadVessels]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleCreated() {
     setDialogOpen(false);
@@ -100,7 +106,20 @@ export default function VesselsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-6">
-        {loading && <p className="text-center text-sm text-muted-foreground">Loading vessels...</p>}
+        {loading && (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {error && (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={loadVessels}>
+              Retry
+            </Button>
+          </div>
+        )}
 
         {!loading && vessels.length === 0 && (
           <Card>

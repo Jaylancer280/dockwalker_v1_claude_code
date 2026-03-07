@@ -88,22 +88,24 @@ describe('POST /api/onboarding', () => {
   it('returns 200 on successful onboarding', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
     mockFromAuth.mockReturnValueOnce(makeChain(null)); // No existing person
-    mockRpc
-      .mockResolvedValueOnce({ error: null }) // PERSON.CREATED
-      .mockResolvedValueOnce({ error: null }); // PROFILE.CREATED
+    mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
 
-    // Verify both events were emitted
-    expect(mockRpc).toHaveBeenCalledTimes(2);
-    expect(mockRpc).toHaveBeenCalledWith('append_event', expect.objectContaining({
-      p_event_type: 'PERSON.CREATED',
-    }));
-    expect(mockRpc).toHaveBeenCalledWith('append_event', expect.objectContaining({
-      p_event_type: 'PROFILE.CREATED',
-    }));
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'onboard_person',
+      expect.objectContaining({
+        p_identity_type: 'crew',
+        p_current_hat: 'crew',
+        p_person_id: 'u1',
+        p_profile: expect.objectContaining({
+          display_name: 'Test User',
+        }),
+      }),
+    );
   });
 });

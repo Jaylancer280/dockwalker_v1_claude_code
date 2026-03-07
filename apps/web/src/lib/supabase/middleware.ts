@@ -29,6 +29,11 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
+  // API routes handle their own auth and onboarding errors.
+  if (path.startsWith('/api/')) {
+    return supabaseResponse;
+  }
+
   // Public routes that don't require auth
   const publicRoutes = ['/auth/login', '/auth/signup', '/auth/callback'];
   const isPublicRoute = publicRoutes.some((route) => path.startsWith(route));
@@ -49,9 +54,12 @@ export async function updateSession(request: NextRequest) {
 
   // Authenticated: check onboarding status
   if (user && !isPublicRoute && !path.startsWith('/onboarding')) {
-    const { data: person } = await supabase.from('persons').select('id').eq('id', user.id).single();
+    const [{ data: person }, { data: profile }] = await Promise.all([
+      supabase.from('persons').select('id').eq('id', user.id).single(),
+      supabase.from('profiles').select('person_id').eq('person_id', user.id).single(),
+    ]);
 
-    if (!person) {
+    if (!person || !profile) {
       const url = request.nextUrl.clone();
       url.pathname = '/onboarding';
       return NextResponse.redirect(url);

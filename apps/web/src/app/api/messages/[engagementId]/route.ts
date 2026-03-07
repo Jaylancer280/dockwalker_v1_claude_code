@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { randomUUID } from 'crypto';
 
 /**
  * GET /api/messages/:engagementId
@@ -107,6 +108,7 @@ export async function POST(
   }
 
   const trimmed = content.trim();
+  const messageId = randomUUID();
 
   try {
     const { error: eventError } = await serviceClient.rpc('append_event', {
@@ -115,6 +117,7 @@ export async function POST(
       p_aggregate_type: 'message',
       p_role_context: engagement.crew_person_id === user.id ? 'crew' : 'employer',
       p_payload: {
+        id: messageId,
         engagement_id: engagementId,
         sender_person_id: user.id,
         content: trimmed,

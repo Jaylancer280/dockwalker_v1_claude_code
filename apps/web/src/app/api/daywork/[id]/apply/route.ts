@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { randomUUID } from 'crypto';
 
 /**
  * POST /api/daywork/:id/apply
@@ -65,6 +66,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const body = await request.json().catch(() => ({}));
   const message = typeof body.message === 'string' ? body.message.slice(0, 250) : undefined;
+  const applicationId = randomUUID();
 
   try {
     const { error: eventError } = await serviceClient.rpc('append_event', {
@@ -73,6 +75,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       p_aggregate_type: 'application',
       p_role_context: 'crew',
       p_payload: {
+        id: applicationId,
         daywork_id: dayworkId,
         crew_person_id: user.id,
         ...(message ? { message } : {}),

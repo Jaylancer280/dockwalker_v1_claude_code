@@ -198,6 +198,10 @@ describe('POST /api/messages/:engagementId', () => {
       expect.objectContaining({
         p_event_type: 'MESSAGE.SENT',
         p_role_context: 'crew',
+        p_payload: expect.objectContaining({
+          id: expect.any(String),
+          content: 'Hello employer!',
+        }),
       }),
     );
   });

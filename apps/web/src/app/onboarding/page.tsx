@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Anchor, Building2, ChevronLeft, ChevronRight, Ship, User } from 'lucide-react';
+import { Anchor, Building2, ChevronLeft, ChevronRight, Loader2, Ship, User } from 'lucide-react';
 
 type IdentityType = 'crew' | 'agent';
 type HatType = 'crew' | 'employer' | 'agent';
@@ -68,8 +68,10 @@ export default function OnboardingPage() {
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
   const [ports, setPorts] = useState<PortItem[]>([]);
+  const [lookupsLoaded, setLookupsLoaded] = useState(false);
 
   useEffect(() => {
+    if (step !== 'profile' || lookupsLoaded) return;
     async function loadLookups() {
       const supabase = createClient();
       const [rolesRes, certsRes, bracketsRes, sizesRes, portsRes] = await Promise.all([
@@ -87,9 +89,12 @@ export default function OnboardingPage() {
       if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
       if (sizesRes.data) setSizeBands(sizesRes.data.map((s) => ({ ...s, name: s.label })));
       if (portsRes.data) setPorts(portsRes.data as unknown as PortItem[]);
+      setLookupsLoaded(true);
     }
     loadLookups();
-  }, []);
+  }, [step, lookupsLoaded]);
+
+  const lookupsLoading = step === 'profile' && !lookupsLoaded;
 
   function toggleArrayItem(arr: string[], id: string): string[] {
     return arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
@@ -99,37 +104,42 @@ export default function OnboardingPage() {
     setError(null);
     setLoading(true);
 
-    const currentHat = identityType === 'agent' ? 'agent' : (hatOverride ?? hat);
+    try {
+      const currentHat = identityType === 'agent' ? 'agent' : (hatOverride ?? hat);
 
-    const res = await fetch('/api/onboarding', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        identityType,
-        currentHat,
-        profile: {
-          displayName,
-          primaryRoleId: primaryRoleId || undefined,
-          certificationIds,
-          experienceBracketId: experienceBracketId || undefined,
-          vesselSizeExposureIds,
-          bio: bio || undefined,
-          agencyName: agencyName || undefined,
-          roleSpecializationIds,
-          locationPortId: locationPortId || undefined,
-        },
-      }),
-    });
+      const res = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identityType,
+          currentHat,
+          profile: {
+            displayName,
+            primaryRoleId: primaryRoleId || undefined,
+            certificationIds,
+            experienceBracketId: experienceBracketId || undefined,
+            vesselSizeExposureIds,
+            bio: bio || undefined,
+            agencyName: agencyName || undefined,
+            roleSpecializationIds,
+            locationPortId: locationPortId || undefined,
+          },
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error || 'Something went wrong');
+      if (!res.ok) {
+        setError(data.error || 'Something went wrong');
+        return;
+      }
+
+      router.push('/profile');
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push('/dashboard');
   }
 
   // ── Step 1: Identity type ──────────────────────────────────────────────────
@@ -214,6 +224,13 @@ export default function OnboardingPage() {
                 : 'Set up your agency details'}
             </p>
           </div>
+
+          {lookupsLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading form data...
+            </div>
+          )}
 
           <div className="flex flex-col gap-4">
             {/* Display name — shared */}
@@ -431,11 +448,19 @@ export default function OnboardingPage() {
             className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent disabled:opacity-50"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sea text-white">
-              <User className="h-6 w-6" />
+              {loading && hat === 'crew' ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <User className="h-6 w-6" />
+              )}
             </div>
             <div>
               <p className="font-semibold">Looking for daywork</p>
-              <p className="text-sm text-muted-foreground">Browse and apply to jobs</p>
+              <p className="text-sm text-muted-foreground">
+                {loading && hat === 'crew'
+                  ? 'Setting up your profile...'
+                  : 'Browse and apply to jobs'}
+              </p>
             </div>
           </button>
 
@@ -448,19 +473,24 @@ export default function OnboardingPage() {
             className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent disabled:opacity-50"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-navy-light text-white">
-              <Ship className="h-6 w-6" />
+              {loading && hat === 'employer' ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <Ship className="h-6 w-6" />
+              )}
             </div>
             <div>
               <p className="font-semibold">Looking to hire crew</p>
-              <p className="text-sm text-muted-foreground">Post daywork and find crew</p>
+              <p className="text-sm text-muted-foreground">
+                {loading && hat === 'employer'
+                  ? 'Setting up your profile...'
+                  : 'Post daywork and find crew'}
+              </p>
             </div>
           </button>
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {loading && (
-          <p className="text-center text-sm text-muted-foreground">Setting up your profile...</p>
-        )}
       </div>
     </main>
   );
