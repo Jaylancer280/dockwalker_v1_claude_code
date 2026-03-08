@@ -1,20 +1,14 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
 
 /**
  * GET /api/daywork/templates
  * Lists the authenticated user's daywork templates.
  */
 export async function GET() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   const { data: templates, error } = await supabase
     .from('daywork_templates')
@@ -22,7 +16,7 @@ export async function GET() {
       `
       id, name, vessel_id, role_id, location_port_id,
       working_days, required_certification_ids, experience_bracket_id,
-      day_rate, meals, notes, created_at,
+      day_rate, currency, meals, notes, created_at,
       yacht_roles(name),
       ports(name, cities(name, regions(name))),
       vessels(name)
@@ -43,15 +37,9 @@ export async function GET() {
  * Creates a new daywork template.
  */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   const body = await request.json();
 
@@ -67,6 +55,7 @@ export async function POST(request: Request) {
       required_certification_ids: body.requiredCertificationIds || [],
       experience_bracket_id: body.experienceBracketId || null,
       day_rate: body.dayRate || null,
+      currency: body.currency || 'EUR',
       meals: body.meals || [],
       notes: body.notes || null,
     })

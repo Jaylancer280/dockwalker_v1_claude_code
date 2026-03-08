@@ -1,26 +1,28 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { AggregateType, EventType, RoleContext } from '@dockwalker/types';
+import type { AggregateType, EventPayloadMap, RoleContext } from '@dockwalker/types';
 
-export interface AppendEventParams {
-  eventType: EventType;
+export type AppendEventParams<T extends keyof EventPayloadMap> = {
+  eventType: T;
   aggregateId: string;
   aggregateType: AggregateType;
   roleContext: RoleContext;
-  payload: Record<string, unknown>;
+  payload: EventPayloadMap[T];
   personId: string;
-}
+};
 
 /**
  * Append an event to the event log and update projections atomically.
  * Calls the Postgres `append_event` function which runs both operations
  * in the same transaction.
  *
+ * Payload is typed per event — the compiler rejects mismatched fields.
+ *
  * @returns The event ID on success
  * @throws Error if the RPC call fails
  */
-export async function appendEvent(
+export async function appendEvent<T extends keyof EventPayloadMap>(
   supabase: SupabaseClient,
-  params: AppendEventParams,
+  params: AppendEventParams<T>,
 ): Promise<string> {
   const { data, error } = await supabase.rpc('append_event', {
     p_event_type: params.eventType,

@@ -49,6 +49,7 @@ interface Template {
   required_certification_ids: string[];
   experience_bracket_id: string | null;
   day_rate: number | null;
+  currency: string | null;
   meals: string[];
   notes: string | null;
 }
@@ -71,6 +72,7 @@ export default function PostDayworkPage() {
   const [requiredCertIds, setRequiredCertIds] = useState<string[]>([]);
   const [experienceBracketId, setExperienceBracketId] = useState('');
   const [dayRate, setDayRate] = useState('');
+  const [currency, setCurrency] = useState('EUR');
   const [meals, setMeals] = useState<MealOption[]>([]);
   const [notes, setNotes] = useState('');
 
@@ -94,6 +96,7 @@ export default function PostDayworkPage() {
     if (t.required_certification_ids?.length) setRequiredCertIds(t.required_certification_ids);
     if (t.experience_bracket_id) setExperienceBracketId(t.experience_bracket_id);
     if (t.day_rate) setDayRate(String(t.day_rate));
+    if (t.currency) setCurrency(t.currency);
     if (t.meals?.length) setMeals(t.meals as MealOption[]);
     if (t.notes) setNotes(t.notes);
   }
@@ -157,6 +160,7 @@ export default function PostDayworkPage() {
         requiredCertificationIds: requiredCertIds,
         experienceBracketId: experienceBracketId || null,
         dayRate: dayRate || null,
+        currency,
         meals,
         notes: notes || null,
       }),
@@ -201,7 +205,8 @@ export default function PostDayworkPage() {
         workingDays: parseInt(workingDays, 10),
         requiredCertificationIds: requiredCertIds,
         experienceBracketId: experienceBracketId || undefined,
-        dayRate: dayRate || undefined,
+        dayRate,
+        currency,
         meals,
         notes: notes || undefined,
       }),
@@ -368,22 +373,30 @@ export default function PostDayworkPage() {
           </div>
         </div>
 
-        {/* Day rate */}
+        {/* Day rate + currency */}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="dayRate">Day rate (optional)</Label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-              &euro;
-            </span>
+          <Label htmlFor="dayRate">Day rate</Label>
+          <div className="flex gap-2">
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger className="w-28 shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="EUR">&euro; EUR</SelectItem>
+                <SelectItem value="USD">$ USD</SelectItem>
+                <SelectItem value="GBP">&pound; GBP</SelectItem>
+                <SelectItem value="AED">د.إ AED</SelectItem>
+              </SelectContent>
+            </Select>
             <Input
               id="dayRate"
               type="number"
-              min="0"
+              min="1"
               step="0.01"
               placeholder="e.g. 250"
-              className="pl-7"
               value={dayRate}
               onChange={(e) => setDayRate(e.target.value)}
+              required
             />
           </div>
         </div>

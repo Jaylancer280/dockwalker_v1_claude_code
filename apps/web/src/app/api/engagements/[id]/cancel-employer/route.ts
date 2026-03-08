@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * POST /api/engagements/:id/cancel-employer
@@ -8,16 +9,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: engagementId } = await params;
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase, serviceClient } = guard.value;
 
   const { data: engagement } = await supabase
     .from('active_engagements')
@@ -38,22 +32,18 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   }
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'ENGAGEMENT.CANCELLED_BY_EMPLOYER',
-      p_aggregate_id: `${engagement.crew_person_id}:${engagement.daywork_id}`,
-      p_aggregate_type: 'application',
-      p_role_context: 'employer',
-      p_payload: {
+    await appendEvent(serviceClient, {
+      eventType: 'ENGAGEMENT.CANCELLED_BY_EMPLOYER',
+      aggregateId: `${engagement.crew_person_id}:${engagement.daywork_id}`,
+      aggregateType: 'application',
+      roleContext: 'employer',
+      payload: {
         engagement_id: engagementId,
         daywork_id: engagement.daywork_id,
         crew_person_id: engagement.crew_person_id,
       },
-      p_person_id: user.id,
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

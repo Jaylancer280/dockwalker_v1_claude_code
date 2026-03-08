@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * POST /api/hat
@@ -11,26 +12,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
  * - Agent identity_type can only wear 'agent' (cannot switch)
  */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: person } = await supabase
-    .from('persons')
-    .select('id, identity_type, current_hat')
-    .eq('id', user.id)
-    .single();
-
-  if (!person) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, person, serviceClient } = guard.value;
 
   const body = await request.json();
   const { hat } = body;
@@ -49,19 +33,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, hat });
   }
 
-  const { error } = await serviceClient.rpc('append_event', {
-    p_event_type: 'PERSON.HAT_CHANGED',
-    p_aggregate_id: user.id,
-    p_aggregate_type: 'person',
-    p_role_context: hat,
-    p_payload: {
-      current_hat: hat,
-    },
-    p_person_id: user.id,
-  });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    await appendEvent(serviceClient, {
+      eventType: 'PERSON.HAT_CHANGED',
+      aggregateId: user.id,
+      aggregateType: 'person',
+      roleContext: hat,
+      payload: {
+        current_hat: hat,
+      },
+      personId: user.id,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to switch hat';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, hat });

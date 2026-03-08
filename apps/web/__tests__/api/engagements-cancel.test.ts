@@ -1,20 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { POST as cancelCrew } from '@/app/api/engagements/[id]/cancel-crew/route';
 import { POST as cancelEmployer } from '@/app/api/engagements/[id]/cancel-employer/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-  })),
-}));
 
 function makeChain(data: unknown) {
   return {
@@ -26,6 +21,19 @@ function makeChain(data: unknown) {
   };
 }
 
+function guardOk() {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: mockRpc },
+    },
+  };
+}
+
 const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 describe('POST /api/engagements/:id/cancel-crew', () => {
@@ -34,84 +42,55 @@ describe('POST /api/engagements/:id/cancel-crew', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
-    const res = await cancelCrew(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelCrew(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when engagement not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(null));
 
-    const res = await cancelCrew(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelCrew(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(404);
   });
 
   it('returns 403 when user is not the crew member', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
-      makeChain({
-        id: 'e1',
-        crew_person_id: 'other',
-        daywork_id: 'd1',
-        status: 'active',
-      }),
+      makeChain({ id: 'e1', crew_person_id: 'other', daywork_id: 'd1', status: 'active' }),
     );
 
-    const res = await cancelCrew(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelCrew(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(403);
   });
 
   it('returns 400 when engagement not active', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
-      makeChain({
-        id: 'e1',
-        crew_person_id: 'u1',
-        daywork_id: 'd1',
-        status: 'completed',
-      }),
+      makeChain({ id: 'e1', crew_person_id: 'u1', daywork_id: 'd1', status: 'completed' }),
     );
 
-    const res = await cancelCrew(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelCrew(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(400);
   });
 
   it('returns 200 on successful crew cancellation', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
-      makeChain({
-        id: 'e1',
-        crew_person_id: 'u1',
-        daywork_id: 'd1',
-        status: 'active',
-      }),
+      makeChain({ id: 'e1', crew_person_id: 'u1', daywork_id: 'd1', status: 'active' }),
     );
     mockRpc.mockResolvedValueOnce({ error: null });
 
-    const res = await cancelCrew(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelCrew(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith(
       'append_event',
-      expect.objectContaining({
-        p_event_type: 'ENGAGEMENT.CANCELLED_BY_CREW',
-      }),
+      expect.objectContaining({ p_event_type: 'ENGAGEMENT.CANCELLED_BY_CREW' }),
     );
   });
 });
@@ -122,87 +101,64 @@ describe('POST /api/engagements/:id/cancel-employer', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
-    const res = await cancelEmployer(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelEmployer(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when engagement not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(null));
 
-    const res = await cancelEmployer(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelEmployer(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(404);
   });
 
   it('returns 403 when user is not the employer', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
-        id: 'e1',
-        crew_person_id: 'c1',
-        employer_person_id: 'other',
-        daywork_id: 'd1',
-        status: 'active',
+        id: 'e1', crew_person_id: 'c1', employer_person_id: 'other',
+        daywork_id: 'd1', status: 'active',
       }),
     );
 
-    const res = await cancelEmployer(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelEmployer(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(403);
   });
 
   it('returns 400 when engagement not active', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
-        id: 'e1',
-        crew_person_id: 'c1',
-        employer_person_id: 'u1',
-        daywork_id: 'd1',
-        status: 'cancelled',
+        id: 'e1', crew_person_id: 'c1', employer_person_id: 'u1',
+        daywork_id: 'd1', status: 'cancelled',
       }),
     );
 
-    const res = await cancelEmployer(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelEmployer(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(400);
   });
 
   it('returns 200 on successful employer cancellation', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
-        id: 'e1',
-        crew_person_id: 'c1',
-        employer_person_id: 'u1',
-        daywork_id: 'd1',
-        status: 'active',
+        id: 'e1', crew_person_id: 'c1', employer_person_id: 'u1',
+        daywork_id: 'd1', status: 'active',
       }),
     );
     mockRpc.mockResolvedValueOnce({ error: null });
 
-    const res = await cancelEmployer(
-      new Request('http://localhost'),
-      makeParams('e1'),
-    );
+    const res = await cancelEmployer(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledWith(
       'append_event',
-      expect.objectContaining({
-        p_event_type: 'ENGAGEMENT.CANCELLED_BY_EMPLOYER',
-      }),
+      expect.objectContaining({ p_event_type: 'ENGAGEMENT.CANCELLED_BY_EMPLOYER' }),
     );
   });
 });

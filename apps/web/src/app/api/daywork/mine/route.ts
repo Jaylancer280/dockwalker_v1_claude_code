@@ -1,28 +1,22 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
 
 /**
  * GET /api/daywork/mine
  * Returns the authenticated user's daywork postings with related data.
- * Optional query param: ?status=active or ?status=completed,cancelled
+ * Optional query params: ?status=active&roleId=&portId=
  */
 export async function GET(request: Request) {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   let query = supabase
     .from('dayworks')
     .select(
       `
       id, role_context, start_date, end_date, working_days,
-      day_rate, meals, notes, status, created_at,
+      day_rate, currency, meals, notes, status, created_at,
       yacht_roles(name),
       ports(name, cities(name, regions(name))),
       vessels(name, nda_flag, vessel_size_bands(label)),
@@ -37,6 +31,16 @@ export async function GET(request: Request) {
   if (statusFilter) {
     const statuses = statusFilter.split(',').map((s) => s.trim());
     query = query.in('status', statuses);
+  }
+
+  const filterRoleId = searchParams.get('roleId');
+  if (filterRoleId) {
+    query = query.eq('role_id', filterRoleId);
+  }
+
+  const filterPortId = searchParams.get('portId');
+  if (filterPortId) {
+    query = query.eq('location_port_id', filterPortId);
   }
 
   const { data: dayworks, error } = await query;

@@ -1,40 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { GET } from '@/app/api/daywork/[id]/applicants/route';
 
-const mockGetUser = vi.fn();
-const mockFromAuth = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
 
-function makeChain(data: unknown, error: unknown = null) {
+const mockFromAuth = vi.fn();
+
+function guardOk(overrides: Record<string, unknown> = {}) {
   return {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({ data, error }),
-        in: vi.fn().mockReturnValue({
-          order: vi.fn().mockResolvedValue({ data, error }),
-          gte: vi.fn().mockReturnValue({
-            lte: vi.fn().mockReturnValue({
-              gt: vi.fn().mockResolvedValue({ data, error }),
-            }),
-          }),
-        }),
-        eq: vi.fn().mockResolvedValue({ data, error }),
-      }),
-      in: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data, error }),
-        gte: vi.fn().mockReturnValue({
-          lte: vi.fn().mockReturnValue({
-            gt: vi.fn().mockResolvedValue({ data, error }),
-          }),
-        }),
-      }),
-    }),
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: vi.fn() },
+      ...overrides,
+    },
   };
 }
 
@@ -46,46 +31,80 @@ describe('GET /api/daywork/:id/applicants', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     expect(res.status).toBe(401);
   });
 
+  it('returns 409 when onboarding incomplete', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Complete onboarding before using this feature' },
+        { status: 409 },
+      ),
+    });
+
+    const res = await GET(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(409);
+  });
+
   it('returns 404 when daywork not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(makeChain(null));
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null }),
+        }),
+      }),
+    });
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     expect(res.status).toBe(404);
   });
 
   it('returns 403 when not the poster', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(
-      makeChain({
-        id: 'd1',
-        poster_person_id: 'other',
-        start_date: '2026-04-01',
-        end_date: '2026-04-05',
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'd1',
+              poster_person_id: 'other',
+              start_date: '2026-04-01',
+              end_date: '2026-04-05',
+            },
+          }),
+        }),
       }),
-    );
+    });
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     expect(res.status).toBe(403);
   });
 
   it('returns 200 with enriched applicants', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     // daywork query
-    mockFromAuth.mockReturnValueOnce(
-      makeChain({
-        id: 'd1',
-        poster_person_id: 'u1',
-        start_date: '2026-04-01',
-        end_date: '2026-04-05',
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'd1',
+              poster_person_id: 'u1',
+              start_date: '2026-04-01',
+              end_date: '2026-04-05',
+            },
+          }),
+        }),
       }),
-    );
+    });
     // applications query
     const apps = [
       { id: 'a1', crew_person_id: 'c1', status: 'applied', created_at: '2026-03-01' },

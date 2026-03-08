@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * POST /api/daywork/:id/applicants/:crewId/reject
@@ -10,16 +11,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string; crewId: string }> },
 ) {
   const { id: dayworkId, crewId } = await params;
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase, serviceClient } = guard.value;
 
   // Verify ownership
   const { data: daywork } = await supabase
@@ -48,7 +42,11 @@ export async function POST(
     return NextResponse.json({ error: 'Application not found' }, { status: 404 });
   }
 
-  if (application.status !== 'applied' && application.status !== 'viewed') {
+  if (
+    application.status !== 'applied' &&
+    application.status !== 'viewed' &&
+    application.status !== 'shortlisted'
+  ) {
     return NextResponse.json(
       { error: `Cannot reject a ${application.status} application` },
       { status: 400 },
@@ -56,21 +54,17 @@ export async function POST(
   }
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'DAYWORK.REJECTED',
-      p_aggregate_id: `${crewId}:${dayworkId}`,
-      p_aggregate_type: 'application',
-      p_role_context: 'employer',
-      p_payload: {
+    await appendEvent(serviceClient, {
+      eventType: 'DAYWORK.REJECTED',
+      aggregateId: `${crewId}:${dayworkId}`,
+      aggregateType: 'application',
+      roleContext: 'employer',
+      payload: {
         daywork_id: dayworkId,
         crew_person_id: crewId,
       },
-      p_person_id: user.id,
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

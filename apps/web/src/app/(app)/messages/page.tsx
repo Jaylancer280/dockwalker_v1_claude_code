@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { MessageSquare, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { MessageSquare, MapPin, Calendar, Loader2, ClipboardCheck, Archive } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Conversation {
@@ -13,6 +14,7 @@ interface Conversation {
   start_date: string;
   end_date: string;
   status: string;
+  has_rated: boolean;
   role: 'crew' | 'employer';
   dayworks: { yacht_roles: { name: string } | null; ports: { name: string } | null } | null;
   profiles: { display_name: string } | null;
@@ -23,9 +25,12 @@ interface Conversation {
   } | null;
 }
 
+type TabView = 'active' | 'history';
+
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabView>('active');
 
   const load = useCallback(async () => {
     const res = await fetch('/api/messages');
@@ -40,6 +45,17 @@ export default function MessagesPage() {
   }, [load]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Active: active engagements + completed that still need rating
+  const active = conversations.filter(
+    (c) => c.status === 'active' || (c.status === 'completed' && !c.has_rated),
+  );
+  // History: completed-and-rated + cancelled — read-only
+  const history = conversations.filter(
+    (c) => (c.status === 'completed' && c.has_rated) || c.status === 'cancelled',
+  );
+
+  const current = tab === 'active' ? active : history;
+
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
@@ -48,7 +64,33 @@ export default function MessagesPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-2 px-4 py-6">
+      {/* Tabs */}
+      <div className="mx-auto w-full max-w-lg border-b border-border">
+        <div className="flex">
+          <button
+            onClick={() => setTab('active')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === 'active'
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Active{active.length > 0 ? ` (${active.length})` : ''}
+          </button>
+          <button
+            onClick={() => setTab('history')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === 'history'
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            History{history.length > 0 ? ` (${history.length})` : ''}
+          </button>
+        </div>
+      </div>
+
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-2 px-4 py-4">
         {loading && (
           <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -56,42 +98,66 @@ export default function MessagesPage() {
           </div>
         )}
 
-        {!loading && conversations.length === 0 && (
+        {!loading && current.length === 0 && (
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="text-base">No messages yet</CardTitle>
+                {tab === 'active' ? (
+                  <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <Archive className="h-5 w-5 text-muted-foreground" />
+                )}
+                <CardTitle className="text-base">
+                  {tab === 'active' ? 'No active messages' : 'No past engagements'}
+                </CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Messages open after a daywork application is accepted. Once you have an active
-                engagement, you can chat here.
+                {tab === 'active'
+                  ? 'Messages open after a daywork application is accepted. Once you have an active engagement, you can chat here.'
+                  : 'Completed and cancelled engagements will appear here.'}
               </p>
             </CardContent>
           </Card>
         )}
 
-        {conversations.map((conv) => (
+        {current.map((conv) => (
           <Link key={conv.id} href={`/messages/${conv.id}`}>
-            <div className="flex items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent">
+            <div
+              className={`flex items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent ${
+                tab === 'history' ? 'opacity-75' : ''
+              }`}
+            >
               {/* Avatar placeholder */}
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
                 {(conv.profiles?.display_name ?? '?')[0].toUpperCase()}
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {/* Name + role context */}
-                <div className="flex items-center justify-between">
+                {/* Name + status */}
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold truncate">
                     {conv.profiles?.display_name ?? 'Unknown'}
                   </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {conv.last_message
-                      ? new Date(conv.last_message.created_at).toLocaleDateString()
-                      : ''}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {conv.status === 'completed' && !conv.has_rated && (
+                      <Badge variant="secondary" className="flex items-center gap-1 text-[10px]">
+                        <ClipboardCheck className="h-3 w-3" />
+                        Action needed
+                      </Badge>
+                    )}
+                    {conv.status === 'cancelled' && (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        Cancelled
+                      </Badge>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {conv.last_message
+                        ? new Date(conv.last_message.created_at).toLocaleDateString()
+                        : ''}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Job context */}

@@ -26,6 +26,18 @@ jobs:
       - name: Type Check
         run: npm run type-check
 
+  docs:
+    name: Documentation Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check governed docs are tracked
+        run: bash tests/check_governed_docs.sh
+
+      - name: Check schema version matches migration count
+        run: bash .husky/check-schema-version.sh
+
   test:
     name: Tests
     runs-on: ubuntu-latest
@@ -74,6 +86,12 @@ jobs:
             exit 1
           fi
           echo "All migrations have rollback files."
+
+      - name: Verify rollback execution cycle
+        run: bash tests/verify_rollback_cycle.sh
+
+      - name: Verify NDA vessel RLS privacy
+        run: bash tests/run_verify_nda_rls.sh
 
       - name: Stop Supabase
         if: always()

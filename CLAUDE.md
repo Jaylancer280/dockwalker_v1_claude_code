@@ -59,7 +59,7 @@ Every frontend slice must be Capacitor-compatible. iOS and Android are not post-
 
 Single profile per person. Every event carries `role_context` (`crew` | `employer` | `agent`). Role-gating: crew hat cannot post jobs, employer hat cannot apply.
 
-**Onboarding:** `PERSON.CREATED` -> `PROFILE.CREATED` -> hat selection -> user can act. `PROFILE.CREATED` required before any domain action, enforced at API layer.
+**Onboarding:** API onboarding runs through `public.onboard_person(...)`, which appends `PERSON.CREATED` and `PROFILE.CREATED` atomically. `PROFILE.CREATED` is required before any domain action, enforced at the API layer and app middleware.
 
 ## Vessel Entity
 
@@ -69,12 +69,14 @@ First-class entity with IMO as immutable identity anchor. Employers/agents save 
 
 ## Event-Sourced Architecture
 
-All state derived from append-only event log. Events are namespaced for future extension (e.g. `CONTRACT.*`).
+All domain state is derived from the append-only event log. Events are namespaced for future extension (e.g. `CONTRACT.*`).
+
+**Documented exception:** `daywork_templates` is plain CRUD utility data for faster repeat posting. It is owner-scoped via RLS, reversible via migration rollback, and intentionally not part of the event ledger.
 
 ### Core Events
 
 ```
-PERSON.CREATED / PERSON.DEACTIVATED / PERSON.DATA_SCRUBBED
+PERSON.CREATED / PERSON.HAT_CHANGED / PERSON.DEACTIVATED / PERSON.DATA_SCRUBBED
 PROFILE.CREATED / PROFILE.UPDATED
 AGENT.VERIFIED (placeholder, deferred)
 VESSEL.CREATED / VESSEL.UPDATED
@@ -111,15 +113,15 @@ Crew can apply to overlapping jobs. Resolved at acceptance time:
 
 ## Messaging
 
-Opens ONLY after `DAYWORK.ACCEPTED`. All messages append-only, retained server-side. Users can hide (UI-level) but not delete.
+Opens ONLY after `DAYWORK.ACCEPTED`. Messages are append-only and retained server-side. Content is never deleted.
 
 ## Availability Model
 
-Daily calendar with graceful auto-expiry. `AVAILABILITY.SET` carries expiry timestamp (default 7 days). System cross-references with accepted engagements.
+Daily calendar with graceful auto-expiry. `AVAILABILITY.SET` carries expiry timestamp (default 7 days). Clearing dates is implemented as immediately expiring availability through the ledger, not direct deletion. System cross-references with accepted engagements.
 
 ## Geographic Location
 
-Canonical hierarchy: Region -> City -> Port/Marina. No free text, exact matching. 63 marinas across 7 launch regions.
+Canonical hierarchy: Region -> City -> Port/Marina. No free text, exact matching. 55 ports/marinas across 7 launch regions.
 
 ## Sorting
 
@@ -135,7 +137,7 @@ Deterministic, transparent, no learned weights. Context-dependent defaults with 
 2. Employer posts a job in <60 seconds
 3. Employer accepts a candidate in 1-3 actions
 4. Messaging opens only after acceptance
-5. All states are event-derived
+5. All domain states are event-derived, except `daywork_templates`
 6. No scoring, ranking, or hidden algorithmic biasing
 7. All filters are explicit and visible
 8. Events namespaced; `CONTRACT.*` uses separate types sharing backbone
@@ -150,8 +152,10 @@ All must pass before any commit is accepted:
 - ESLint — zero warnings, zero errors
 - All tests pass (`vitest run`)
 - No `console.log` in committed code (excluding test files)
-- No `TODO` comments in committed code (use Deferred Decisions below)
+- No `TODO` comments in committed code (use Deferred Decisions in `BUILD_STATE.md`)
 - Every migration has a corresponding rollback file
+- Documentation freshness — code directory changes require corresponding `.md` file updates (skip with `SKIP_DOCS_CHECK=1` for pure refactors)
+- Schema version check — `BUILD_STATE.md` version must match migration file count
 
 ## Test Requirements
 
@@ -163,11 +167,48 @@ Tests use Vitest + Testing Library. Located in `apps/web/__tests__/`.
 
 **Mocking strategy:** Mock `@/lib/supabase/server` with `vi.mock()`, call route handlers directly with mock `Request` objects.
 
+## Documentation Governance
+
+Claude Code MUST update documentation as part of every session's Close step.
+
+> The product mission lives in [dockwalker_mission.md](./dockwalker_mission.md). Read it during Orient to stay aligned with product intent.
+
+### File Rules
+
+| File                       | Mode                                  | Update Trigger                                                                                                                  |
+| -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE.md`                | **Read-only**                         | Never edited by Claude Code. Human-edited only when architectural rules change.                                                 |
+| `dockwalker_mission.md`    | **Read-only**                         | Never edited by Claude Code. Human-edited only.                                                                                 |
+| `BUILD_STATE.md`           | **Append + Edit**                     | Every session that changes code. Append completed work, update schema version, update migration table, move deferred decisions. |
+| `README.md` (root)         | **Edit when referenced code changes** | Monorepo structure changes, new packages, changed quick-start steps.                                                            |
+| `apps/web/README.md`       | **Edit when referenced code changes** | New/removed RPCs, new env vars, new scripts, changed setup steps.                                                               |
+| `packages/types/README.md` | **Edit when referenced code changes** | New/changed/removed type exports.                                                                                               |
+| `packages/db/README.md`    | **Edit when referenced code changes** | New/changed/removed DB helpers or RPCs.                                                                                         |
+| `supabase/README.md`       | **Edit when referenced code changes** | New migrations, changed RPCs, changed conventions.                                                                              |
+
+### Catch-All Rules
+
+- **New packages or top-level directories:** Create a `README.md` in the new directory and add it to the File Rules table above (human edit required — flag this in the Close step).
+- **Deleted or renamed packages:** Flag in the Close step that the File Rules table needs a human update to remove or rename the entry.
+- **Files not in the table** (e.g., auto-generated boilerplate like `apps/web/ios/App/CapApp-SPM/README.md`): No governance obligation unless they document project-specific behavior.
+
+### What Counts as "a Session That Changes Code"
+
+A session triggers `BUILD_STATE.md` updates if it changes **any committed source file** — application code, migrations, types, DB helpers, or configuration that affects build/runtime behavior (tsconfig, eslint config, package.json scripts).
+
+Sessions that **only** change test files, `.md` files, or non-functional config (prettier, .gitignore) do NOT require a `BUILD_STATE.md` update unless they are part of a larger stage.
+
+### Stage Conventions
+
+Each entry in the Completed Stages list in `BUILD_STATE.md` represents a coherent unit of work — a feature, a set of related fixes, or an infrastructure change. Use one line per stage with a short description. Do not create a stage for trivial changes (single typo fix, config tweak). Bundle small related changes into one stage. Number sequentially from the last stage.
+
+If a session changes code that an `.md` file documents, updating that `.md` file is part of the definition of done — the task is not complete without it.
+
 ## Session Protocol
 
 ### 1. Orient
 
-Read this file. Verify repo state matches Build State below.
+Read `CLAUDE.md` and `BUILD_STATE.md`. Read `dockwalker_mission.md` for product context. Verify repo state matches Build State.
 
 ### 2. Confirm Scope
 
@@ -181,13 +222,25 @@ Build end-to-end. If scope changes needed, stop and report. A task is complete w
 
 Provide plain-English summary: what changed, what could go wrong, what tests prove, what tests don't cover, architectural impact, domain impact.
 
-### 5. Update State
+### 5. Update Documentation
 
-Move task to Completed in Build State. Update schema version if migration applied. Add any deferred decisions.
+For every file changed in this session, check the Documentation Governance table. If any `.md` file references changed code, update it. Specifically:
+
+1. Append completed work to `BUILD_STATE.md` (stage name + one-liner)
+2. Update schema version in `BUILD_STATE.md` if migration applied
+3. Update migration table in `BUILD_STATE.md` if migration added
+4. Add any new deferred decisions to `BUILD_STATE.md`
+5. If RPCs, env vars, or scripts changed, update `apps/web/README.md`
+6. If shared types changed, update `packages/types/README.md`
+7. If DB helpers changed, update `packages/db/README.md`
+8. If migrations/rollbacks changed, update `supabase/README.md`
+9. If monorepo structure changed, update root `README.md`
+
+A task is NOT complete until all applicable documentation is updated.
 
 ### 6. Close
 
-State what was built, suggest commit message, confirm pre-commit passes.
+State what was built, suggest commit message, confirm pre-commit passes. Confirm all documentation updates from step 5 were applied.
 
 ## Human Review Checklist
 
@@ -201,27 +254,4 @@ State what was built, suggest commit message, confirm pre-commit passes.
 
 ## Build State
 
-### Completed Stages
-
-- [Stages 1-11] Core infrastructure, all API routes, all pages, bottom navbar, templates, chat
-- [Stage 12] Polish + Deploy — error boundary, not-found page, loading states, fetch error handling
-
-### Current Schema Version
-
-v6 — daywork_templates (6 migrations applied)
-
-### Deferred Decisions
-
-- Agent verification process and verified badge
-- NDA access request features (crew requesting NDA info)
-- Vessel deactivation
-- Internal metrics (availability reliability, engagement frequency)
-- Push notification token registration to server
-
-### In Progress
-
-None
-
-### Next Up
-
-(Ordered queue — reorder as priorities shift)
+Build state is tracked in [BUILD_STATE.md](./BUILD_STATE.md). Claude Code updates that file — not this one — at the end of every session.

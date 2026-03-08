@@ -1,19 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { POST } from '@/app/api/daywork/[id]/withdraw/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-  })),
-}));
 
 function makeChain(data: unknown) {
   return {
@@ -28,6 +23,19 @@ function makeChain(data: unknown) {
   };
 }
 
+function guardOk() {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: mockRpc },
+    },
+  };
+}
+
 const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 describe('POST /api/daywork/:id/withdraw', () => {
@@ -36,14 +44,17 @@ describe('POST /api/daywork/:id/withdraw', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(new Request('http://localhost'), makeParams('d1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when no application found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(null));
 
     const res = await POST(new Request('http://localhost'), makeParams('d1'));
@@ -51,7 +62,7 @@ describe('POST /api/daywork/:id/withdraw', () => {
   });
 
   it('returns 400 when application not in applied state', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({ id: 'app1', status: 'accepted' }),
     );
@@ -63,7 +74,7 @@ describe('POST /api/daywork/:id/withdraw', () => {
   });
 
   it('returns 200 on successful withdrawal', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({ id: 'app1', status: 'applied' }),
     );

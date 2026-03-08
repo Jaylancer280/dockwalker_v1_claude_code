@@ -1,19 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { GET, POST } from '@/app/api/messages/[engagementId]/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-  })),
-}));
 
 function makeChain(data: unknown, error: unknown = null) {
   return {
@@ -23,6 +18,19 @@ function makeChain(data: unknown, error: unknown = null) {
         order: vi.fn().mockResolvedValue({ data, error }),
       }),
     }),
+  };
+}
+
+function guardOk() {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: mockRpc },
+    },
   };
 }
 
@@ -44,14 +52,17 @@ describe('GET /api/messages/:engagementId', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await GET(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when engagement not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(null));
 
     const res = await GET(new Request('http://localhost'), makeParams('e1'));
@@ -59,7 +70,7 @@ describe('GET /api/messages/:engagementId', () => {
   });
 
   it('returns 403 when user not part of engagement', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
         id: 'e1',
@@ -73,8 +84,8 @@ describe('GET /api/messages/:engagementId', () => {
     expect(res.status).toBe(403);
   });
 
-  it('returns 200 with messages filtering hidden', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+  it('returns 200 with all messages', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth
       .mockReturnValueOnce(
         makeChain({
@@ -91,14 +102,12 @@ describe('GET /api/messages/:engagementId', () => {
             sender_person_id: 'u1',
             content: 'Hello',
             created_at: '2026-04-01',
-            hidden_by: null,
           },
           {
             id: 'm2',
             sender_person_id: 'emp1',
-            content: 'Hidden',
+            content: 'Hi back',
             created_at: '2026-04-01',
-            hidden_by: ['u1'],
           },
         ]),
       );
@@ -106,8 +115,7 @@ describe('GET /api/messages/:engagementId', () => {
     const res = await GET(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.messages).toHaveLength(1);
-    expect(body.messages[0].content).toBe('Hello');
+    expect(body.messages).toHaveLength(2);
   });
 });
 
@@ -117,14 +125,17 @@ describe('POST /api/messages/:engagementId', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(makeRequest({ content: 'Hi' }), makeParams('e1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when engagement not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(null));
 
     const res = await POST(makeRequest({ content: 'Hi' }), makeParams('e1'));
@@ -132,7 +143,7 @@ describe('POST /api/messages/:engagementId', () => {
   });
 
   it('returns 403 when user not part of engagement', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
         id: 'e1',
@@ -147,7 +158,7 @@ describe('POST /api/messages/:engagementId', () => {
   });
 
   it('returns 400 when engagement not active', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
         id: 'e1',
@@ -162,7 +173,7 @@ describe('POST /api/messages/:engagementId', () => {
   });
 
   it('returns 400 when content empty', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
         id: 'e1',
@@ -176,8 +187,43 @@ describe('POST /api/messages/:engagementId', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 when message exceeds 2000 characters', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'e1',
+        crew_person_id: 'u1',
+        employer_person_id: 'emp1',
+        status: 'active',
+      }),
+    );
+
+    const longContent = 'a'.repeat(2001);
+    const res = await POST(makeRequest({ content: longContent }), makeParams('e1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('2000');
+  });
+
+  it('allows message of exactly 2000 characters', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'e1',
+        crew_person_id: 'u1',
+        employer_person_id: 'emp1',
+        status: 'active',
+      }),
+    );
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const exactContent = 'a'.repeat(2000);
+    const res = await POST(makeRequest({ content: exactContent }), makeParams('e1'));
+    expect(res.status).toBe(200);
+  });
+
   it('returns 200 on successful send', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({
         id: 'e1',

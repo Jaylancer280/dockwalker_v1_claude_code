@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DockWalker</string>
+    <string name="title_activity_main">DockWalker</string>
+    <string name="package_name">com.dockwalker.app</string>
+    <string name="custom_url_scheme">com.dockwalker.app</string>
+</resources>

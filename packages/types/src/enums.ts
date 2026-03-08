@@ -8,6 +8,7 @@ export type IdentityType = 'crew' | 'agent';
 export type ApplicationStatus =
   | 'applied'
   | 'viewed'
+  | 'shortlisted'
   | 'accepted'
   | 'rejected'
   | 'withdrawn'

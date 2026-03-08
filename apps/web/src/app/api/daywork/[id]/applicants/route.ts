@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
 
 /**
  * GET /api/daywork/:id/applicants
@@ -7,15 +7,9 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: dayworkId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   // Verify user owns this daywork posting
   const { data: daywork } = await supabase
@@ -38,7 +32,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     .select(
       `
       id, crew_person_id, status, message, created_at,
-      profiles:crew_person_id(
+      profiles!applications_crew_person_id_profiles_fkey(
         display_name,
         primary_role_id,
         certification_ids,
@@ -53,7 +47,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     `,
     )
     .eq('daywork_id', dayworkId)
-    .in('status', ['applied', 'viewed'])
+    .in('status', ['applied', 'viewed', 'shortlisted'])
     .order('created_at', { ascending: true });
 
   if (error) {

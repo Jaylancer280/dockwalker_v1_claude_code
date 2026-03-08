@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * GET /api/availability
@@ -7,15 +8,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
  * and their accepted engagements (blocked days).
  */
 export async function GET() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   // Get availability windows (only non-expired)
   const { data: windows, error: windowsError } = await supabase
@@ -57,24 +52,11 @@ export async function GET() {
  * }
  */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, person, serviceClient } = guard.value;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: person } = await supabase
-    .from('persons')
-    .select('current_hat')
-    .eq('id', user.id)
-    .single();
-
-  if (!person || person.current_hat !== 'crew') {
+  if (person.current_hat !== 'crew') {
     return NextResponse.json({ error: 'Only crew can set availability' }, { status: 403 });
   }
 
@@ -108,22 +90,18 @@ export async function POST(request: Request) {
   expiresAt.setDate(expiresAt.getDate() + expDays);
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'AVAILABILITY.SET',
-      p_aggregate_id: user.id,
-      p_aggregate_type: 'person',
-      p_role_context: 'crew',
-      p_payload: {
+    await appendEvent(serviceClient, {
+      eventType: 'AVAILABILITY.SET',
+      aggregateId: user.id,
+      aggregateType: 'person',
+      roleContext: 'crew',
+      payload: {
         start_date: startDate,
         end_date: endDate,
         expires_at: expiresAt.toISOString(),
       },
-      p_person_id: user.id,
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({
       success: true,
@@ -143,16 +121,9 @@ export async function POST(request: Request) {
  * Body: { dates: string[] } — array of YYYY-MM-DD
  */
 export async function DELETE(request: Request) {
-  const serviceClient = await createServiceClient();
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, serviceClient } = guard.value;
 
   const body = await request.json();
   const { dates } = body;

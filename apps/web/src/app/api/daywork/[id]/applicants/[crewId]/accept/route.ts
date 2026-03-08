@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * POST /api/daywork/:id/applicants/:crewId/accept
@@ -11,16 +12,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string; crewId: string }> },
 ) {
   const { id: dayworkId, crewId } = await params;
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase, serviceClient } = guard.value;
 
   // Verify ownership
   const { data: daywork } = await supabase
@@ -53,7 +47,11 @@ export async function POST(
     return NextResponse.json({ error: 'Application not found' }, { status: 404 });
   }
 
-  if (application.status !== 'applied' && application.status !== 'viewed') {
+  if (
+    application.status !== 'applied' &&
+    application.status !== 'viewed' &&
+    application.status !== 'shortlisted'
+  ) {
     return NextResponse.json(
       { error: `Cannot accept a ${application.status} application` },
       { status: 400 },
@@ -78,26 +76,33 @@ export async function POST(
   }
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'DAYWORK.ACCEPTED',
-      p_aggregate_id: `${crewId}:${dayworkId}`,
-      p_aggregate_type: 'application',
-      p_role_context: 'employer',
-      p_payload: {
+    await appendEvent(serviceClient, {
+      eventType: 'DAYWORK.ACCEPTED',
+      aggregateId: `${crewId}:${dayworkId}`,
+      aggregateType: 'application',
+      roleContext: 'employer',
+      payload: {
         daywork_id: dayworkId,
         crew_person_id: crewId,
         employer_person_id: user.id,
         start_date: daywork.start_date,
         end_date: daywork.end_date,
       },
-      p_person_id: user.id,
+      personId: user.id,
     });
 
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
+    // Fetch the newly created engagement ID for the client
+    const { data: engagement } = await serviceClient
+      .from('active_engagements')
+      .select('id')
+      .eq('crew_person_id', crewId)
+      .eq('daywork_id', dayworkId)
+      .single();
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      engagementId: engagement?.id ?? null,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to accept';
     return NextResponse.json({ error: msg }, { status: 500 });

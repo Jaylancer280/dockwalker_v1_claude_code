@@ -1,19 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { GET, POST, DELETE } from '@/app/api/availability/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-  })),
-}));
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/availability', {
@@ -31,20 +26,50 @@ function makeDeleteRequest(body: unknown): Request {
   });
 }
 
+function guardOk(overrides: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: mockRpc },
+      ...overrides,
+    },
+  };
+}
+
 describe('GET /api/availability', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await GET();
     expect(res.status).toBe(401);
   });
 
+  it('returns 409 when onboarding incomplete', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Complete onboarding before using this feature' },
+        { status: 409 },
+      ),
+    });
+
+    const res = await GET();
+    expect(res.status).toBe(409);
+  });
+
   it('returns 200 with windows and engagements', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     const windows = [{ id: 'w1', date: '2026-04-01' }];
     const engagements = [{ id: 'e1', start_date: '2026-04-02' }];
 
@@ -80,7 +105,10 @@ describe('POST /api/availability', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(
       makeRequest({ startDate: '2026-04-01', endDate: '2026-04-05' }),
@@ -88,17 +116,25 @@ describe('POST /api/availability', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 403 when not crew hat', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: { current_hat: 'employer' },
-          }),
-        }),
-      }),
+  it('returns 409 when onboarding incomplete', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Complete onboarding before using this feature' },
+        { status: 409 },
+      ),
     });
+
+    const res = await POST(
+      makeRequest({ startDate: '2026-04-01', endDate: '2026-04-05' }),
+    );
+    expect(res.status).toBe(409);
+  });
+
+  it('returns 403 when not crew hat', async () => {
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' } }),
+    );
 
     const res = await POST(
       makeRequest({ startDate: '2026-04-01', endDate: '2026-04-05' }),
@@ -107,16 +143,7 @@ describe('POST /api/availability', () => {
   });
 
   it('returns 400 when dates missing', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: { current_hat: 'crew' },
-          }),
-        }),
-      }),
-    });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(makeRequest({}));
     expect(res.status).toBe(400);
@@ -125,16 +152,7 @@ describe('POST /api/availability', () => {
   });
 
   it('returns 400 when end before start', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: { current_hat: 'crew' },
-          }),
-        }),
-      }),
-    });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(
       makeRequest({ startDate: '2026-04-10', endDate: '2026-04-01' }),
@@ -145,16 +163,7 @@ describe('POST /api/availability', () => {
   });
 
   it('returns 400 when range exceeds 60 days', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: { current_hat: 'crew' },
-          }),
-        }),
-      }),
-    });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(
       makeRequest({ startDate: '2026-01-01', endDate: '2026-06-01' }),
@@ -165,16 +174,7 @@ describe('POST /api/availability', () => {
   });
 
   it('returns 200 on successful set', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({
-            data: { current_hat: 'crew' },
-          }),
-        }),
-      }),
-    });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(
@@ -197,7 +197,10 @@ describe('DELETE /api/availability', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await DELETE(
       makeDeleteRequest({ dates: ['2026-04-01'] }),
@@ -206,7 +209,7 @@ describe('DELETE /api/availability', () => {
   });
 
   it('returns 400 when dates not provided', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await DELETE(makeDeleteRequest({}));
     expect(res.status).toBe(400);
@@ -215,7 +218,7 @@ describe('DELETE /api/availability', () => {
   });
 
   it('returns 200 on successful clear', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await DELETE(
@@ -234,7 +237,7 @@ describe('DELETE /api/availability', () => {
   });
 
   it('returns 400 when a date is invalid', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await DELETE(
       makeDeleteRequest({ dates: ['not-a-date'] }),

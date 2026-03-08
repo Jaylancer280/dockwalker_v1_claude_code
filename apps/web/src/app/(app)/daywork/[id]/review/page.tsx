@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import Link from 'next/link';
@@ -16,10 +16,20 @@ import {
   Loader2,
   User,
   MessageSquare,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { MY_JOBS_TAB_STORAGE_KEY } from '@/lib/my-jobs-tab';
 
 interface ApplicantProfile {
   display_name: string;
@@ -45,14 +55,25 @@ interface Applicant {
   past_daywork_count: number;
 }
 
+type TabView = 'applicants' | 'shortlist';
+
 const SWIPE_THRESHOLD = 100;
 
 export default function ReviewApplicantsPage() {
   const { id: dayworkId } = useParams<{ id: string }>();
-  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const router = useRouter();
+  const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [acting, setActing] = useState(false);
+  const [tab, setTab] = useState<TabView>('applicants');
+  const [acceptedDialog, setAcceptedDialog] = useState<{
+    crewName: string;
+    engagementId: string;
+  } | null>(null);
+
+  const applicants = allApplicants.filter((a) => a.status === 'applied' || a.status === 'viewed');
+  const shortlisted = allApplicants.filter((a) => a.status === 'shortlisted');
 
   const loadApplicants = useCallback(async () => {
     setLoading(true);
@@ -60,7 +81,7 @@ export default function ReviewApplicantsPage() {
       const res = await fetch(`/api/daywork/${dayworkId}/applicants`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
-      if (data.applicants) setApplicants(data.applicants);
+      if (data.applicants) setAllApplicants(data.applicants);
       setError(null);
     } catch {
       setError('Failed to load applicants. Please try again.');
@@ -75,15 +96,32 @@ export default function ReviewApplicantsPage() {
 
   // Fire DAYWORK.VIEWED when a card is shown
   const viewedRef = useRef<Set<string>>(new Set());
+  const currentStack = tab === 'applicants' ? applicants : shortlisted;
   useEffect(() => {
-    const top = applicants[0];
+    const top = currentStack[0];
     if (top && !viewedRef.current.has(top.crew_person_id)) {
       viewedRef.current.add(top.crew_person_id);
       fetch(`/api/daywork/${dayworkId}/applicants/${top.crew_person_id}/view`, {
         method: 'POST',
       });
     }
-  }, [applicants, dayworkId]);
+  }, [currentStack, dayworkId]);
+
+  async function handleShortlist(crewId: string) {
+    setActing(true);
+    const res = await fetch(`/api/daywork/${dayworkId}/applicants/${crewId}/shortlist`, {
+      method: 'POST',
+    });
+    if (res.ok) {
+      setAllApplicants((prev) =>
+        prev.map((a) => (a.crew_person_id === crewId ? { ...a, status: 'shortlisted' } : a)),
+      );
+    } else {
+      const data = await res.json();
+      alert(data.error ?? 'Failed to shortlist');
+    }
+    setActing(false);
+  }
 
   async function handleAccept(crewId: string) {
     setActing(true);
@@ -91,7 +129,16 @@ export default function ReviewApplicantsPage() {
       method: 'POST',
     });
     if (res.ok) {
-      setApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
+      const data = await res.json();
+      const accepted = allApplicants.find((a) => a.crew_person_id === crewId);
+      const crewName = accepted?.profiles?.display_name ?? 'the crew member';
+      // Clear all applicants — acceptance moves the daywork to in_progress,
+      // auto-rejecting all remaining applicants server-side
+      window.sessionStorage.setItem(MY_JOBS_TAB_STORAGE_KEY, 'in_progress');
+      setAllApplicants([]);
+      if (data.engagementId) {
+        setAcceptedDialog({ crewName, engagementId: data.engagementId });
+      }
     } else {
       const data = await res.json();
       alert(data.error ?? 'Failed to accept');
@@ -105,13 +152,13 @@ export default function ReviewApplicantsPage() {
       method: 'POST',
     });
     if (res.ok) {
-      setApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
+      setAllApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
     }
     setActing(false);
   }
 
-  const topCard = applicants[0] ?? null;
-  const nextCard = applicants[1] ?? null;
+  const topCard = currentStack[0] ?? null;
+  const nextCard = currentStack[1] ?? null;
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
@@ -123,6 +170,32 @@ export default function ReviewApplicantsPage() {
           <h1 className="text-lg font-bold tracking-tight">Review Applicants</h1>
         </div>
       </header>
+
+      {/* Tabs */}
+      <div className="mx-auto w-full max-w-lg border-b border-border">
+        <div className="flex">
+          <button
+            onClick={() => setTab('applicants')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === 'applicants'
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Applicants{applicants.length > 0 ? ` (${applicants.length})` : ''}
+          </button>
+          <button
+            onClick={() => setTab('shortlist')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === 'shortlist'
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Shortlist{shortlisted.length > 0 ? ` (${shortlisted.length})` : ''}
+          </button>
+        </div>
+      </div>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
         {/* Card stack */}
@@ -143,26 +216,46 @@ export default function ReviewApplicantsPage() {
             </div>
           )}
 
-          {!loading && !error && applicants.length === 0 && (
+          {!loading && !error && currentStack.length === 0 && (
             <Card className="w-full">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                  <CardTitle className="text-base">No applicants yet</CardTitle>
+                  {tab === 'applicants' ? (
+                    <User className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <Star className="h-5 w-5 text-muted-foreground" />
+                  )}
+                  <CardTitle className="text-base">
+                    {tab === 'applicants' ? 'No applicants to review' : 'Shortlist is empty'}
+                  </CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  No crew have applied to this posting yet. Check back later.
+                  {tab === 'applicants'
+                    ? 'No new applications to review. Check back later or view your shortlist.'
+                    : 'Shortlist crew from the Applicants tab to compare them here.'}
                 </p>
-                <Button variant="outline" size="sm" className="mt-3" onClick={loadApplicants}>
-                  Refresh
-                </Button>
+                {tab === 'applicants' && (
+                  <Button variant="outline" size="sm" className="mt-3" onClick={loadApplicants}>
+                    Refresh
+                  </Button>
+                )}
+                {tab === 'shortlist' && applicants.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setTab('applicants')}
+                  >
+                    View applicants
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {!loading && applicants.length > 0 && (
+          {!loading && currentStack.length > 0 && (
             <div className="relative h-[440px] w-full">
               {nextCard && (
                 <div className="absolute inset-0 z-0">
@@ -174,8 +267,10 @@ export default function ReviewApplicantsPage() {
                 <SwipeableApplicant
                   key={topCard.crew_person_id}
                   applicant={topCard}
+                  tab={tab}
                   onAccept={() => handleAccept(topCard.crew_person_id)}
                   onReject={() => handleReject(topCard.crew_person_id)}
+                  onShortlist={() => handleShortlist(topCard.crew_person_id)}
                   disabled={acting}
                 />
               )}
@@ -193,6 +288,15 @@ export default function ReviewApplicantsPage() {
             >
               <X className="h-6 w-6" />
             </button>
+            {tab === 'applicants' && (
+              <button
+                onClick={() => handleShortlist(topCard.crew_person_id)}
+                disabled={acting}
+                className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-500 text-amber-500 transition-colors hover:bg-amber-500 hover:text-white disabled:opacity-50"
+              >
+                <Star className="h-5 w-5" />
+              </button>
+            )}
             <button
               onClick={() => handleAccept(topCard.crew_person_id)}
               disabled={acting}
@@ -204,36 +308,76 @@ export default function ReviewApplicantsPage() {
         )}
 
         {/* Counter */}
-        {!loading && applicants.length > 0 && (
+        {!loading && currentStack.length > 0 && (
           <p className="text-center text-xs text-muted-foreground">
-            {applicants.length} applicant{applicants.length !== 1 ? 's' : ''} to review
+            {currentStack.length} {tab === 'applicants' ? 'applicant' : 'shortlisted'}
+            {currentStack.length !== 1 ? 's' : ''} to review
           </p>
         )}
       </div>
+
+      <Dialog open={!!acceptedDialog} onOpenChange={() => setAcceptedDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Crew member accepted</DialogTitle>
+            <DialogDescription>
+              A messaging thread has been opened with {acceptedDialog?.crewName}. You can now
+              coordinate details directly.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (acceptedDialog) {
+                  router.push(`/messages/${acceptedDialog.engagementId}`);
+                }
+              }}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Go to messages
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
 
 function SwipeableApplicant({
   applicant,
+  tab,
   onAccept,
   onReject,
+  onShortlist,
   disabled,
 }: {
   applicant: Applicant;
+  tab: TabView;
   onAccept: () => void;
   onReject: () => void;
+  onShortlist: () => void;
   disabled: boolean;
 }) {
   const x = useMotionValue(0);
+  const y = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const acceptOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
   const rejectOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
+  const shortlistOpacity = useTransform(y, [-SWIPE_THRESHOLD, 0], [1, 0]);
 
   function handleDragEnd(_: unknown, info: PanInfo) {
     if (disabled) return;
 
-    if (info.offset.x > SWIPE_THRESHOLD) {
+    // Upward swipe = shortlist (only on applicants tab)
+    if (
+      tab === 'applicants' &&
+      info.offset.y < -SWIPE_THRESHOLD &&
+      Math.abs(info.offset.x) < SWIPE_THRESHOLD
+    ) {
+      hapticLight();
+      animate(y, -400, { duration: 0.3 });
+      setTimeout(onShortlist, 300);
+    } else if (info.offset.x > SWIPE_THRESHOLD) {
       hapticMedium();
       animate(x, 400, { duration: 0.3 });
       setTimeout(onAccept, 300);
@@ -243,15 +387,16 @@ function SwipeableApplicant({
       setTimeout(onReject, 300);
     } else {
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      animate(y, 0, { type: 'spring', stiffness: 500, damping: 30 });
     }
   }
 
   return (
     <motion.div
       className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
-      style={{ x, rotate }}
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
+      style={{ x, y, rotate }}
+      drag
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={0.8}
       onDragEnd={handleDragEnd}
     >
@@ -267,6 +412,14 @@ function SwipeableApplicant({
       >
         REJECT
       </motion.div>
+      {tab === 'applicants' && (
+        <motion.div
+          className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2 rounded-lg border-2 border-amber-500 bg-amber-500/10 px-3 py-1 text-sm font-bold text-amber-500"
+          style={{ opacity: shortlistOpacity }}
+        >
+          SHORTLIST
+        </motion.div>
+      )}
 
       <ApplicantCard applicant={applicant} />
     </motion.div>
@@ -285,7 +438,12 @@ function ApplicantCard({ applicant, isPreview }: { applicant: Applicant; isPrevi
       <div className="flex h-full flex-col p-5">
         {/* Name + role */}
         <div className="mb-3">
-          <h3 className="text-lg font-bold">{profile?.display_name ?? 'Unknown'}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-bold">{profile?.display_name ?? 'Unknown'}</h3>
+            {applicant.status === 'shortlisted' && (
+              <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
             {profile?.yacht_roles?.name ?? 'No primary role'}
             {profile?.yacht_roles?.department && ` · ${profile.yacht_roles.department}`}

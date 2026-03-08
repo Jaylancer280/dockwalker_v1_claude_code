@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
 /**
@@ -9,24 +10,11 @@ import { randomUUID } from 'crypto';
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: dayworkId } = await params;
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, person, supabase, serviceClient } = guard.value;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: person } = await supabase
-    .from('persons')
-    .select('current_hat')
-    .eq('id', user.id)
-    .single();
-
-  if (!person || person.current_hat !== 'crew') {
+  if (person.current_hat !== 'crew') {
     return NextResponse.json({ error: 'Only crew can apply' }, { status: 403 });
   }
 
@@ -69,23 +57,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const applicationId = randomUUID();
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'DAYWORK.APPLIED',
-      p_aggregate_id: `${user.id}:${dayworkId}`,
-      p_aggregate_type: 'application',
-      p_role_context: 'crew',
-      p_payload: {
+    await appendEvent(serviceClient, {
+      eventType: 'DAYWORK.APPLIED',
+      aggregateId: `${user.id}:${dayworkId}`,
+      aggregateType: 'application',
+      roleContext: 'crew',
+      payload: {
         id: applicationId,
         daywork_id: dayworkId,
         crew_person_id: user.id,
         ...(message ? { message } : {}),
       },
-      p_person_id: user.id,
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

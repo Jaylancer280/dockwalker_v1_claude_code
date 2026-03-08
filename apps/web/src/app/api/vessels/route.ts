@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
 /**
@@ -7,15 +8,9 @@ import { randomUUID } from 'crypto';
  * Returns the authenticated user's vessels.
  */
 export async function GET() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   // Owner policy on vessels table ensures only own vessels returned
   const { data: vessels, error } = await supabase
@@ -46,25 +41,11 @@ export async function GET() {
  * }
  */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, person, supabase, serviceClient } = guard.value;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // Check user has employer or agent hat
-  const { data: person } = await supabase
-    .from('persons')
-    .select('current_hat')
-    .eq('id', user.id)
-    .single();
-
-  if (!person || !['employer', 'agent'].includes(person.current_hat)) {
+  if (!['employer', 'agent'].includes(person.current_hat)) {
     return NextResponse.json(
       { error: 'Only employers and agents can create vessels' },
       { status: 403 },
@@ -92,6 +73,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'vesselType must be private or charter' }, { status: 400 });
   }
 
+  // Validate size band exists
+  const { data: sizeBand } = await supabase
+    .from('vessel_size_bands')
+    .select('id')
+    .eq('id', sizeBandId)
+    .single();
+
+  if (!sizeBand) {
+    return NextResponse.json({ error: 'Invalid size band ID' }, { status: 400 });
+  }
+
   // Check IMO not already registered
   const { data: existing } = await serviceClient
     .from('vessels')
@@ -109,12 +101,12 @@ export async function POST(request: Request) {
   const vesselId = randomUUID();
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'VESSEL.CREATED',
-      p_aggregate_id: vesselId,
-      p_aggregate_type: 'vessel',
-      p_role_context: person.current_hat,
-      p_payload: {
+    await appendEvent(serviceClient, {
+      eventType: 'VESSEL.CREATED',
+      aggregateId: vesselId,
+      aggregateType: 'vessel',
+      roleContext: person.current_hat,
+      payload: {
         id: vesselId,
         imo_number: imoClean,
         name,
@@ -122,12 +114,8 @@ export async function POST(request: Request) {
         size_band_id: sizeBandId,
         nda_flag: ndaFlag ?? false,
       },
-      p_person_id: user.id,
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({ id: vesselId }, { status: 201 });
   } catch (err) {

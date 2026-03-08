@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * POST /api/daywork/:id/complete
@@ -8,16 +9,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server';
  */
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: dayworkId } = await params;
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase, serviceClient } = guard.value;
 
   const { data: daywork } = await supabase
     .from('dayworks')
@@ -33,23 +27,22 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'You do not own this posting' }, { status: 403 });
   }
 
-  if (daywork.status !== 'active') {
-    return NextResponse.json({ error: 'Only active postings can be completed' }, { status: 400 });
+  if (daywork.status !== 'in_progress') {
+    return NextResponse.json(
+      { error: 'Only in-progress postings can be completed' },
+      { status: 400 },
+    );
   }
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'DAYWORK.COMPLETED',
-      p_aggregate_id: dayworkId,
-      p_aggregate_type: 'daywork',
-      p_role_context: 'employer',
-      p_payload: { daywork_id: dayworkId },
-      p_person_id: user.id,
+    await appendEvent(serviceClient, {
+      eventType: 'DAYWORK.COMPLETED',
+      aggregateId: dayworkId,
+      aggregateType: 'daywork',
+      roleContext: 'employer',
+      payload: { daywork_id: dayworkId },
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

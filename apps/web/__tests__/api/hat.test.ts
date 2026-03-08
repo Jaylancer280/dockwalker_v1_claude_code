@@ -1,24 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { POST } from '@/app/api/hat/route';
 
-// Mock Supabase
-const mockGetUser = vi.fn();
-const mockSelect = vi.fn();
-const mockEq = vi.fn();
-const mockSingle = vi.fn();
-const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: vi.fn(() => ({
-      select: mockSelect,
-    })),
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-  })),
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
+
+const mockRpc = vi.fn();
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/hat', {
@@ -28,30 +17,50 @@ function makeRequest(body: unknown): Request {
   });
 }
 
+function guardOk(overrides: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      profile: { person_id: 'u1' },
+      supabase: {},
+      serviceClient: { rpc: mockRpc },
+      ...overrides,
+    },
+  };
+}
+
 describe('POST /api/hat', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Default chain: from().select().eq().single()
-    mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ single: mockSingle });
-
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(makeRequest({ hat: 'crew' }));
     expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.error).toBe('Unauthorized');
+  });
+
+  it('returns 409 when onboarding incomplete', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Complete onboarding before using this feature' },
+        { status: 409 },
+      ),
+    });
+
+    const res = await POST(makeRequest({ hat: 'crew' }));
+    expect(res.status).toBe(409);
   });
 
   it('returns 400 for invalid hat value', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockSingle.mockResolvedValue({
-      data: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
-    });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(makeRequest({ hat: 'admiral' }));
     expect(res.status).toBe(400);
@@ -60,10 +69,9 @@ describe('POST /api/hat', () => {
   });
 
   it('returns 403 when agent tries to switch hats', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockSingle.mockResolvedValue({
-      data: { id: 'u1', identity_type: 'agent', current_hat: 'agent' },
-    });
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'agent', current_hat: 'agent' } }),
+    );
 
     const res = await POST(makeRequest({ hat: 'crew' }));
     expect(res.status).toBe(403);
@@ -72,10 +80,9 @@ describe('POST /api/hat', () => {
   });
 
   it('returns 200 no-op when already wearing the requested hat', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockSingle.mockResolvedValue({
-      data: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
-    });
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' } }),
+    );
 
     const res = await POST(makeRequest({ hat: 'employer' }));
     expect(res.status).toBe(200);
@@ -86,10 +93,7 @@ describe('POST /api/hat', () => {
   });
 
   it('returns 200 and switches hat for crew identity', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockSingle.mockResolvedValue({
-      data: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
-    });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockRpc.mockResolvedValue({ error: null });
 
     const res = await POST(makeRequest({ hat: 'employer' }));

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
 /**
@@ -11,15 +12,9 @@ export async function GET(
   { params }: { params: Promise<{ engagementId: string }> },
 ) {
   const { engagementId } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   // Verify user is part of this engagement
   const { data: engagement } = await supabase
@@ -36,10 +31,9 @@ export async function GET(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  // Get messages, excluding hidden ones for this user
   const { data: messages, error } = await supabase
     .from('messages')
-    .select('id, sender_person_id, content, created_at, hidden_by')
+    .select('id, sender_person_id, content, created_at')
     .eq('engagement_id', engagementId)
     .order('created_at', { ascending: true });
 
@@ -47,17 +41,7 @@ export async function GET(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Filter out hidden messages for this user
-  const visible = (messages ?? [])
-    .filter((m) => !(m.hidden_by ?? []).includes(user.id))
-    .map((m) => ({
-      id: m.id,
-      sender_person_id: m.sender_person_id,
-      content: m.content,
-      created_at: m.created_at,
-    }));
-
-  return NextResponse.json({ messages: visible });
+  return NextResponse.json({ messages: messages ?? [] });
 }
 
 /**
@@ -70,16 +54,9 @@ export async function POST(
   { params }: { params: Promise<{ engagementId: string }> },
 ) {
   const { engagementId } = await params;
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase, serviceClient } = guard.value;
 
   // Verify user is part of this engagement and it's active
   const { data: engagement } = await supabase
@@ -108,26 +85,29 @@ export async function POST(
   }
 
   const trimmed = content.trim();
+
+  if (trimmed.length > 2000) {
+    return NextResponse.json(
+      { error: 'Message content must be 2000 characters or fewer' },
+      { status: 400 },
+    );
+  }
   const messageId = randomUUID();
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'MESSAGE.SENT',
-      p_aggregate_id: engagementId,
-      p_aggregate_type: 'message',
-      p_role_context: engagement.crew_person_id === user.id ? 'crew' : 'employer',
-      p_payload: {
+    await appendEvent(serviceClient, {
+      eventType: 'MESSAGE.SENT',
+      aggregateId: engagementId,
+      aggregateType: 'message',
+      roleContext: engagement.crew_person_id === user.id ? 'crew' : 'employer',
+      payload: {
         id: messageId,
         engagement_id: engagementId,
         sender_person_id: user.id,
         content: trimmed,
       },
-      p_person_id: user.id,
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

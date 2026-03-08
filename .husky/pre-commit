@@ -4,6 +4,8 @@ npx lint-staged
 bash .husky/check-no-console-log.sh
 bash .husky/check-no-todo.sh
 bash .husky/check-rollbacks.sh
+bash .husky/check-docs-freshness.sh
+bash .husky/check-schema-version.sh
 
 # Type check
 npm run type-check

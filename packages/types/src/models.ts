@@ -66,10 +66,11 @@ export interface Daywork {
   working_days: number;
   required_certification_ids: string[];
   experience_bracket_id: string | null;
-  day_rate: number | null;
+  day_rate: number;
+  currency: string;
   meals: MealOption[];
   notes: string | null;
-  status: 'active' | 'cancelled' | 'completed';
+  status: 'active' | 'in_progress' | 'cancelled' | 'completed';
   created_at: string;
 }
 
@@ -93,6 +94,20 @@ export interface AvailabilityWindow {
   created_at: string;
 }
 
+/** Active engagement between crew and employer */
+export interface Engagement {
+  id: string;
+  application_id: string;
+  crew_person_id: string;
+  employer_person_id: string;
+  daywork_id: string;
+  start_date: string;
+  end_date: string;
+  status: 'active' | 'completed' | 'cancelled';
+  crew_completion_status: 'confirmed' | 'disputed' | null;
+  created_at: string;
+}
+
 /** Message in an engagement conversation */
 export interface Message {
   id: string;
@@ -100,5 +115,28 @@ export interface Message {
   sender_person_id: string;
   content: string;
   created_at: string;
-  hidden_by: string[];
+}
+
+/** Engagement rating (one per person per engagement) */
+export interface EngagementRating {
+  id: string;
+  engagement_id: string;
+  rater_person_id: string;
+  rater_role: 'crew' | 'employer';
+  // Crew-specific
+  pay_accuracy: string | null;
+  meals_accuracy: string | null;
+  role_accuracy: string | null;
+  working_days_accuracy: string | null;
+  vessel_condition: number | null;
+  would_work_on_vessel_again: boolean | null;
+  // Employer-specific
+  skills_as_advertised: string | null;
+  certifications_verified: string | null;
+  punctuality: string | null;
+  would_rehire: boolean | null;
+  // Symmetric
+  communication_accuracy: boolean | null;
+  overall_match: number | null;
+  created_at: string;
 }

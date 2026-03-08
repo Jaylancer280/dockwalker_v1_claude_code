@@ -1,30 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import type { EventPayloadMap } from '@dockwalker/types';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * GET /api/profile
  * Returns the authenticated user's profile with joined lookups.
  */
 export async function GET() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: person } = await supabase
-    .from('persons')
-    .select('id, identity_type, current_hat')
-    .eq('id', user.id)
-    .single();
-
-  if (!person) {
-    return NextResponse.json({ error: 'No profile found' }, { status: 404 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, person, supabase } = guard.value;
 
   const { data: profile, error } = await supabase
     .from('profiles')
@@ -54,30 +40,13 @@ export async function GET() {
  * Updates the user's profile via PROFILE.UPDATED event.
  */
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: person } = await supabase
-    .from('persons')
-    .select('id, identity_type, current_hat')
-    .eq('id', user.id)
-    .single();
-
-  if (!person) {
-    return NextResponse.json({ error: 'No profile found' }, { status: 404 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, person, serviceClient } = guard.value;
 
   const body = await request.json();
 
-  const payload: Record<string, unknown> = {};
+  const payload: EventPayloadMap['PROFILE.UPDATED'] = {};
   if (body.displayName !== undefined) payload.display_name = body.displayName;
   if (body.primaryRoleId !== undefined) payload.primary_role_id = body.primaryRoleId;
   if (body.certificationIds !== undefined) payload.certification_ids = body.certificationIds;
@@ -95,17 +64,39 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
-  const { error } = await serviceClient.rpc('append_event', {
-    p_event_type: 'PROFILE.UPDATED',
-    p_aggregate_id: user.id,
-    p_aggregate_type: 'person',
-    p_role_context: person.current_hat,
-    p_payload: payload,
-    p_person_id: user.id,
-  });
+  if (
+    payload.display_name !== undefined &&
+    (typeof payload.display_name !== 'string' ||
+      payload.display_name.toString().trim().length === 0 ||
+      payload.display_name.toString().trim().length > 100)
+  ) {
+    return NextResponse.json(
+      { error: 'Display name must be between 1 and 100 characters' },
+      { status: 400 },
+    );
+  }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (
+    payload.bio !== undefined &&
+    payload.bio !== null &&
+    typeof payload.bio === 'string' &&
+    payload.bio.length > 250
+  ) {
+    return NextResponse.json({ error: 'Bio must be 250 characters or fewer' }, { status: 400 });
+  }
+
+  try {
+    await appendEvent(serviceClient, {
+      eventType: 'PROFILE.UPDATED',
+      aggregateId: user.id,
+      aggregateType: 'person',
+      roleContext: person.current_hat,
+      payload: payload,
+      personId: user.id,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to update profile';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });

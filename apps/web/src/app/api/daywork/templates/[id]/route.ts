@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
 
 /**
  * GET /api/daywork/templates/[id]
@@ -7,15 +7,9 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   const { data: template, error } = await supabase
     .from('daywork_templates')
@@ -23,7 +17,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       `
       id, name, vessel_id, role_id, location_port_id,
       working_days, required_certification_ids, experience_bracket_id,
-      day_rate, meals, notes
+      day_rate, currency, meals, notes
     `,
     )
     .eq('id', id)
@@ -43,15 +37,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase } = guard.value;
 
   const { error } = await supabase
     .from('daywork_templates')

@@ -1,19 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { POST } from '@/app/api/daywork/[id]/apply/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-  })),
-}));
 
 function makeRequest(body: unknown = {}): Request {
   return new Request('http://localhost/api/daywork/d1/apply', {
@@ -36,6 +31,20 @@ function makeChain(data: unknown) {
   };
 }
 
+function guardOk(overrides: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: mockRpc },
+      ...overrides,
+    },
+  };
+}
+
 const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 describe('POST /api/daywork/:id/apply', () => {
@@ -44,53 +53,60 @@ describe('POST /api/daywork/:id/apply', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(makeRequest(), makeParams('d1'));
     expect(res.status).toBe(401);
   });
 
+  it('returns 409 when onboarding incomplete', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Complete onboarding before using this feature' },
+        { status: 409 },
+      ),
+    });
+
+    const res = await POST(makeRequest(), makeParams('d1'));
+    expect(res.status).toBe(409);
+  });
+
   it('returns 403 when not crew hat', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(makeChain({ current_hat: 'employer' }));
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' } }),
+    );
 
     const res = await POST(makeRequest(), makeParams('d1'));
     expect(res.status).toBe(403);
   });
 
   it('returns 404 when daywork not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth
-      .mockReturnValueOnce(makeChain({ current_hat: 'crew' }))
-      .mockReturnValueOnce(makeChain(null));
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeChain(null));
 
     const res = await POST(makeRequest(), makeParams('d1'));
     expect(res.status).toBe(404);
   });
 
   it('returns 400 when posting is not active', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth
-      .mockReturnValueOnce(makeChain({ current_hat: 'crew' }))
-      .mockReturnValueOnce(
-        makeChain({
-          id: 'd1',
-          status: 'completed',
-          poster_person_id: 'other',
-        }),
-      );
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({ id: 'd1', status: 'completed', poster_person_id: 'other' }),
+    );
 
     const res = await POST(makeRequest(), makeParams('d1'));
     expect(res.status).toBe(400);
   });
 
   it('returns 400 when applying to own posting', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth
-      .mockReturnValueOnce(makeChain({ current_hat: 'crew' }))
-      .mockReturnValueOnce(
-        makeChain({ id: 'd1', status: 'active', poster_person_id: 'u1' }),
-      );
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({ id: 'd1', status: 'active', poster_person_id: 'u1' }),
+    );
 
     const res = await POST(makeRequest(), makeParams('d1'));
     expect(res.status).toBe(400);
@@ -99,15 +115,10 @@ describe('POST /api/daywork/:id/apply', () => {
   });
 
   it('returns 409 when already applied', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth
-      .mockReturnValueOnce(makeChain({ current_hat: 'crew' }))
       .mockReturnValueOnce(
-        makeChain({
-          id: 'd1',
-          status: 'active',
-          poster_person_id: 'other',
-        }),
+        makeChain({ id: 'd1', status: 'active', poster_person_id: 'other' }),
       )
       .mockReturnValueOnce(makeChain({ id: 'app1', status: 'applied' }));
 
@@ -116,15 +127,10 @@ describe('POST /api/daywork/:id/apply', () => {
   });
 
   it('returns 200 on successful application', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth
-      .mockReturnValueOnce(makeChain({ current_hat: 'crew' }))
       .mockReturnValueOnce(
-        makeChain({
-          id: 'd1',
-          status: 'active',
-          poster_person_id: 'other',
-        }),
+        makeChain({ id: 'd1', status: 'active', poster_person_id: 'other' }),
       )
       .mockReturnValueOnce(makeChain(null));
     mockRpc.mockResolvedValueOnce({ error: null });
@@ -143,5 +149,20 @@ describe('POST /api/daywork/:id/apply', () => {
         }),
       }),
     );
+  });
+
+  it('succeeds without availability or profile matching', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(
+        makeChain({ id: 'd1', status: 'active', poster_person_id: 'other' }),
+      )
+      .mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(makeRequest(), makeParams('d1'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
   });
 });

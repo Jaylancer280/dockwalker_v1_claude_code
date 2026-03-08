@@ -1,16 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { GET, POST } from '@/app/api/daywork/templates/route';
 import { GET as getOne, DELETE } from '@/app/api/daywork/templates/[id]/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-}));
+function guardOk() {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: {},
+    },
+  };
+}
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/daywork/templates', {
@@ -28,14 +39,17 @@ describe('GET /api/daywork/templates', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await GET();
     expect(res.status).toBe(401);
   });
 
   it('returns 200 with templates list', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     const templates = [{ id: 't1', name: 'My Template' }];
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
@@ -58,14 +72,17 @@ describe('POST /api/daywork/templates', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(makeRequest({ name: 'Test' }));
     expect(res.status).toBe(401);
   });
 
   it('returns 201 on successful creation', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce({
       insert: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -92,17 +109,17 @@ describe('GET /api/daywork/templates/:id', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
-    const res = await getOne(
-      new Request('http://localhost'),
-      makeParams('t1'),
-    );
+    const res = await getOne(new Request('http://localhost'), makeParams('t1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when template not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -116,15 +133,12 @@ describe('GET /api/daywork/templates/:id', () => {
       }),
     });
 
-    const res = await getOne(
-      new Request('http://localhost'),
-      makeParams('t1'),
-    );
+    const res = await getOne(new Request('http://localhost'), makeParams('t1'));
     expect(res.status).toBe(404);
   });
 
   it('returns 200 with template data', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     const template = { id: 't1', name: 'My Template', role_id: 'r1' };
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
@@ -139,10 +153,7 @@ describe('GET /api/daywork/templates/:id', () => {
       }),
     });
 
-    const res = await getOne(
-      new Request('http://localhost'),
-      makeParams('t1'),
-    );
+    const res = await getOne(new Request('http://localhost'), makeParams('t1'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.template).toEqual(template);
@@ -155,17 +166,17 @@ describe('DELETE /api/daywork/templates/:id', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
-    const res = await DELETE(
-      new Request('http://localhost'),
-      makeParams('t1'),
-    );
+    const res = await DELETE(new Request('http://localhost'), makeParams('t1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 200 on successful delete', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce({
       delete: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -174,10 +185,7 @@ describe('DELETE /api/daywork/templates/:id', () => {
       }),
     });
 
-    const res = await DELETE(
-      new Request('http://localhost'),
-      makeParams('t1'),
-    );
+    const res = await DELETE(new Request('http://localhost'), makeParams('t1'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);

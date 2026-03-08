@@ -1,19 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { POST } from '@/app/api/daywork/[id]/cancel/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-  })),
-}));
 
 function makeChain(data: unknown) {
   return {
@@ -25,6 +20,19 @@ function makeChain(data: unknown) {
   };
 }
 
+function guardOk() {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: mockRpc },
+    },
+  };
+}
+
 const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 describe('POST /api/daywork/:id/cancel', () => {
@@ -33,14 +41,17 @@ describe('POST /api/daywork/:id/cancel', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(new Request('http://localhost'), makeParams('d1'));
     expect(res.status).toBe(401);
   });
 
   it('returns 404 when daywork not found', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(null));
 
     const res = await POST(new Request('http://localhost'), makeParams('d1'));
@@ -48,7 +59,7 @@ describe('POST /api/daywork/:id/cancel', () => {
   });
 
   it('returns 403 when not the poster', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({ id: 'd1', poster_person_id: 'other', status: 'active' }),
     );
@@ -58,7 +69,7 @@ describe('POST /api/daywork/:id/cancel', () => {
   });
 
   it('returns 400 when not active', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({ id: 'd1', poster_person_id: 'u1', status: 'completed' }),
     );
@@ -67,8 +78,8 @@ describe('POST /api/daywork/:id/cancel', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 200 on successful cancel', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+  it('returns 200 on successful cancel from active', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({ id: 'd1', poster_person_id: 'u1', status: 'active' }),
     );
@@ -82,5 +93,16 @@ describe('POST /api/daywork/:id/cancel', () => {
         p_event_type: 'DAYWORK.CANCELLED_BY_EMPLOYER',
       }),
     );
+  });
+
+  it('returns 200 on successful cancel from in_progress', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({ id: 'd1', poster_person_id: 'u1', status: 'in_progress' }),
+    );
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(200);
   });
 });

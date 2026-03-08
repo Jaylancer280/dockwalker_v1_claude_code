@@ -1,22 +1,16 @@
 import { NextResponse } from 'next/server';
-import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { appendEvent } from '@dockwalker/db';
 
 /**
  * POST /api/daywork/:id/cancel
  * Cancel a daywork posting. Only the poster can cancel.
  */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: dayworkId } = await params;
-  const supabase = await createClient();
-  const serviceClient = await createServiceClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const guard = await requireDomainUser();
+  if (!guard.ok) return guard.response;
+  const { user, supabase, serviceClient } = guard.value;
 
   // Verify the posting exists and belongs to this user
   const { data: daywork } = await supabase
@@ -33,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Not your posting' }, { status: 403 });
   }
 
-  if (daywork.status !== 'active') {
+  if (daywork.status !== 'active' && daywork.status !== 'in_progress') {
     return NextResponse.json(
       { error: `Cannot cancel a ${daywork.status} posting` },
       { status: 400 },
@@ -41,18 +35,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    const { error: eventError } = await serviceClient.rpc('append_event', {
-      p_event_type: 'DAYWORK.CANCELLED_BY_EMPLOYER',
-      p_aggregate_id: dayworkId,
-      p_aggregate_type: 'daywork',
-      p_role_context: 'employer',
-      p_payload: {},
-      p_person_id: user.id,
+    await appendEvent(serviceClient, {
+      eventType: 'DAYWORK.CANCELLED_BY_EMPLOYER',
+      aggregateId: dayworkId,
+      aggregateType: 'daywork',
+      roleContext: 'employer',
+      payload: {},
+      personId: user.id,
     });
-
-    if (eventError) {
-      throw new Error(eventError.message);
-    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

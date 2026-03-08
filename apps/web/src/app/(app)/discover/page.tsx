@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { createClient } from '@/lib/supabase/client';
 
 interface DayworkCard {
@@ -31,7 +32,8 @@ interface DayworkCard {
   start_date: string;
   end_date: string;
   working_days: number;
-  day_rate: number | null;
+  day_rate: number;
+  currency: string;
   meals: string[];
   notes: string | null;
   status: string;
@@ -70,9 +72,10 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [sort, setSort] = useState('recency');
   const [filterRoleId, setFilterRoleId] = useState('');
   const [filterPortId, setFilterPortId] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
 
   // Lookups for filters
   const [roles, setRoles] = useState<LookupItem[]>([]);
@@ -94,15 +97,18 @@ export default function DiscoverPage() {
 
   const loadCards = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ sort });
+    const params = new URLSearchParams();
     if (filterRoleId && filterRoleId !== 'all') params.set('roleId', filterRoleId);
     if (filterPortId && filterPortId !== 'all') params.set('portId', filterPortId);
+    if (filterStartDate) params.set('startDate', filterStartDate);
+    if (filterEndDate) params.set('endDate', filterEndDate);
 
-    const res = await fetch(`/api/daywork/discover?${params}`);
+    const qs = params.toString();
+    const res = await fetch(`/api/daywork/discover${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     if (data.dayworks) setCards(data.dayworks);
     setLoading(false);
-  }, [sort, filterRoleId, filterPortId]);
+  }, [filterRoleId, filterPortId, filterStartDate, filterEndDate]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -148,20 +154,6 @@ export default function DiscoverPage() {
           <Card>
             <CardContent className="flex flex-col gap-3 pt-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Sort by</label>
-                <Select value={sort} onValueChange={setSort}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recency">Most recent</SelectItem>
-                    <SelectItem value="proximity">Proximity</SelectItem>
-                    <SelectItem value="tenure">Tenure match</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Role</label>
                 <Select value={filterRoleId} onValueChange={setFilterRoleId}>
                   <SelectTrigger>
@@ -194,6 +186,25 @@ export default function DiscoverPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex gap-3">
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">From</label>
+                  <Input
+                    type="date"
+                    value={filterStartDate}
+                    onChange={(e) => setFilterStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">To</label>
+                  <Input
+                    type="date"
+                    value={filterEndDate}
+                    onChange={(e) => setFilterEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -217,8 +228,8 @@ export default function DiscoverPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  No daywork postings match your availability and filters right now. Try adjusting
-                  your filters or check back later.
+                  No daywork postings match your filters right now. Try adjusting your filters or
+                  check back later.
                 </p>
                 <Button variant="outline" size="sm" className="mt-3" onClick={loadCards}>
                   Refresh
@@ -377,12 +388,14 @@ function JobCard({ card, isPreview }: { card: DayworkCard; isPreview?: boolean }
             </span>
           </div>
 
-          {card.day_rate && (
-            <div className="flex items-center gap-2 text-sm">
-              <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="font-medium">&euro;{card.day_rate}/day</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-sm">
+            <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="font-medium">
+              {{ EUR: '\u20AC', USD: '$', GBP: '\u00A3', AED: '\u062F.\u0625' }[card.currency] ??
+                '\u20AC'}
+              {card.day_rate}/day
+            </span>
+          </div>
 
           {card.experience_brackets?.label && (
             <div className="flex items-center gap-2 text-sm">

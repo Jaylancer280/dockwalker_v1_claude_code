@@ -1,22 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { NextResponse } from 'next/server';
 import { GET, POST } from '@/app/api/vessels/route';
 
-const mockGetUser = vi.fn();
+const mockRequireDomainUser = vi.fn();
+vi.mock('@/lib/auth/require-domain-user', () => ({
+  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+}));
+
 const mockFromAuth = vi.fn();
 const mockFromService = vi.fn();
 const mockRpc = vi.fn();
-
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: vi.fn(async () => ({
-    auth: { getUser: mockGetUser },
-    from: mockFromAuth,
-  })),
-  createServiceClient: vi.fn(async () => ({
-    rpc: mockRpc,
-    from: mockFromService,
-  })),
-}));
-
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/vessels', {
@@ -40,6 +33,20 @@ function makeSelectChain(data: unknown, error: unknown = null) {
   };
 }
 
+function guardOk(overrides: Record<string, unknown> = {}) {
+  return {
+    ok: true,
+    value: {
+      user: { id: 'u1' },
+      person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
+      profile: { person_id: 'u1' },
+      supabase: { from: mockFromAuth },
+      serviceClient: { rpc: mockRpc, from: mockFromService },
+      ...overrides,
+    },
+  };
+}
+
 const validBody = {
   imoNumber: '1234567',
   name: 'MY Test Yacht',
@@ -54,15 +61,18 @@ describe('GET /api/vessels', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await GET();
     expect(res.status).toBe(401);
   });
 
   it('returns 200 with vessels list', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
     const vessels = [{ id: 'v1', name: 'Yacht One' }];
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeSelectChain(vessels));
 
     const res = await GET();
@@ -72,7 +82,7 @@ describe('GET /api/vessels', () => {
   });
 
   it('returns empty array when no vessels', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeSelectChain(null));
 
     const res = await GET();
@@ -88,16 +98,31 @@ describe('POST /api/vessels', () => {
   });
 
   it('returns 401 when unauthenticated', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: null } });
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    });
 
     const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(401);
   });
 
+  it('returns 409 when onboarding incomplete', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: false,
+      response: NextResponse.json(
+        { error: 'Complete onboarding before using this feature' },
+        { status: 409 },
+      ),
+    });
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(409);
+  });
+
   it('returns 403 when crew hat tries to create vessel', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(
-      makeSelectChain({ current_hat: 'crew' }),
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' } }),
     );
 
     const res = await POST(makeRequest(validBody));
@@ -105,10 +130,7 @@ describe('POST /api/vessels', () => {
   });
 
   it('returns 400 when required fields missing', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(
-      makeSelectChain({ current_hat: 'employer' }),
-    );
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(makeRequest({ imoNumber: '1234567' }));
     expect(res.status).toBe(400);
@@ -117,10 +139,7 @@ describe('POST /api/vessels', () => {
   });
 
   it('returns 400 for invalid IMO number', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(
-      makeSelectChain({ current_hat: 'employer' }),
-    );
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(makeRequest({ ...validBody, imoNumber: '123' }));
     expect(res.status).toBe(400);
@@ -129,10 +148,7 @@ describe('POST /api/vessels', () => {
   });
 
   it('returns 400 for invalid vessel type', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(
-      makeSelectChain({ current_hat: 'employer' }),
-    );
+    mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(
       makeRequest({ ...validBody, vesselType: 'cargo' }),
@@ -142,11 +158,19 @@ describe('POST /api/vessels', () => {
     expect(body.error).toContain('private or charter');
   });
 
+  it('returns 400 when size band ID is invalid', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain(null));
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('size band ID');
+  });
+
   it('returns 409 when IMO already registered', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(
-      makeSelectChain({ current_hat: 'employer' }),
-    );
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'sb1' }));
     mockFromService.mockReturnValueOnce(
       makeSelectChain({ id: 'existing-vessel' }),
     );
@@ -156,10 +180,8 @@ describe('POST /api/vessels', () => {
   });
 
   it('returns 201 on successful creation', async () => {
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
-    mockFromAuth.mockReturnValueOnce(
-      makeSelectChain({ current_hat: 'employer' }),
-    );
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'sb1' }));
     mockFromService.mockReturnValueOnce(makeSelectChain(null));
     mockRpc.mockResolvedValueOnce({ error: null });
 

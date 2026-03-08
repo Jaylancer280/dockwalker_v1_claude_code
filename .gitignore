@@ -28,9 +28,9 @@ supabase/.branches/
 .DS_Store
 Thumbs.db
 
-# capacitor
-android/
-ios/
+# capacitor build output (root-anchored to avoid ignoring apps/web/ios and apps/web/android)
+/android/
+/ios/
 
 # claude code sessions
 .claude/

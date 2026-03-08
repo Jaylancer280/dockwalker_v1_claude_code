@@ -14,7 +14,7 @@ if [ -n "$FOUND" ]; then
   echo "ERROR: TODO comments found in staged files:"
   echo "$FOUND"
   echo ""
-  echo "Use 'Deferred:' prefix instead, or add to Deferred Decisions in CLAUDE.md."
+  echo "Use 'Deferred:' prefix instead, or add to Deferred Decisions in BUILD_STATE.md."
   exit 1
 fi
 
