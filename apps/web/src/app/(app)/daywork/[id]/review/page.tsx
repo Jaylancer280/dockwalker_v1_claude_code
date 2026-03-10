@@ -71,6 +71,10 @@ export default function ReviewApplicantsPage() {
     crewName: string;
     engagementId: string;
   } | null>(null);
+  const [pendingAccept, setPendingAccept] = useState<{
+    crewId: string;
+    crewName: string;
+  } | null>(null);
 
   const applicants = allApplicants.filter((a) => a.status === 'applied' || a.status === 'viewed');
   const shortlisted = allApplicants.filter((a) => a.status === 'shortlisted');
@@ -121,6 +125,12 @@ export default function ReviewApplicantsPage() {
       alert(data.error ?? 'Failed to shortlist');
     }
     setActing(false);
+  }
+
+  function requestAccept(crewId: string) {
+    const applicant = allApplicants.find((a) => a.crew_person_id === crewId);
+    const crewName = applicant?.profiles?.display_name ?? 'this crew member';
+    setPendingAccept({ crewId, crewName });
   }
 
   async function handleAccept(crewId: string) {
@@ -268,7 +278,7 @@ export default function ReviewApplicantsPage() {
                   key={topCard.crew_person_id}
                   applicant={topCard}
                   tab={tab}
-                  onAccept={() => handleAccept(topCard.crew_person_id)}
+                  onAccept={() => requestAccept(topCard.crew_person_id)}
                   onReject={() => handleReject(topCard.crew_person_id)}
                   onShortlist={() => handleShortlist(topCard.crew_person_id)}
                   disabled={acting}
@@ -298,7 +308,7 @@ export default function ReviewApplicantsPage() {
               </button>
             )}
             <button
-              onClick={() => handleAccept(topCard.crew_person_id)}
+              onClick={() => requestAccept(topCard.crew_person_id)}
               disabled={acting}
               className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
             >
@@ -315,6 +325,34 @@ export default function ReviewApplicantsPage() {
           </p>
         )}
       </div>
+
+      <Dialog open={!!pendingAccept} onOpenChange={() => setPendingAccept(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm acceptance</DialogTitle>
+            <DialogDescription>
+              Accept {pendingAccept?.crewName} for this job? This will open a message thread and
+              reject all other applicants.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPendingAccept(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingAccept) {
+                  handleAccept(pendingAccept.crewId);
+                  setPendingAccept(null);
+                }
+              }}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Accept
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!acceptedDialog} onOpenChange={() => setAcceptedDialog(null)}>
         <DialogContent>

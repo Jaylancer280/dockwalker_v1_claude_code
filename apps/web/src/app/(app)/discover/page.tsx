@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import {
@@ -13,6 +13,7 @@ import {
   X,
   SlidersHorizontal,
   Loader2,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +30,7 @@ import { createClient } from '@/lib/supabase/client';
 
 interface DayworkCard {
   id: string;
+  job_number: number;
   start_date: string;
   end_date: string;
   working_days: number;
@@ -71,6 +73,9 @@ export default function DiscoverPage() {
   const [cards, setCards] = useState<DayworkCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [composingMessage, setComposingMessage] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const swipeRef = useRef<{ triggerApplySwipe: () => void } | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterRoleId, setFilterRoleId] = useState('');
   const [filterPortId, setFilterPortId] = useState('');
@@ -116,17 +121,39 @@ export default function DiscoverPage() {
   }, [loadCards]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  async function handleApply(dayworkId: string) {
+  async function handleApply(dayworkId: string, message?: string) {
     setApplying(true);
-    const res = await fetch(`/api/daywork/${dayworkId}/apply`, { method: 'POST' });
+    const opts: RequestInit = { method: 'POST' };
+    if (message) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify({ message });
+    }
+    const res = await fetch(`/api/daywork/${dayworkId}/apply`, opts);
     if (res.ok) {
       setCards((prev) => prev.filter((c) => c.id !== dayworkId));
     }
+    setComposingMessage(false);
+    setMessageText('');
     setApplying(false);
   }
 
   function handlePass(dayworkId: string) {
     setCards((prev) => prev.filter((c) => c.id !== dayworkId));
+  }
+
+  function handleMessageSubmit() {
+    if (!topCard || applying) return;
+    // Trigger the swipe-right animation, then apply with message
+    if (swipeRef.current) {
+      swipeRef.current.triggerApplySwipe();
+    }
+    const msg = messageText.trim();
+    setTimeout(() => handleApply(topCard.id, msg || undefined), 300);
+  }
+
+  function handleCancelMessage() {
+    setComposingMessage(false);
+    setMessageText('');
   }
 
   const topCard = cards[0] ?? null;
@@ -250,10 +277,16 @@ export default function DiscoverPage() {
               {/* Top card (swipeable) */}
               {topCard && (
                 <SwipeableCard
+                  ref={swipeRef}
                   key={topCard.id}
                   card={topCard}
                   onApply={() => handleApply(topCard.id)}
                   onPass={() => handlePass(topCard.id)}
+                  onComposeMessage={() => {
+                    setComposingMessage(true);
+                    setMessageText('');
+                  }}
+                  composing={composingMessage}
                   disabled={applying}
                 />
               )}
@@ -261,8 +294,8 @@ export default function DiscoverPage() {
           )}
         </div>
 
-        {/* Action buttons */}
-        {!loading && topCard && (
+        {/* Action buttons or message compose */}
+        {!loading && topCard && !composingMessage && (
           <div className="flex items-center justify-center gap-6 pb-4">
             <button
               onClick={() => handlePass(topCard.id)}
@@ -281,6 +314,45 @@ export default function DiscoverPage() {
           </div>
         )}
 
+        {!loading && topCard && composingMessage && (
+          <div className="flex flex-col gap-2 pb-4">
+            <div className="relative">
+              <textarea
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value.slice(0, 250))}
+                placeholder="Why are you a great fit for this job?"
+                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                rows={3}
+                maxLength={250}
+                autoFocus
+              />
+              <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground/60">
+                {messageText.length}/250
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={handleCancelMessage}
+                disabled={applying}
+              >
+                Cancel message
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={handleMessageSubmit}
+                disabled={applying || !messageText.trim()}
+              >
+                <Check className="mr-1 h-3.5 w-3.5" />
+                Submit & apply
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Counter */}
         {!loading && cards.length > 0 && (
           <p className="text-center text-xs text-muted-foreground">
@@ -292,24 +364,35 @@ export default function DiscoverPage() {
   );
 }
 
-function SwipeableCard({
-  card,
-  onApply,
-  onPass,
-  disabled,
-}: {
-  card: DayworkCard;
-  onApply: () => void;
-  onPass: () => void;
-  disabled: boolean;
-}) {
+interface SwipeableCardHandle {
+  triggerApplySwipe: () => void;
+}
+
+const SwipeableCard = forwardRef<
+  SwipeableCardHandle,
+  {
+    card: DayworkCard;
+    onApply: () => void;
+    onPass: () => void;
+    onComposeMessage: () => void;
+    composing: boolean;
+    disabled: boolean;
+  }
+>(function SwipeableCard({ card, onApply, onPass, onComposeMessage, composing, disabled }, ref) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const applyOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
   const passOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
 
+  useImperativeHandle(ref, () => ({
+    triggerApplySwipe() {
+      hapticMedium();
+      animate(x, 400, { duration: 0.3 });
+    },
+  }));
+
   function handleDragEnd(_: unknown, info: PanInfo) {
-    if (disabled) return;
+    if (disabled || composing) return;
 
     if (info.offset.x > SWIPE_THRESHOLD) {
       hapticMedium();
@@ -328,7 +411,7 @@ function SwipeableCard({
     <motion.div
       className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
       style={{ x, rotate }}
-      drag="x"
+      drag={composing ? false : 'x'}
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.8}
       onDragEnd={handleDragEnd}
@@ -347,12 +430,20 @@ function SwipeableCard({
         PASS
       </motion.div>
 
-      <JobCard card={card} />
+      <JobCard card={card} onComposeMessage={composing ? undefined : onComposeMessage} />
     </motion.div>
   );
-}
+});
 
-function JobCard({ card, isPreview }: { card: DayworkCard; isPreview?: boolean }) {
+function JobCard({
+  card,
+  isPreview,
+  onComposeMessage,
+}: {
+  card: DayworkCard;
+  isPreview?: boolean;
+  onComposeMessage?: () => void;
+}) {
   return (
     <div
       className={`h-full w-full rounded-2xl border border-border bg-background shadow-lg ${
@@ -424,10 +515,30 @@ function JobCard({ card, isPreview }: { card: DayworkCard; isPreview?: boolean }
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Posted date */}
-        <p className="mt-2 text-xs text-muted-foreground/60">
-          Posted {new Date(card.created_at).toLocaleDateString()}
-        </p>
+        {/* Apply with message button + Job ref */}
+        <div className="mt-2 flex items-center justify-between">
+          {onComposeMessage ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onComposeMessage();
+              }}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Apply with a message
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground/60">
+              DW-{String(card.job_number).padStart(5, '0')}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground/60">
+            {onComposeMessage
+              ? `DW-${String(card.job_number).padStart(5, '0')}`
+              : `Posted ${new Date(card.created_at).toLocaleDateString()}`}
+          </span>
+        </div>
       </div>
     </div>
   );

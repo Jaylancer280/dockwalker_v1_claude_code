@@ -41,6 +41,43 @@ export async function appendEvent<T extends keyof EventPayloadMap>(
 }
 
 /**
+ * Append multiple events atomically in a single database transaction.
+ * All events succeed or none do — prevents partial state from mid-flight failures.
+ *
+ * @returns Array of event IDs on success
+ * @throws Error if the RPC call fails (all events are rolled back)
+ */
+export async function appendEvents<T extends keyof EventPayloadMap>(
+  supabase: SupabaseClient,
+  events: AppendEventParams<T>[],
+): Promise<string[]> {
+  if (events.length === 0) return [];
+  if (events.length === 1) {
+    const id = await appendEvent(supabase, events[0]);
+    return [id];
+  }
+
+  const payload = events.map((e) => ({
+    event_type: e.eventType,
+    aggregate_id: e.aggregateId,
+    aggregate_type: e.aggregateType,
+    role_context: e.roleContext,
+    payload: e.payload,
+    person_id: e.personId,
+  }));
+
+  const { data, error } = await supabase.rpc('append_events_batch', {
+    p_events: payload,
+  });
+
+  if (error) {
+    throw new Error(`append_events_batch failed: ${error.message}`);
+  }
+
+  return data as string[];
+}
+
+/**
  * Check whether accepting a crew member for a daywork would cause a date overlap
  * with an existing active engagement.
  *
@@ -58,6 +95,33 @@ export async function checkNoOverlap(
 
   if (error) {
     throw new Error(`check_no_overlap failed: ${error.message}`);
+  }
+
+  return data as boolean;
+}
+
+/**
+ * Check date overlap excluding a specific engagement.
+ * Used for postponement proposals where the current engagement should not conflict with itself.
+ *
+ * @returns true if no overlap (safe), false if overlap exists
+ */
+export async function checkNoOverlapExcluding(
+  supabase: SupabaseClient,
+  crewPersonId: string,
+  startDate: string,
+  endDate: string,
+  excludeEngagementId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc('check_no_overlap_excluding', {
+    p_crew_person_id: crewPersonId,
+    p_start_date: startDate,
+    p_end_date: endDate,
+    p_exclude_engagement_id: excludeEngagementId,
+  });
+
+  if (error) {
+    throw new Error(`check_no_overlap_excluding failed: ${error.message}`);
   }
 
   return data as boolean;

@@ -9,48 +9,62 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 export async function GET() {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase } = guard.value;
+  const { user, person, supabase } = guard.value;
 
-  // Get all engagements where user is crew or employer (all statuses)
-  const { data: asCrew } = await supabase
-    .from('active_engagements')
-    .select(
-      `
-      id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
-      crew_completion_status,
-      dayworks(yacht_roles(name), ports(name)),
-      profiles!active_engagements_employer_person_id_profiles_fkey(display_name)
-    `,
-    )
-    .eq('crew_person_id', user.id);
+  // Filter engagements by current hat: crew hat sees crew engagements, employer/agent hat sees employer engagements
+  const isCrew = person.current_hat === 'crew';
 
-  const { data: asEmployer } = await supabase
-    .from('active_engagements')
-    .select(
-      `
-      id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
-      crew_completion_status,
-      dayworks(yacht_roles(name), ports(name)),
-      profiles!active_engagements_crew_person_id_profiles_fkey(display_name)
-    `,
-    )
-    .eq('employer_person_id', user.id);
+  interface EngagementRow {
+    id: string;
+    status: string;
+    start_date: string;
+    role: 'crew' | 'employer';
+    [key: string]: unknown;
+  }
+  let allEngagements: EngagementRow[];
 
-  const allEngagements = [
-    ...(asCrew ?? []).map((e) => ({ ...e, role: 'crew' as const })),
-    ...(asEmployer ?? []).map((e) => ({ ...e, role: 'employer' as const })),
-  ];
+  if (isCrew) {
+    const { data: asCrew } = await supabase
+      .from('active_engagements')
+      .select(
+        `
+        id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
+        crew_completion_status,
+        dayworks(yacht_roles(name), ports(name)),
+        profiles!active_engagements_employer_person_id_profiles_fkey(display_name)
+      `,
+      )
+      .eq('crew_person_id', user.id);
 
-  // Check which completed engagements the user has already rated
-  const completedIds = allEngagements.filter((e) => e.status === 'completed').map((e) => e.id);
+    allEngagements = (asCrew ?? []).map((e) => ({ ...e, role: 'crew' as const }));
+  } else {
+    const { data: asEmployer } = await supabase
+      .from('active_engagements')
+      .select(
+        `
+        id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
+        crew_completion_status,
+        dayworks(yacht_roles(name), ports(name)),
+        profiles!active_engagements_crew_person_id_profiles_fkey(display_name)
+      `,
+      )
+      .eq('employer_person_id', user.id);
+
+    allEngagements = (asEmployer ?? []).map((e) => ({ ...e, role: 'employer' as const }));
+  }
+
+  // Check which completed/cancelled engagements the user has already rated
+  const ratableIds = allEngagements
+    .filter((e) => e.status === 'completed' || e.status === 'cancelled')
+    .map((e) => e.id);
 
   let ratedEngagementIds = new Set<string>();
-  if (completedIds.length > 0) {
+  if (ratableIds.length > 0) {
     const { data: ratings } = await supabase
       .from('engagement_ratings')
       .select('engagement_id')
       .eq('rater_person_id', user.id)
-      .in('engagement_id', completedIds);
+      .in('engagement_id', ratableIds);
 
     ratedEngagementIds = new Set((ratings ?? []).map((r) => r.engagement_id));
   }

@@ -18,9 +18,12 @@ export async function GET(
     .from('active_engagements')
     .select(
       `
-      id, crew_person_id, employer_person_id, start_date, end_date, status, crew_completion_status,
+      id, daywork_id, crew_person_id, employer_person_id, start_date, end_date, status, crew_completion_status,
+      cancelled_by, cancellation_reason_category, cancellation_reason_text,
+      postponement_status, proposed_start_date, proposed_end_date, proposed_working_days,
+      work_started_status, work_started_at,
       dayworks(
-        working_days, day_rate, currency, meals, notes,
+        job_number, working_days, day_rate, currency, meals, notes,
         yacht_roles(name),
         ports(name, cities(name)),
         vessels(name)
@@ -44,17 +47,24 @@ export async function GET(
       ? engagement.employer_person_id
       : engagement.crew_person_id;
 
-  const [{ data: otherProfile }, { data: myRating }] = await Promise.all([
+  const [{ data: otherProfile }, { data: myRating }, { data: daywork }] = await Promise.all([
     supabase.from('profiles').select('display_name').eq('person_id', otherId).single(),
     supabase
       .from('engagement_ratings')
       .select(
-        'id, rater_role, pay_accuracy, meals_accuracy, role_accuracy, working_days_accuracy, vessel_condition, would_work_on_vessel_again, skills_as_advertised, certifications_verified, punctuality, would_rehire, communication_accuracy, overall_match',
+        'id, rater_role, rating_context, notice_given, pay_accuracy, meals_accuracy, role_accuracy, working_days_accuracy, vessel_condition, would_work_on_vessel_again, skills_as_advertised, certifications_verified, punctuality, would_rehire, communication_accuracy, overall_match',
       )
       .eq('engagement_id', engagementId)
       .eq('rater_person_id', user.id)
       .single(),
+    engagement.cancelled_by === 'crew'
+      ? supabase.from('dayworks').select('status').eq('id', engagement.daywork_id).single()
+      : Promise.resolve({ data: null }),
   ]);
+
+  // If crew cancelled, employer has responded once daywork is no longer in_progress
+  const crewCancelResponded =
+    engagement.cancelled_by === 'crew' && daywork?.status !== 'in_progress';
 
   return NextResponse.json({
     engagement: {
@@ -62,6 +72,7 @@ export async function GET(
       other_name: otherProfile?.display_name ?? 'Unknown',
       has_rated: !!myRating,
       my_rating: myRating ?? null,
+      crew_cancel_responded: crewCancelResponded,
     },
   });
 }

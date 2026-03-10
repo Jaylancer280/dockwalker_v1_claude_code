@@ -8,8 +8,8 @@ const VALID_CERT_VERIFIED = ['yes', 'no', 'not_checked'];
 
 /**
  * POST /api/engagements/:id/rate
- * Submit a rating for a completed engagement.
- * Crew and employer have different required fields.
+ * Submit a rating for a completed or cancelled engagement.
+ * Crew and employer have different required fields, and cancelled context has a lighter form.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: engagementId } = await params;
@@ -34,12 +34,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  if (engagement.status !== 'completed') {
-    return NextResponse.json({ error: 'Engagement is not completed' }, { status: 400 });
+  if (engagement.status !== 'completed' && engagement.status !== 'cancelled') {
+    return NextResponse.json(
+      { error: 'Engagement must be completed or cancelled to rate' },
+      { status: 400 },
+    );
   }
 
-  // Crew must have confirmed/disputed before rating
-  if (isCrew && engagement.crew_completion_status === null) {
+  // Crew must have confirmed/disputed before rating completed engagements
+  if (engagement.status === 'completed' && isCrew && engagement.crew_completion_status === null) {
     return NextResponse.json(
       { error: 'You must confirm or dispute completion before rating' },
       { status: 400 },
@@ -60,7 +63,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const body = await request.json().catch(() => ({}));
 
-  // Validate symmetric fields
+  // Validate symmetric fields (required for both contexts)
   if (typeof body.communication_accuracy !== 'boolean') {
     return NextResponse.json(
       { error: 'communication_accuracy must be a boolean' },
@@ -72,107 +75,145 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   try {
-    if (isCrew) {
-      // Validate crew-specific fields
-      if (!VALID_YES_NO_PARTIAL.includes(body.pay_accuracy)) {
-        return NextResponse.json(
-          { error: 'pay_accuracy must be yes, no, or partial' },
-          { status: 400 },
-        );
-      }
-      if (!VALID_YES_NO_PARTIAL.includes(body.meals_accuracy)) {
-        return NextResponse.json(
-          { error: 'meals_accuracy must be yes, no, or partial' },
-          { status: 400 },
-        );
-      }
-      if (!VALID_YES_NO_PARTIAL.includes(body.role_accuracy)) {
-        return NextResponse.json(
-          { error: 'role_accuracy must be yes, no, or partial' },
-          { status: 400 },
-        );
-      }
-      if (!VALID_DAYS_ACCURACY.includes(body.working_days_accuracy)) {
-        return NextResponse.json(
-          { error: 'working_days_accuracy must be fewer, as_listed, or more' },
-          { status: 400 },
-        );
-      }
-      if (
-        !Number.isInteger(body.vessel_condition) ||
-        body.vessel_condition < 1 ||
-        body.vessel_condition > 5
-      ) {
-        return NextResponse.json(
-          { error: 'vessel_condition must be an integer 1-5' },
-          { status: 400 },
-        );
-      }
-      if (typeof body.would_work_on_vessel_again !== 'boolean') {
-        return NextResponse.json(
-          { error: 'would_work_on_vessel_again must be a boolean' },
-          { status: 400 },
-        );
-      }
+    if (engagement.status === 'cancelled') {
+      // Cancelled-context rating — lighter form
+      if (isCrew) {
+        if (!VALID_YES_NO_PARTIAL.includes(body.notice_given)) {
+          return NextResponse.json(
+            { error: 'notice_given must be yes, no, or partial' },
+            { status: 400 },
+          );
+        }
 
-      await appendEvent(serviceClient, {
-        eventType: 'ENGAGEMENT.RATED_BY_CREW',
-        aggregateId: engagementId,
-        aggregateType: 'engagement',
-        roleContext: 'crew',
-        payload: {
-          engagement_id: engagementId,
-          pay_accuracy: body.pay_accuracy,
-          meals_accuracy: body.meals_accuracy,
-          role_accuracy: body.role_accuracy,
-          working_days_accuracy: body.working_days_accuracy,
-          vessel_condition: body.vessel_condition,
-          would_work_on_vessel_again: body.would_work_on_vessel_again,
-          communication_accuracy: body.communication_accuracy,
-          overall_match: body.overall_match,
-        },
-        personId: user.id,
-      });
+        await appendEvent(serviceClient, {
+          eventType: 'ENGAGEMENT.CANCELLATION_RATED_BY_CREW',
+          aggregateId: engagementId,
+          aggregateType: 'engagement',
+          roleContext: 'crew',
+          payload: {
+            engagement_id: engagementId,
+            notice_given: body.notice_given as 'yes' | 'no' | 'partial',
+            communication_accuracy: body.communication_accuracy,
+            overall_match: body.overall_match,
+          },
+          personId: user.id,
+        });
+      } else {
+        await appendEvent(serviceClient, {
+          eventType: 'ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER',
+          aggregateId: engagementId,
+          aggregateType: 'engagement',
+          roleContext: 'employer',
+          payload: {
+            engagement_id: engagementId,
+            communication_accuracy: body.communication_accuracy,
+            overall_match: body.overall_match,
+          },
+          personId: user.id,
+        });
+      }
     } else {
-      // Validate employer-specific fields
-      if (!VALID_YES_NO_PARTIAL.includes(body.skills_as_advertised)) {
-        return NextResponse.json(
-          { error: 'skills_as_advertised must be yes, no, or partial' },
-          { status: 400 },
-        );
-      }
-      if (!VALID_CERT_VERIFIED.includes(body.certifications_verified)) {
-        return NextResponse.json(
-          { error: 'certifications_verified must be yes, no, or not_checked' },
-          { status: 400 },
-        );
-      }
-      if (!VALID_YES_NO_PARTIAL.includes(body.punctuality)) {
-        return NextResponse.json(
-          { error: 'punctuality must be yes, no, or partial' },
-          { status: 400 },
-        );
-      }
-      if (typeof body.would_rehire !== 'boolean') {
-        return NextResponse.json({ error: 'would_rehire must be a boolean' }, { status: 400 });
-      }
+      // Completed-context rating — full form
+      if (isCrew) {
+        if (!VALID_YES_NO_PARTIAL.includes(body.pay_accuracy)) {
+          return NextResponse.json(
+            { error: 'pay_accuracy must be yes, no, or partial' },
+            { status: 400 },
+          );
+        }
+        if (!VALID_YES_NO_PARTIAL.includes(body.meals_accuracy)) {
+          return NextResponse.json(
+            { error: 'meals_accuracy must be yes, no, or partial' },
+            { status: 400 },
+          );
+        }
+        if (!VALID_YES_NO_PARTIAL.includes(body.role_accuracy)) {
+          return NextResponse.json(
+            { error: 'role_accuracy must be yes, no, or partial' },
+            { status: 400 },
+          );
+        }
+        if (!VALID_DAYS_ACCURACY.includes(body.working_days_accuracy)) {
+          return NextResponse.json(
+            { error: 'working_days_accuracy must be fewer, as_listed, or more' },
+            { status: 400 },
+          );
+        }
+        if (
+          !Number.isInteger(body.vessel_condition) ||
+          body.vessel_condition < 1 ||
+          body.vessel_condition > 5
+        ) {
+          return NextResponse.json(
+            { error: 'vessel_condition must be an integer 1-5' },
+            { status: 400 },
+          );
+        }
+        if (typeof body.would_work_on_vessel_again !== 'boolean') {
+          return NextResponse.json(
+            { error: 'would_work_on_vessel_again must be a boolean' },
+            { status: 400 },
+          );
+        }
 
-      await appendEvent(serviceClient, {
-        eventType: 'ENGAGEMENT.RATED_BY_EMPLOYER',
-        aggregateId: engagementId,
-        aggregateType: 'engagement',
-        roleContext: 'employer',
-        payload: {
-          engagement_id: engagementId,
-          skills_as_advertised: body.skills_as_advertised,
-          certifications_verified: body.certifications_verified,
-          punctuality: body.punctuality,
-          would_rehire: body.would_rehire,
-          communication_accuracy: body.communication_accuracy,
-          overall_match: body.overall_match,
-        },
-        personId: user.id,
-      });
+        await appendEvent(serviceClient, {
+          eventType: 'ENGAGEMENT.RATED_BY_CREW',
+          aggregateId: engagementId,
+          aggregateType: 'engagement',
+          roleContext: 'crew',
+          payload: {
+            engagement_id: engagementId,
+            pay_accuracy: body.pay_accuracy,
+            meals_accuracy: body.meals_accuracy,
+            role_accuracy: body.role_accuracy,
+            working_days_accuracy: body.working_days_accuracy,
+            vessel_condition: body.vessel_condition,
+            would_work_on_vessel_again: body.would_work_on_vessel_again,
+            communication_accuracy: body.communication_accuracy,
+            overall_match: body.overall_match,
+          },
+          personId: user.id,
+        });
+      } else {
+        if (!VALID_YES_NO_PARTIAL.includes(body.skills_as_advertised)) {
+          return NextResponse.json(
+            { error: 'skills_as_advertised must be yes, no, or partial' },
+            { status: 400 },
+          );
+        }
+        if (!VALID_CERT_VERIFIED.includes(body.certifications_verified)) {
+          return NextResponse.json(
+            { error: 'certifications_verified must be yes, no, or not_checked' },
+            { status: 400 },
+          );
+        }
+        if (!VALID_YES_NO_PARTIAL.includes(body.punctuality)) {
+          return NextResponse.json(
+            { error: 'punctuality must be yes, no, or partial' },
+            { status: 400 },
+          );
+        }
+        if (typeof body.would_rehire !== 'boolean') {
+          return NextResponse.json({ error: 'would_rehire must be a boolean' }, { status: 400 });
+        }
+
+        await appendEvent(serviceClient, {
+          eventType: 'ENGAGEMENT.RATED_BY_EMPLOYER',
+          aggregateId: engagementId,
+          aggregateType: 'engagement',
+          roleContext: 'employer',
+          payload: {
+            engagement_id: engagementId,
+            skills_as_advertised: body.skills_as_advertised,
+            certifications_verified: body.certifications_verified,
+            punctuality: body.punctuality,
+            would_rehire: body.would_rehire,
+            communication_accuracy: body.communication_accuracy,
+            overall_match: body.overall_match,
+          },
+          personId: user.id,
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

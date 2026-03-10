@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     .from('dayworks')
     .select(
       `
-      id, role_context, start_date, end_date, working_days,
+      id, job_number, role_context, start_date, end_date, working_days,
       day_rate, currency, meals, notes, status, created_at,
       yacht_roles(name),
       ports(name, cities(name, regions(name))),

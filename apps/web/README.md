@@ -58,6 +58,7 @@ The current app expects the following RPCs to exist in `public`:
 
 - `append_event`
 - `check_no_overlap`
+- `check_no_overlap_excluding`
 - `onboard_person`
 - `clear_availability_dates`
 - `get_vessel_public`
@@ -140,3 +141,11 @@ Integration tests (`npm run test:integration`) run against a real local Supabase
 - Discovery (`GET /api/daywork/discover`) is open: crew see all active postings without availability gating. Filters are explicit: `roleId`, `portId`, `startDate`, `endDate`. Ordering is recency only.
 - My Jobs (`GET /api/daywork/mine`) supports `status`, `roleId`, and `portId` query params.
 - Daywork postings require `dayRate` (positive number) and `currency` (EUR/USD/GBP/AED, defaults to EUR). Day rate is NOT optional.
+- Employer cancellation (`POST /api/engagements/:id/cancel-employer`) requires structured reason: `reason_category`, optional `reason_text`, `relist_requested`, optional `relist_reason_category`/`relist_reason_text`. Relist reasons are employer-private.
+- Crew cancellation (`POST /api/engagements/:id/cancel-crew`) requires structured reason: `reason_category` (`personal_reasons`, `found_other_work`, `unsafe_conditions`, `other`), optional `reason_text`. Daywork stays `in_progress` — employer decides relist vs cancel.
+- Respond to crew cancel (`POST /api/engagements/:id/respond-crew-cancel`): employer chooses `{ action: 'relist' }` or `{ action: 'cancel' }` after crew-initiated cancellation.
+- Postponement proposal (`POST /api/engagements/:id/propose-postponement`): once-only per engagement. Blocked when work has started (`work_started_status = 'confirmed'`). Returns `{ outcome: 'conflict' }` without acting when crew has scheduling conflict; employer must confirm with `confirm_conflict: true` to cancel and relist.
+- Postponement response (`POST /api/engagements/:id/respond-postponement`): crew accepts or rejects proposed dates. Rejection cancels engagement but does NOT auto-relist.
+- Relist with dates (`POST /api/engagements/:id/relist-with-dates`): employer manually relists after crew rejection using proposed dates stored on the engagement.
+- Work started (`POST /api/engagements/:id/work-started`): mutual confirmation that work has begun. Either party initiates (`action: 'initiate'`), the other confirms (`action: 'confirm'`). Once confirmed, postponement is blocked.
+- Rating (`POST /api/engagements/:id/rate`) now accepts both `completed` and `cancelled` engagements. Cancelled context has a lighter rating form.

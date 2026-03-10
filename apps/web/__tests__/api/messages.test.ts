@@ -82,7 +82,7 @@ describe('GET /api/messages', () => {
     expect(res.status).toBe(409);
   });
 
-  it('returns 200 with conversations list including active engagements', async () => {
+  it('returns 200 with conversations list for crew hat', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const crewEngagements = [
@@ -98,8 +98,7 @@ describe('GET /api/messages', () => {
     ];
 
     mockFromAuth
-      .mockReturnValueOnce(makeEngagementChain(crewEngagements)) // as crew
-      .mockReturnValueOnce(makeEngagementChain([]))              // as employer
+      .mockReturnValueOnce(makeEngagementChain(crewEngagements)) // crew hat query
       .mockReturnValueOnce(makeMessagesChain([]));               // messages
 
     const res = await GET();
@@ -109,12 +108,39 @@ describe('GET /api/messages', () => {
     expect(body.conversations[0].role).toBe('crew');
   });
 
+  it('returns 200 with conversations list for employer hat', async () => {
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' } }),
+    );
+
+    const employerEngagements = [
+      {
+        id: 'e1',
+        crew_person_id: 'crew1',
+        employer_person_id: 'u1',
+        daywork_id: 'd1',
+        start_date: '2026-04-01',
+        end_date: '2026-04-05',
+        status: 'active',
+      },
+    ];
+
+    mockFromAuth
+      .mockReturnValueOnce(makeEngagementChain(employerEngagements)) // employer hat query
+      .mockReturnValueOnce(makeMessagesChain([]));                   // messages
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.conversations).toHaveLength(1);
+    expect(body.conversations[0].role).toBe('employer');
+  });
+
   it('returns empty conversations when no engagements', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     mockFromAuth
-      .mockReturnValueOnce(makeEngagementChain([])) // as crew
-      .mockReturnValueOnce(makeEngagementChain([])); // as employer
+      .mockReturnValueOnce(makeEngagementChain([])); // crew hat, no engagements
 
     const res = await GET();
     expect(res.status).toBe(200);
@@ -137,8 +163,7 @@ describe('GET /api/messages', () => {
     };
 
     mockFromAuth
-      .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // as crew
-      .mockReturnValueOnce(makeEngagementChain([]))                    // as employer
+      .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([]))                       // ratings (none yet)
       .mockReturnValueOnce(makeMessagesChain([]));                     // messages
 
@@ -164,8 +189,7 @@ describe('GET /api/messages', () => {
     };
 
     mockFromAuth
-      .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // as crew
-      .mockReturnValueOnce(makeEngagementChain([]))                    // as employer
+      .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([{ engagement_id: 'e2' }])) // already rated
       .mockReturnValueOnce(makeMessagesChain([]));                     // messages
 
@@ -190,8 +214,8 @@ describe('GET /api/messages', () => {
     };
 
     mockFromAuth
-      .mockReturnValueOnce(makeEngagementChain([cancelledEngagement])) // as crew
-      .mockReturnValueOnce(makeEngagementChain([]))                    // as employer
+      .mockReturnValueOnce(makeEngagementChain([cancelledEngagement])) // crew hat query
+      .mockReturnValueOnce(makeRatingsChain([]))                       // ratings check (cancelled now ratable)
       .mockReturnValueOnce(makeMessagesChain([]));                     // messages
 
     const res = await GET();

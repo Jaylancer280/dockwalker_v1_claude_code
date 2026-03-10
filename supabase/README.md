@@ -36,13 +36,18 @@ npx supabase db push         # Apply pending migrations to linked remote
 
 The app depends on these Postgres functions in the `public` schema:
 
-| RPC                        | Migration | Purpose                                                  |
-| -------------------------- | --------- | -------------------------------------------------------- |
-| `append_event`             | 00005     | Appends event to ledger + updates projections atomically |
-| `onboard_person`           | 00007     | Atomic `PERSON.CREATED` + `PROFILE.CREATED`              |
-| `check_no_overlap`         | 00007     | Validates no date conflicts before crew acceptance       |
-| `clear_availability_dates` | 00007     | Clears availability via immediate-expiry ledger entries  |
-| `get_vessel_public`        | 00007     | Returns vessel data with NDA-safe field filtering        |
+| RPC                                    | Migration | Purpose                                                                                                                                  |
+| -------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `append_event`                         | 00005     | Appends event to ledger + updates projections atomically                                                                                 |
+| `onboard_person`                       | 00007     | Atomic `PERSON.CREATED` + `PROFILE.CREATED`                                                                                              |
+| `check_no_overlap`                     | 00007     | Validates no date conflicts before crew acceptance                                                                                       |
+| `check_no_overlap_excluding`           | 00018     | Like check_no_overlap but with explicit dates + engagement exclusion                                                                     |
+| `apply_projection` (DAYWORK.RELISTED)  | 00019     | RELISTED handler now updates dates/working_days when present in payload                                                                  |
+| `apply_projection` (WORK_STARTED)      | 00020     | Handles `ENGAGEMENT.WORK_STARTED` and `ENGAGEMENT.WORK_STARTED_CONFIRMED` events                                                         |
+| `append_events_batch`                  | 00021     | Processes array of events in single transaction for atomic multi-event writes                                                            |
+| `apply_projection` (CANCELLED_BY_CREW) | 00022     | Structured crew cancellation — writes `cancelled_by`, `cancellation_reason_category`, `cancellation_reason_text` to `active_engagements` |
+| `clear_availability_dates`             | 00007     | Clears availability via immediate-expiry ledger entries                                                                                  |
+| `get_vessel_public`                    | 00007     | Returns vessel data with NDA-safe field filtering                                                                                        |
 
 ## Daywork Status Lifecycle
 
@@ -81,9 +86,41 @@ After completion, both parties can rate the job/interaction (not the user). Rati
 
 The `engagement_ratings` table stores one rating per person per engagement (UNIQUE constraint). Crew must confirm/dispute completion before rating. Employer can rate immediately after marking complete.
 
+## Structured Employer Cancellation (Migration 00018)
+
+Employer cancellation of in-progress engagements now requires a structured reason:
+
+- `cancellation_reason_category` — one of: `vessel_leaving`, `crew_requirements_changed`, `vessel_operational`, `other`
+- `cancellation_reason_text` — free text (required for `other`)
+- `relist_requested` — whether employer wants to relist the job
+- `relist_reason_category` — private relist reason (never shown to crew)
+
+**Postponement flow:** Employers can propose new dates instead of cancelling outright. If crew has a scheduling conflict, the engagement auto-cancels and the daywork is relisted. Otherwise crew can approve or reject via system messages in chat.
+
+**Cancellation ratings:** Both parties can rate cancelled engagements with a lighter form. Crew rates notice_given, communication, overall match. Employer rates communication, overall match.
+
+New event types: `ENGAGEMENT.POSTPONEMENT_PROPOSED`, `ENGAGEMENT.POSTPONEMENT_ACCEPTED`, `ENGAGEMENT.POSTPONEMENT_REJECTED`, `DAYWORK.RELISTED`, `ENGAGEMENT.CANCELLATION_RATED_BY_CREW`, `ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER`.
+
+**System messages:** The `messages` table now has an `is_system` boolean column. System messages are rendered centered in the chat UI, not as chat bubbles.
+
+## Structured Crew Cancellation (Migration 00022)
+
+Crew cancellation of in-progress engagements now requires a structured reason:
+
+- `reason_category` — one of: `personal_reasons`, `found_other_work`, `unsafe_conditions`, `other`
+- `reason_text` — free text (required for `other`, max 250 chars)
+
+New `cancelled_by` column tracks who initiated the cancellation (`crew`, `employer`, or `postponement`). When crew cancels, the daywork stays `in_progress` — the employer must decide whether to relist or cancel the posting via `POST /api/engagements/:id/respond-crew-cancel`.
+
+A system message is posted to the chat thread with the crew's reason.
+
 ## Currency Support
 
 Daywork postings carry a `currency` field (CHECK: `EUR`, `USD`, `GBP`, `AED`). Default is `EUR`. The `day_rate` column is NOT NULL — every posting requires a day rate. Templates also support currency (nullable, defaults to `EUR`).
+
+## Job Reference Numbers
+
+Every daywork posting receives a sequential `job_number` (SERIAL UNIQUE) auto-assigned on row creation. Displayed as `DW-00001` format in the UI. This is a projection column for human-readable reference — the event ledger UUID remains the canonical identity.
 
 ## Seed Data
 
@@ -96,7 +133,15 @@ Daywork postings carry a `currency` field (CHECK: `EUR`, `USD`, `GBP`, `AED`). D
 | Employer | `e@1` | `12345678` | employer | "Profile One" — Captain, 5+ yrs, Port Vauban. Owns M/Y Serenity (IMO 9876543). Has 3 active daywork postings. |
 | Crew     | `c@1` | `12345678` | crew     | "Profile Two" — Deckhand, 2-5 yrs, Port Vauban. 14-day availability window.                                   |
 
-`config.toml` references both seed files. Seed data is applied automatically during `npx supabase db reset`.
+`seed/003_advanced_scenarios.sql` adds 3 jobs in various lifecycle states using the same test accounts:
+
+| Job    | Role       | Port              | Status      | State                                                                    |
+| ------ | ---------- | ----------------- | ----------- | ------------------------------------------------------------------------ |
+| DW-004 | Deckhand   | Port Hercules     | active      | Crew applied → viewed → shortlisted (awaiting decision)                  |
+| DW-005 | Engineer   | Vieux Port Cannes | in_progress | Accepted, 4 messages exchanged, engagement active                        |
+| DW-006 | Stewardess | Port de Nice      | completed   | Full lifecycle: accepted → messages → completed → confirmed → both rated |
+
+`config.toml` references all three seed files. Seed data is applied automatically during `npx supabase db reset`.
 
 ## Message Hiding (Removed)
 

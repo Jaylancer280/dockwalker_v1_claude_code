@@ -19,6 +19,7 @@ export type EventType =
   | 'DAYWORK.POSTED'
   | 'DAYWORK.CANCELLED_BY_EMPLOYER'
   | 'DAYWORK.COMPLETED'
+  | 'DAYWORK.RELISTED'
   // Application aggregate
   | 'DAYWORK.APPLIED'
   | 'DAYWORK.VIEWED'
@@ -30,10 +31,17 @@ export type EventType =
   // Engagement aggregate
   | 'ENGAGEMENT.CANCELLED_BY_CREW'
   | 'ENGAGEMENT.CANCELLED_BY_EMPLOYER'
+  | 'ENGAGEMENT.POSTPONEMENT_PROPOSED'
+  | 'ENGAGEMENT.POSTPONEMENT_ACCEPTED'
+  | 'ENGAGEMENT.POSTPONEMENT_REJECTED'
+  | 'ENGAGEMENT.WORK_STARTED'
+  | 'ENGAGEMENT.WORK_STARTED_CONFIRMED'
   | 'ENGAGEMENT.COMPLETION_CONFIRMED'
   | 'ENGAGEMENT.COMPLETION_DISPUTED'
   | 'ENGAGEMENT.RATED_BY_CREW'
   | 'ENGAGEMENT.RATED_BY_EMPLOYER'
+  | 'ENGAGEMENT.CANCELLATION_RATED_BY_CREW'
+  | 'ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER'
   // Availability (person aggregate)
   | 'AVAILABILITY.SET'
   // Message aggregate
@@ -118,6 +126,12 @@ export interface EventPayloadMap {
   };
   'DAYWORK.CANCELLED_BY_EMPLOYER': Record<string, never>;
   'DAYWORK.COMPLETED': { daywork_id: string };
+  'DAYWORK.RELISTED': {
+    daywork_id: string;
+    start_date?: string;
+    end_date?: string;
+    working_days?: number;
+  };
   'DAYWORK.APPLIED': {
     id: string;
     daywork_id: string;
@@ -140,11 +154,46 @@ export interface EventPayloadMap {
     engagement_id: string;
     daywork_id: string;
     crew_person_id: string;
+    reason_category: 'personal_reasons' | 'found_other_work' | 'unsafe_conditions' | 'other';
+    reason_text?: string;
   };
   'ENGAGEMENT.CANCELLED_BY_EMPLOYER': {
     engagement_id: string;
     daywork_id: string;
     crew_person_id: string;
+    reason_category: 'vessel_leaving' | 'crew_requirements_changed' | 'vessel_operational' | 'other';
+    reason_text?: string;
+    relist_requested: boolean;
+    relist_reason_category?: 'wrong_crew' | 'requirements_changed' | 'different_skills' | 'relist_other';
+    relist_reason_text?: string;
+  };
+  'ENGAGEMENT.POSTPONEMENT_PROPOSED': {
+    engagement_id: string;
+    daywork_id: string;
+    crew_person_id: string;
+    proposed_start_date: string;
+    proposed_end_date: string;
+    proposed_working_days: number;
+  };
+  'ENGAGEMENT.POSTPONEMENT_ACCEPTED': {
+    engagement_id: string;
+    daywork_id: string;
+    new_start_date: string;
+    new_end_date: string;
+    new_working_days: number;
+  };
+  'ENGAGEMENT.POSTPONEMENT_REJECTED': {
+    engagement_id: string;
+    daywork_id: string;
+    crew_person_id: string;
+  };
+  'ENGAGEMENT.WORK_STARTED': {
+    engagement_id: string;
+    initiated_by: 'crew' | 'employer';
+  };
+  'ENGAGEMENT.WORK_STARTED_CONFIRMED': {
+    engagement_id: string;
+    confirmed_by: 'crew' | 'employer';
   };
   'ENGAGEMENT.COMPLETION_CONFIRMED': {
     engagement_id: string;
@@ -178,6 +227,17 @@ export interface EventPayloadMap {
     communication_accuracy: boolean;
     overall_match: number;
   };
+  'ENGAGEMENT.CANCELLATION_RATED_BY_CREW': {
+    engagement_id: string;
+    notice_given: 'yes' | 'no' | 'partial';
+    communication_accuracy: boolean;
+    overall_match: number;
+  };
+  'ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER': {
+    engagement_id: string;
+    communication_accuracy: boolean;
+    overall_match: number;
+  };
   'AVAILABILITY.SET': {
     start_date: string;
     end_date: string;
@@ -188,5 +248,6 @@ export interface EventPayloadMap {
     engagement_id?: string;
     sender_person_id?: string;
     content: string;
+    is_system?: boolean;
   };
 }

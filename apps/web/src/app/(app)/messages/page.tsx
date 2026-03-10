@@ -45,13 +45,16 @@ export default function MessagesPage() {
   }, [load]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Active: active engagements + completed that still need rating
+  // Active: active engagements + completed/cancelled that still need rating
   const active = conversations.filter(
-    (c) => c.status === 'active' || (c.status === 'completed' && !c.has_rated),
+    (c) =>
+      c.status === 'active' ||
+      (c.status === 'completed' && !c.has_rated) ||
+      (c.status === 'cancelled' && !c.has_rated),
   );
-  // History: completed-and-rated + cancelled — read-only
+  // History: completed-and-rated + cancelled-and-rated — read-only
   const history = conversations.filter(
-    (c) => (c.status === 'completed' && c.has_rated) || c.status === 'cancelled',
+    (c) => (c.status === 'completed' && c.has_rated) || (c.status === 'cancelled' && c.has_rated),
   );
 
   const current = tab === 'active' ? active : history;
@@ -141,13 +144,14 @@ export default function MessagesPage() {
                     {conv.profiles?.display_name ?? 'Unknown'}
                   </span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {conv.status === 'completed' && !conv.has_rated && (
+                    {((conv.status === 'completed' && !conv.has_rated) ||
+                      (conv.status === 'cancelled' && !conv.has_rated)) && (
                       <Badge variant="secondary" className="flex items-center gap-1 text-[10px]">
                         <ClipboardCheck className="h-3 w-3" />
                         Action needed
                       </Badge>
                     )}
-                    {conv.status === 'cancelled' && (
+                    {conv.status === 'cancelled' && conv.has_rated && (
                       <Badge variant="outline" className="text-[10px] text-muted-foreground">
                         Cancelled
                       </Badge>

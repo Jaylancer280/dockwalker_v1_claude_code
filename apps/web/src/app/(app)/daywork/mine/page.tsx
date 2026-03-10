@@ -9,13 +9,13 @@ import {
   Calendar,
   MapPin,
   DollarSign,
-  X,
   Users,
   CheckCircle,
   Trash2,
   Play,
   Loader2,
   SlidersHorizontal,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +34,7 @@ import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-j
 
 interface DayworkPosting {
   id: string;
+  job_number: number;
   role_context: string;
   start_date: string;
   end_date: string;
@@ -71,7 +72,7 @@ export default function MyPostingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
-  const [completing, setCompleting] = useState<string | null>(null);
+  const [engagementByDaywork, setEngagementByDaywork] = useState<Record<string, string>>({});
   const [deletingTemplate, setDeletingTemplate] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<MyJobsTab>('active');
   const [showFilters, setShowFilters] = useState(false);
@@ -121,7 +122,25 @@ export default function MyPostingsPage() {
         fetch('/api/daywork/templates').then((r) => r.json()),
       ]);
       if (activeRes.dayworks) setActivePostings(activeRes.dayworks);
-      if (inProgressRes.dayworks) setInProgressPostings(inProgressRes.dayworks);
+      if (inProgressRes.dayworks) {
+        setInProgressPostings(inProgressRes.dayworks);
+        // Fetch engagement IDs for in-progress postings so we can link to chat
+        const ipIds = (inProgressRes.dayworks as DayworkPosting[]).map((d: DayworkPosting) => d.id);
+        if (ipIds.length > 0) {
+          const supabase = createClient();
+          const { data: engagements } = await supabase
+            .from('active_engagements')
+            .select('id, daywork_id')
+            .in('daywork_id', ipIds);
+          if (engagements) {
+            const map: Record<string, string> = {};
+            for (const eng of engagements) {
+              map[eng.daywork_id] = eng.id;
+            }
+            setEngagementByDaywork(map);
+          }
+        }
+      }
       if (completedRes.dayworks) setCompletedPostings(completedRes.dayworks);
       if (templatesRes.templates) setTemplates(templatesRes.templates);
       setError(null);
@@ -167,14 +186,6 @@ export default function MyPostingsPage() {
     setCancelling(null);
   }
 
-  async function handleComplete(dayworkId: string) {
-    if (!confirm('Mark this daywork as completed? This cannot be undone.')) return;
-    setCompleting(dayworkId);
-    const res = await fetch(`/api/daywork/${dayworkId}/complete`, { method: 'POST' });
-    if (res.ok) loadData();
-    setCompleting(null);
-  }
-
   async function handleDeleteTemplate(id: string) {
     setDeletingTemplate(id);
     const res = await fetch(`/api/daywork/templates/${id}`, { method: 'DELETE' });
@@ -208,6 +219,7 @@ export default function MyPostingsPage() {
             </Badge>
           </div>
           <CardDescription>
+            DW-{String(posting.job_number).padStart(5, '0')} ·{' '}
             {posting.vessels?.nda_flag ? 'NDA Vessel' : (posting.vessels?.name ?? 'Unknown vessel')}
             {posting.vessels?.vessel_size_bands?.label &&
               ` · ${posting.vessels.vessel_size_bands.label}`}
@@ -249,34 +261,32 @@ export default function MyPostingsPage() {
               <Separator />
               <div className="flex flex-wrap gap-2">
                 {posting.status === 'active' && (
-                  <Link href={`/daywork/${posting.id}/review`}>
+                  <>
+                    <Link href={`/daywork/${posting.id}/review`}>
+                      <Button variant="default" size="sm">
+                        <Users className="mr-1 h-3.5 w-3.5" />
+                        Review applicants
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCancel(posting.id)}
+                      disabled={cancelling === posting.id}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      {cancelling === posting.id ? 'Cancelling...' : 'Cancel'}
+                    </Button>
+                  </>
+                )}
+                {posting.status === 'in_progress' && engagementByDaywork[posting.id] && (
+                  <Link href={`/messages/${engagementByDaywork[posting.id]}`}>
                     <Button variant="default" size="sm">
-                      <Users className="mr-1 h-3.5 w-3.5" />
-                      Review applicants
+                      <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                      Go to chat
                     </Button>
                   </Link>
                 )}
-                {posting.status === 'in_progress' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleComplete(posting.id)}
-                    disabled={completing === posting.id}
-                  >
-                    <CheckCircle className="mr-1 h-3.5 w-3.5" />
-                    {completing === posting.id ? 'Completing...' : 'Mark complete'}
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleCancel(posting.id)}
-                  disabled={cancelling === posting.id}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <X className="mr-1 h-3.5 w-3.5" />
-                  {cancelling === posting.id ? 'Cancelling...' : 'Cancel'}
-                </Button>
               </div>
             </>
           )}

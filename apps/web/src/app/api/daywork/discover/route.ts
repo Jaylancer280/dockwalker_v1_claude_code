@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 
 interface DiscoverDayworkRow {
   id: string;
+  job_number: number;
   vessel_id: string;
   start_date: string;
   end_date: string;
@@ -70,7 +71,7 @@ export async function GET(request: Request) {
     .from('dayworks')
     .select(
       `
-      id, vessel_id, start_date, end_date, working_days, day_rate, currency, meals, notes, status, created_at,
+      id, job_number, vessel_id, start_date, end_date, working_days, day_rate, currency, meals, notes, status, created_at,
       poster_person_id,
       yacht_roles(id, name, department),
       ports(id, name, cities(name, regions(name))),
