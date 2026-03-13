@@ -42,13 +42,16 @@ export type EventType =
   | 'ENGAGEMENT.RATED_BY_EMPLOYER'
   | 'ENGAGEMENT.CANCELLATION_RATED_BY_CREW'
   | 'ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER'
+  // Checklist aggregate
+  | 'CHECKLIST.SET'
+  | 'CHECKLIST.ITEM_TOGGLED'
   // Availability (person aggregate)
   | 'AVAILABILITY.SET'
   // Message aggregate
   | 'MESSAGE.SENT';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement';
+export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -238,10 +241,22 @@ export interface EventPayloadMap {
     communication_accuracy: boolean;
     overall_match: number;
   };
+  'CHECKLIST.SET': {
+    engagement_id: string;
+    items: Array<{ id: string; label: string; value: string }>;
+  };
+  'CHECKLIST.ITEM_TOGGLED': {
+    engagement_id: string;
+    item_id: string;
+    checked: boolean;
+  };
   'AVAILABILITY.SET': {
     start_date: string;
     end_date: string;
     expires_at: string;
+    city_id: string | null;
+    port_id?: string | null;
+    not_available?: boolean;
   };
   'MESSAGE.SENT': {
     id: string;

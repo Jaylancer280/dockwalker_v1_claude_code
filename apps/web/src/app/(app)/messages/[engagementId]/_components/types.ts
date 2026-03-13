@@ -44,6 +44,10 @@ export interface EngagementContext {
   work_started_status: string | null;
   work_started_at: string | null;
   crew_cancel_responded: boolean;
+  checklist: {
+    items: Array<{ id: string; label: string; value: string }>;
+    acknowledged_item_ids: string[];
+  } | null;
   dayworks: {
     job_number: number;
     working_days: number;

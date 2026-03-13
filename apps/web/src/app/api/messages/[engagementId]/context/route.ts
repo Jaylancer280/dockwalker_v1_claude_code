@@ -47,20 +47,26 @@ export async function GET(
       ? engagement.employer_person_id
       : engagement.crew_person_id;
 
-  const [{ data: otherProfile }, { data: myRating }, { data: daywork }] = await Promise.all([
-    supabase.from('profiles').select('display_name').eq('person_id', otherId).single(),
-    supabase
-      .from('engagement_ratings')
-      .select(
-        'id, rater_role, rating_context, notice_given, pay_accuracy, meals_accuracy, role_accuracy, working_days_accuracy, vessel_condition, would_work_on_vessel_again, skills_as_advertised, certifications_verified, punctuality, would_rehire, communication_accuracy, overall_match',
-      )
-      .eq('engagement_id', engagementId)
-      .eq('rater_person_id', user.id)
-      .single(),
-    engagement.cancelled_by === 'crew'
-      ? supabase.from('dayworks').select('status').eq('id', engagement.daywork_id).single()
-      : Promise.resolve({ data: null }),
-  ]);
+  const [{ data: otherProfile }, { data: myRating }, { data: daywork }, { data: checklist }] =
+    await Promise.all([
+      supabase.from('profiles').select('display_name').eq('person_id', otherId).single(),
+      supabase
+        .from('engagement_ratings')
+        .select(
+          'id, rater_role, rating_context, notice_given, pay_accuracy, meals_accuracy, role_accuracy, working_days_accuracy, vessel_condition, would_work_on_vessel_again, skills_as_advertised, certifications_verified, punctuality, would_rehire, communication_accuracy, overall_match',
+        )
+        .eq('engagement_id', engagementId)
+        .eq('rater_person_id', user.id)
+        .single(),
+      engagement.cancelled_by === 'crew'
+        ? supabase.from('dayworks').select('status').eq('id', engagement.daywork_id).single()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from('engagement_checklists')
+        .select('items, acknowledged_item_ids')
+        .eq('engagement_id', engagementId)
+        .single(),
+    ]);
 
   // If crew cancelled, employer has responded once daywork is no longer in_progress
   const crewCancelResponded =
@@ -73,6 +79,12 @@ export async function GET(
       has_rated: !!myRating,
       my_rating: myRating ?? null,
       crew_cancel_responded: crewCancelResponded,
+      checklist: checklist
+        ? {
+            items: checklist.items as Array<{ id: string; label: string; value: string }>,
+            acknowledged_item_ids: (checklist.acknowledged_item_ids as string[]) ?? [],
+          }
+        : null,
     },
   });
 }

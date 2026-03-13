@@ -131,7 +131,8 @@ export default function MyPostingsPage() {
           const { data: engagements } = await supabase
             .from('active_engagements')
             .select('id, daywork_id')
-            .in('daywork_id', ipIds);
+            .in('daywork_id', ipIds)
+            .eq('status', 'active');
           if (engagements) {
             const map: Record<string, string> = {};
             for (const eng of engagements) {

@@ -118,15 +118,11 @@ describe('GET /api/daywork/:id/applicants', () => {
         }),
       }),
     });
-    // availability windows query
+    // availability windows query (no date range filter — filtering done in JS)
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         in: vi.fn().mockReturnValue({
-          gte: vi.fn().mockReturnValue({
-            lte: vi.fn().mockReturnValue({
-              gt: vi.fn().mockResolvedValue({ data: [] }),
-            }),
-          }),
+          gt: vi.fn().mockResolvedValue({ data: [] }),
         }),
       }),
     });

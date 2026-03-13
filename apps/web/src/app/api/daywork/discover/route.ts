@@ -66,7 +66,8 @@ export async function GET(request: Request) {
 
   const excludedIds = (existingApps ?? []).map((a) => a.daywork_id);
 
-  // Build query for active dayworks, ordered by recency
+  // Build query for active dayworks, ordered by recency.
+  // Exclusions are applied at the DB level so the limit operates on already-filtered rows.
   let query = supabase
     .from('dayworks')
     .select(
@@ -79,7 +80,12 @@ export async function GET(request: Request) {
       required_certification_ids
     `,
     )
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .neq('poster_person_id', user.id);
+
+  if (excludedIds.length > 0) {
+    query = query.not('id', 'in', `(${excludedIds.join(',')})`);
+  }
 
   if (filterRoleId) {
     query = query.eq('role_id', filterRoleId);
@@ -102,12 +108,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Client-side filtering for exclusions that can't be done in a single Supabase query
-  const filtered = ((dayworks ?? []) as unknown as DiscoverDayworkRow[]).filter((dw) => {
-    if (excludedIds.includes(dw.id)) return false;
-    if (dw.poster_person_id === user.id) return false;
-    return true;
-  });
+  const filtered = (dayworks ?? []) as unknown as DiscoverDayworkRow[];
 
   const vesselIds = [...new Set(filtered.map((dw) => dw.vessel_id).filter(Boolean))];
   const vesselEntries: Array<[string, PublicVesselRow | null]> = await Promise.all(

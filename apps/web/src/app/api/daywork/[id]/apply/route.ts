@@ -52,6 +52,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
+  // Enforce availability requirement: crew must have active (non-expired, non-not_available) windows
+  const { data: availWindows } = await supabase
+    .from('availability_windows')
+    .select('id, not_available')
+    .eq('person_id', user.id)
+    .gt('expires_at', new Date().toISOString())
+    .limit(1);
+
+  const hasNotAvailable = availWindows?.some((w) => w.not_available);
+  const hasAvailable = availWindows?.some((w) => !w.not_available);
+
+  if (hasNotAvailable || !hasAvailable) {
+    return NextResponse.json(
+      { error: 'You must set your availability before applying' },
+      { status: 403 },
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const message = typeof body.message === 'string' ? body.message.slice(0, 250) : undefined;
   const applicationId = randomUUID();

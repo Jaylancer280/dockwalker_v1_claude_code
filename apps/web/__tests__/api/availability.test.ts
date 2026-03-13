@@ -9,6 +9,7 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
+const mockFromService = vi.fn();
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/availability', {
@@ -34,10 +35,17 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFromAuth },
-      serviceClient: { rpc: mockRpc },
+      serviceClient: { rpc: mockRpc, from: mockFromService },
       ...overrides,
     },
   };
+}
+
+/** Build a date string N days from today in YYYY-MM-DD format */
+function futureDate(offsetDays: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().split('T')[0];
 }
 
 describe('GET /api/availability', () => {
@@ -68,9 +76,9 @@ describe('GET /api/availability', () => {
     expect(res.status).toBe(409);
   });
 
-  it('returns 200 with windows and engagements', async () => {
+  it('returns 200 with windows, engagements, city, and status available', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    const windows = [{ id: 'w1', date: '2026-04-01' }];
+    const windows = [{ id: 'w1', date: '2026-04-01', city_id: 'c1', not_available: false }];
     const engagements = [{ id: 'e1', start_date: '2026-04-02' }];
 
     mockFromAuth
@@ -79,6 +87,16 @@ describe('GET /api/availability', () => {
           eq: vi.fn().mockReturnValue({
             gt: vi.fn().mockReturnValue({
               order: vi.fn().mockResolvedValue({ data: windows, error: null }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'c1', name: 'Antibes', regions: { name: 'French Riviera' } },
+              error: null,
             }),
           }),
         }),
@@ -96,6 +114,130 @@ describe('GET /api/availability', () => {
     const body = await res.json();
     expect(body.windows).toEqual(windows);
     expect(body.engagements).toEqual(engagements);
+    expect(body.status).toBe('available');
+    expect(body.city).toEqual({
+      id: 'c1',
+      name: 'Antibes',
+      region_name: 'French Riviera',
+    });
+  });
+
+  it('returns status not_available when crew declared not available', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const windows = [{ id: 'w1', date: '2026-04-01', city_id: 'c1', not_available: true }];
+
+    mockFromAuth
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            gt: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: windows, error: null }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'c1', name: 'Antibes', regions: { name: 'French Riviera' } },
+              error: null,
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe('not_available');
+    expect(body.windows).toEqual([]);
+  });
+
+  it('returns port data when windows have port_id', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const windows = [{ id: 'w1', date: '2026-04-01', city_id: 'c1', port_id: 'p1', not_available: false }];
+
+    mockFromAuth
+      // availability_windows
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            gt: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: windows, error: null }),
+            }),
+          }),
+        }),
+      })
+      // cities
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'c1', name: 'Antibes', regions: { name: 'French Riviera' } },
+              error: null,
+            }),
+          }),
+        }),
+      })
+      // active_engagements
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      })
+      // ports
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: { id: 'p1', name: 'Port Vauban' },
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.port).toEqual({ id: 'p1', name: 'Port Vauban' });
+  });
+
+  it('returns status null when no availability set', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    mockFromAuth
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            gt: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [], error: null }),
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+          }),
+        }),
+      });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe(null);
   });
 });
 
@@ -111,7 +253,7 @@ describe('POST /api/availability', () => {
     });
 
     const res = await POST(
-      makeRequest({ startDate: '2026-04-01', endDate: '2026-04-05' }),
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(5), cityId: 'c1' }),
     );
     expect(res.status).toBe(401);
   });
@@ -126,7 +268,7 @@ describe('POST /api/availability', () => {
     });
 
     const res = await POST(
-      makeRequest({ startDate: '2026-04-01', endDate: '2026-04-05' }),
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(5), cityId: 'c1' }),
     );
     expect(res.status).toBe(409);
   });
@@ -137,7 +279,7 @@ describe('POST /api/availability', () => {
     );
 
     const res = await POST(
-      makeRequest({ startDate: '2026-04-01', endDate: '2026-04-05' }),
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(5), cityId: 'c1' }),
     );
     expect(res.status).toBe(403);
   });
@@ -145,40 +287,85 @@ describe('POST /api/availability', () => {
   it('returns 400 when dates missing', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    const res = await POST(makeRequest({}));
+    const res = await POST(makeRequest({ cityId: 'c1' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('required');
+  });
+
+  it('returns 400 when cityId missing', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await POST(makeRequest({ startDate: futureDate(1), endDate: futureDate(5) }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('cityId');
   });
 
   it('returns 400 when end before start', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(
-      makeRequest({ startDate: '2026-04-10', endDate: '2026-04-01' }),
+      makeRequest({ startDate: futureDate(5), endDate: futureDate(1), cityId: 'c1' }),
     );
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('End date');
   });
 
-  it('returns 400 when range exceeds 60 days', async () => {
+  it('returns 400 when dates exceed 14-day window', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(
-      makeRequest({ startDate: '2026-01-01', endDate: '2026-06-01' }),
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(20), cityId: 'c1' }),
     );
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain('60 days');
+    expect(body.error).toContain('14 days');
   });
 
-  it('returns 200 on successful set', async () => {
+  it('returns 400 for past dates', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await POST(
+      makeRequest({ startDate: '2020-01-01', endDate: '2020-01-05', cityId: 'c1' }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('past');
+  });
+
+  it('returns 400 when cityId not found in cities table', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    });
+
+    const res = await POST(
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(5), cityId: 'invalid-id' }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('Invalid cityId');
+  });
+
+  it('returns 200 on successful set with cityId', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: 'c1' }, error: null }),
+        }),
+      }),
+    });
     mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(
-      makeRequest({ startDate: '2026-04-01', endDate: '2026-04-05' }),
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(5), cityId: 'c1' }),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -186,8 +373,140 @@ describe('POST /api/availability', () => {
     expect(body.daysSet).toBe(5);
     expect(mockRpc).toHaveBeenCalledWith(
       'append_event',
-      expect.objectContaining({ p_event_type: 'AVAILABILITY.SET' }),
+      expect.objectContaining({
+        p_event_type: 'AVAILABILITY.SET',
+        p_payload: expect.objectContaining({ city_id: 'c1' }),
+      }),
     );
+  });
+
+  it('returns 200 on notAvailable with cityId (no dates needed)', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: 'c1' }, error: null }),
+        }),
+      }),
+    });
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(
+      makeRequest({ notAvailable: true, cityId: 'c1' }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.notAvailable).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'AVAILABILITY.SET',
+        p_payload: expect.objectContaining({
+          city_id: 'c1',
+          not_available: true,
+        }),
+      }),
+    );
+  });
+
+  it('returns 200 on successful set with cityId and portId', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // portId validation: port exists and belongs to city
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: 'p1', city_id: 'c1' }, error: null }),
+        }),
+      }),
+    });
+    // cityId validation
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: 'c1' }, error: null }),
+        }),
+      }),
+    });
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(3), cityId: 'c1', portId: 'p1' }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_payload: expect.objectContaining({ city_id: 'c1', port_id: 'p1' }),
+      }),
+    );
+  });
+
+  it('returns 400 when portId does not exist', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    });
+
+    const res = await POST(
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(3), cityId: 'c1', portId: 'invalid' }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('Invalid portId');
+  });
+
+  it('returns 400 when portId belongs to different city', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: 'p1', city_id: 'c2' }, error: null }),
+        }),
+      }),
+    });
+
+    const res = await POST(
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(3), cityId: 'c1', portId: 'p1' }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('does not belong');
+  });
+
+  it('returns 400 on notAvailable without cityId', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await POST(
+      makeRequest({ notAvailable: true }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('cityId');
+  });
+
+  it('returns 400 on notAvailable with invalid cityId', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    });
+
+    const res = await POST(
+      makeRequest({ notAvailable: true, cityId: 'invalid-id' }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('Invalid cityId');
   });
 });
 
@@ -206,6 +525,20 @@ describe('DELETE /api/availability', () => {
       makeDeleteRequest({ dates: ['2026-04-01'] }),
     );
     expect(res.status).toBe(401);
+  });
+
+  it('returns 200 on clearAll — deletes all availability for user', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const mockDelete = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+    mockFromService.mockReturnValueOnce({ delete: mockDelete });
+
+    const res = await DELETE(makeDeleteRequest({ clearAll: true }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.cleared).toBe('all');
+    expect(mockFromService).toHaveBeenCalledWith('availability_windows');
   });
 
   it('returns 400 when dates not provided', async () => {

@@ -190,6 +190,15 @@ vi.mock('@/components/vessels/vessel-selector', () => ({
   VesselSelector: () => <div data-testid="vessel-selector">Mock vessel selector</div>,
 }));
 
+// LocationPicker mock — renders a simple div with testid
+vi.mock('@/components/location-picker', () => ({
+  LocationPicker: ({ mode, placeholder }: { mode: string; placeholder?: string }) => (
+    <div data-testid="location-picker" data-mode={mode}>
+      {placeholder ?? 'Select location'}
+    </div>
+  ),
+}));
+
 // Global fetch mock
 const fetchMock = vi.fn();
 globalThis.fetch = fetchMock;
@@ -282,14 +291,11 @@ describe('Onboarding page — crew profile dropdowns', () => {
       expect(screen.getByText(band.label)).toBeInTheDocument();
     }
 
-    // Ports select — displayed as "PortName — City, Region"
-    for (const port of MOCK_PORTS) {
-      const portText = `${port.name} — ${port.cities.name}, ${port.cities.regions.name}`;
-      expect(screen.getByText(portText)).toBeInTheDocument();
-    }
+    // Location picker — rendered as mocked component
+    expect(screen.getByTestId('location-picker')).toBeInTheDocument();
   });
 
-  it('queries all 5 canonical lookup tables', async () => {
+  it('queries all 4 canonical lookup tables (location handled by LocationPicker)', async () => {
     const { default: OnboardingPage } = await import('@/app/onboarding/page');
     render(<OnboardingPage />);
 
@@ -300,7 +306,6 @@ describe('Onboarding page — crew profile dropdowns', () => {
       expect(fromSpy).toHaveBeenCalledWith('certifications');
       expect(fromSpy).toHaveBeenCalledWith('experience_brackets');
       expect(fromSpy).toHaveBeenCalledWith('vessel_size_bands');
-      expect(fromSpy).toHaveBeenCalledWith('ports');
     });
   });
 });
@@ -320,11 +325,8 @@ describe('Post Daywork page — employer form dropdowns', () => {
       expect(screen.getByText(role.name)).toBeInTheDocument();
     }
 
-    // Ports
-    for (const port of MOCK_PORTS) {
-      const portText = `${port.name} — ${port.cities.name}, ${port.cities.regions.name}`;
-      expect(screen.getByText(portText)).toBeInTheDocument();
-    }
+    // Location picker — rendered as mocked component
+    expect(screen.getByTestId('location-picker')).toBeInTheDocument();
 
     // Experience brackets
     for (const bracket of MOCK_BRACKETS) {
@@ -342,7 +344,7 @@ describe('Post Daywork page — employer form dropdowns', () => {
     expect(screen.getByText('dinner')).toBeInTheDocument();
   });
 
-  it('queries all 4 canonical lookup tables', async () => {
+  it('queries all 3 canonical lookup tables (location handled by LocationPicker)', async () => {
     const { default: PostDayworkPage } = await import('@/app/(app)/daywork/post/page');
     render(<PostDayworkPage />);
 
@@ -350,13 +352,12 @@ describe('Post Daywork page — employer form dropdowns', () => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
       expect(fromSpy).toHaveBeenCalledWith('experience_brackets');
-      expect(fromSpy).toHaveBeenCalledWith('ports');
     });
   });
 });
 
 describe('Discover page — filter dropdowns', () => {
-  it('renders role and port filter options after opening filter panel', async () => {
+  it('renders role filter and location picker after opening filter panel', async () => {
     const { default: DiscoverPage } = await import('@/app/(app)/discover/page');
     render(<DiscoverPage />);
 
@@ -368,29 +369,25 @@ describe('Discover page — filter dropdowns', () => {
     // Open filter panel
     fireEvent.click(screen.getByText('Filters'));
 
-    // "All roles" and "All locations" sentinel options (may appear in both placeholder and item)
+    // "All roles" sentinel option
     expect(screen.getAllByText('All roles').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('All locations').length).toBeGreaterThanOrEqual(1);
 
     // Canonical role options
     for (const role of MOCK_ROLES) {
       expect(screen.getByText(role.name)).toBeInTheDocument();
     }
 
-    // Port options — discover shows "PortName — City" format
-    for (const port of MOCK_PORTS) {
-      const portText = `${port.name} — ${port.cities.name}`;
-      expect(screen.getByText(portText)).toBeInTheDocument();
-    }
+    // Location picker — rendered as mocked component with "All locations" placeholder
+    expect(screen.getByTestId('location-picker')).toBeInTheDocument();
+    expect(screen.getByText('All locations')).toBeInTheDocument();
   });
 
-  it('queries roles and ports lookup tables', async () => {
+  it('queries roles lookup table (location handled by LocationPicker)', async () => {
     const { default: DiscoverPage } = await import('@/app/(app)/discover/page');
     render(<DiscoverPage />);
 
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
-      expect(fromSpy).toHaveBeenCalledWith('ports');
     });
   });
 });
@@ -438,7 +435,6 @@ describe('Profile page — edit mode dropdowns', () => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
       expect(fromSpy).toHaveBeenCalledWith('experience_brackets');
-      expect(fromSpy).toHaveBeenCalledWith('ports');
       expect(fromSpy).toHaveBeenCalledWith('vessel_size_bands');
     });
 
@@ -462,11 +458,8 @@ describe('Profile page — edit mode dropdowns', () => {
       expect(screen.getByText(band.label)).toBeInTheDocument();
     }
 
-    // Ports
-    for (const port of MOCK_PORTS) {
-      const portText = `${port.name} — ${port.cities.name}, ${port.cities.regions.name}`;
-      expect(screen.getByText(portText)).toBeInTheDocument();
-    }
+    // Location picker — rendered as mocked component
+    expect(screen.getByTestId('location-picker')).toBeInTheDocument();
   });
 });
 
@@ -482,10 +475,11 @@ describe('Canonical data item counts', () => {
     });
 
     // Count select items by role option (all options render as mock-select-item)
+    // Location is now handled by LocationPicker (mocked), not a Select
     const allSelectItems = screen.getAllByRole('option');
-    // Roles (3) + Experience (3) + Ports (3) = 9 select items
+    // Roles (3) + Experience (3) = 6 select items
     expect(allSelectItems).toHaveLength(
-      MOCK_ROLES.length + MOCK_BRACKETS.length + MOCK_PORTS.length,
+      MOCK_ROLES.length + MOCK_BRACKETS.length,
     );
 
     // Count certification checkboxes

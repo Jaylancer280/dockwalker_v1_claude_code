@@ -6,6 +6,7 @@ import { hapticMedium, hapticLight } from '@/lib/haptics';
 import {
   MapPin,
   Calendar,
+  Compass,
   DollarSign,
   Briefcase,
   Award,
@@ -14,6 +15,8 @@ import {
   SlidersHorizontal,
   Loader2,
   MessageSquare,
+  CalendarDays,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { AvailabilityOverlay } from '@/components/availability-overlay';
+import { LocationPicker } from '@/components/location-picker';
 import { createClient } from '@/lib/supabase/client';
 
 interface DayworkCard {
@@ -61,15 +74,53 @@ interface LookupItem {
   name: string;
 }
 
-interface PortItem {
+interface MyApplication {
   id: string;
-  name: string;
-  cities: { name: string; regions: { name: string } };
+  daywork_id: string;
+  status: string;
+  message: string | null;
+  applied_at: string;
+  daywork: {
+    job_number: number;
+    start_date: string;
+    end_date: string;
+    working_days: number;
+    day_rate: number;
+    currency: string;
+    meals: string[];
+    notes: string | null;
+    daywork_status: string;
+    role_name: string | null;
+    port_name: string | null;
+    city_name: string | null;
+    region_name: string | null;
+    experience_label: string | null;
+    vessel_name: string | null;
+    vessel_type: string | null;
+    vessel_size_label: string | null;
+  } | null;
 }
+
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  EUR: '\u20AC',
+  USD: '$',
+  GBP: '\u00A3',
+  AED: '\u062F.\u0625',
+};
+
+const STATUS_LABELS: Record<string, { label: string; className: string }> = {
+  applied: { label: 'Applied', className: 'bg-primary/10 text-primary' },
+  viewed: {
+    label: 'Under review',
+    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  },
+  shortlisted: { label: 'Shortlisted', className: 'bg-success/10 text-success' },
+};
 
 const SWIPE_THRESHOLD = 100;
 
 export default function DiscoverPage() {
+  const [activeTab, setActiveTab] = useState<'browse' | 'applied'>('browse');
   const [cards, setCards] = useState<DayworkCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -82,23 +133,45 @@ export default function DiscoverPage() {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
 
+  // Applied tab state
+  const [applications, setApplications] = useState<MyApplication[]>([]);
+  const [loadingApps, setLoadingApps] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+
+  // Availability gate state
+  const [hasAvailability, setHasAvailability] = useState<boolean | null>(null);
+  const [showAvailDialog, setShowAvailDialog] = useState(false);
+  const [showAvailOverlay, setShowAvailOverlay] = useState(false);
+
   // Lookups for filters
   const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [ports, setPorts] = useState<PortItem[]>([]);
+
+  // Check crew availability on mount — only 'available' status allows applying
+  const checkAvailability = useCallback(async () => {
+    const res = await fetch('/api/availability');
+    if (res.ok) {
+      const data = await res.json();
+      setHasAvailability(data.status === 'available');
+    }
+  }, []);
 
   // Load filter options
   useEffect(() => {
     async function loadLookups() {
       const supabase = createClient();
-      const [rolesRes, portsRes] = await Promise.all([
+      const [rolesRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name').order('sort_order'),
-        supabase.from('ports').select('id, name, cities(name, regions(name))').order('name'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data);
-      if (portsRes.data) setPorts(portsRes.data as unknown as PortItem[]);
     }
     loadLookups();
   }, []);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    checkAvailability();
+  }, [checkAvailability]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const loadCards = useCallback(async () => {
     setLoading(true);
@@ -121,6 +194,13 @@ export default function DiscoverPage() {
   }, [loadCards]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  /** Gate apply actions behind availability check */
+  function requireAvailability(): boolean {
+    if (hasAvailability) return true;
+    setShowAvailDialog(true);
+    return false;
+  }
+
   async function handleApply(dayworkId: string, message?: string) {
     setApplying(true);
     const opts: RequestInit = { method: 'POST' };
@@ -131,6 +211,8 @@ export default function DiscoverPage() {
     const res = await fetch(`/api/daywork/${dayworkId}/apply`, opts);
     if (res.ok) {
       setCards((prev) => prev.filter((c) => c.id !== dayworkId));
+      // Refresh application count for the badge
+      loadApplications();
     }
     setComposingMessage(false);
     setMessageText('');
@@ -143,6 +225,7 @@ export default function DiscoverPage() {
 
   function handleMessageSubmit() {
     if (!topCard || applying) return;
+    if (!requireAvailability()) return;
     // Trigger the swipe-right animation, then apply with message
     if (swipeRef.current) {
       swipeRef.current.triggerApplySwipe();
@@ -156,210 +239,353 @@ export default function DiscoverPage() {
     setMessageText('');
   }
 
+  const loadApplications = useCallback(async () => {
+    setLoadingApps(true);
+    const res = await fetch('/api/daywork/applications');
+    if (res.ok) {
+      const data = await res.json();
+      setApplications(data.applications ?? []);
+    }
+    setLoadingApps(false);
+  }, []);
+
+  // Load applications on mount (for badge count) and when switching to the Applied tab
+  useEffect(() => {
+    loadApplications();
+  }, [activeTab, loadApplications]);
+
+  async function handleWithdraw(dayworkId: string) {
+    setWithdrawingId(dayworkId);
+    const res = await fetch(`/api/daywork/${dayworkId}/withdraw`, { method: 'POST' });
+    if (res.ok) {
+      setApplications((prev) => prev.filter((a) => a.daywork_id !== dayworkId));
+    }
+    setWithdrawingId(null);
+  }
+
   const topCard = cards[0] ?? null;
   const nextCard = cards[1] ?? null;
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between">
+      <header className="sticky top-0 z-10 border-b border-border bg-background">
+        <div className="mx-auto flex max-w-lg items-center justify-between px-4 pt-3 pb-2">
           <h1 className="text-lg font-bold tracking-tight">Discover</h1>
-          <Button
-            variant={showFilters ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
+          {activeTab === 'browse' && (
+            <Button
+              variant={showFilters ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <SlidersHorizontal className="mr-1 h-4 w-4" />
+              Filters
+            </Button>
+          )}
+        </div>
+        {/* Tabs */}
+        <div className="mx-auto flex max-w-lg border-t border-border">
+          <button
+            onClick={() => setActiveTab('browse')}
+            className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'browse'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <SlidersHorizontal className="mr-1 h-4 w-4" />
-            Filters
-          </Button>
+            <Compass className="h-4 w-4" />
+            Browse
+          </button>
+          <button
+            onClick={() => setActiveTab('applied')}
+            className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'applied'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ClipboardList className="h-4 w-4" />
+            Applied
+            {applications.length > 0 && (
+              <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                {applications.length}
+              </span>
+            )}
+          </button>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
-        {/* Filters panel */}
-        {showFilters && (
-          <Card>
-            <CardContent className="flex flex-col gap-3 pt-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Role</label>
-                <Select value={filterRoleId} onValueChange={setFilterRoleId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All roles" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All roles</SelectItem>
-                    {roles.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Location</label>
-                <Select value={filterPortId} onValueChange={setFilterPortId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All locations</SelectItem>
-                    {ports.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name} — {p.cities?.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">From</label>
-                  <Input
-                    type="date"
-                    value={filterStartDate}
-                    onChange={(e) => setFilterStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">To</label>
-                  <Input
-                    type="date"
-                    value={filterEndDate}
-                    onChange={(e) => setFilterEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Card stack */}
-        <div className="relative flex flex-1 items-start justify-center pt-4">
-          {loading && (
+      {/* ───── Applied tab ───── */}
+      {activeTab === 'applied' && (
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-4">
+          {loadingApps && (
             <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin" />
-              <p className="text-sm">Finding jobs...</p>
+              <p className="text-sm">Loading applications...</p>
             </div>
           )}
 
-          {!loading && cards.length === 0 && (
-            <Card className="w-full">
+          {!loadingApps && applications.length === 0 && (
+            <Card className="mt-8">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Briefcase className="h-5 w-5 text-muted-foreground" />
-                  <CardTitle className="text-base">No jobs found</CardTitle>
+                  <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base">No pending applications</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  No daywork postings match your filters right now. Try adjusting your filters or
-                  check back later.
+                  Jobs you apply to will appear here until the employer responds.
                 </p>
-                <Button variant="outline" size="sm" className="mt-3" onClick={loadCards}>
-                  Refresh
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setActiveTab('browse')}
+                >
+                  Browse jobs
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {!loading && cards.length > 0 && (
-            <div className="relative h-[420px] w-full">
-              {/* Next card preview (underneath) */}
-              {nextCard && (
-                <div className="absolute inset-0 z-0">
-                  <JobCard card={nextCard} isPreview />
-                </div>
-              )}
+          {!loadingApps &&
+            applications.map((app) => (
+              <ApplicationCard
+                key={app.id}
+                application={app}
+                withdrawing={withdrawingId === app.daywork_id}
+                onWithdraw={() => handleWithdraw(app.daywork_id)}
+              />
+            ))}
+        </div>
+      )}
 
-              {/* Top card (swipeable) */}
-              {topCard && (
-                <SwipeableCard
-                  ref={swipeRef}
-                  key={topCard.id}
-                  card={topCard}
-                  onApply={() => handleApply(topCard.id)}
-                  onPass={() => handlePass(topCard.id)}
-                  onComposeMessage={() => {
-                    setComposingMessage(true);
-                    setMessageText('');
-                  }}
-                  composing={composingMessage}
-                  disabled={applying}
-                />
-              )}
+      {/* ───── Browse tab ───── */}
+      {activeTab === 'browse' && (
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+          {/* Filters panel */}
+          {showFilters && (
+            <Card>
+              <CardContent className="flex flex-col gap-3 pt-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Role</label>
+                  <Select value={filterRoleId} onValueChange={setFilterRoleId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All roles" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All roles</SelectItem>
+                      {roles.map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Location</label>
+                  <LocationPicker
+                    mode="port-required"
+                    value={filterPortId ? { portId: filterPortId } : null}
+                    onValueChange={(v) => setFilterPortId(v.portId ?? '')}
+                    placeholder="All locations"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">From</label>
+                    <Input
+                      type="date"
+                      value={filterStartDate}
+                      onChange={(e) => setFilterStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">To</label>
+                    <Input
+                      type="date"
+                      value={filterEndDate}
+                      onChange={(e) => setFilterEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Card stack */}
+          <div className="relative flex flex-1 items-start justify-center pt-4">
+            {loading && (
+              <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <p className="text-sm">Finding jobs...</p>
+              </div>
+            )}
+
+            {!loading && cards.length === 0 && (
+              <Card className="w-full">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-base">No jobs found</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    No daywork postings match your filters right now. Try adjusting your filters or
+                    check back later.
+                  </p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={loadCards}>
+                    Refresh
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {!loading && cards.length > 0 && (
+              <div className="relative h-[420px] w-full">
+                {/* Next card preview (underneath) */}
+                {nextCard && (
+                  <div className="absolute inset-0 z-0">
+                    <JobCard card={nextCard} isPreview />
+                  </div>
+                )}
+
+                {/* Top card (swipeable) */}
+                {topCard && (
+                  <SwipeableCard
+                    ref={swipeRef}
+                    key={topCard.id}
+                    card={topCard}
+                    onApply={() => {
+                      if (requireAvailability()) handleApply(topCard.id);
+                    }}
+                    onPass={() => handlePass(topCard.id)}
+                    onComposeMessage={() => {
+                      if (!requireAvailability()) return;
+                      setComposingMessage(true);
+                      setMessageText('');
+                    }}
+                    canApply={!!hasAvailability}
+                    onAvailabilityGate={() => setShowAvailDialog(true)}
+                    composing={composingMessage}
+                    disabled={applying}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons or message compose */}
+          {!loading && topCard && !composingMessage && (
+            <div className="flex items-center justify-center gap-6 pb-4">
+              <button
+                onClick={() => handlePass(topCard.id)}
+                disabled={applying}
+                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
+              >
+                <X className="h-6 w-6" />
+              </button>
+              <button
+                onClick={() => {
+                  if (requireAvailability()) handleApply(topCard.id);
+                }}
+                disabled={applying}
+                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
+              >
+                <Check className="h-6 w-6" />
+              </button>
             </div>
           )}
+
+          {!loading && topCard && composingMessage && (
+            <div className="flex flex-col gap-2 pb-4">
+              <div className="relative">
+                <textarea
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value.slice(0, 250))}
+                  placeholder="Why are you a great fit for this job?"
+                  className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                  rows={3}
+                  maxLength={250}
+                  autoFocus
+                />
+                <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground/60">
+                  {messageText.length}/250
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleCancelMessage}
+                  disabled={applying}
+                >
+                  Cancel message
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleMessageSubmit}
+                  disabled={applying || !messageText.trim()}
+                >
+                  <Check className="mr-1 h-3.5 w-3.5" />
+                  Submit & apply
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Counter */}
+          {!loading && cards.length > 0 && (
+            <p className="text-center text-xs text-muted-foreground">
+              {cards.length} job{cards.length !== 1 ? 's' : ''} available
+            </p>
+          )}
         </div>
+      )}
 
-        {/* Action buttons or message compose */}
-        {!loading && topCard && !composingMessage && (
-          <div className="flex items-center justify-center gap-6 pb-4">
-            <button
-              onClick={() => handlePass(topCard.id)}
-              disabled={applying}
-              className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
+      {/* Availability gate dialog */}
+      <Dialog open={showAvailDialog} onOpenChange={setShowAvailDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set your availability</DialogTitle>
+            <DialogDescription>
+              Before applying to daywork, you need to set your availability dates and location so
+              employers know when and where you&apos;re free.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowAvailDialog(false)}>
+              Not now
+            </Button>
+            <Button
+              onClick={() => {
+                setShowAvailDialog(false);
+                setShowAvailOverlay(true);
+              }}
             >
-              <X className="h-6 w-6" />
-            </button>
-            <button
-              onClick={() => handleApply(topCard.id)}
-              disabled={applying}
-              className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
-            >
-              <Check className="h-6 w-6" />
-            </button>
-          </div>
-        )}
+              <CalendarDays className="mr-2 h-4 w-4" />
+              Set availability
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {!loading && topCard && composingMessage && (
-          <div className="flex flex-col gap-2 pb-4">
-            <div className="relative">
-              <textarea
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value.slice(0, 250))}
-                placeholder="Why are you a great fit for this job?"
-                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                rows={3}
-                maxLength={250}
-                autoFocus
-              />
-              <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground/60">
-                {messageText.length}/250
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={handleCancelMessage}
-                disabled={applying}
-              >
-                Cancel message
-              </Button>
-              <Button
-                size="sm"
-                className="flex-1"
-                onClick={handleMessageSubmit}
-                disabled={applying || !messageText.trim()}
-              >
-                <Check className="mr-1 h-3.5 w-3.5" />
-                Submit & apply
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Counter */}
-        {!loading && cards.length > 0 && (
-          <p className="text-center text-xs text-muted-foreground">
-            {cards.length} job{cards.length !== 1 ? 's' : ''} available
-          </p>
-        )}
-      </div>
+      {/* Availability overlay (opened from gate dialog) */}
+      {showAvailOverlay && (
+        <AvailabilityOverlay
+          onConfirm={() => {
+            setShowAvailOverlay(false);
+            checkAvailability();
+          }}
+          onCancel={() => setShowAvailOverlay(false)}
+        />
+      )}
     </main>
   );
 }
@@ -375,10 +601,15 @@ const SwipeableCard = forwardRef<
     onApply: () => void;
     onPass: () => void;
     onComposeMessage: () => void;
+    canApply: boolean;
+    onAvailabilityGate: () => void;
     composing: boolean;
     disabled: boolean;
   }
->(function SwipeableCard({ card, onApply, onPass, onComposeMessage, composing, disabled }, ref) {
+>(function SwipeableCard(
+  { card, onApply, onPass, onComposeMessage, canApply, onAvailabilityGate, composing, disabled },
+  ref,
+) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const applyOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
@@ -395,6 +626,13 @@ const SwipeableCard = forwardRef<
     if (disabled || composing) return;
 
     if (info.offset.x > SWIPE_THRESHOLD) {
+      // Right swipe = apply — check availability first
+      if (!canApply) {
+        // Snap back and show availability gate
+        animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+        onAvailabilityGate();
+        return;
+      }
       hapticMedium();
       animate(x, 400, { duration: 0.3 });
       setTimeout(onApply, 300);
@@ -541,5 +779,138 @@ function JobCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function ApplicationCard({
+  application,
+  withdrawing,
+  onWithdraw,
+}: {
+  application: MyApplication;
+  withdrawing: boolean;
+  onWithdraw: () => void;
+}) {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const dw = application.daywork;
+  if (!dw) return null;
+
+  const statusInfo = STATUS_LABELS[application.status] ?? STATUS_LABELS.applied;
+  const currencySymbol = CURRENCY_SYMBOLS[dw.currency] ?? CURRENCY_SYMBOLS.EUR;
+  const canWithdraw = application.status === 'applied';
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-2 pt-4">
+        {/* Header: role + status */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
+            <p className="text-sm text-muted-foreground">
+              {dw.vessel_name ?? 'Unknown vessel'}
+              {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
+            </p>
+          </div>
+          <Badge className={`shrink-0 text-[10px] ${statusInfo.className}`}>
+            {statusInfo.label}
+          </Badge>
+        </div>
+
+        {/* Details */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span>
+              {dw.port_name ?? 'Unknown'}
+              {dw.city_name && `, ${dw.city_name}`}
+              {dw.region_name && ` · ${dw.region_name}`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span>
+              {dw.start_date} — {dw.end_date} ({dw.working_days} day
+              {dw.working_days !== 1 ? 's' : ''})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <DollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="font-medium">
+              {currencySymbol}
+              {dw.day_rate}/day
+            </span>
+          </div>
+        </div>
+
+        {/* Application message preview */}
+        {application.message && (
+          <p className="rounded-md bg-accent px-2.5 py-1.5 text-xs text-muted-foreground italic">
+            &ldquo;{application.message}&rdquo;
+          </p>
+        )}
+
+        {/* Footer: job ref + withdraw */}
+        <div className="flex items-center justify-between pt-1">
+          <span className="text-xs text-muted-foreground/60">
+            DW-{String(dw.job_number).padStart(5, '0')} · Applied{' '}
+            {new Date(application.applied_at).toLocaleDateString()}
+          </span>
+          {canWithdraw && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              disabled={withdrawing}
+              onClick={() => setShowConfirm(true)}
+            >
+              {withdrawing ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <X className="mr-1 h-3 w-3" />
+              )}
+              Withdraw
+            </Button>
+          )}
+        </div>
+      </CardContent>
+
+      {/* Withdraw confirmation dialog */}
+      <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Withdraw application?</DialogTitle>
+            <DialogDescription>
+              This will remove your application for{' '}
+              <span className="font-medium text-foreground">{dw.role_name ?? 'this job'}</span>
+              {dw.vessel_name && (
+                <>
+                  {' '}
+                  on <span className="font-medium text-foreground">{dw.vessel_name}</span>
+                </>
+              )}
+              . This job will not reappear in your browse feed — this action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowConfirm(false)}>
+              Keep application
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={withdrawing}
+              onClick={() => {
+                setShowConfirm(false);
+                onWithdraw();
+              }}
+            >
+              {withdrawing && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+              Withdraw
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

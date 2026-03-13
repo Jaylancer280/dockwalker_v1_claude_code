@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ChevronLeft,
@@ -12,6 +12,7 @@ import {
   XCircle,
   CheckCircle,
   ClipboardCheck,
+  ClipboardList,
   Clock,
   MoreVertical,
 } from 'lucide-react';
@@ -23,7 +24,9 @@ import { CancelFormOverlay } from './_components/cancel-form-overlay';
 import { CrewCancelFormOverlay } from './_components/crew-cancel-form-overlay';
 import { PostponementFormOverlay } from './_components/postponement-form-overlay';
 import { RatingFormOverlay } from './_components/rating-form-overlay';
+import { ChecklistFormOverlay } from './_components/checklist-form-overlay';
 import { DayworkSummaryCard } from './_components/daywork-summary-card';
+import { ChecklistCard } from './_components/checklist-card';
 import {
   WorkStartedBanner,
   PostponementBanner,
@@ -33,6 +36,7 @@ import {
 
 export default function ChatPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -45,6 +49,7 @@ export default function ChatPage() {
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [showCrewCancelForm, setShowCrewCancelForm] = useState(false);
   const [showPostponementForm, setShowPostponementForm] = useState(false);
+  const [showChecklistForm, setShowChecklistForm] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [relistingAfterRejection, setRelistingAfterRejection] = useState(false);
@@ -52,6 +57,8 @@ export default function ChatPage() {
   const [respondingPostponement, setRespondingPostponement] = useState(false);
   const [workStarting, setWorkStarting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const prevMessageCountRef = useRef(0);
   const pollRef = useRef<ReturnType<typeof setInterval>>(undefined);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -79,7 +86,10 @@ export default function ChatPage() {
       const userData = await userRes.json().catch(() => ({}));
       if (userData.userId) setUserId(userData.userId);
 
-      interval = setInterval(() => void loadMessages(), POLL_INTERVAL);
+      interval = setInterval(
+        () => void Promise.all([loadContext(), loadMessages()]),
+        POLL_INTERVAL,
+      );
       pollRef.current = interval;
     }
 
@@ -88,7 +98,26 @@ export default function ChatPage() {
   }, [engagementId, loadContext, loadMessages]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const count = messages.length;
+    const prev = prevMessageCountRef.current;
+    prevMessageCountRef.current = count;
+
+    // No new messages — don't touch scroll
+    if (count <= prev) return;
+
+    const container = scrollContainerRef.current;
+    if (!container) {
+      // First render — scroll to bottom
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+      return;
+    }
+
+    // Auto-scroll only if user is near the bottom (within 150px)
+    const distanceFromBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight;
+    if (distanceFromBottom < 150) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -226,6 +255,28 @@ export default function ChatPage() {
   }
 
   async function handleRespondCrewCancel(action: 'relist' | 'cancel') {
+    // If relisting but start date has passed, cancel the old daywork first, then redirect
+    // to the post form so the employer can create a fresh posting with pre-filled fields.
+    if (action === 'relist' && context) {
+      const today = new Date().toISOString().split('T')[0];
+      if (context.start_date < today) {
+        setRespondingCrewCancel(true);
+        const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cancel' }),
+        });
+        if (res.ok) {
+          router.push(`/daywork/post?fromDaywork=${context.daywork_id}`);
+        } else {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error ?? 'Failed to cancel original posting');
+          setRespondingCrewCancel(false);
+        }
+        return;
+      }
+    }
+
     setRespondingCrewCancel(true);
     const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
       method: 'POST',
@@ -323,6 +374,38 @@ export default function ChatPage() {
     setWorkStarting(false);
   }
 
+  async function handleChecklistSubmit(items: Array<{ id: string; label: string; value: string }>) {
+    const res = await fetch(`/api/engagements/${engagementId}/checklist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+    if (res.ok) {
+      setShowChecklistForm(false);
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? 'Failed to set checklist');
+    }
+  }
+
+  async function handleChecklistToggle(itemId: string, checked: boolean) {
+    const res = await fetch(`/api/engagements/${engagementId}/checklist/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, checked }),
+    });
+    if (res.ok) {
+      setContext((prev) => {
+        if (!prev?.checklist) return prev;
+        const newAcked = checked
+          ? [...prev.checklist.acknowledged_item_ids.filter((id) => id !== itemId), itemId]
+          : prev.checklist.acknowledged_item_ids.filter((id) => id !== itemId);
+        return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: newAcked } };
+      });
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Derived state
   // -----------------------------------------------------------------------
@@ -413,6 +496,16 @@ export default function ChatPage() {
                         className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
                         onClick={() => {
                           setShowActionMenu(false);
+                          setShowChecklistForm(true);
+                        }}
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                        {context.checklist ? 'Edit checklist' : 'Pre-arrival checklist'}
+                      </button>
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                        onClick={() => {
+                          setShowActionMenu(false);
                           handleComplete();
                         }}
                         disabled={completing}
@@ -482,7 +575,7 @@ export default function ChatPage() {
       </header>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto flex max-w-lg flex-col gap-2">
           {loading && (
             <div className="flex items-center justify-center pt-20">
@@ -491,6 +584,17 @@ export default function ChatPage() {
           )}
 
           {!loading && context?.dayworks && <DayworkSummaryCard context={context} />}
+
+          {!loading && context?.checklist && (
+            <ChecklistCard
+              items={context.checklist.items}
+              acknowledgedItemIds={context.checklist.acknowledged_item_ids}
+              isCrew={isCrew ?? false}
+              isEmployer={isEmployer ?? false}
+              onToggle={handleChecklistToggle}
+              onEdit={() => setShowChecklistForm(true)}
+            />
+          )}
 
           {!loading && messages.length === 0 && (
             <p className="text-center text-sm text-muted-foreground">No messages yet. Say hello!</p>
@@ -653,6 +757,15 @@ export default function ChatPage() {
           currentWorkingDays={context.dayworks?.working_days ?? 1}
           onSubmit={handlePostponementSubmit}
           onCancel={() => setShowPostponementForm(false)}
+        />
+      )}
+
+      {/* Checklist form overlay (employer only) */}
+      {showChecklistForm && context && isEmployer && (
+        <ChecklistFormOverlay
+          existingItems={context.checklist?.items ?? null}
+          onSubmit={handleChecklistSubmit}
+          onCancel={() => setShowChecklistForm(false)}
         />
       )}
 

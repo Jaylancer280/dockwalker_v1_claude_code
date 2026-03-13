@@ -1,0 +1,636 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowLeft,
+  ChevronRight,
+  LogOut,
+  Sun,
+  Moon,
+  Monitor,
+  Eye,
+  EyeOff,
+  Download,
+  Trash2,
+  Loader2,
+  Check,
+  AlertTriangle,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { createClient } from '@/lib/supabase/client';
+
+type Theme = 'light' | 'dark' | 'system';
+type DistanceUnit = 'nm' | 'km';
+type CurrencyPref = 'EUR' | 'USD' | 'GBP' | 'AED';
+
+interface Person {
+  id: string;
+  identity_type: string;
+  current_hat: string;
+}
+
+export default function SettingsPage() {
+  const router = useRouter();
+  const supabase = createClient();
+
+  // User state
+  const [loading, setLoading] = useState(true);
+  const [person, setPerson] = useState<Person | null>(null);
+  const [email, setEmail] = useState('');
+
+  // Account forms
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [emailSuccess, setEmailSuccess] = useState(false);
+
+  // Appearance (localStorage)
+  const [theme, setTheme] = useState<Theme>('system');
+  const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>('nm');
+  const [currencyPref, setCurrencyPref] = useState<CurrencyPref>('EUR');
+
+  // Privacy
+  const [profileVisible, setProfileVisible] = useState(true);
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+  const [prefsLoading, setPrefsLoading] = useState(true);
+
+  // Delete account
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  // Export
+  const [exporting, setExporting] = useState(false);
+
+  const loadUser = useCallback(async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      setEmail(user.email ?? '');
+    }
+
+    const res = await fetch('/api/profile');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.person) setPerson(data.person);
+    }
+    setLoading(false);
+  }, [supabase.auth]);
+
+  const loadPreferences = useCallback(async () => {
+    const res = await fetch('/api/preferences');
+    if (res.ok) {
+      const data = await res.json();
+      setProfileVisible(data.profile_visible ?? true);
+    }
+    setPrefsLoading(false);
+  }, []);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    loadUser();
+    loadPreferences();
+
+    // Load localStorage preferences
+    const savedTheme = localStorage.getItem('dw-theme') as Theme | null;
+    if (savedTheme) setTheme(savedTheme);
+    const savedUnit = localStorage.getItem('dw-distance-unit') as DistanceUnit | null;
+    if (savedUnit) setDistanceUnit(savedUnit);
+    const savedCurrency = localStorage.getItem('dw-currency-pref') as CurrencyPref | null;
+    if (savedCurrency) setCurrencyPref(savedCurrency);
+  }, [loadUser, loadPreferences]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Theme application
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else if (theme === 'light') {
+      root.classList.remove('dark');
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', prefersDark);
+    }
+    localStorage.setItem('dw-theme', theme);
+  }, [theme]);
+
+  function handleDistanceUnit(value: DistanceUnit) {
+    setDistanceUnit(value);
+    localStorage.setItem('dw-distance-unit', value);
+  }
+
+  function handleCurrencyPref(value: CurrencyPref) {
+    setCurrencyPref(value);
+    localStorage.setItem('dw-currency-pref', value);
+  }
+
+  async function handleChangePassword() {
+    setPasswordError('');
+    setPasswordSuccess(false);
+
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return;
+    }
+
+    setPasswordSaving(true);
+
+    // Verify current password by re-signing in
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: currentPassword,
+    });
+
+    if (signInError) {
+      setPasswordError('Current password is incorrect');
+      setPasswordSaving(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      setPasswordError(error.message);
+    } else {
+      setPasswordSuccess(true);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => {
+        setShowPasswordForm(false);
+        setPasswordSuccess(false);
+      }, 1500);
+    }
+    setPasswordSaving(false);
+  }
+
+  async function handleChangeEmail() {
+    setEmailError('');
+    setEmailSuccess(false);
+
+    if (!newEmail || !newEmail.includes('@')) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+
+    setEmailSaving(true);
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+
+    if (error) {
+      setEmailError(error.message);
+    } else {
+      setEmailSuccess(true);
+      setNewEmail('');
+    }
+    setEmailSaving(false);
+  }
+
+  async function handleToggleVisibility() {
+    setVisibilitySaving(true);
+    const newValue = !profileVisible;
+    const res = await fetch('/api/preferences', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile_visible: newValue }),
+    });
+    if (res.ok) {
+      setProfileVisible(newValue);
+    }
+    setVisibilitySaving(false);
+  }
+
+  async function handleExportData() {
+    setExporting(true);
+    const res = await fetch('/api/account/export');
+    if (res.ok) {
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dockwalker-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    setExporting(false);
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteConfirmText !== 'DELETE') return;
+    setDeleting(true);
+
+    const res = await fetch('/api/account/deactivate', { method: 'POST' });
+    if (res.ok) {
+      await supabase.auth.signOut();
+      router.push('/auth/login');
+    }
+    setDeleting(false);
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push('/auth/login');
+  }
+
+  if (loading) {
+    return (
+      <main className="flex min-h-svh items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </main>
+    );
+  }
+
+  const isCrew = person?.identity_type === 'crew';
+
+  return (
+    <main className="flex min-h-svh flex-col bg-background">
+      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => router.push('/profile')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="text-lg font-bold tracking-tight">Settings</h1>
+        </div>
+      </header>
+
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
+        {/* ── Account ── */}
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Account
+          </h2>
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+            {/* Email display */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">Email</p>
+                <p className="text-xs text-muted-foreground">{email}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowEmailForm(!showEmailForm);
+                  setShowPasswordForm(false);
+                }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {showEmailForm && (
+              <div className="border-t border-border px-4 py-3">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>New email address</Label>
+                    <Input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="new@example.com"
+                    />
+                  </div>
+                  {emailError && <p className="text-xs text-destructive">{emailError}</p>}
+                  {emailSuccess && (
+                    <p className="flex items-center gap-1 text-xs text-success">
+                      <Check className="h-3 w-3" />
+                      Confirmation link sent to {newEmail}. Check your inbox.
+                    </p>
+                  )}
+                  <Button size="sm" onClick={handleChangeEmail} disabled={emailSaving || !newEmail}>
+                    {emailSaving ? 'Sending...' : 'Send confirmation link'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* Change password */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm font-medium">Password</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowPasswordForm(!showPasswordForm);
+                  setShowEmailForm(false);
+                }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {showPasswordForm && (
+              <div className="border-t border-border px-4 py-3">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Current password</Label>
+                    <Input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>New password</Label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Confirm new password</Label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                  {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
+                  {passwordSuccess && (
+                    <p className="flex items-center gap-1 text-xs text-success">
+                      <Check className="h-3 w-3" />
+                      Password updated
+                    </p>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={handleChangePassword}
+                    disabled={passwordSaving || !currentPassword || !newPassword}
+                  >
+                    {passwordSaving ? 'Updating...' : 'Update password'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            {/* Sign out */}
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-destructive transition-colors hover:bg-accent"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </button>
+          </div>
+        </section>
+
+        {/* ── Appearance ── */}
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Appearance
+          </h2>
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+            {/* Theme */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                {theme === 'dark' ? (
+                  <Moon className="h-4 w-4 text-muted-foreground" />
+                ) : theme === 'light' ? (
+                  <Sun className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Monitor className="h-4 w-4 text-muted-foreground" />
+                )}
+                <p className="text-sm font-medium">Theme</p>
+              </div>
+              <div className="flex gap-1 rounded-lg border border-border p-0.5">
+                {(['light', 'dark', 'system'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTheme(t)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
+                      theme === t
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Distance units */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm font-medium">Distance units</p>
+              <Select
+                value={distanceUnit}
+                onValueChange={(v) => handleDistanceUnit(v as DistanceUnit)}
+              >
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nm">Nautical miles</SelectItem>
+                  <SelectItem value="km">Kilometres</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            {/* Currency display */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm font-medium">Currency display</p>
+              <Select
+                value={currencyPref}
+                onValueChange={(v) => handleCurrencyPref(v as CurrencyPref)}
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                  <SelectItem value="AED">AED</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Privacy & Data ── */}
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Privacy & Data
+          </h2>
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+            {/* Profile visibility — crew only */}
+            {isCrew && (
+              <>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {profileVisible ? (
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium">Profile visible to employers</p>
+                      <p className="text-xs text-muted-foreground">
+                        {profileVisible
+                          ? 'Your profile appears in discovery'
+                          : 'Hidden from discovery — you can still apply'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleToggleVisibility}
+                    disabled={visibilitySaving || prefsLoading}
+                    className={`relative h-6 w-11 rounded-full transition-colors ${
+                      profileVisible ? 'bg-primary' : 'bg-muted'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        profileVisible ? 'left-[22px]' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <Separator />
+              </>
+            )}
+
+            {/* Export data */}
+            <button
+              onClick={handleExportData}
+              disabled={exporting}
+              className="flex items-center gap-3 px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-accent"
+            >
+              <Download className="h-4 w-4 text-muted-foreground" />
+              {exporting ? 'Exporting...' : 'Export my data'}
+            </button>
+
+            <Separator />
+
+            {/* Delete account */}
+            <button
+              onClick={() => setShowDeleteConfirm(!showDeleteConfirm)}
+              className="flex items-center gap-3 px-4 py-3 text-left text-sm font-medium text-destructive transition-colors hover:bg-accent"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete account
+            </button>
+
+            {showDeleteConfirm && (
+              <div className="border-t border-border px-4 py-3">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                    <div className="text-xs text-destructive">
+                      <p className="font-semibold">This action cannot be undone.</p>
+                      <p className="mt-1">
+                        Your profile will be hidden immediately. After 30 days, your personal data
+                        will be permanently erased. Event history is retained for audit integrity.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Type DELETE to confirm</Label>
+                    <Input
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder="DELETE"
+                    />
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteAccount}
+                    disabled={deleting || deleteConfirmText !== 'DELETE'}
+                  >
+                    {deleting ? 'Deleting...' : 'Permanently delete account'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ── About ── */}
+        <section>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            About
+          </h2>
+          <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+            <div className="flex items-center justify-between px-4 py-3">
+              <p className="text-sm font-medium">App version</p>
+              <Badge variant="secondary" className="font-mono text-xs">
+                {process.env.NEXT_PUBLIC_APP_VERSION ?? '0.1.0'}
+              </Badge>
+            </div>
+
+            <Separator />
+
+            <a
+              href="https://dockwalker.com/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              Terms of Service
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </a>
+
+            <Separator />
+
+            <a
+              href="https://dockwalker.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              Privacy Policy
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </a>
+
+            <Separator />
+
+            <a
+              href="mailto:support@dockwalker.com"
+              className="flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
+            >
+              Contact Support
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </a>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}

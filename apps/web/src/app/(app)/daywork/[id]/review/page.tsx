@@ -52,6 +52,8 @@ interface Applicant {
   created_at: string;
   profiles: ApplicantProfile | null;
   available_days: number;
+  availability_city: string | null;
+  availability_not_available: boolean;
   past_daywork_count: number;
 }
 
@@ -508,10 +510,14 @@ function ApplicantCard({ applicant, isPreview }: { applicant: Applicant; isPrevi
           )}
 
           <div className="flex items-center gap-2 text-sm">
-            <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span>
-              {applicant.available_days} available day{applicant.available_days !== 1 ? 's' : ''} in
-              range
+            <Calendar
+              className={`h-4 w-4 shrink-0 ${applicant.availability_not_available ? 'text-destructive' : 'text-muted-foreground'}`}
+            />
+            <span className={applicant.availability_not_available ? 'text-destructive' : ''}>
+              {applicant.availability_not_available
+                ? 'Not available'
+                : `${applicant.available_days} available day${applicant.available_days !== 1 ? 's' : ''} in range`}
+              {applicant.availability_city && ` \u00B7 ${applicant.availability_city}`}
             </span>
           </div>
 

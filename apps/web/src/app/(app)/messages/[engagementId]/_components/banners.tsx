@@ -177,6 +177,7 @@ export function CancellationBanner({
   // Show relist/cancel prompt to employer when crew cancelled and daywork is still in_progress
   const showCrewCancelResponse =
     isEmployer && context.cancelled_by === 'crew' && !context.crew_cancel_responded;
+  const startDatePassed = context.start_date < new Date().toISOString().split('T')[0];
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3">
@@ -187,7 +188,9 @@ export function CancellationBanner({
       {showCrewCancelResponse && (
         <div className="flex flex-col gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
           <p className="text-xs text-muted-foreground">
-            The crew member has cancelled. Would you like to relist this job for new applicants?
+            {startDatePassed
+              ? 'The crew member has cancelled and the original start date has passed. You can create a new posting with the same details.'
+              : 'The crew member has cancelled. Would you like to relist this job for new applicants?'}
           </p>
           <div className="flex gap-2">
             <Button
@@ -210,7 +213,7 @@ export function CancellationBanner({
               ) : (
                 <CheckCircle className="mr-1.5 h-4 w-4" />
               )}
-              Yes, relist
+              {startDatePassed ? 'Create new posting' : 'Yes, relist'}
             </Button>
           </div>
         </div>

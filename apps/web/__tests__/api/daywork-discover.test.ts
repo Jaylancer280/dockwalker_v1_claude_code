@@ -28,6 +28,49 @@ function makeRequest(query = ''): Request {
   return new Request(`http://localhost/api/daywork/discover${query}`);
 }
 
+/** Applications query chain: .select().eq().in() */
+function makeAppsChain(data: unknown[]) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data }),
+      }),
+    }),
+  };
+}
+
+/**
+ * Dayworks query chain: .select().eq('status').neq('poster')[.not()][.eq()][.gte()][.lte()].order().limit()
+ * Returns mockOrder so callers can assert on sort params.
+ */
+function makeDayworksChain(data: unknown[], hasExcludedIds = false) {
+  const mockLimit = vi.fn().mockResolvedValue({ data, error: null });
+  const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit });
+
+  // Terminal filters — any of gte/lte/eq/order can be called in any combination.
+  // Build a self-returning proxy that eventually exposes order().limit().
+  const filterProxy: Record<string, ReturnType<typeof vi.fn>> = {};
+  filterProxy.gte = vi.fn().mockReturnValue(filterProxy);
+  filterProxy.lte = vi.fn().mockReturnValue(filterProxy);
+  filterProxy.eq = vi.fn().mockReturnValue(filterProxy);
+  filterProxy.order = mockOrder;
+
+  // .neq() or .not() before optional filters
+  const neqResult = hasExcludedIds
+    ? { not: vi.fn().mockReturnValue(filterProxy) }
+    : filterProxy;
+
+  const chain = {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        neq: vi.fn().mockReturnValue(neqResult),
+      }),
+    }),
+  };
+
+  return { chain, mockOrder, mockLimit, filterProxy };
+}
+
 describe('GET /api/daywork/discover', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -70,15 +113,6 @@ describe('GET /api/daywork/discover', () => {
   it('returns 200 with filtered dayworks', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // applications query
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          in: vi.fn().mockResolvedValue({ data: [] }),
-        }),
-      }),
-    });
-    // dayworks query: .from().select().eq('status').order().limit()
     const dayworks = [
       {
         id: 'd1',
@@ -88,15 +122,9 @@ describe('GET /api/daywork/discover', () => {
         end_date: '2026-04-05',
       },
     ];
-    const mockLimit = vi.fn().mockResolvedValue({ data: dayworks, error: null });
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          order: mockOrder,
-        }),
-      }),
-    });
+
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
     mockRpc.mockResolvedValueOnce({
       data: [
         {
@@ -128,25 +156,12 @@ describe('GET /api/daywork/discover', () => {
   it('returns jobs even when crew has no availability set', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // applications query — no prior applications
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          in: vi.fn().mockResolvedValue({ data: [] }),
-        }),
-      }),
-    });
-    // dayworks query
     const dayworks = [
       { id: 'd1', vessel_id: null, poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
     ];
-    const mockLimit = vi.fn().mockResolvedValue({ data: dayworks, error: null });
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ order: mockOrder }),
-      }),
-    });
+
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
 
     const res = await GET(makeRequest());
     expect(res.status).toBe(200);
@@ -157,22 +172,9 @@ describe('GET /api/daywork/discover', () => {
   it('does not accept sort parameter', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // applications query
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          in: vi.fn().mockResolvedValue({ data: [] }),
-        }),
-      }),
-    });
-    // dayworks query
-    const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ order: mockOrder }),
-      }),
-    });
+    const { chain, mockOrder } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(chain);
 
     const res = await GET(makeRequest('?sort=proximity'));
     expect(res.status).toBe(200);
@@ -183,28 +185,39 @@ describe('GET /api/daywork/discover', () => {
   it('passes date filters to query', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // applications query
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          in: vi.fn().mockResolvedValue({ data: [] }),
-        }),
-      }),
-    });
-    // dayworks query with date filters: .eq().gte().lte().order().limit()
-    const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
-    const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit });
-    const mockLte = vi.fn().mockReturnValue({ order: mockOrder });
-    const mockGte = vi.fn().mockReturnValue({ lte: mockLte });
-    mockFromAuth.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({ gte: mockGte }),
-      }),
-    });
+    const { chain, filterProxy } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(chain);
 
     const res = await GET(makeRequest('?startDate=2026-04-01&endDate=2026-04-30'));
     expect(res.status).toBe(200);
-    expect(mockGte).toHaveBeenCalledWith('start_date', '2026-04-01');
-    expect(mockLte).toHaveBeenCalledWith('end_date', '2026-04-30');
+    expect(filterProxy.gte).toHaveBeenCalledWith('start_date', '2026-04-01');
+    expect(filterProxy.lte).toHaveBeenCalledWith('end_date', '2026-04-30');
+  });
+
+  it('excludes interacted dayworks at the DB level via not-in filter', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    // Crew has interacted with d2 and d3
+    mockFromAuth.mockReturnValueOnce(
+      makeAppsChain([{ daywork_id: 'd2' }, { daywork_id: 'd3' }]),
+    );
+
+    const dayworks = [
+      { id: 'd1', vessel_id: null, poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
+    ];
+    const { chain } = makeDayworksChain(dayworks, true);
+    mockFromAuth.mockReturnValueOnce(chain);
+
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.dayworks).toHaveLength(1);
+
+    // Verify the .not() filter was called with the excluded IDs
+    const selectCall = chain.select();
+    const eqCall = selectCall.eq();
+    const neqCall = eqCall.neq();
+    expect(neqCall.not).toHaveBeenCalledWith('id', 'in', '(d2,d3)');
   });
 });

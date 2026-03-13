@@ -58,18 +58,49 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const crewIds = (applications ?? []).map((a) => a.crew_person_id);
 
   const availabilityMap: Record<string, number> = {};
+  const availabilityCityMap: Record<string, string> = {};
+  const notAvailableSet = new Set<string>();
   if (crewIds.length > 0) {
     const { data: availWindows } = await supabase
       .from('availability_windows')
-      .select('person_id, date')
+      .select('person_id, date, city_id, not_available')
       .in('person_id', crewIds)
-      .gte('date', daywork.start_date)
-      .lte('date', daywork.end_date)
       .gt('expires_at', new Date().toISOString());
 
-    // Count available days per crew member within the daywork range
+    // Separate not-available markers from real availability
+    const cityIds = new Set<string>();
     for (const w of availWindows ?? []) {
-      availabilityMap[w.person_id] = (availabilityMap[w.person_id] ?? 0) + 1;
+      if (w.not_available) {
+        notAvailableSet.add(w.person_id);
+        if (w.city_id) cityIds.add(w.city_id);
+        continue;
+      }
+      // Only count windows within the daywork date range
+      if (w.date >= daywork.start_date && w.date <= daywork.end_date) {
+        availabilityMap[w.person_id] = (availabilityMap[w.person_id] ?? 0) + 1;
+      }
+      if (w.city_id) cityIds.add(w.city_id);
+    }
+
+    // Resolve city names
+    if (cityIds.size > 0) {
+      const { data: cities } = await supabase
+        .from('cities')
+        .select('id, name, regions(name)')
+        .in('id', [...cityIds]);
+
+      const cityNameMap = new Map<string, string>();
+      for (const c of cities ?? []) {
+        const regions = c.regions as unknown as { name: string } | null;
+        cityNameMap.set(c.id, `${c.name}, ${regions?.name ?? ''}`);
+      }
+
+      // Map first city_id per crew member
+      for (const w of availWindows ?? []) {
+        if (w.city_id && !availabilityCityMap[w.person_id]) {
+          availabilityCityMap[w.person_id] = cityNameMap.get(w.city_id) ?? '';
+        }
+      }
     }
   }
 
@@ -90,6 +121,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const enriched = (applications ?? []).map((app) => ({
     ...app,
     available_days: availabilityMap[app.crew_person_id] ?? 0,
+    availability_city: availabilityCityMap[app.crew_person_id] ?? null,
+    availability_not_available: notAvailableSet.has(app.crew_person_id),
     past_daywork_count: engagementCountMap[app.crew_person_id] ?? 0,
   }));
 

@@ -18,6 +18,7 @@ function makeRequest(body: unknown = {}): Request {
   });
 }
 
+/** Chain ending in .single() — used for dayworks and applications queries */
 function makeChain(data: unknown) {
   return {
     select: vi.fn().mockReturnValue({
@@ -25,6 +26,19 @@ function makeChain(data: unknown) {
         single: vi.fn().mockResolvedValue({ data }),
         eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({ data }),
+        }),
+      }),
+    }),
+  };
+}
+
+/** Chain ending in .limit() — used for the availability_windows query */
+function makeAvailChain(data: unknown[]) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        gt: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data }),
         }),
       }),
     }),
@@ -126,13 +140,44 @@ describe('POST /api/daywork/:id/apply', () => {
     expect(res.status).toBe(409);
   });
 
-  it('returns 200 on successful application', async () => {
+  it('returns 403 when crew has no availability set', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth
       .mockReturnValueOnce(
         makeChain({ id: 'd1', status: 'active', poster_person_id: 'other' }),
       )
-      .mockReturnValueOnce(makeChain(null));
+      .mockReturnValueOnce(makeChain(null))
+      .mockReturnValueOnce(makeAvailChain([]));
+
+    const res = await POST(makeRequest(), makeParams('d1'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toMatch(/availability/);
+  });
+
+  it('returns 403 when crew is explicitly not available', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(
+        makeChain({ id: 'd1', status: 'active', poster_person_id: 'other' }),
+      )
+      .mockReturnValueOnce(makeChain(null))
+      .mockReturnValueOnce(makeAvailChain([{ id: 'w1', not_available: true }]));
+
+    const res = await POST(makeRequest(), makeParams('d1'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toMatch(/availability/);
+  });
+
+  it('returns 200 on successful application with availability set', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(
+        makeChain({ id: 'd1', status: 'active', poster_person_id: 'other' }),
+      )
+      .mockReturnValueOnce(makeChain(null))
+      .mockReturnValueOnce(makeAvailChain([{ id: 'w1', not_available: false }]));
     mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(makeRequest({ message: 'Keen!' }), makeParams('d1'));
@@ -151,13 +196,14 @@ describe('POST /api/daywork/:id/apply', () => {
     );
   });
 
-  it('succeeds without availability or profile matching', async () => {
+  it('returns 200 on successful application without message', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth
       .mockReturnValueOnce(
         makeChain({ id: 'd1', status: 'active', poster_person_id: 'other' }),
       )
-      .mockReturnValueOnce(makeChain(null));
+      .mockReturnValueOnce(makeChain(null))
+      .mockReturnValueOnce(makeAvailChain([{ id: 'w1', not_available: false }]));
     mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(makeRequest(), makeParams('d1'));

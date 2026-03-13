@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { LocationPicker } from '@/components/location-picker';
 import { Anchor, Building2, ChevronLeft, ChevronRight, Loader2, Ship, User } from 'lucide-react';
 
 type IdentityType = 'crew' | 'agent';
@@ -27,13 +28,6 @@ interface LookupItem {
   label?: string;
   department?: string;
   category?: string;
-}
-
-interface PortItem {
-  id: string;
-  name: string;
-  city_id: string;
-  cities: { name: string; regions: { name: string } };
 }
 
 export default function OnboardingPage() {
@@ -67,28 +61,22 @@ export default function OnboardingPage() {
   const [certs, setCerts] = useState<LookupItem[]>([]);
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
-  const [ports, setPorts] = useState<PortItem[]>([]);
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
 
   useEffect(() => {
     if (step !== 'profile' || lookupsLoaded) return;
     async function loadLookups() {
       const supabase = createClient();
-      const [rolesRes, certsRes, bracketsRes, sizesRes, portsRes] = await Promise.all([
+      const [rolesRes, certsRes, bracketsRes, sizesRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
         supabase.from('certifications').select('id, name, category').order('sort_order'),
         supabase.from('experience_brackets').select('id, label').order('sort_order'),
         supabase.from('vessel_size_bands').select('id, label').order('sort_order'),
-        supabase
-          .from('ports')
-          .select('id, name, city_id, cities(name, regions(name))')
-          .order('name'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
       if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
       if (sizesRes.data) setSizeBands(sizesRes.data.map((s) => ({ ...s, name: s.label })));
-      if (portsRes.data) setPorts(portsRes.data as unknown as PortItem[]);
       setLookupsLoaded(true);
     }
     loadLookups();
@@ -247,18 +235,12 @@ export default function OnboardingPage() {
             {/* Location — shared */}
             <div className="flex flex-col gap-1.5">
               <Label>Current location</Label>
-              <Select value={locationPortId} onValueChange={setLocationPortId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select port/marina" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ports.map((port) => (
-                    <SelectItem key={port.id} value={port.id}>
-                      {port.name} — {port.cities?.name}, {port.cities?.regions?.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <LocationPicker
+                mode="port-required"
+                value={locationPortId ? { portId: locationPortId } : null}
+                onValueChange={(v) => setLocationPortId(v.portId ?? '')}
+                placeholder="Select port/marina"
+              />
             </div>
 
             {/* ── Crew-specific fields ── */}

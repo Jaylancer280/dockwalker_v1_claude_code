@@ -23,6 +23,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
+import { LocationPicker } from '@/components/location-picker';
 import { createClient } from '@/lib/supabase/client';
 
 interface LookupItem {
@@ -31,12 +32,6 @@ interface LookupItem {
   label?: string;
   department?: string;
   category?: string;
-}
-
-interface PortItem {
-  id: string;
-  name: string;
-  cities: { name: string; regions: { name: string } };
 }
 
 interface Template {
@@ -80,7 +75,6 @@ export default function PostDayworkPage() {
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certs, setCerts] = useState<LookupItem[]>([]);
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
-  const [ports, setPorts] = useState<PortItem[]>([]);
 
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -89,32 +83,32 @@ export default function PostDayworkPage() {
   const [savingTemplate, setSavingTemplate] = useState(false);
 
   function applyTemplate(t: Template) {
-    if (t.vessel_id) setVesselId(t.vessel_id);
-    if (t.role_id) setRoleId(t.role_id);
-    if (t.location_port_id) setLocationPortId(t.location_port_id);
-    if (t.working_days) setWorkingDays(String(t.working_days));
-    if (t.required_certification_ids?.length) setRequiredCertIds(t.required_certification_ids);
-    if (t.experience_bracket_id) setExperienceBracketId(t.experience_bracket_id);
-    if (t.day_rate) setDayRate(String(t.day_rate));
-    if (t.currency) setCurrency(t.currency);
-    if (t.meals?.length) setMeals(t.meals as MealOption[]);
-    if (t.notes) setNotes(t.notes);
+    // Reset all fields to defaults first so switching from a fuller template
+    // to a sparser one does not leave stale values in the form.
+    setVesselId(t.vessel_id ?? '');
+    setRoleId(t.role_id ?? '');
+    setLocationPortId(t.location_port_id ?? '');
+    setWorkingDays(t.working_days ? String(t.working_days) : '');
+    setRequiredCertIds(t.required_certification_ids ?? []);
+    setExperienceBracketId(t.experience_bracket_id ?? '');
+    setDayRate(t.day_rate ? String(t.day_rate) : '');
+    setCurrency(t.currency ?? 'EUR');
+    setMeals((t.meals as MealOption[]) ?? []);
+    setNotes(t.notes ?? '');
   }
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const [rolesRes, certsRes, bracketsRes, portsRes, templatesRes] = await Promise.all([
+      const [rolesRes, certsRes, bracketsRes, templatesRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
         supabase.from('certifications').select('id, name, category').order('sort_order'),
         supabase.from('experience_brackets').select('id, label').order('sort_order'),
-        supabase.from('ports').select('id, name, cities(name, regions(name))').order('name'),
         fetch('/api/daywork/templates').then((r) => r.json()),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
       if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
-      if (portsRes.data) setPorts(portsRes.data as unknown as PortItem[]);
       if (templatesRes.templates) setTemplates(templatesRes.templates);
 
       // Load template from search param
@@ -123,6 +117,32 @@ export default function PostDayworkPage() {
         const res = await fetch(`/api/daywork/templates/${templateId}`);
         const data = await res.json();
         if (data.template) applyTemplate(data.template);
+      }
+
+      // Pre-fill from existing daywork (e.g. relist after crew cancellation with past dates)
+      const fromDayworkId = searchParams.get('fromDaywork');
+      if (fromDayworkId) {
+        const { data: dw } = await supabase
+          .from('dayworks')
+          .select(
+            'vessel_id, role_id, location_port_id, working_days, required_certification_ids, experience_bracket_id, day_rate, currency, meals, notes',
+          )
+          .eq('id', fromDayworkId)
+          .single();
+        if (dw) {
+          if (dw.vessel_id) setVesselId(dw.vessel_id);
+          if (dw.role_id) setRoleId(dw.role_id);
+          if (dw.location_port_id) setLocationPortId(dw.location_port_id);
+          if (dw.working_days) setWorkingDays(String(dw.working_days));
+          if (dw.required_certification_ids?.length)
+            setRequiredCertIds(dw.required_certification_ids);
+          if (dw.experience_bracket_id) setExperienceBracketId(dw.experience_bracket_id);
+          if (dw.day_rate) setDayRate(String(dw.day_rate));
+          if (dw.currency) setCurrency(dw.currency);
+          if (dw.meals?.length) setMeals(dw.meals as MealOption[]);
+          if (dw.notes) setNotes(dw.notes);
+          // Dates intentionally left blank — employer must pick new dates
+        }
       }
     }
     load();
@@ -177,8 +197,7 @@ export default function PostDayworkPage() {
 
   function openSaveDialog() {
     const roleName = roles.find((r) => r.id === roleId)?.name;
-    const portName = ports.find((p) => p.id === locationPortId)?.name;
-    setTemplateName([roleName, portName].filter(Boolean).join(' — ') || '');
+    setTemplateName(roleName ?? '');
     setSaveDialogOpen(true);
   }
 
@@ -287,18 +306,11 @@ export default function PostDayworkPage() {
         {/* Location */}
         <div className="flex flex-col gap-1.5">
           <Label>Location</Label>
-          <Select value={locationPortId} onValueChange={setLocationPortId} required>
-            <SelectTrigger>
-              <SelectValue placeholder="Select port/marina" />
-            </SelectTrigger>
-            <SelectContent>
-              {ports.map((port) => (
-                <SelectItem key={port.id} value={port.id}>
-                  {port.name} — {port.cities?.name}, {port.cities?.regions?.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <LocationPicker
+            mode="port-required"
+            value={locationPortId ? { portId: locationPortId } : null}
+            onValueChange={(v) => setLocationPortId(v.portId ?? '')}
+          />
         </div>
 
         {/* Dates */}

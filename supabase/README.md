@@ -36,18 +36,22 @@ npx supabase db push         # Apply pending migrations to linked remote
 
 The app depends on these Postgres functions in the `public` schema:
 
-| RPC                                    | Migration | Purpose                                                                                                                                  |
-| -------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `append_event`                         | 00005     | Appends event to ledger + updates projections atomically                                                                                 |
-| `onboard_person`                       | 00007     | Atomic `PERSON.CREATED` + `PROFILE.CREATED`                                                                                              |
-| `check_no_overlap`                     | 00007     | Validates no date conflicts before crew acceptance                                                                                       |
-| `check_no_overlap_excluding`           | 00018     | Like check_no_overlap but with explicit dates + engagement exclusion                                                                     |
-| `apply_projection` (DAYWORK.RELISTED)  | 00019     | RELISTED handler now updates dates/working_days when present in payload                                                                  |
-| `apply_projection` (WORK_STARTED)      | 00020     | Handles `ENGAGEMENT.WORK_STARTED` and `ENGAGEMENT.WORK_STARTED_CONFIRMED` events                                                         |
-| `append_events_batch`                  | 00021     | Processes array of events in single transaction for atomic multi-event writes                                                            |
-| `apply_projection` (CANCELLED_BY_CREW) | 00022     | Structured crew cancellation — writes `cancelled_by`, `cancellation_reason_category`, `cancellation_reason_text` to `active_engagements` |
-| `clear_availability_dates`             | 00007     | Clears availability via immediate-expiry ledger entries                                                                                  |
-| `get_vessel_public`                    | 00007     | Returns vessel data with NDA-safe field filtering                                                                                        |
+| RPC                                           | Migration | Purpose                                                                                                                                                              |
+| --------------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `append_event`                                | 00005     | Appends event to ledger + updates projections atomically                                                                                                             |
+| `onboard_person`                              | 00007     | Atomic `PERSON.CREATED` + `PROFILE.CREATED`                                                                                                                          |
+| `check_no_overlap`                            | 00007     | Validates no date conflicts before crew acceptance                                                                                                                   |
+| `check_no_overlap_excluding`                  | 00018     | Like check_no_overlap but with explicit dates + engagement exclusion                                                                                                 |
+| `apply_projection` (DAYWORK.RELISTED)         | 00019     | RELISTED handler now updates dates/working_days when present in payload                                                                                              |
+| `apply_projection` (WORK_STARTED)             | 00020     | Handles `ENGAGEMENT.WORK_STARTED` and `ENGAGEMENT.WORK_STARTED_CONFIRMED` events                                                                                     |
+| `append_events_batch`                         | 00021     | Processes array of events in single transaction for atomic multi-event writes                                                                                        |
+| `apply_projection` (CANCELLED_BY_CREW)        | 00022     | Structured crew cancellation — writes `cancelled_by`, `cancellation_reason_category`, `cancellation_reason_text` to `active_engagements`                             |
+| `apply_projection` (CHECKLIST.\*)             | 00023     | Handles `CHECKLIST.SET` (upsert into `engagement_checklists`, resets acknowledgements) and `CHECKLIST.ITEM_TOGGLED` (add/remove from `acknowledged_item_ids`)        |
+| `apply_projection` (AVAILABILITY.SET)         | 00024     | Writes `city_id` and `not_available` on availability windows; not-available expires existing windows and inserts marker row; normal set clears not-available markers |
+| `apply_projection` (AVAILABILITY.SET port_id) | 00025     | Adds `port_id` column to `availability_windows`; updates AVAILABILITY.SET handler to write optional `port_id` on both normal and not-available paths                 |
+| `user_preferences` table                      | 00026     | CRUD user preferences (`profile_visible` boolean). Owner-only RLS. Not event-sourced — follows `daywork_templates` precedent.                                        |
+| `clear_availability_dates`                    | 00007     | Clears availability via immediate-expiry ledger entries                                                                                                              |
+| `get_vessel_public`                           | 00007     | Returns vessel data with NDA-safe field filtering                                                                                                                    |
 
 ## Daywork Status Lifecycle
 
@@ -113,6 +117,17 @@ Crew cancellation of in-progress engagements now requires a structured reason:
 New `cancelled_by` column tracks who initiated the cancellation (`crew`, `employer`, or `postponement`). When crew cancels, the daywork stays `in_progress` — the employer must decide whether to relist or cancel the posting via `POST /api/engagements/:id/respond-crew-cancel`.
 
 A system message is posted to the chat thread with the crew's reason.
+
+## Pre-Arrival Checklist (Migration 00023)
+
+Employers can set a pre-arrival checklist for engaged crew via `CHECKLIST.SET` events. The `engagement_checklists` table stores:
+
+- `items` (JSONB) — array of `{ id, label, value }` objects representing checklist items
+- `acknowledged_item_ids` (text[]) — item IDs the crew has checked off
+
+Crew acknowledges items individually via `CHECKLIST.ITEM_TOGGLED` events (`item_id` + `checked` boolean). When the employer updates the checklist (`CHECKLIST.SET`), all acknowledgements are reset. Both events use `aggregateType: 'checklist'` with `aggregateId` = engagement ID.
+
+RLS: engagement participants can read their checklist. Writes go through the service client.
 
 ## Currency Support
 

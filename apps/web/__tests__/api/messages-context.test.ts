@@ -108,6 +108,7 @@ describe('GET /api/messages/:engagementId/context', () => {
         }),
       )
       .mockReturnValueOnce(makeChain({ display_name: 'Captain Smith' }))
+      .mockReturnValueOnce(makeChain(null))
       .mockReturnValueOnce(makeChain(null));
 
     const res = await GET(new Request('http://localhost'), makeParams('e1'));
@@ -116,6 +117,7 @@ describe('GET /api/messages/:engagementId/context', () => {
     expect(body.engagement.other_name).toBe('Captain Smith');
     expect(body.engagement.has_rated).toBe(false);
     expect(body.engagement.my_rating).toBeNull();
+    expect(body.engagement.checklist).toBeNull();
   });
 
   it('returns Unknown when other profile not found', async () => {
@@ -130,6 +132,7 @@ describe('GET /api/messages/:engagementId/context', () => {
           end_date: '2026-04-05',
         }),
       )
+      .mockReturnValueOnce(makeChain(null))
       .mockReturnValueOnce(makeChain(null))
       .mockReturnValueOnce(makeChain(null));
 
@@ -169,7 +172,8 @@ describe('GET /api/messages/:engagementId/context', () => {
         }),
       )
       .mockReturnValueOnce(makeChain({ display_name: 'Captain Smith' }))
-      .mockReturnValueOnce(makeChain(ratingData));
+      .mockReturnValueOnce(makeChain(ratingData))
+      .mockReturnValueOnce(makeChain(null));
 
     const res = await GET(new Request('http://localhost'), makeParams('e1'));
     expect(res.status).toBe(200);
