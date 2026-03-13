@@ -25,7 +25,9 @@ export async function GET(request: Request) {
 
   const { data: vessel, error } = await serviceClient
     .from('vessels')
-    .select('id, imo_number, name, vessel_type, size_band_id, loa_meters, vessel_size_bands(label)')
+    .select(
+      'id, imo_number, name, vessel_type, vessel_operation, size_band_id, loa_meters, vessel_size_bands(label)',
+    )
     .eq('imo_number', imoClean)
     .limit(1)
     .maybeSingle();
@@ -45,6 +47,7 @@ export async function GET(request: Request) {
       imo_number: vessel.imo_number,
       name: vessel.name,
       vessel_type: vessel.vessel_type,
+      vessel_operation: vessel.vessel_operation,
       size_band_id: vessel.size_band_id,
       loa_meters: vessel.loa_meters,
       size_band_label:

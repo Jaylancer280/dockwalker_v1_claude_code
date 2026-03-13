@@ -3,18 +3,16 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
-const VALID_CHARTER_PRIVATE = ['charter', 'private'] as const;
+const VALID_VESSEL_OPERATIONS = ['charter', 'private'] as const;
 const VALID_SALARY_CURRENCIES = ['EUR', 'USD', 'GBP', 'AED'] as const;
 const VALID_SALARY_PERIODS = ['daily', 'monthly', 'annually'] as const;
-const VALID_ROTATION_TYPES = [
-  '2:2',
-  '3:1',
-  '3:3',
-  '5:1',
+const VALID_CONTRACT_TYPES = [
   'permanent',
+  'rotational',
   'seasonal',
-  'mlc_standard',
-  'other',
+  'crossing',
+  'delivery',
+  'temporary',
 ] as const;
 
 /**
@@ -32,10 +30,10 @@ export async function GET() {
     .select(
       `
       id, vessel_id, role_id, start_date, end_date, is_current,
-      charter_or_private, flag_state, rotation_type, rotation_details,
+      vessel_operation, flag_state, contract_type, contract_details,
       description, created_at, updated_at,
-      vessels(id, imo_number, name, vessel_type, size_band_id, loa_meters, vessel_size_bands(label)),
-      yacht_roles(id, label)
+      vessels(id, imo_number, name, vessel_type, vessel_operation, size_band_id, loa_meters, vessel_size_bands(label)),
+      yacht_roles(id, name, department)
     `,
     )
     .eq('person_id', user.id)
@@ -56,15 +54,15 @@ export async function GET() {
  *   vesselId: string (required — must reference an existing vessel),
  *   roleId: string (required),
  *   startDate: string (required, YYYY-MM-DD),
- *   endDate: string | null (optional),
+ *   endDate: string | null (optional, YYYY-MM-DD),
  *   isCurrent: boolean (optional, default false),
- *   charterOrPrivate: 'charter' | 'private' (required),
+ *   vesselOperation: 'charter' | 'private' (required),
  *   flagState: string | null (optional),
  *   salaryAmount: number | null (optional),
  *   salaryCurrency: 'EUR' | 'USD' | 'GBP' | 'AED' | null (optional),
  *   salaryPeriod: 'daily' | 'monthly' | 'annually' | null (optional),
- *   rotationType: string | null (optional),
- *   rotationDetails: string | null (optional),
+ *   contractType: string | null (optional),
+ *   contractDetails: string | null (optional),
  *   description: string | null (optional, max 250 chars)
  * }
  */
@@ -80,27 +78,27 @@ export async function POST(request: Request) {
     startDate,
     endDate,
     isCurrent,
-    charterOrPrivate,
+    vesselOperation,
     flagState,
     salaryAmount,
     salaryCurrency,
     salaryPeriod,
-    rotationType,
-    rotationDetails,
+    contractType,
+    contractDetails,
     description,
   } = body;
 
   // Validate required fields
-  if (!vesselId || !roleId || !startDate || !charterOrPrivate) {
+  if (!vesselId || !roleId || !startDate || !vesselOperation) {
     return NextResponse.json(
-      { error: 'vesselId, roleId, startDate, and charterOrPrivate are required' },
+      { error: 'vesselId, roleId, startDate, and vesselOperation are required' },
       { status: 400 },
     );
   }
 
-  if (!VALID_CHARTER_PRIVATE.includes(charterOrPrivate)) {
+  if (!VALID_VESSEL_OPERATIONS.includes(vesselOperation)) {
     return NextResponse.json(
-      { error: 'charterOrPrivate must be charter or private' },
+      { error: 'vesselOperation must be charter or private' },
       { status: 400 },
     );
   }
@@ -113,8 +111,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid salary period' }, { status: 400 });
   }
 
-  if (rotationType && !VALID_ROTATION_TYPES.includes(rotationType)) {
-    return NextResponse.json({ error: 'Invalid rotation type' }, { status: 400 });
+  if (contractType && !VALID_CONTRACT_TYPES.includes(contractType)) {
+    return NextResponse.json({ error: 'Invalid contract type' }, { status: 400 });
+  }
+
+  if (endDate && startDate && new Date(endDate) < new Date(startDate)) {
+    return NextResponse.json({ error: 'End date cannot be before start date' }, { status: 400 });
   }
 
   if (description && description.length > 250) {
@@ -124,9 +126,9 @@ export async function POST(request: Request) {
     );
   }
 
-  if (rotationDetails && rotationDetails.length > 100) {
+  if (contractDetails && contractDetails.length > 100) {
     return NextResponse.json(
-      { error: 'Rotation details must be 100 characters or less' },
+      { error: 'Contract details must be 100 characters or less' },
       { status: 400 },
     );
   }
@@ -146,13 +148,13 @@ export async function POST(request: Request) {
         start_date: startDate,
         end_date: endDate ?? null,
         is_current: isCurrent ?? false,
-        charter_or_private: charterOrPrivate,
+        vessel_operation: vesselOperation,
         flag_state: flagState ?? null,
         salary_amount: salaryAmount ?? null,
         salary_currency: salaryCurrency ?? null,
         salary_period: salaryPeriod ?? null,
-        rotation_type: rotationType ?? null,
-        rotation_details: rotationDetails ?? null,
+        contract_type: contractType ?? null,
+        contract_details: contractDetails ?? null,
         description: description ?? null,
       },
       personId: user.id,

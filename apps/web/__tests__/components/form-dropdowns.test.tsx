@@ -205,6 +205,44 @@ vi.mock('@/components/location-picker', () => ({
   ),
 }));
 
+// RolePicker mock — renders roles as visible text for testability
+vi.mock('@/components/role-picker', () => ({
+  RolePicker: ({ roles, value, onValueChange, placeholder }: {
+    roles: { id: string; name: string; department: string }[];
+    value: string;
+    onValueChange: (v: string) => void;
+    placeholder?: string;
+  }) => (
+    <div data-testid="role-picker" data-value={value}>
+      <span>{placeholder ?? 'Select role'}</span>
+      {roles.map((r) => (
+        <div key={r.id} data-role-id={r.id} onClick={() => onValueChange(r.id)}>
+          {r.name}
+        </div>
+      ))}
+    </div>
+  ),
+}));
+
+// FlagStatePicker mock — renders flag states as visible text for testability
+vi.mock('@/components/flag-state-picker', () => ({
+  FlagStatePicker: ({ flagStates, value, onValueChange, placeholder }: {
+    flagStates: { id: string; name: string }[];
+    value: string;
+    onValueChange: (v: string) => void;
+    placeholder?: string;
+  }) => (
+    <div data-testid="flag-state-picker" data-value={value}>
+      <span>{placeholder ?? 'Select flag state'}</span>
+      {flagStates.map((f) => (
+        <div key={f.id} data-flag-id={f.id} onClick={() => onValueChange(f.id)}>
+          {f.name}
+        </div>
+      ))}
+    </div>
+  ),
+}));
+
 // Global fetch mock
 const fetchMock = vi.fn();
 globalThis.fetch = fetchMock;
@@ -272,14 +310,8 @@ describe('Onboarding page — crew profile dropdowns', () => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
     });
 
-    // Roles select — items rendered as mock options
-    const roleItems = await screen.findAllByText((_content, el) =>
-      el?.getAttribute('data-testid') === 'mock-select-item' &&
-      MOCK_ROLES.some((r) => el?.textContent?.includes(r.name)),
-    );
-    expect(roleItems.length).toBeGreaterThanOrEqual(MOCK_ROLES.length);
-
-    // Verify each role name is present
+    // Roles — rendered by RolePicker mock (visible as text, not as Select options)
+    expect(screen.getByTestId('role-picker')).toBeInTheDocument();
     for (const role of MOCK_ROLES) {
       expect(screen.getByText(role.name)).toBeInTheDocument();
     }
@@ -489,11 +521,17 @@ describe('Canonical data item counts', () => {
 
     // Count select items by role option (all options render as mock-select-item)
     // Location is now handled by LocationPicker (mocked), not a Select
+    // Primary role is now handled by RolePicker (mocked), not a Select
     const allSelectItems = screen.getAllByRole('option');
-    // Roles (3) + Experience brackets (3) + Available to start (4) = 10 select items
+    // Experience brackets (3) + Available to start (4) = 7 select items
     expect(allSelectItems).toHaveLength(
-      MOCK_ROLES.length + MOCK_BRACKETS.length + 4,
+      MOCK_BRACKETS.length + 4,
     );
+
+    // Roles are in the RolePicker mock (visible as text)
+    for (const role of MOCK_ROLES) {
+      expect(screen.getByText(role.name)).toBeInTheDocument();
+    }
 
     // Count certification checkboxes
     const certLabels = MOCK_CERTS.map((c) => screen.getByText(c.name));

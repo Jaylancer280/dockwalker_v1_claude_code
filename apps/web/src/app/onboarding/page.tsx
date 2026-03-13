@@ -17,6 +17,8 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
+import { RolePicker } from '@/components/role-picker';
+import { FlagStatePicker } from '@/components/flag-state-picker';
 import {
   Anchor,
   Building2,
@@ -55,7 +57,8 @@ interface VesselExperienceEntry {
   vessel: {
     imoNumber: string;
     name: string;
-    vesselType: 'charter' | 'private';
+    vesselType: 'motor' | 'sail';
+    vesselOperation: 'charter' | 'private';
     loaMeters: string;
     useExisting: boolean;
     existingVesselId?: string;
@@ -65,26 +68,24 @@ interface VesselExperienceEntry {
     startDate: string;
     endDate: string;
     isCurrent: boolean;
-    charterOrPrivate: 'charter' | 'private';
+    vesselOperation: 'charter' | 'private';
     flagState: string;
     salaryAmount: string;
     salaryCurrency: string;
     salaryPeriod: string;
-    rotationType: string;
-    rotationDetails: string;
+    contractType: string;
+    contractDetails: string;
     description: string;
   };
 }
 
-const ROTATION_TYPES = [
-  { value: '2:2', label: '2 months on / 2 months off' },
-  { value: '3:1', label: '3 months on / 1 month off' },
-  { value: '3:3', label: '3 months on / 3 months off' },
-  { value: '5:1', label: '5 months on / 1 month off' },
-  { value: 'permanent', label: 'Permanent (no rotation)' },
+const CONTRACT_TYPES = [
+  { value: 'permanent', label: 'Permanent' },
+  { value: 'rotational', label: 'Rotational' },
   { value: 'seasonal', label: 'Seasonal' },
-  { value: 'mlc_standard', label: 'MLC standard leave' },
-  { value: 'other', label: 'Other' },
+  { value: 'crossing', label: 'Crossing' },
+  { value: 'delivery', label: 'Delivery' },
+  { value: 'temporary', label: 'Temporary' },
 ];
 
 const LANGUAGES = [
@@ -113,19 +114,26 @@ const LANGUAGES = [
 function emptyExperienceEntry(): VesselExperienceEntry {
   return {
     key: crypto.randomUUID(),
-    vessel: { imoNumber: '', name: '', vesselType: 'charter', loaMeters: '', useExisting: false },
+    vessel: {
+      imoNumber: '',
+      name: '',
+      vesselType: 'motor',
+      vesselOperation: 'charter',
+      loaMeters: '',
+      useExisting: false,
+    },
     experience: {
       roleId: '',
       startDate: '',
       endDate: '',
       isCurrent: false,
-      charterOrPrivate: 'charter',
+      vesselOperation: 'charter',
       flagState: '',
       salaryAmount: '',
       salaryCurrency: '',
       salaryPeriod: '',
-      rotationType: '',
-      rotationDetails: '',
+      contractType: '',
+      contractDetails: '',
       description: '',
     },
   };
@@ -224,7 +232,8 @@ export default function OnboardingPage() {
                   vessel: {
                     ...e.vessel,
                     name: data.vessel.name,
-                    vesselType: data.vessel.vessel_type,
+                    vesselType: data.vessel.vessel_type ?? 'motor',
+                    vesselOperation: data.vessel.vessel_operation ?? 'charter',
                     loaMeters: String(data.vessel.loa_meters),
                     useExisting: true,
                     existingVesselId: data.vessel.id,
@@ -294,6 +303,7 @@ export default function OnboardingPage() {
                   imoNumber: e.vessel.imoNumber,
                   name: e.vessel.name,
                   vesselType: e.vessel.vesselType,
+                  vesselOperation: e.vessel.vesselOperation,
                   loaMeters: Number(e.vessel.loaMeters) || 0,
                 },
                 experience: {
@@ -301,15 +311,15 @@ export default function OnboardingPage() {
                   startDate: e.experience.startDate,
                   endDate: e.experience.endDate || undefined,
                   isCurrent: e.experience.isCurrent,
-                  charterOrPrivate: e.experience.charterOrPrivate,
+                  vesselOperation: e.experience.vesselOperation,
                   flagState: e.experience.flagState || undefined,
                   salaryAmount: e.experience.salaryAmount
                     ? Number(e.experience.salaryAmount)
                     : undefined,
                   salaryCurrency: e.experience.salaryCurrency || undefined,
                   salaryPeriod: e.experience.salaryPeriod || undefined,
-                  rotationType: e.experience.rotationType || undefined,
-                  rotationDetails: e.experience.rotationDetails || undefined,
+                  contractType: e.experience.contractType || undefined,
+                  contractDetails: e.experience.contractDetails || undefined,
                   description: e.experience.description || undefined,
                 },
               }))
@@ -573,20 +583,12 @@ export default function OnboardingPage() {
               <>
                 <div className="flex flex-col gap-1.5">
                   <Label>{isGreen ? 'Target role' : 'Primary role'}</Label>
-                  <Select value={primaryRoleId} onValueChange={setPrimaryRoleId}>
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={isGreen ? 'What role are you targeting?' : 'Select your role'}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {roles.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <RolePicker
+                    roles={roles as { id: string; name: string; department: string }[]}
+                    value={primaryRoleId}
+                    onValueChange={setPrimaryRoleId}
+                    placeholder={isGreen ? 'What role are you targeting?' : 'Select your role'}
+                  />
                 </div>
 
                 {/* Green crew: manual experience + size selection */}
@@ -873,22 +875,7 @@ export default function OnboardingPage() {
                 )}
               </div>
 
-              {/* Vessel details */}
-              <div className="flex flex-col gap-1.5">
-                <Label>Vessel name</Label>
-                <Input
-                  placeholder="M/Y Vessel Name"
-                  value={entry.vessel.name}
-                  onChange={(e) =>
-                    updateEntry(entry.key, 'vessel', {
-                      name: e.target.value,
-                      useExisting: false,
-                      existingVesselId: undefined,
-                    })
-                  }
-                />
-              </div>
-
+              {/* Vessel type + operation */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <Label>Vessel type</Label>
@@ -900,53 +887,79 @@ export default function OnboardingPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="motor">Motor (M/Y)</SelectItem>
+                      <SelectItem value="sail">Sail (S/Y)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Vessel operation</Label>
+                  <Select
+                    value={entry.vessel.vesselOperation}
+                    onValueChange={(v) => updateEntry(entry.key, 'vessel', { vesselOperation: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="charter">Charter</SelectItem>
                       <SelectItem value="private">Private</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label>LOA (meters)</Label>
+              </div>
+
+              {/* Vessel name with M/Y or S/Y prefix */}
+              <div className="flex flex-col gap-1.5">
+                <Label>Vessel name</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                    {entry.vessel.vesselType === 'sail' ? 'S/Y' : 'M/Y'}
+                  </span>
                   <Input
-                    type="number"
-                    placeholder="e.g. 45"
-                    value={entry.vessel.loaMeters}
+                    placeholder="Vessel Name"
+                    value={entry.vessel.name}
                     onChange={(e) =>
-                      updateEntry(entry.key, 'vessel', { loaMeters: e.target.value })
+                      updateEntry(entry.key, 'vessel', {
+                        name: e.target.value,
+                        useExisting: false,
+                        existingVesselId: undefined,
+                      })
                     }
+                    className="rounded-l-none"
                   />
                 </div>
               </div>
 
-              <div className="my-1 border-t border-border" />
-
-              {/* Role held */}
               <div className="flex flex-col gap-1.5">
-                <Label>Role held</Label>
-                <Select
-                  value={entry.experience.roleId}
-                  onValueChange={(v) => updateEntry(entry.key, 'experience', { roleId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roles.map((role) => (
-                      <SelectItem key={role.id} value={role.id}>
-                        {role.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>LOA (meters)</Label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 45"
+                  value={entry.vessel.loaMeters}
+                  onChange={(e) => updateEntry(entry.key, 'vessel', { loaMeters: e.target.value })}
+                />
               </div>
 
-              {/* Charter/private during tenure */}
+              <div className="my-1 border-t border-border" />
+
+              {/* Role held — department hierarchy picker */}
               <div className="flex flex-col gap-1.5">
-                <Label>Charter or private during your tenure</Label>
+                <Label>Role held</Label>
+                <RolePicker
+                  roles={roles as { id: string; name: string; department: string }[]}
+                  value={entry.experience.roleId}
+                  onValueChange={(v) => updateEntry(entry.key, 'experience', { roleId: v })}
+                />
+              </div>
+
+              {/* Vessel operation during tenure */}
+              <div className="flex flex-col gap-1.5">
+                <Label>Vessel operation during your tenure</Label>
                 <Select
-                  value={entry.experience.charterOrPrivate}
+                  value={entry.experience.vesselOperation}
                   onValueChange={(v) =>
-                    updateEntry(entry.key, 'experience', { charterOrPrivate: v })
+                    updateEntry(entry.key, 'experience', { vesselOperation: v })
                   }
                 >
                   <SelectTrigger>
@@ -959,31 +972,28 @@ export default function OnboardingPage() {
                 </Select>
               </div>
 
-              {/* Dates */}
+              {/* Dates — day-level precision */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <Label>Start date</Label>
                   <Input
-                    type="month"
-                    value={entry.experience.startDate ? entry.experience.startDate.slice(0, 7) : ''}
+                    type="date"
+                    value={entry.experience.startDate}
                     onChange={(e) =>
-                      updateEntry(entry.key, 'experience', {
-                        startDate: e.target.value ? `${e.target.value}-01` : '',
-                      })
+                      updateEntry(entry.key, 'experience', { startDate: e.target.value })
                     }
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label>End date</Label>
                   <Input
-                    type="month"
+                    type="date"
                     disabled={entry.experience.isCurrent}
-                    value={entry.experience.endDate ? entry.experience.endDate.slice(0, 7) : ''}
+                    value={entry.experience.endDate}
                     onChange={(e) =>
-                      updateEntry(entry.key, 'experience', {
-                        endDate: e.target.value ? `${e.target.value}-01` : '',
-                      })
+                      updateEntry(entry.key, 'experience', { endDate: e.target.value })
                     }
+                    min={entry.experience.startDate || undefined}
                   />
                   <label className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Checkbox
@@ -997,24 +1007,14 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              {/* Flag state */}
+              {/* Flag state — searchable picker */}
               <div className="flex flex-col gap-1.5">
                 <Label>Flag state</Label>
-                <Select
+                <FlagStatePicker
+                  flagStates={flagStates}
                   value={entry.experience.flagState}
                   onValueChange={(v) => updateEntry(entry.key, 'experience', { flagState: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select flag state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {flagStates.map((fs) => (
-                      <SelectItem key={fs.id} value={fs.id}>
-                        {fs.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
 
               {/* Salary — private, DB only */}
@@ -1061,36 +1061,34 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              {/* Rotation */}
+              {/* Contract type */}
               <div className="flex flex-col gap-1.5">
-                <Label>Rotation</Label>
+                <Label>Contract type</Label>
                 <Select
-                  value={entry.experience.rotationType}
-                  onValueChange={(v) => updateEntry(entry.key, 'experience', { rotationType: v })}
+                  value={entry.experience.contractType}
+                  onValueChange={(v) => updateEntry(entry.key, 'experience', { contractType: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select rotation type" />
+                    <SelectValue placeholder="Select contract type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROTATION_TYPES.map((rt) => (
-                      <SelectItem key={rt.value} value={rt.value}>
-                        {rt.label}
+                    {CONTRACT_TYPES.map((ct) => (
+                      <SelectItem key={ct.value} value={ct.value}>
+                        {ct.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {['other', 'mlc_standard', 'seasonal'].includes(entry.experience.rotationType) && (
+                {['rotational', 'seasonal'].includes(entry.experience.contractType) && (
                   <Input
                     placeholder={
-                      entry.experience.rotationType === 'mlc_standard'
-                        ? 'e.g. 38 days/year'
-                        : entry.experience.rotationType === 'seasonal'
-                          ? 'e.g. March — October'
-                          : 'Describe your rotation'
+                      entry.experience.contractType === 'rotational'
+                        ? 'e.g. 2 months on / 2 months off'
+                        : 'e.g. March — October'
                     }
-                    value={entry.experience.rotationDetails}
+                    value={entry.experience.contractDetails}
                     onChange={(e) =>
-                      updateEntry(entry.key, 'experience', { rotationDetails: e.target.value })
+                      updateEntry(entry.key, 'experience', { contractDetails: e.target.value })
                     }
                     maxLength={100}
                   />

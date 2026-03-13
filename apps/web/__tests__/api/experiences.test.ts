@@ -64,15 +64,15 @@ describe('GET /api/experiences', () => {
         start_date: '2024-01-01',
         end_date: '2024-06-01',
         is_current: false,
-        charter_or_private: 'charter',
+        vessel_operation: 'charter',
         flag_state: 'GBR',
-        rotation_type: '2:2',
-        rotation_details: null,
+        contract_type: 'rotational',
+        contract_details: null,
         description: 'Deckhand on M/Y Test',
         created_at: '2024-01-01',
         updated_at: '2024-01-01',
-        vessels: { id: 'v1', imo_number: '1234567', name: 'M/Y Test', vessel_type: 'charter', size_band_id: 'sb1', loa_meters: 45, vessel_size_bands: { label: '40-50m' } },
-        yacht_roles: { id: 'r1', label: 'Deckhand' },
+        vessels: { id: 'v1', imo_number: '1234567', name: 'Test', vessel_type: 'motor', vessel_operation: 'charter', size_band_id: 'sb1', loa_meters: 45, vessel_size_bands: { label: '40-50m' } },
+        yacht_roles: { id: 'r1', name: 'Deckhand', department: 'deck' },
       },
     ];
     mockFrom.mockReturnValueOnce({
@@ -103,29 +103,44 @@ describe('POST /api/experiences', () => {
     expect(res.status).toBe(400);
   });
 
-  it('returns 400 for invalid charterOrPrivate', async () => {
+  it('returns 400 for invalid vesselOperation', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(jsonRequest({
       vesselId: 'v1',
       roleId: 'r1',
       startDate: '2024-01-01',
-      charterOrPrivate: 'invalid',
+      vesselOperation: 'invalid',
     }));
     expect(res.status).toBe(400);
   });
 
-  it('returns 400 for invalid rotation type', async () => {
+  it('returns 400 for invalid contract type', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(jsonRequest({
       vesselId: 'v1',
       roleId: 'r1',
       startDate: '2024-01-01',
-      charterOrPrivate: 'charter',
-      rotationType: 'invalid',
+      vesselOperation: 'charter',
+      contractType: 'invalid',
     }));
     expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when end date is before start date', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await POST(jsonRequest({
+      vesselId: 'v1',
+      roleId: 'r1',
+      startDate: '2024-06-01',
+      endDate: '2024-01-01',
+      vesselOperation: 'charter',
+    }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('End date');
   });
 
   it('returns 400 for description over 250 chars', async () => {
@@ -135,7 +150,7 @@ describe('POST /api/experiences', () => {
       vesselId: 'v1',
       roleId: 'r1',
       startDate: '2024-01-01',
-      charterOrPrivate: 'charter',
+      vesselOperation: 'charter',
       description: 'x'.repeat(251),
     }));
     expect(res.status).toBe(400);
@@ -149,9 +164,9 @@ describe('POST /api/experiences', () => {
       roleId: 'r1',
       startDate: '2024-01-01',
       endDate: '2024-06-01',
-      charterOrPrivate: 'charter',
+      vesselOperation: 'charter',
       flagState: 'GBR',
-      rotationType: '2:2',
+      contractType: 'rotational',
     }));
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -223,7 +238,7 @@ describe('PATCH /api/experiences/:id', () => {
     const req = new Request('http://localhost/api/experiences/exp1', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roleId: 'r2', charterOrPrivate: 'private' }),
+      body: JSON.stringify({ roleId: 'r2', vesselOperation: 'private' }),
     });
     const res = await PATCH(req, makeParams('exp1'));
     expect(res.status).toBe(200);

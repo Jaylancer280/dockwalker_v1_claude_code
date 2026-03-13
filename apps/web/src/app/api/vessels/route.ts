@@ -3,6 +3,9 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
+const VALID_VESSEL_TYPES = ['motor', 'sail'] as const;
+const VALID_VESSEL_OPERATIONS = ['private', 'charter'] as const;
+
 /**
  * GET /api/vessels
  * Returns the authenticated user's vessels.
@@ -12,11 +15,10 @@ export async function GET() {
   if (!guard.ok) return guard.response;
   const { user, supabase } = guard.value;
 
-  // Owner policy on vessels table ensures only own vessels returned
   const { data: vessels, error } = await supabase
     .from('vessels')
     .select(
-      'id, imo_number, name, vessel_type, size_band_id, loa_meters, nda_flag, created_at, vessel_size_bands(label)',
+      'id, imo_number, name, vessel_type, vessel_operation, size_band_id, loa_meters, nda_flag, created_at, vessel_size_bands(label)',
     )
     .eq('owner_person_id', user.id)
     .order('created_at', { ascending: false });
@@ -30,12 +32,13 @@ export async function GET() {
 
 /**
  * POST /api/vessels
- * Creates a new vessel. Requires employer or agent hat.
+ * Creates a new vessel. Any authenticated user can create (crew for experience, employers for postings).
  *
  * Body: {
  *   imoNumber: string (required),
  *   name: string (required),
- *   vesselType: 'private' | 'charter' (required),
+ *   vesselType: 'motor' | 'sail' (required),
+ *   vesselOperation: 'private' | 'charter' (required),
  *   loaMeters: number (required, LOA in meters — size band auto-derived),
  *   ndaFlag: boolean (optional, default false)
  * }
@@ -45,28 +48,30 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, person, supabase, serviceClient } = guard.value;
 
-  // All authenticated users can create vessels (crew for experience entries,
-  // employers/agents for job postings). NDA flag restricted to employer/agent.
-
   const body = await request.json();
-  const { imoNumber, name, vesselType, loaMeters, ndaFlag } = body;
+  const { imoNumber, name, vesselType, vesselOperation, loaMeters, ndaFlag } = body;
 
-  // Validate required fields
-  if (!imoNumber || !name || !vesselType || loaMeters == null) {
+  if (!imoNumber || !name || !vesselType || !vesselOperation || loaMeters == null) {
     return NextResponse.json(
-      { error: 'imoNumber, name, vesselType, and loaMeters are required' },
+      { error: 'imoNumber, name, vesselType, vesselOperation, and loaMeters are required' },
       { status: 400 },
     );
   }
 
-  // Validate IMO format (7 digits)
   const imoClean = imoNumber.toString().replace(/\D/g, '');
   if (imoClean.length !== 7) {
     return NextResponse.json({ error: 'IMO number must be exactly 7 digits' }, { status: 400 });
   }
 
-  if (!['private', 'charter'].includes(vesselType)) {
-    return NextResponse.json({ error: 'vesselType must be private or charter' }, { status: 400 });
+  if (!VALID_VESSEL_TYPES.includes(vesselType)) {
+    return NextResponse.json({ error: 'vesselType must be motor or sail' }, { status: 400 });
+  }
+
+  if (!VALID_VESSEL_OPERATIONS.includes(vesselOperation)) {
+    return NextResponse.json(
+      { error: 'vesselOperation must be private or charter' },
+      { status: 400 },
+    );
   }
 
   const loa = Number(loaMeters);
@@ -95,7 +100,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Check IMO not already registered by this user (per-registrant uniqueness)
+  // Check IMO not already registered by this user
   const { data: existing } = await serviceClient
     .from('vessels')
     .select('id')
@@ -123,6 +128,7 @@ export async function POST(request: Request) {
         imo_number: imoClean,
         name,
         vessel_type: vesselType,
+        vessel_operation: vesselOperation,
         size_band_id: sizeBand.id,
         loa_meters: loa,
         nda_flag: person.current_hat === 'crew' ? false : (ndaFlag ?? false),

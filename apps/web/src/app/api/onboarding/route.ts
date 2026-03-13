@@ -94,19 +94,25 @@ export async function POST(request: Request) {
     if (identityType === 'crew' && Array.isArray(body_experiences) && body_experiences.length > 0) {
       for (const entry of body_experiences) {
         const { vessel, experience } = entry as {
-          vessel: { imoNumber: string; name: string; vesselType: string; loaMeters: number };
+          vessel: {
+            imoNumber: string;
+            name: string;
+            vesselType: string;
+            vesselOperation: string;
+            loaMeters: number;
+          };
           experience: {
             roleId: string;
             startDate: string;
             endDate?: string;
             isCurrent?: boolean;
-            charterOrPrivate: string;
+            vesselOperation: string;
             flagState?: string;
             salaryAmount?: number;
             salaryCurrency?: string;
             salaryPeriod?: string;
-            rotationType?: string;
-            rotationDetails?: string;
+            contractType?: string;
+            contractDetails?: string;
             description?: string;
           };
         };
@@ -150,6 +156,7 @@ export async function POST(request: Request) {
               imo_number: imoClean,
               name: vessel.name,
               vessel_type: vessel.vesselType,
+              vessel_operation: vessel.vesselOperation,
               size_band_id: sizeBand.id,
               loa_meters: loa,
               nda_flag: false,
@@ -172,22 +179,20 @@ export async function POST(request: Request) {
             start_date: experience.startDate,
             end_date: experience.endDate ?? null,
             is_current: experience.isCurrent ?? false,
-            charter_or_private: experience.charterOrPrivate as 'charter' | 'private',
+            vessel_operation: experience.vesselOperation as 'charter' | 'private',
             flag_state: experience.flagState ?? null,
             salary_amount: experience.salaryAmount ?? null,
             salary_currency: (experience.salaryCurrency as 'EUR' | 'USD' | 'GBP' | 'AED') ?? null,
             salary_period: (experience.salaryPeriod as 'daily' | 'monthly' | 'annually') ?? null,
-            rotation_type:
-              (experience.rotationType as
-                | '2:2'
-                | '3:1'
-                | '3:3'
-                | '5:1'
+            contract_type:
+              (experience.contractType as
                 | 'permanent'
+                | 'rotational'
                 | 'seasonal'
-                | 'mlc_standard'
-                | 'other') ?? null,
-            rotation_details: experience.rotationDetails ?? null,
+                | 'crossing'
+                | 'delivery'
+                | 'temporary') ?? null,
+            contract_details: experience.contractDetails ?? null,
             description: experience.description ?? null,
           },
           personId: user.id,

@@ -112,9 +112,11 @@ select public.append_event(
   jsonb_build_object(
     'id', '33333333-3333-3333-3333-333333333333',
     'imo_number', '9876543',
-    'name', 'M/Y Serenity',
-    'vessel_type', 'charter',
+    'name', 'Serenity',
+    'vessel_type', 'motor',
+    'vessel_operation', 'charter',
     'size_band_id', 'f1000000-0000-0000-0000-000000000005',
+    'loa_meters', 55,
     'nda_flag', false
   ),
   '11111111-1111-1111-1111-111111111111'

@@ -2,18 +2,16 @@ import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
 
-const VALID_CHARTER_PRIVATE = ['charter', 'private'] as const;
+const VALID_VESSEL_OPERATIONS = ['charter', 'private'] as const;
 const VALID_SALARY_CURRENCIES = ['EUR', 'USD', 'GBP', 'AED'] as const;
 const VALID_SALARY_PERIODS = ['daily', 'monthly', 'annually'] as const;
-const VALID_ROTATION_TYPES = [
-  '2:2',
-  '3:1',
-  '3:3',
-  '5:1',
+const VALID_CONTRACT_TYPES = [
   'permanent',
+  'rotational',
   'seasonal',
-  'mlc_standard',
-  'other',
+  'crossing',
+  'delivery',
+  'temporary',
 ] as const;
 
 /**
@@ -45,19 +43,19 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     startDate,
     endDate,
     isCurrent,
-    charterOrPrivate,
+    vesselOperation,
     flagState,
     salaryAmount,
     salaryCurrency,
     salaryPeriod,
-    rotationType,
-    rotationDetails,
+    contractType,
+    contractDetails,
     description,
   } = body;
 
-  if (charterOrPrivate && !VALID_CHARTER_PRIVATE.includes(charterOrPrivate)) {
+  if (vesselOperation && !VALID_VESSEL_OPERATIONS.includes(vesselOperation)) {
     return NextResponse.json(
-      { error: 'charterOrPrivate must be charter or private' },
+      { error: 'vesselOperation must be charter or private' },
       { status: 400 },
     );
   }
@@ -70,8 +68,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'Invalid salary period' }, { status: 400 });
   }
 
-  if (rotationType && !VALID_ROTATION_TYPES.includes(rotationType)) {
-    return NextResponse.json({ error: 'Invalid rotation type' }, { status: 400 });
+  if (contractType && !VALID_CONTRACT_TYPES.includes(contractType)) {
+    return NextResponse.json({ error: 'Invalid contract type' }, { status: 400 });
+  }
+
+  if (endDate && startDate && new Date(endDate) < new Date(startDate)) {
+    return NextResponse.json({ error: 'End date cannot be before start date' }, { status: 400 });
   }
 
   if (description && description.length > 250) {
@@ -81,9 +83,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     );
   }
 
-  if (rotationDetails && rotationDetails.length > 100) {
+  if (contractDetails && contractDetails.length > 100) {
     return NextResponse.json(
-      { error: 'Rotation details must be 100 characters or less' },
+      { error: 'Contract details must be 100 characters or less' },
       { status: 400 },
     );
   }
@@ -94,13 +96,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (startDate !== undefined) payload.start_date = startDate;
   if (endDate !== undefined) payload.end_date = endDate;
   if (isCurrent !== undefined) payload.is_current = isCurrent;
-  if (charterOrPrivate !== undefined) payload.charter_or_private = charterOrPrivate;
+  if (vesselOperation !== undefined) payload.vessel_operation = vesselOperation;
   if (flagState !== undefined) payload.flag_state = flagState;
   if (salaryAmount !== undefined) payload.salary_amount = salaryAmount;
   if (salaryCurrency !== undefined) payload.salary_currency = salaryCurrency;
   if (salaryPeriod !== undefined) payload.salary_period = salaryPeriod;
-  if (rotationType !== undefined) payload.rotation_type = rotationType;
-  if (rotationDetails !== undefined) payload.rotation_details = rotationDetails;
+  if (contractType !== undefined) payload.contract_type = contractType;
+  if (contractDetails !== undefined) payload.contract_details = contractDetails;
   if (description !== undefined) payload.description = description;
 
   if (Object.keys(payload).length === 0) {

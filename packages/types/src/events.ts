@@ -116,6 +116,7 @@ export interface EventPayloadMap {
     imo_number: string;
     name: string;
     vessel_type: string;
+    vessel_operation: string;
     size_band_id: string;
     loa_meters: number;
     nda_flag: boolean;
@@ -123,6 +124,7 @@ export interface EventPayloadMap {
   'VESSEL.UPDATED': {
     name?: string;
     vessel_type?: string;
+    vessel_operation?: string;
     size_band_id?: string;
     loa_meters?: number;
     nda_flag?: boolean;
@@ -263,13 +265,13 @@ export interface EventPayloadMap {
     start_date: string;
     end_date: string | null;
     is_current: boolean;
-    charter_or_private: 'charter' | 'private';
+    vessel_operation: 'charter' | 'private';
     flag_state: string | null;
     salary_amount: number | null;
     salary_currency: 'EUR' | 'USD' | 'GBP' | 'AED' | null;
     salary_period: 'daily' | 'monthly' | 'annually' | null;
-    rotation_type: '2:2' | '3:1' | '3:3' | '5:1' | 'permanent' | 'seasonal' | 'mlc_standard' | 'other' | null;
-    rotation_details: string | null;
+    contract_type: 'permanent' | 'rotational' | 'seasonal' | 'crossing' | 'delivery' | 'temporary' | null;
+    contract_details: string | null;
     description: string | null;
   };
   'EXPERIENCE.UPDATED': {
@@ -277,13 +279,13 @@ export interface EventPayloadMap {
     start_date?: string;
     end_date?: string | null;
     is_current?: boolean;
-    charter_or_private?: 'charter' | 'private';
+    vessel_operation?: 'charter' | 'private';
     flag_state?: string | null;
     salary_amount?: number | null;
     salary_currency?: 'EUR' | 'USD' | 'GBP' | 'AED' | null;
     salary_period?: 'daily' | 'monthly' | 'annually' | null;
-    rotation_type?: '2:2' | '3:1' | '3:3' | '5:1' | 'permanent' | 'seasonal' | 'mlc_standard' | 'other' | null;
-    rotation_details?: string | null;
+    contract_type?: 'permanent' | 'rotational' | 'seasonal' | 'crossing' | 'delivery' | 'temporary' | null;
+    contract_details?: string | null;
     description?: string | null;
   };
   'EXPERIENCE.REMOVED': Record<string, never>;

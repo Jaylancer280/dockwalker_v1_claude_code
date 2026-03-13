@@ -33,6 +33,7 @@ import {
 import { HatSwitcher } from '@/components/hat-switcher';
 import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { LocationPicker } from '@/components/location-picker';
+import { RolePicker } from '@/components/role-picker';
 import { createClient } from '@/lib/supabase/client';
 
 interface LookupItem {
@@ -86,10 +87,10 @@ interface ExperienceEntry {
   start_date: string;
   end_date: string | null;
   is_current: boolean;
-  charter_or_private: string;
+  vessel_operation: string;
   flag_state: string | null;
-  rotation_type: string | null;
-  rotation_details: string | null;
+  contract_type: string | null;
+  contract_details: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -98,11 +99,12 @@ interface ExperienceEntry {
     imo_number: string;
     name: string;
     vessel_type: string;
+    vessel_operation: string;
     size_band_id: string;
     loa_meters: number;
     vessel_size_bands: unknown;
   } | null;
-  yacht_roles: { id: string; label: string } | null;
+  yacht_roles: { id: string; name: string; department: string } | null;
 }
 
 export default function ProfilePage() {
@@ -471,7 +473,39 @@ export default function ProfilePage() {
             <Separator />
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold tracking-tight">Experience</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold tracking-tight">Experience</h2>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {(() => {
+                      const now = new Date();
+                      const totalDays = experiences.reduce((sum, exp) => {
+                        const start = new Date(exp.start_date + 'T00:00:00');
+                        const end = exp.is_current
+                          ? now
+                          : exp.end_date
+                            ? new Date(exp.end_date + 'T00:00:00')
+                            : start;
+                        return (
+                          sum +
+                          Math.max(
+                            0,
+                            Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+                          )
+                        );
+                      }, 0);
+                      if (totalDays >= 365) {
+                        const years = Math.floor(totalDays / 365);
+                        const months = Math.floor((totalDays % 365) / 30);
+                        return months > 0 ? `${years}y ${months}m` : `${years}y`;
+                      }
+                      if (totalDays >= 30) {
+                        return `${Math.floor(totalDays / 30)}m`;
+                      }
+                      return `${totalDays}d`;
+                    })()}{' '}
+                    total
+                  </Badge>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -502,14 +536,15 @@ export default function ProfilePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium truncate">
+                            {exp.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'}{' '}
                             {exp.vessels?.name ?? 'Unknown vessel'}
                           </p>
                           <Badge variant="outline" className="text-[10px] flex-shrink-0">
-                            {exp.charter_or_private}
+                            {exp.vessel_operation}
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
-                          {exp.yacht_roles?.label ?? 'Unknown role'} · {dateRange}
+                          {exp.yacht_roles?.name ?? 'Unknown role'} · {dateRange}
                           {sizeBandLabel && ` · ${sizeBandLabel}`}
                         </p>
                       </div>
@@ -536,12 +571,12 @@ export default function ProfilePage() {
                               <p className="text-sm">{exp.vessels.loa_meters}m</p>
                             </div>
                           )}
-                          {exp.rotation_type && (
+                          {exp.contract_type && (
                             <div>
-                              <p className="text-[11px] text-muted-foreground">Rotation</p>
-                              <p className="text-sm">
-                                {exp.rotation_type}
-                                {exp.rotation_details && ` — ${exp.rotation_details}`}
+                              <p className="text-[11px] text-muted-foreground">Contract</p>
+                              <p className="text-sm capitalize">
+                                {exp.contract_type}
+                                {exp.contract_details && ` — ${exp.contract_details}`}
                               </p>
                             </div>
                           )}
@@ -604,18 +639,11 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label>Primary Role</Label>
-              <Select value={primaryRoleId} onValueChange={setPrimaryRoleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <RolePicker
+                roles={roles as { id: string; name: string; department: string }[]}
+                value={primaryRoleId}
+                onValueChange={setPrimaryRoleId}
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">

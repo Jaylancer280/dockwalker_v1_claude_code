@@ -14,13 +14,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RolePicker } from '@/components/role-picker';
+import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
 import { ChevronLeft, Loader2, Search } from 'lucide-react';
 
-interface LookupItem {
+interface RoleItem {
   id: string;
   name: string;
-  label?: string;
+  department: string;
 }
 
 interface FlagState {
@@ -28,20 +30,18 @@ interface FlagState {
   name: string;
 }
 
-const ROTATION_TYPES = [
-  { value: '2:2', label: '2:2' },
-  { value: '3:1', label: '3:1' },
-  { value: '3:3', label: '3:3' },
-  { value: '5:1', label: '5:1' },
+const CONTRACT_TYPES = [
   { value: 'permanent', label: 'Permanent' },
+  { value: 'rotational', label: 'Rotational' },
   { value: 'seasonal', label: 'Seasonal' },
-  { value: 'mlc_standard', label: 'MLC Standard' },
-  { value: 'other', label: 'Other' },
+  { value: 'crossing', label: 'Crossing' },
+  { value: 'delivery', label: 'Delivery' },
+  { value: 'temporary', label: 'Temporary' },
 ];
 
 export default function AddExperiencePage() {
   const router = useRouter();
-  const [roles, setRoles] = useState<LookupItem[]>([]);
+  const [roles, setRoles] = useState<RoleItem[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -55,27 +55,28 @@ export default function AddExperiencePage() {
 
   // Vessel fields
   const [vesselName, setVesselName] = useState('');
-  const [vesselType, setVesselType] = useState<'charter' | 'private'>('charter');
+  const [vesselType, setVesselType] = useState<'motor' | 'sail'>('motor');
+  const [vesselOperation, setVesselOperation] = useState<'charter' | 'private'>('charter');
   const [loaMeters, setLoaMeters] = useState('');
 
   // Experience fields
   const [roleId, setRoleId] = useState('');
-  const [charterOrPrivate, setCharterOrPrivate] = useState<'charter' | 'private'>('charter');
+  const [expVesselOperation, setExpVesselOperation] = useState<'charter' | 'private'>('charter');
   const [flagState, setFlagState] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isCurrent, setIsCurrent] = useState(false);
-  const [rotationType, setRotationType] = useState('');
-  const [rotationDetails, setRotationDetails] = useState('');
+  const [contractType, setContractType] = useState('');
+  const [contractDetails, setContractDetails] = useState('');
   const [description, setDescription] = useState('');
 
   const loadLookups = useCallback(async () => {
     const supabase = createClient();
     const [rolesRes, flagsRes] = await Promise.all([
-      supabase.from('yacht_roles').select('id, name').order('sort_order'),
+      supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
       supabase.from('flag_states').select('id, name').order('sort_order'),
     ]);
-    if (rolesRes.data) setRoles(rolesRes.data);
+    if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
     if (flagsRes.data) setFlagStates(flagsRes.data);
     setLoading(false);
   }, []);
@@ -94,10 +95,12 @@ export default function AddExperiencePage() {
     if (res.ok) {
       const data = await res.json();
       if (data.found) {
-        setImoMessage(`Found: ${data.vessel.name} (${data.vessel.loa_meters}m)`);
+        const prefix = data.vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
+        setImoMessage(`Found: ${prefix} ${data.vessel.name} (${data.vessel.loa_meters}m)`);
         setVesselName(data.vessel.name);
         setLoaMeters(String(data.vessel.loa_meters));
         setVesselType(data.vessel.vessel_type);
+        setVesselOperation(data.vessel.vessel_operation ?? 'charter');
         setExistingVesselId(data.vessel.id);
         setUseExisting(true);
       } else {
@@ -110,7 +113,7 @@ export default function AddExperiencePage() {
   }
 
   async function handleSubmit() {
-    if (!roleId || !startDate || !charterOrPrivate || !imoNumber) return;
+    if (!roleId || !startDate || !expVesselOperation || !imoNumber) return;
     setSubmitting(true);
 
     let vesselId = existingVesselId;
@@ -128,6 +131,7 @@ export default function AddExperiencePage() {
           imoNumber,
           name: vesselName,
           vesselType,
+          vesselOperation,
           loaMeters: Number(loaMeters),
           ndaFlag: false,
         }),
@@ -149,10 +153,10 @@ export default function AddExperiencePage() {
         startDate,
         endDate: endDate || null,
         isCurrent,
-        charterOrPrivate,
+        vesselOperation: expVesselOperation,
         flagState: flagState || null,
-        rotationType: rotationType || null,
-        rotationDetails: rotationDetails || null,
+        contractType: contractType || null,
+        contractDetails: contractDetails || null,
         description: description || null,
       }),
     });
@@ -170,6 +174,8 @@ export default function AddExperiencePage() {
       </main>
     );
   }
+
+  const vesselPrefix = vesselType === 'sail' ? 'S/Y' : 'M/Y';
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
@@ -227,21 +233,28 @@ export default function AddExperiencePage() {
         {/* Vessel details — shown when not using existing vessel */}
         {!useExisting && (
           <>
-            <div className="flex flex-col gap-1.5">
-              <Label>Vessel name</Label>
-              <Input
-                placeholder="M/Y Example"
-                value={vesselName}
-                onChange={(e) => setVesselName(e.target.value)}
-              />
-            </div>
-
+            {/* Vessel type (motor/sail) + Operation (charter/private) */}
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label>Vessel type</Label>
                 <Select
                   value={vesselType}
-                  onValueChange={(v) => setVesselType(v as 'charter' | 'private')}
+                  onValueChange={(v) => setVesselType(v as 'motor' | 'sail')}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="motor">Motor (M/Y)</SelectItem>
+                    <SelectItem value="sail">Sail (S/Y)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label>Vessel operation</Label>
+                <Select
+                  value={vesselOperation}
+                  onValueChange={(v) => setVesselOperation(v as 'charter' | 'private')}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -252,43 +265,49 @@ export default function AddExperiencePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>LOA (meters)</Label>
+            </div>
+
+            {/* Vessel name with M/Y or S/Y prefix */}
+            <div className="flex flex-col gap-1.5">
+              <Label>Vessel name</Label>
+              <div className="flex">
+                <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                  {vesselPrefix}
+                </span>
                 <Input
-                  type="number"
-                  placeholder="45"
-                  value={loaMeters}
-                  onChange={(e) => setLoaMeters(e.target.value)}
-                  min={1}
+                  placeholder="Vessel Name"
+                  value={vesselName}
+                  onChange={(e) => setVesselName(e.target.value)}
+                  className="rounded-l-none"
                 />
               </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>LOA (meters)</Label>
+              <Input
+                type="number"
+                placeholder="45"
+                value={loaMeters}
+                onChange={(e) => setLoaMeters(e.target.value)}
+                min={1}
+              />
             </div>
           </>
         )}
 
-        {/* Role */}
+        {/* Role — department hierarchy picker */}
         <div className="flex flex-col gap-1.5">
           <Label>Role held</Label>
-          <Select value={roleId} onValueChange={setRoleId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <RolePicker roles={roles} value={roleId} onValueChange={setRoleId} />
         </div>
 
-        {/* Charter or private during tenure */}
+        {/* Vessel operation during tenure */}
         <div className="flex flex-col gap-1.5">
-          <Label>Charter or private (during your time)</Label>
+          <Label>Vessel operation (during your time)</Label>
           <Select
-            value={charterOrPrivate}
-            onValueChange={(v) => setCharterOrPrivate(v as 'charter' | 'private')}
+            value={expVesselOperation}
+            onValueChange={(v) => setExpVesselOperation(v as 'charter' | 'private')}
           >
             <SelectTrigger>
               <SelectValue />
@@ -300,40 +319,26 @@ export default function AddExperiencePage() {
           </Select>
         </div>
 
-        {/* Flag state */}
+        {/* Flag state — searchable picker */}
         <div className="flex flex-col gap-1.5">
           <Label>Flag state</Label>
-          <Select value={flagState} onValueChange={setFlagState}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select flag state" />
-            </SelectTrigger>
-            <SelectContent>
-              {flagStates.map((f) => (
-                <SelectItem key={f.id} value={f.id}>
-                  {f.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <FlagStatePicker flagStates={flagStates} value={flagState} onValueChange={setFlagState} />
         </div>
 
-        {/* Dates */}
+        {/* Dates — day-level precision */}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label>Start date</Label>
-            <Input
-              type="month"
-              value={startDate.slice(0, 7)}
-              onChange={(e) => setStartDate(e.target.value + '-01')}
-            />
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label>End date</Label>
             <Input
-              type="month"
-              value={endDate.slice(0, 7)}
-              onChange={(e) => setEndDate(e.target.value + '-01')}
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
               disabled={isCurrent}
+              min={startDate || undefined}
             />
           </div>
         </div>
@@ -348,32 +353,34 @@ export default function AddExperiencePage() {
           Currently onboard
         </label>
 
-        {/* Rotation */}
+        {/* Contract type */}
         <div className="flex flex-col gap-1.5">
-          <Label>Rotation</Label>
-          <Select value={rotationType} onValueChange={setRotationType}>
+          <Label>Contract type</Label>
+          <Select value={contractType} onValueChange={setContractType}>
             <SelectTrigger>
-              <SelectValue placeholder="Select rotation type" />
+              <SelectValue placeholder="Select contract type" />
             </SelectTrigger>
             <SelectContent>
-              {ROTATION_TYPES.map((r) => (
-                <SelectItem key={r.value} value={r.value}>
-                  {r.label}
+              {CONTRACT_TYPES.map((ct) => (
+                <SelectItem key={ct.value} value={ct.value}>
+                  {ct.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {(rotationType === 'other' ||
-          rotationType === 'seasonal' ||
-          rotationType === 'mlc_standard') && (
+        {(contractType === 'rotational' || contractType === 'seasonal') && (
           <div className="flex flex-col gap-1.5">
-            <Label>Rotation details</Label>
+            <Label>Contract details</Label>
             <Input
-              placeholder="e.g. March-October, 38 days/year"
-              value={rotationDetails}
-              onChange={(e) => setRotationDetails(e.target.value)}
+              placeholder={
+                contractType === 'rotational'
+                  ? 'e.g. 2 months on / 2 months off'
+                  : 'e.g. March — October'
+              }
+              value={contractDetails}
+              onChange={(e) => setContractDetails(e.target.value)}
               maxLength={100}
             />
           </div>

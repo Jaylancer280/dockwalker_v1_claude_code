@@ -17,8 +17,14 @@ export type ApplicationStatus =
   | 'cancelled_by_crew'
   | 'cancelled_by_employer';
 
-/** Vessel type */
-export type VesselType = 'private' | 'charter';
+/** Vessel type (motor or sail — determines M/Y or S/Y prefix) */
+export type VesselType = 'motor' | 'sail';
+
+/** Vessel operation mode */
+export type VesselOperation = 'private' | 'charter';
+
+/** Contract type for crew experience entries */
+export type ContractType = 'permanent' | 'rotational' | 'seasonal' | 'crossing' | 'delivery' | 'temporary';
 
 /** Meal options for daywork postings */
 export type MealOption = 'breakfast' | 'lunch' | 'dinner';

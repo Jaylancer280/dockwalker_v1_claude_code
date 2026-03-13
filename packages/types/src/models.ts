@@ -1,8 +1,10 @@
 import type {
   ApplicationStatus,
+  ContractType,
   IdentityType,
   MealOption,
   RoleContext,
+  VesselOperation,
   VesselType,
 } from './enums';
 
@@ -51,6 +53,7 @@ export interface Vessel {
   imo_number: string;
   name: string;
   vessel_type: VesselType;
+  vessel_operation: VesselOperation;
   size_band_id: string;
   nda_flag: boolean;
   owner_person_id: string;
@@ -131,10 +134,10 @@ export interface CrewExperience {
   start_date: string;
   end_date: string | null;
   is_current: boolean;
-  charter_or_private: 'charter' | 'private';
+  vessel_operation: VesselOperation;
   flag_state: string | null;
-  rotation_type: '2:2' | '3:1' | '3:3' | '5:1' | 'permanent' | 'seasonal' | 'mlc_standard' | 'other' | null;
-  rotation_details: string | null;
+  contract_type: ContractType | null;
+  contract_details: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;

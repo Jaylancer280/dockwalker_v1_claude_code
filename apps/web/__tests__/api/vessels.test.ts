@@ -60,7 +60,8 @@ const sizeBands = [
 const validBody = {
   imoNumber: '1234567',
   name: 'MY Test Yacht',
-  vesselType: 'private',
+  vesselType: 'motor',
+  vesselOperation: 'private',
   loaMeters: 35,
   ndaFlag: false,
 };
@@ -171,6 +172,15 @@ describe('POST /api/vessels', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await POST(makeRequest({ ...validBody, vesselType: 'cargo' }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('motor or sail');
+  });
+
+  it('returns 400 for invalid vessel operation', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await POST(makeRequest({ ...validBody, vesselOperation: 'commercial' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('private or charter');
