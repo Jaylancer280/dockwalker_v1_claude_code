@@ -46,9 +46,17 @@
 
 - [Stage 45] Exact vessel LOA — vessels now store exact `loa_meters` (LOA in metres); size band auto-derived from LOA at API layer; vessel creation form accepts LOA input (in user's preferred unit) with live band preview; vessel list shows exact LOA with band fallback; `VESSEL.CREATED` payload extended with `loa_meters`, `VESSEL.UPDATED` with optional `loa_meters`; `get_vessel_public` returns `loa_meters`; migration 00027 adds column + updates `apply_projection`; 2 new vessel tests (369 total)
 
+- [Stage 46] Crew experience schema + types — migration 00028 adds `crew_experiences` table (RLS), `flag_states` lookup (39 maritime flags), green crew profile columns (`shore_experience`, `motivation`, `languages`, `available_to_start`, `onboarding_version`), changes IMO uniqueness to per-registrant `UNIQUE(imo_number, owner_person_id)`, `apply_projection` handlers for `EXPERIENCE.ADDED/UPDATED/REMOVED`; type system extended with experience events, `experience` aggregate, `CrewExperience` model interface, green crew payload fields
+
+- [Stage 47] Experience + vessel lookup API routes — `GET /api/vessels/lookup?imo=` for IMO vessel suggestion; `POST /api/vessels` opened to crew hat (for experience entries); `GET/POST /api/experiences` and `PATCH/DELETE /api/experiences/[id]` with full validation; onboarding POST extended to batch-create vessels + experiences for experienced crew; salary fields never returned in API responses; 12 experience tests + 5 vessel lookup tests + 3 updated onboarding tests (389 total)
+
+- [Stage 48] Onboarding UI redesign — 6-step flow: welcome → identity → experience fork → profile → vessel experience → hat; green crew path collects shore experience, motivation, languages, available-to-start plus manual role/bracket/size selection; experienced crew path collects profile basics then multi-entry vessel experience form with IMO lookup, vessel suggestion, role, dates, flag state, salary (private), rotation, description; auto-derivation of experience bracket and vessel size exposure for experienced crew; component tests updated for new navigation sequence
+
+- [Stage 49] Profile experience display — crew profile page gains "Experience" section with expand/collapse cards showing vessel name, type badge, role, date range, size band, flag state, LOA, rotation, description; most recent experience auto-expanded; delete capability per entry; empty state with "Add experience" CTA; new `/profile/add-experience` page with full vessel experience entry form (IMO lookup, vessel creation, all experience fields)
+
 ## Current Schema Version
 
-v27 — vessel LOA (27 migrations applied)
+v28 — crew experiences (28 migrations applied)
 
 ## Migrations Applied
 
@@ -81,6 +89,7 @@ v27 — vessel LOA (27 migrations applied)
 | `00025_availability_port_id.sql`             | Adds `port_id` (FK to ports) to `availability_windows`; updates `apply_projection` AVAILABILITY.SET handler to write port_id on both normal and not-available paths                                                                                  |
 | `00026_user_preferences.sql`                 | `user_preferences` table (person_id PK, profile_visible boolean) with owner-only RLS. CRUD utility data, not event-sourced.                                                                                                                          |
 | `00027_vessel_loa.sql`                       | Adds `loa_meters NUMERIC` to `vessels`; updates `get_vessel_public` to return `loa_meters`; updates `apply_projection` to write `loa_meters` on `VESSEL.CREATED` and `VESSEL.UPDATED`                                                                |
+| `00028_crew_experiences.sql`                 | `crew_experiences` table, `flag_states` lookup (39 entries), green crew profile columns, per-registrant IMO uniqueness, `apply_projection` handlers for `EXPERIENCE.ADDED/UPDATED/REMOVED`                                                           |
 
 ## Deferred Decisions
 
@@ -90,6 +99,9 @@ v27 — vessel LOA (27 migrations applied)
 - Internal metrics (availability reliability, engagement frequency)
 - Push notifications — build as a single pass after all flows are complete. Client scaffolding exists (`push-notifications.ts`, `NativeInit`). Remaining: token storage table + API, server-side delivery (APNs/FCM), in-app notification UI, deep linking on tap. Trigger points: every event type that warrants a notification (accepted, applied, messaged, cancelled, postponement, work started, completion, checklist, rating nudge). Notification priority matrix and delivery channel decisions documented in conversation — design holistically when ready
 - Whether `daywork_templates` should remain CRUD forever or later move into the ledger
+- Admin tooling for duplicate vessel resolution (per-registrant IMO records may diverge)
+- "Verified against public records" badge on vessels
+- Auto-derivation of experience_bracket_id and vessel_size_exposure_ids on profile from crew_experiences (currently manual for green crew, deferred for experienced crew post-onboarding updates)
 
 ## In Progress
 

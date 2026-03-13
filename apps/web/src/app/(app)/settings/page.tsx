@@ -374,9 +374,12 @@ export default function SettingsPage() {
 
             <Separator />
 
-            {/* Currency display */}
+            {/* Default posting currency */}
             <div className="flex items-center justify-between px-4 py-3">
-              <p className="text-sm font-medium">Currency display</p>
+              <div>
+                <p className="text-sm font-medium">Default posting currency</p>
+                <p className="text-xs text-muted-foreground">Pre-selected when creating a job</p>
+              </div>
               <Select
                 value={currencyPref}
                 onValueChange={(v) => handleCurrencyPref(v as CurrencyCode)}

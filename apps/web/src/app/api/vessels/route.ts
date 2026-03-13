@@ -45,12 +45,8 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, person, supabase, serviceClient } = guard.value;
 
-  if (!['employer', 'agent'].includes(person.current_hat)) {
-    return NextResponse.json(
-      { error: 'Only employers and agents can create vessels' },
-      { status: 403 },
-    );
-  }
+  // All authenticated users can create vessels (crew for experience entries,
+  // employers/agents for job postings). NDA flag restricted to employer/agent.
 
   const body = await request.json();
   const { imoNumber, name, vesselType, loaMeters, ndaFlag } = body;
@@ -99,16 +95,17 @@ export async function POST(request: Request) {
     );
   }
 
-  // Check IMO not already registered
+  // Check IMO not already registered by this user (per-registrant uniqueness)
   const { data: existing } = await serviceClient
     .from('vessels')
     .select('id')
     .eq('imo_number', imoClean)
-    .single();
+    .eq('owner_person_id', user.id)
+    .maybeSingle();
 
   if (existing) {
     return NextResponse.json(
-      { error: 'A vessel with this IMO number is already registered' },
+      { error: 'You have already registered a vessel with this IMO number' },
       { status: 409 },
     );
   }
@@ -128,7 +125,7 @@ export async function POST(request: Request) {
         vessel_type: vesselType,
         size_band_id: sizeBand.id,
         loa_meters: loa,
-        nda_flag: ndaFlag ?? false,
+        nda_flag: person.current_hat === 'crew' ? false : (ndaFlag ?? false),
       },
       personId: user.id,
     });

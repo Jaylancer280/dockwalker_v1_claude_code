@@ -2,7 +2,20 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Pencil, X, Check, Loader2, CalendarDays, Clock } from 'lucide-react';
+import {
+  Settings,
+  Pencil,
+  X,
+  Check,
+  Loader2,
+  CalendarDays,
+  Clock,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
+  Ship,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,6 +79,32 @@ interface AvailabilityCity {
   region_name: string;
 }
 
+interface ExperienceEntry {
+  id: string;
+  vessel_id: string;
+  role_id: string;
+  start_date: string;
+  end_date: string | null;
+  is_current: boolean;
+  charter_or_private: string;
+  flag_state: string | null;
+  rotation_type: string | null;
+  rotation_details: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  vessels: {
+    id: string;
+    imo_number: string;
+    name: string;
+    vessel_type: string;
+    size_band_id: string;
+    loa_meters: number;
+    vessel_size_bands: unknown;
+  } | null;
+  yacht_roles: { id: string; label: string } | null;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -73,6 +112,11 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [person, setPerson] = useState<Person | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+
+  // Experience state
+  const [experiences, setExperiences] = useState<ExperienceEntry[]>([]);
+  const [expandedExpId, setExpandedExpId] = useState<string | null>(null);
+  const [deletingExpId, setDeletingExpId] = useState<string | null>(null);
 
   // Availability state
   const [availWindows, setAvailWindows] = useState<AvailabilityWindow[]>([]);
@@ -106,6 +150,14 @@ export default function ProfilePage() {
     setLoading(false);
   }, []);
 
+  const loadExperiences = useCallback(async () => {
+    const res = await fetch('/api/experiences');
+    if (res.ok) {
+      const data = await res.json();
+      setExperiences(data.experiences ?? []);
+    }
+  }, []);
+
   const loadAvailability = useCallback(async () => {
     const res = await fetch('/api/availability');
     if (res.ok) {
@@ -125,8 +177,9 @@ export default function ProfilePage() {
   useEffect(() => {
     if (person?.identity_type === 'crew') {
       loadAvailability();
+      loadExperiences();
     }
-  }, [person?.identity_type, loadAvailability]);
+  }, [person?.identity_type, loadAvailability, loadExperiences]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // Availability summary
@@ -212,6 +265,16 @@ export default function ProfilePage() {
       await loadProfile();
     }
     setSaving(false);
+  }
+
+  async function handleDeleteExperience(expId: string) {
+    setDeletingExpId(expId);
+    const res = await fetch(`/api/experiences/${expId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setExperiences((prev) => prev.filter((e) => e.id !== expId));
+      if (expandedExpId === expId) setExpandedExpId(null);
+    }
+    setDeletingExpId(null);
   }
 
   function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {
@@ -402,6 +465,140 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* Experience history — crew view mode */}
+        {profile.identity_type === 'crew' && !editing && experiences.length > 0 && (
+          <>
+            <Separator />
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold tracking-tight">Experience</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  onClick={() => router.push('/profile/add-experience')}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
+              </div>
+
+              {experiences.map((exp, idx) => {
+                const isExpanded = expandedExpId === exp.id || idx === 0;
+                const sizeBandLabel = exp.vessels?.vessel_size_bands
+                  ? (exp.vessels.vessel_size_bands as unknown as { label: string }).label
+                  : null;
+                const dateRange = formatDateRange(exp.start_date, exp.end_date, exp.is_current);
+
+                return (
+                  <div key={exp.id} className="rounded-lg border border-border bg-card">
+                    <button
+                      onClick={() => setExpandedExpId(isExpanded && idx !== 0 ? null : exp.id)}
+                      className="flex w-full items-center gap-3 p-3 text-left"
+                    >
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <Ship className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium truncate">
+                            {exp.vessels?.name ?? 'Unknown vessel'}
+                          </p>
+                          <Badge variant="outline" className="text-[10px] flex-shrink-0">
+                            {exp.charter_or_private}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {exp.yacht_roles?.label ?? 'Unknown role'} · {dateRange}
+                          {sizeBandLabel && ` · ${sizeBandLabel}`}
+                        </p>
+                      </div>
+                      {idx !== 0 &&
+                        (isExpanded ? (
+                          <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        ))}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-border px-3 pb-3 pt-2">
+                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+                          {exp.flag_state && (
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">Flag state</p>
+                              <p className="text-sm">{exp.flag_state}</p>
+                            </div>
+                          )}
+                          {exp.vessels?.loa_meters && (
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">LOA</p>
+                              <p className="text-sm">{exp.vessels.loa_meters}m</p>
+                            </div>
+                          )}
+                          {exp.rotation_type && (
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">Rotation</p>
+                              <p className="text-sm">
+                                {exp.rotation_type}
+                                {exp.rotation_details && ` — ${exp.rotation_details}`}
+                              </p>
+                            </div>
+                          )}
+                          {exp.vessels?.vessel_type && (
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">Vessel type</p>
+                              <p className="text-sm capitalize">{exp.vessels.vessel_type}</p>
+                            </div>
+                          )}
+                        </div>
+                        {exp.description && (
+                          <p className="mt-2 text-sm text-muted-foreground">{exp.description}</p>
+                        )}
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+                            disabled={deletingExpId === exp.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteExperience(exp.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            {deletingExpId === exp.id ? 'Removing...' : 'Remove'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* No experiences yet — crew view mode */}
+        {profile.identity_type === 'crew' && !editing && experiences.length === 0 && (
+          <>
+            <Separator />
+            <div className="flex flex-col items-center gap-2 py-4 text-center">
+              <Ship className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">No experience entries yet</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => router.push('/profile/add-experience')}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add experience
+              </Button>
+            </div>
+          </>
+        )}
+
         {/* Crew edit form */}
         {profile.identity_type === 'crew' && editing && (
           <div className="flex flex-col gap-4">
@@ -578,4 +775,14 @@ export default function ProfilePage() {
 function formatShortDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function formatDateRange(start: string, end: string | null, isCurrent: boolean): string {
+  const fmt = (d: string) => {
+    const date = new Date(d + 'T00:00:00');
+    return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+  };
+  if (isCurrent) return `${fmt(start)} — Present`;
+  if (!end) return fmt(start);
+  return `${fmt(start)} — ${fmt(end)}`;
 }

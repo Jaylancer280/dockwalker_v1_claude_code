@@ -25,6 +25,11 @@ export interface CrewProfile {
   vessel_size_exposure_ids: string[];
   location_port_id: string | null;
   bio: string | null;
+  shore_experience: string | null;
+  motivation: string | null;
+  languages: string[];
+  available_to_start: 'immediate' | 'within_1_week' | 'within_2_weeks' | 'within_1_month' | null;
+  onboarding_version: number;
   created_at: string;
   updated_at: string;
 }
@@ -115,6 +120,24 @@ export interface Message {
   sender_person_id: string;
   content: string;
   created_at: string;
+}
+
+/** Crew experience entry — vessel work history */
+export interface CrewExperience {
+  id: string;
+  person_id: string;
+  vessel_id: string;
+  role_id: string;
+  start_date: string;
+  end_date: string | null;
+  is_current: boolean;
+  charter_or_private: 'charter' | 'private';
+  flag_state: string | null;
+  rotation_type: '2:2' | '3:1' | '3:3' | '5:1' | 'permanent' | 'seasonal' | 'mlc_standard' | 'other' | null;
+  rotation_details: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 /** Engagement rating (one per person per engagement) */

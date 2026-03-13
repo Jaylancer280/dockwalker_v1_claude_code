@@ -42,6 +42,10 @@ export type EventType =
   | 'ENGAGEMENT.RATED_BY_EMPLOYER'
   | 'ENGAGEMENT.CANCELLATION_RATED_BY_CREW'
   | 'ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER'
+  // Experience aggregate
+  | 'EXPERIENCE.ADDED'
+  | 'EXPERIENCE.UPDATED'
+  | 'EXPERIENCE.REMOVED'
   // Checklist aggregate
   | 'CHECKLIST.SET'
   | 'CHECKLIST.ITEM_TOGGLED'
@@ -51,7 +55,7 @@ export type EventType =
   | 'MESSAGE.SENT';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist';
+export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -85,6 +89,11 @@ export interface EventPayloadMap {
     agency_name?: string | null;
     role_specialization_ids?: string[];
     location_port_id: string;
+    shore_experience?: string | null;
+    motivation?: string | null;
+    languages?: string[];
+    available_to_start?: string | null;
+    onboarding_version?: number;
   };
   'PROFILE.UPDATED': {
     display_name?: string;
@@ -96,6 +105,10 @@ export interface EventPayloadMap {
     agency_name?: string | null;
     role_specialization_ids?: string[];
     location_port_id?: string;
+    shore_experience?: string | null;
+    motivation?: string | null;
+    languages?: string[];
+    available_to_start?: string | null;
   };
   'AGENT.VERIFIED': Record<string, never>;
   'VESSEL.CREATED': {
@@ -243,6 +256,37 @@ export interface EventPayloadMap {
     communication_accuracy: boolean;
     overall_match: number;
   };
+  'EXPERIENCE.ADDED': {
+    id: string;
+    vessel_id: string;
+    role_id: string;
+    start_date: string;
+    end_date: string | null;
+    is_current: boolean;
+    charter_or_private: 'charter' | 'private';
+    flag_state: string | null;
+    salary_amount: number | null;
+    salary_currency: 'EUR' | 'USD' | 'GBP' | 'AED' | null;
+    salary_period: 'daily' | 'monthly' | 'annually' | null;
+    rotation_type: '2:2' | '3:1' | '3:3' | '5:1' | 'permanent' | 'seasonal' | 'mlc_standard' | 'other' | null;
+    rotation_details: string | null;
+    description: string | null;
+  };
+  'EXPERIENCE.UPDATED': {
+    role_id?: string;
+    start_date?: string;
+    end_date?: string | null;
+    is_current?: boolean;
+    charter_or_private?: 'charter' | 'private';
+    flag_state?: string | null;
+    salary_amount?: number | null;
+    salary_currency?: 'EUR' | 'USD' | 'GBP' | 'AED' | null;
+    salary_period?: 'daily' | 'monthly' | 'annually' | null;
+    rotation_type?: '2:2' | '3:1' | '3:3' | '5:1' | 'permanent' | 'seasonal' | 'mlc_standard' | 'other' | null;
+    rotation_details?: string | null;
+    description?: string | null;
+  };
+  'EXPERIENCE.REMOVED': Record<string, never>;
   'CHECKLIST.SET': {
     engagement_id: string;
     items: Array<{ id: string; label: string; value: string }>;

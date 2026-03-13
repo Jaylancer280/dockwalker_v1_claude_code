@@ -25,8 +25,10 @@ function makeSelectChain(data: unknown, error: unknown = null) {
       eq: vi.fn().mockReturnValue({
         order: vi.fn().mockResolvedValue({ data, error }),
         single: vi.fn().mockResolvedValue({ data, error }),
+        maybeSingle: vi.fn().mockResolvedValue({ data, error }),
         eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({ data, error }),
+          maybeSingle: vi.fn().mockResolvedValue({ data, error }),
         }),
       }),
       order: vi.fn().mockResolvedValue({ data, error }),
@@ -128,13 +130,23 @@ describe('POST /api/vessels', () => {
     expect(res.status).toBe(409);
   });
 
-  it('returns 403 when crew hat tries to create vessel', async () => {
+  it('allows crew hat to create vessel for experience entries', async () => {
     mockRequireDomainUser.mockResolvedValue(
       guardOk({ person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' } }),
     );
+    mockFromAuth.mockReturnValueOnce(makeSelectChain(sizeBands));
+    mockFromService.mockReturnValueOnce(makeSelectChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(makeRequest(validBody));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    // Crew vessels should always have nda_flag: false
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_payload: expect.objectContaining({ nda_flag: false }),
+      }),
+    );
   });
 
   it('returns 400 when required fields missing', async () => {

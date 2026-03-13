@@ -54,12 +54,18 @@ const MOCK_PORTS = [
 // Supabase client mock — chainable query builder
 // ---------------------------------------------------------------------------
 
+const MOCK_FLAG_STATES = [
+  { id: 'GBR', name: 'United Kingdom (Red Ensign)' },
+  { id: 'CYM', name: 'Cayman Islands' },
+];
+
 const TABLE_DATA: Record<string, unknown[]> = {
   yacht_roles: MOCK_ROLES,
   certifications: MOCK_CERTS,
   experience_brackets: MOCK_BRACKETS,
   vessel_size_bands: MOCK_SIZE_BANDS,
   ports: MOCK_PORTS,
+  flag_states: MOCK_FLAG_STATES,
 };
 
 let fromSpy: ReturnType<typeof vi.fn>;
@@ -256,8 +262,10 @@ describe('Onboarding page — crew profile dropdowns', () => {
     const { default: OnboardingPage } = await import('@/app/onboarding/page');
     render(<OnboardingPage />);
 
-    // Step 1: click "I'm Crew" to advance to profile step
+    // Navigate: Welcome → Identity → Experience fork → Green profile
+    fireEvent.click(screen.getByText('Get started'));
     fireEvent.click(screen.getByText("I'm Crew"));
+    fireEvent.click(screen.getByText('New to yachting'));
 
     // Wait for lookups to load
     await waitFor(() => {
@@ -295,17 +303,21 @@ describe('Onboarding page — crew profile dropdowns', () => {
     expect(screen.getByTestId('location-picker')).toBeInTheDocument();
   });
 
-  it('queries all 4 canonical lookup tables (location handled by LocationPicker)', async () => {
+  it('queries all 5 canonical lookup tables (location handled by LocationPicker)', async () => {
     const { default: OnboardingPage } = await import('@/app/onboarding/page');
     render(<OnboardingPage />);
 
+    // Navigate: Welcome → Identity → Experience fork → Green profile
+    fireEvent.click(screen.getByText('Get started'));
     fireEvent.click(screen.getByText("I'm Crew"));
+    fireEvent.click(screen.getByText('New to yachting'));
 
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
       expect(fromSpy).toHaveBeenCalledWith('experience_brackets');
       expect(fromSpy).toHaveBeenCalledWith('vessel_size_bands');
+      expect(fromSpy).toHaveBeenCalledWith('flag_states');
     });
   });
 });
@@ -466,7 +478,10 @@ describe('Canonical data item counts', () => {
     const { default: OnboardingPage } = await import('@/app/onboarding/page');
     render(<OnboardingPage />);
 
+    // Navigate: Welcome → Identity → Experience fork → Green profile
+    fireEvent.click(screen.getByText('Get started'));
     fireEvent.click(screen.getByText("I'm Crew"));
+    fireEvent.click(screen.getByText('New to yachting'));
 
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
@@ -475,9 +490,9 @@ describe('Canonical data item counts', () => {
     // Count select items by role option (all options render as mock-select-item)
     // Location is now handled by LocationPicker (mocked), not a Select
     const allSelectItems = screen.getAllByRole('option');
-    // Roles (3) + Experience (3) = 6 select items
+    // Roles (3) + Experience brackets (3) + Available to start (4) = 10 select items
     expect(allSelectItems).toHaveLength(
-      MOCK_ROLES.length + MOCK_BRACKETS.length,
+      MOCK_ROLES.length + MOCK_BRACKETS.length + 4,
     );
 
     // Count certification checkboxes
