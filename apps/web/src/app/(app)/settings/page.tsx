@@ -6,11 +6,6 @@ import {
   ArrowLeft,
   ChevronRight,
   LogOut,
-  Sun,
-  Moon,
-  Monitor,
-  Eye,
-  EyeOff,
   Download,
   Trash2,
   Loader2,
@@ -31,15 +26,8 @@ import {
 } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 
-type Theme = 'light' | 'dark' | 'system';
 type DistanceUnit = 'nm' | 'km';
 type CurrencyPref = 'EUR' | 'USD' | 'GBP' | 'AED';
-
-interface Person {
-  id: string;
-  identity_type: string;
-  current_hat: string;
-}
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -47,7 +35,6 @@ export default function SettingsPage() {
 
   // User state
   const [loading, setLoading] = useState(true);
-  const [person, setPerson] = useState<Person | null>(null);
   const [email, setEmail] = useState('');
 
   // Account forms
@@ -66,14 +53,8 @@ export default function SettingsPage() {
   const [emailSuccess, setEmailSuccess] = useState(false);
 
   // Appearance (localStorage)
-  const [theme, setTheme] = useState<Theme>('system');
   const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>('nm');
   const [currencyPref, setCurrencyPref] = useState<CurrencyPref>('EUR');
-
-  // Privacy
-  const [profileVisible, setProfileVisible] = useState(true);
-  const [visibilitySaving, setVisibilitySaving] = useState(false);
-  const [prefsLoading, setPrefsLoading] = useState(true);
 
   // Delete account
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -90,52 +71,20 @@ export default function SettingsPage() {
     if (user) {
       setEmail(user.email ?? '');
     }
-
-    const res = await fetch('/api/profile');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.person) setPerson(data.person);
-    }
     setLoading(false);
   }, [supabase.auth]);
-
-  const loadPreferences = useCallback(async () => {
-    const res = await fetch('/api/preferences');
-    if (res.ok) {
-      const data = await res.json();
-      setProfileVisible(data.profile_visible ?? true);
-    }
-    setPrefsLoading(false);
-  }, []);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadUser();
-    loadPreferences();
 
     // Load localStorage preferences
-    const savedTheme = localStorage.getItem('dw-theme') as Theme | null;
-    if (savedTheme) setTheme(savedTheme);
     const savedUnit = localStorage.getItem('dw-distance-unit') as DistanceUnit | null;
     if (savedUnit) setDistanceUnit(savedUnit);
     const savedCurrency = localStorage.getItem('dw-currency-pref') as CurrencyPref | null;
     if (savedCurrency) setCurrencyPref(savedCurrency);
-  }, [loadUser, loadPreferences]);
+  }, [loadUser]);
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  // Theme application
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else if (theme === 'light') {
-      root.classList.remove('dark');
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', prefersDark);
-    }
-    localStorage.setItem('dw-theme', theme);
-  }, [theme]);
 
   function handleDistanceUnit(value: DistanceUnit) {
     setDistanceUnit(value);
@@ -212,20 +161,6 @@ export default function SettingsPage() {
     setEmailSaving(false);
   }
 
-  async function handleToggleVisibility() {
-    setVisibilitySaving(true);
-    const newValue = !profileVisible;
-    const res = await fetch('/api/preferences', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile_visible: newValue }),
-    });
-    if (res.ok) {
-      setProfileVisible(newValue);
-    }
-    setVisibilitySaving(false);
-  }
-
   async function handleExportData() {
     setExporting(true);
     const res = await fetch('/api/account/export');
@@ -266,8 +201,6 @@ export default function SettingsPage() {
       </main>
     );
   }
-
-  const isCrew = person?.identity_type === 'crew';
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
@@ -412,37 +345,6 @@ export default function SettingsPage() {
             Appearance
           </h2>
           <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
-            {/* Theme */}
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-3">
-                {theme === 'dark' ? (
-                  <Moon className="h-4 w-4 text-muted-foreground" />
-                ) : theme === 'light' ? (
-                  <Sun className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <Monitor className="h-4 w-4 text-muted-foreground" />
-                )}
-                <p className="text-sm font-medium">Theme</p>
-              </div>
-              <div className="flex gap-1 rounded-lg border border-border p-0.5">
-                {(['light', 'dark', 'system'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTheme(t)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
-                      theme === t
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <Separator />
-
             {/* Distance units */}
             <div className="flex items-center justify-between px-4 py-3">
               <p className="text-sm font-medium">Distance units</p>
@@ -489,43 +391,6 @@ export default function SettingsPage() {
             Privacy & Data
           </h2>
           <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
-            {/* Profile visibility — crew only */}
-            {isCrew && (
-              <>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    {profileVisible ? (
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <EyeOff className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">Profile visible to employers</p>
-                      <p className="text-xs text-muted-foreground">
-                        {profileVisible
-                          ? 'Your profile appears in discovery'
-                          : 'Hidden from discovery — you can still apply'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={handleToggleVisibility}
-                    disabled={visibilitySaving || prefsLoading}
-                    className={`relative h-6 w-11 rounded-full transition-colors ${
-                      profileVisible ? 'bg-primary' : 'bg-muted'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        profileVisible ? 'left-[22px]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
-                </div>
-                <Separator />
-              </>
-            )}
-
             {/* Export data */}
             <button
               onClick={handleExportData}
