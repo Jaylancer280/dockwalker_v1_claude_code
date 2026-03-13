@@ -67,7 +67,9 @@ export default function PostDayworkPage() {
   const [requiredCertIds, setRequiredCertIds] = useState<string[]>([]);
   const [experienceBracketId, setExperienceBracketId] = useState('');
   const [dayRate, setDayRate] = useState('');
-  const [currency, setCurrency] = useState('EUR');
+  const [currency, setCurrency] = useState(
+    () => (typeof window !== 'undefined' && localStorage.getItem('dw-currency-pref')) || 'EUR',
+  );
   const [meals, setMeals] = useState<MealOption[]>([]);
   const [notes, setNotes] = useState('');
 

@@ -1,12 +1,12 @@
 import { MapPin, Calendar, Briefcase, Anchor, Utensils, Banknote } from 'lucide-react';
 import type { EngagementContext } from './types';
-import { CURRENCY_SYMBOLS } from './types';
+import { currencySymbol } from '@/lib/units';
 
 export function DayworkSummaryCard({ context }: { context: EngagementContext }) {
   const dw = context.dayworks;
   if (!dw) return null;
 
-  const symbol = CURRENCY_SYMBOLS[dw.currency] ?? dw.currency;
+  const symbol = currencySymbol(dw.currency);
   const location = [dw.ports?.name, dw.ports?.cities?.name].filter(Boolean).join(', ');
 
   return (

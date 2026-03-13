@@ -393,7 +393,7 @@ describe('Discover page — filter dropdowns', () => {
 });
 
 describe('Vessels page — create vessel form dropdowns', () => {
-  it('renders hardcoded vessel types and canonical size bands in create dialog', async () => {
+  it('renders hardcoded vessel types and LOA input in create dialog', async () => {
     const { default: VesselsPage } = await import('@/app/(app)/vessels/page');
     render(<VesselsPage />);
 
@@ -409,10 +409,8 @@ describe('Vessels page — create vessel form dropdowns', () => {
     expect(screen.getByText('Private')).toBeInTheDocument();
     expect(screen.getByText('Charter')).toBeInTheDocument();
 
-    // Canonical size bands
-    for (const band of MOCK_SIZE_BANDS) {
-      expect(screen.getByText(band.label)).toBeInTheDocument();
-    }
+    // LOA input field (size band auto-derived from LOA)
+    expect(screen.getByLabelText(/length overall/i)).toBeInTheDocument();
   });
 });
 

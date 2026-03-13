@@ -64,11 +64,4 @@ export interface EngagementContext {
   my_rating: RatingData | null;
 }
 
-export const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: '\u20AC',
-  USD: '$',
-  GBP: '\u00A3',
-  AED: '\u062F.\u0625',
-};
-
 export const POLL_INTERVAL = 5000;

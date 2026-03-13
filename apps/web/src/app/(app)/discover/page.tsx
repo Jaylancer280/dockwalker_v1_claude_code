@@ -40,6 +40,8 @@ import { Input } from '@/components/ui/input';
 import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { LocationPicker } from '@/components/location-picker';
 import { createClient } from '@/lib/supabase/client';
+import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
+import { usePreferences } from '@/hooks/use-preferences';
 
 interface DayworkCard {
   id: string;
@@ -101,13 +103,6 @@ interface MyApplication {
   } | null;
 }
 
-const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: '\u20AC',
-  USD: '$',
-  GBP: '\u00A3',
-  AED: '\u062F.\u0625',
-};
-
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   applied: { label: 'Applied', className: 'bg-primary/10 text-primary' },
   viewed: {
@@ -120,6 +115,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 const SWIPE_THRESHOLD = 100;
 
 export default function DiscoverPage() {
+  const prefs = usePreferences();
   const [activeTab, setActiveTab] = useState<'browse' | 'applied'>('browse');
   const [cards, setCards] = useState<DayworkCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -450,7 +446,7 @@ export default function DiscoverPage() {
                 {/* Next card preview (underneath) */}
                 {nextCard && (
                   <div className="absolute inset-0 z-0">
-                    <JobCard card={nextCard} isPreview />
+                    <JobCard card={nextCard} isPreview lengthUnit={prefs.lengthUnit} />
                   </div>
                 )}
 
@@ -473,6 +469,7 @@ export default function DiscoverPage() {
                     onAvailabilityGate={() => setShowAvailDialog(true)}
                     composing={composingMessage}
                     disabled={applying}
+                    lengthUnit={prefs.lengthUnit}
                   />
                 )}
               </div>
@@ -605,9 +602,20 @@ const SwipeableCard = forwardRef<
     onAvailabilityGate: () => void;
     composing: boolean;
     disabled: boolean;
+    lengthUnit?: 'm' | 'ft';
   }
 >(function SwipeableCard(
-  { card, onApply, onPass, onComposeMessage, canApply, onAvailabilityGate, composing, disabled },
+  {
+    card,
+    onApply,
+    onPass,
+    onComposeMessage,
+    canApply,
+    onAvailabilityGate,
+    composing,
+    disabled,
+    lengthUnit = 'm',
+  },
   ref,
 ) {
   const x = useMotionValue(0);
@@ -668,7 +676,11 @@ const SwipeableCard = forwardRef<
         PASS
       </motion.div>
 
-      <JobCard card={card} onComposeMessage={composing ? undefined : onComposeMessage} />
+      <JobCard
+        card={card}
+        onComposeMessage={composing ? undefined : onComposeMessage}
+        lengthUnit={lengthUnit}
+      />
     </motion.div>
   );
 });
@@ -677,10 +689,12 @@ function JobCard({
   card,
   isPreview,
   onComposeMessage,
+  lengthUnit = 'm',
 }: {
   card: DayworkCard;
   isPreview?: boolean;
   onComposeMessage?: () => void;
+  lengthUnit?: 'm' | 'ft';
 }) {
   return (
     <div
@@ -694,7 +708,8 @@ function JobCard({
           <h3 className="text-lg font-bold">{card.yacht_roles?.name ?? 'Unknown role'}</h3>
           <p className="text-sm text-muted-foreground">
             {card.vessels?.nda_flag ? 'NDA Vessel' : (card.vessels?.name ?? 'Unknown vessel')}
-            {card.vessels?.vessel_size_bands?.label && ` · ${card.vessels.vessel_size_bands.label}`}
+            {card.vessels?.vessel_size_bands?.label &&
+              ` · ${convertSizeBandLabel(card.vessels.vessel_size_bands.label, lengthUnit)}`}
           </p>
         </div>
 
@@ -720,8 +735,7 @@ function JobCard({
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="font-medium">
-              {{ EUR: '\u20AC', USD: '$', GBP: '\u00A3', AED: '\u062F.\u0625' }[card.currency] ??
-                '\u20AC'}
+              {currencySymbol(card.currency)}
               {card.day_rate}/day
             </span>
           </div>
@@ -796,7 +810,7 @@ function ApplicationCard({
   if (!dw) return null;
 
   const statusInfo = STATUS_LABELS[application.status] ?? STATUS_LABELS.applied;
-  const currencySymbol = CURRENCY_SYMBOLS[dw.currency] ?? CURRENCY_SYMBOLS.EUR;
+  const symbol = currencySymbol(dw.currency);
   const canWithdraw = application.status === 'applied';
 
   return (
@@ -838,7 +852,7 @@ function ApplicationCard({
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span className="font-medium">
-              {currencySymbol}
+              {symbol}
               {dw.day_rate}/day
             </span>
           </div>

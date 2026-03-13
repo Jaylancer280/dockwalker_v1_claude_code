@@ -16,7 +16,7 @@ export async function GET() {
   const { data: vessels, error } = await supabase
     .from('vessels')
     .select(
-      'id, imo_number, name, vessel_type, size_band_id, nda_flag, created_at, vessel_size_bands(label)',
+      'id, imo_number, name, vessel_type, size_band_id, loa_meters, nda_flag, created_at, vessel_size_bands(label)',
     )
     .eq('owner_person_id', user.id)
     .order('created_at', { ascending: false });
@@ -36,7 +36,7 @@ export async function GET() {
  *   imoNumber: string (required),
  *   name: string (required),
  *   vesselType: 'private' | 'charter' (required),
- *   sizeBandId: string (required),
+ *   loaMeters: number (required, LOA in meters — size band auto-derived),
  *   ndaFlag: boolean (optional, default false)
  * }
  */
@@ -53,12 +53,12 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { imoNumber, name, vesselType, sizeBandId, ndaFlag } = body;
+  const { imoNumber, name, vesselType, loaMeters, ndaFlag } = body;
 
   // Validate required fields
-  if (!imoNumber || !name || !vesselType || !sizeBandId) {
+  if (!imoNumber || !name || !vesselType || loaMeters == null) {
     return NextResponse.json(
-      { error: 'imoNumber, name, vesselType, and sizeBandId are required' },
+      { error: 'imoNumber, name, vesselType, and loaMeters are required' },
       { status: 400 },
     );
   }
@@ -73,15 +73,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'vesselType must be private or charter' }, { status: 400 });
   }
 
-  // Validate size band exists
-  const { data: sizeBand } = await supabase
+  const loa = Number(loaMeters);
+  if (!Number.isFinite(loa) || loa < 1) {
+    return NextResponse.json({ error: 'loaMeters must be a positive number' }, { status: 400 });
+  }
+
+  // Auto-derive size band from LOA
+  const { data: sizeBands } = await supabase
     .from('vessel_size_bands')
-    .select('id')
-    .eq('id', sizeBandId)
-    .single();
+    .select('id, min_meters, max_meters')
+    .order('min_meters');
+
+  if (!sizeBands || sizeBands.length === 0) {
+    return NextResponse.json({ error: 'Size bands not available' }, { status: 500 });
+  }
+
+  const sizeBand = sizeBands.find(
+    (b) => loa >= b.min_meters && (b.max_meters === null || loa < b.max_meters),
+  );
 
   if (!sizeBand) {
-    return NextResponse.json({ error: 'Invalid size band ID' }, { status: 400 });
+    return NextResponse.json(
+      { error: `LOA ${loa}m does not match any size band (minimum ${sizeBands[0].min_meters}m)` },
+      { status: 400 },
+    );
   }
 
   // Check IMO not already registered
@@ -111,7 +126,8 @@ export async function POST(request: Request) {
         imo_number: imoClean,
         name,
         vessel_type: vesselType,
-        size_band_id: sizeBandId,
+        size_band_id: sizeBand.id,
+        loa_meters: loa,
         nda_flag: ndaFlag ?? false,
       },
       personId: user.id,

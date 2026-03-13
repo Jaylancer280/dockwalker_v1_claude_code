@@ -31,6 +31,8 @@ import {
 } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-jobs-tab';
+import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
+import { usePreferences } from '@/hooks/use-preferences';
 
 interface DayworkPosting {
   id: string;
@@ -65,6 +67,7 @@ interface Template {
 
 export default function MyPostingsPage() {
   const router = useRouter();
+  const prefs = usePreferences();
   const [activePostings, setActivePostings] = useState<DayworkPosting[]>([]);
   const [inProgressPostings, setInProgressPostings] = useState<DayworkPosting[]>([]);
   const [completedPostings, setCompletedPostings] = useState<DayworkPosting[]>([]);
@@ -223,7 +226,7 @@ export default function MyPostingsPage() {
             DW-{String(posting.job_number).padStart(5, '0')} ·{' '}
             {posting.vessels?.nda_flag ? 'NDA Vessel' : (posting.vessels?.name ?? 'Unknown vessel')}
             {posting.vessels?.vessel_size_bands?.label &&
-              ` · ${posting.vessels.vessel_size_bands.label}`}
+              ` · ${convertSizeBandLabel(posting.vessels.vessel_size_bands.label, prefs.lengthUnit)}`}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -239,8 +242,7 @@ export default function MyPostingsPage() {
             </span>
             <span className="flex items-center gap-1">
               <DollarSign className="h-3.5 w-3.5" />
-              {{ EUR: '\u20AC', USD: '$', GBP: '\u00A3', AED: '\u062F.\u0625' }[posting.currency] ??
-                '\u20AC'}
+              {currencySymbol(posting.currency)}
               {posting.day_rate}/day
             </span>
           </div>
@@ -484,9 +486,7 @@ export default function MyPostingsPage() {
                       t.yacht_roles?.name,
                       t.ports?.name,
                       t.vessels?.name,
-                      t.day_rate
-                        ? `${{ EUR: '\u20AC', USD: '$', GBP: '\u00A3', AED: '\u062F.\u0625' }[t.currency ?? 'EUR'] ?? '\u20AC'}${t.day_rate}/day`
-                        : null,
+                      t.day_rate ? `${currencySymbol(t.currency ?? 'EUR')}${t.day_rate}/day` : null,
                       t.working_days ? `${t.working_days}d` : null,
                     ]
                       .filter(Boolean)

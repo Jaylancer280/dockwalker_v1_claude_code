@@ -51,7 +51,8 @@ The app depends on these Postgres functions in the `public` schema:
 | `apply_projection` (AVAILABILITY.SET port_id) | 00025     | Adds `port_id` column to `availability_windows`; updates AVAILABILITY.SET handler to write optional `port_id` on both normal and not-available paths                 |
 | `user_preferences` table                      | 00026     | CRUD user preferences (`profile_visible` boolean). Owner-only RLS. Not event-sourced — follows `daywork_templates` precedent.                                        |
 | `clear_availability_dates`                    | 00007     | Clears availability via immediate-expiry ledger entries                                                                                                              |
-| `get_vessel_public`                           | 00007     | Returns vessel data with NDA-safe field filtering                                                                                                                    |
+| `get_vessel_public`                           | 00007     | Returns vessel data with NDA-safe field filtering (includes `loa_meters` since 00027)                                                                                |
+| `apply_projection` (VESSEL LOA)               | 00027     | Writes `loa_meters` on `VESSEL.CREATED` insert and `VESSEL.UPDATED` update                                                                                           |
 
 ## Daywork Status Lifecycle
 

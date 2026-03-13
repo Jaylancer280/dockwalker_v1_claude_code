@@ -104,12 +104,14 @@ export interface EventPayloadMap {
     name: string;
     vessel_type: string;
     size_band_id: string;
+    loa_meters: number;
     nda_flag: boolean;
   };
   'VESSEL.UPDATED': {
     name?: string;
     vessel_type?: string;
     size_band_id?: string;
+    loa_meters?: number;
     nda_flag?: boolean;
   };
   'DAYWORK.POSTED': {

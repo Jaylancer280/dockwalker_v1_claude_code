@@ -25,9 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
-
-type DistanceUnit = 'nm' | 'km';
-type CurrencyPref = 'EUR' | 'USD' | 'GBP' | 'AED';
+import type { DistanceUnit, CurrencyCode } from '@/lib/units';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -53,8 +51,8 @@ export default function SettingsPage() {
   const [emailSuccess, setEmailSuccess] = useState(false);
 
   // Appearance (localStorage)
-  const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>('nm');
-  const [currencyPref, setCurrencyPref] = useState<CurrencyPref>('EUR');
+  const [distanceUnit, setDistanceUnit] = useState<DistanceUnit>('km');
+  const [currencyPref, setCurrencyPref] = useState<CurrencyCode>('EUR');
 
   // Delete account
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -79,10 +77,16 @@ export default function SettingsPage() {
     loadUser();
 
     // Load localStorage preferences
-    const savedUnit = localStorage.getItem('dw-distance-unit') as DistanceUnit | null;
-    if (savedUnit) setDistanceUnit(savedUnit);
-    const savedCurrency = localStorage.getItem('dw-currency-pref') as CurrencyPref | null;
-    if (savedCurrency) setCurrencyPref(savedCurrency);
+    const savedUnit = localStorage.getItem('dw-distance-unit');
+    if (savedUnit === 'km' || savedUnit === 'mi' || savedUnit === 'nm') setDistanceUnit(savedUnit);
+    const savedCurrency = localStorage.getItem('dw-currency-pref');
+    if (
+      savedCurrency === 'EUR' ||
+      savedCurrency === 'USD' ||
+      savedCurrency === 'GBP' ||
+      savedCurrency === 'AED'
+    )
+      setCurrencyPref(savedCurrency);
   }, [loadUser]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -91,7 +95,7 @@ export default function SettingsPage() {
     localStorage.setItem('dw-distance-unit', value);
   }
 
-  function handleCurrencyPref(value: CurrencyPref) {
+  function handleCurrencyPref(value: CurrencyCode) {
     setCurrencyPref(value);
     localStorage.setItem('dw-currency-pref', value);
   }
@@ -347,7 +351,12 @@ export default function SettingsPage() {
           <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
             {/* Distance units */}
             <div className="flex items-center justify-between px-4 py-3">
-              <p className="text-sm font-medium">Distance units</p>
+              <div>
+                <p className="text-sm font-medium">Distance &amp; size units</p>
+                <p className="text-xs text-muted-foreground">
+                  {distanceUnit === 'mi' ? 'Vessel sizes in feet' : 'Vessel sizes in metres'}
+                </p>
+              </div>
               <Select
                 value={distanceUnit}
                 onValueChange={(v) => handleDistanceUnit(v as DistanceUnit)}
@@ -356,8 +365,9 @@ export default function SettingsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="nm">Nautical miles</SelectItem>
                   <SelectItem value="km">Kilometres</SelectItem>
+                  <SelectItem value="mi">Miles / feet</SelectItem>
+                  <SelectItem value="nm">Nautical miles</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -369,7 +379,7 @@ export default function SettingsPage() {
               <p className="text-sm font-medium">Currency display</p>
               <Select
                 value={currencyPref}
-                onValueChange={(v) => handleCurrencyPref(v as CurrencyPref)}
+                onValueChange={(v) => handleCurrencyPref(v as CurrencyCode)}
               >
                 <SelectTrigger className="w-[100px]">
                   <SelectValue />

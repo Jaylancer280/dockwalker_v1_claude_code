@@ -24,6 +24,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { createClient } from '@/lib/supabase/client';
+import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
+import { usePreferences } from '@/hooks/use-preferences';
 
 interface Vessel {
   id: string;
@@ -31,6 +33,7 @@ interface Vessel {
   name: string;
   vessel_type: string;
   size_band_id: string;
+  loa_meters: number | null;
   nda_flag: boolean;
   created_at: string;
   vessel_size_bands: { label: string } | null;
@@ -39,9 +42,12 @@ interface Vessel {
 interface SizeBand {
   id: string;
   label: string;
+  min_meters: number;
+  max_meters: number | null;
 }
 
 export default function VesselsPage() {
+  const prefs = usePreferences();
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [sizeBands, setSizeBands] = useState<SizeBand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +74,7 @@ export default function VesselsPage() {
       const supabase = createClient();
       const { data } = await supabase
         .from('vessel_size_bands')
-        .select('id, label')
+        .select('id, label, min_meters, max_meters')
         .order('sort_order');
       if (data) setSizeBands(data);
     }
@@ -99,7 +105,11 @@ export default function VesselsPage() {
                   Register a vessel to attach to daywork postings
                 </DialogDescription>
               </DialogHeader>
-              <CreateVesselForm sizeBands={sizeBands} onCreated={handleCreated} />
+              <CreateVesselForm
+                sizeBands={sizeBands}
+                onCreated={handleCreated}
+                lengthUnit={prefs.lengthUnit}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -152,7 +162,18 @@ export default function VesselsPage() {
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span>IMO {vessel.imo_number}</span>
                 <span className="capitalize">{vessel.vessel_type}</span>
-                <span>{vessel.vessel_size_bands?.label}</span>
+                {vessel.loa_meters != null && (
+                  <span>
+                    {prefs.lengthUnit === 'ft'
+                      ? `${Math.round(metersToFeet(vessel.loa_meters))}ft`
+                      : `${vessel.loa_meters}m`}
+                  </span>
+                )}
+                {!vessel.loa_meters && vessel.vessel_size_bands?.label && (
+                  <span>
+                    {convertSizeBandLabel(vessel.vessel_size_bands.label, prefs.lengthUnit)}
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -167,21 +188,44 @@ export default function VesselsPage() {
 function CreateVesselForm({
   sizeBands,
   onCreated,
+  lengthUnit = 'm',
 }: {
   sizeBands: SizeBand[];
   onCreated: () => void;
+  lengthUnit?: 'm' | 'ft';
 }) {
   const [imoNumber, setImoNumber] = useState('');
   const [name, setName] = useState('');
   const [vesselType, setVesselType] = useState('');
-  const [sizeBandId, setSizeBandId] = useState('');
+  const [loaInput, setLoaInput] = useState('');
   const [ndaFlag, setNdaFlag] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Derive LOA in meters and matching band from the input
+  const loaNum = Number(loaInput);
+  const loaMeters =
+    loaInput && Number.isFinite(loaNum) && loaNum > 0
+      ? lengthUnit === 'ft'
+        ? loaNum / 3.28084
+        : loaNum
+      : null;
+  const matchedBand =
+    loaMeters != null
+      ? sizeBands.find(
+          (b) => loaMeters >= b.min_meters && (b.max_meters === null || loaMeters < b.max_meters),
+        )
+      : null;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (loaMeters == null || loaMeters < 1) {
+      setError('Please enter a valid vessel length');
+      return;
+    }
+
     setLoading(true);
 
     const res = await fetch('/api/vessels', {
@@ -191,7 +235,7 @@ function CreateVesselForm({
         imoNumber,
         name,
         vesselType,
-        sizeBandId,
+        loaMeters: Math.round(loaMeters * 100) / 100,
         ndaFlag,
       }),
     });
@@ -246,19 +290,30 @@ function CreateVesselForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label>Size band</Label>
-        <Select value={sizeBandId} onValueChange={setSizeBandId} required>
-          <SelectTrigger>
-            <SelectValue placeholder="Select size" />
-          </SelectTrigger>
-          <SelectContent>
-            {sizeBands.map((band) => (
-              <SelectItem key={band.id} value={band.id}>
-                {band.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label htmlFor="loa">Length overall ({lengthUnit === 'ft' ? 'feet' : 'metres'})</Label>
+        <Input
+          id="loa"
+          type="number"
+          min="1"
+          step="0.1"
+          placeholder={lengthUnit === 'ft' ? 'e.g. 131' : 'e.g. 40'}
+          value={loaInput}
+          onChange={(e) => setLoaInput(e.target.value)}
+          required
+        />
+        {matchedBand && (
+          <p className="text-xs text-muted-foreground">
+            Size band: {convertSizeBandLabel(matchedBand.label, lengthUnit)}
+          </p>
+        )}
+        {loaInput && !matchedBand && loaMeters != null && (
+          <p className="text-xs text-destructive">
+            Minimum vessel size is{' '}
+            {lengthUnit === 'ft'
+              ? `${Math.round(metersToFeet(sizeBands[0]?.min_meters ?? 24))}ft`
+              : `${sizeBands[0]?.min_meters ?? 24}m`}
+          </p>
+        )}
       </div>
 
       <div className="flex items-center justify-between rounded-lg border border-border p-3">
@@ -271,7 +326,7 @@ function CreateVesselForm({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <Button type="submit" disabled={loading} className="w-full">
+      <Button type="submit" disabled={loading || !matchedBand} className="w-full">
         {loading ? 'Adding vessel...' : 'Add vessel'}
       </Button>
     </form>
