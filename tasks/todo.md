@@ -5,7 +5,7 @@
 
 ## Current Task
 
-(none)
+Stage 57: Documentation + Edge Case Hardening
 
 ## Queue
 
@@ -59,59 +59,6 @@ API endpoints for browsing available crew and sending invitations.
 
 ---
 
-### Stage 56: Crew Invitations Tab + Accept/Decline
-
-Crew-facing UI and API for receiving and responding to employer invitations.
-
-**Invitations API — `apps/web/src/app/api/daywork/invitations/route.ts` (new GET):**
-
-- [ ] Auth: require crew hat
-- [ ] Query `daywork_invitations` WHERE crew_person_id = user, status = 'pending'
-- [ ] Hydrate each invitation with: daywork details (role, vessel, location, dates, rate, meals, notes, job_number), employer display_name, vessel public data (via `get_vessel_public`)
-- [ ] Response shape: `{ invitations: Array<hydrated invitation> }`
-
-**Respond API — `apps/web/src/app/api/daywork/invitations/[id]/respond/route.ts` (new POST):**
-
-- [ ] Auth: require crew hat, must be the invited crew
-- [ ] Body: `{ action: 'accept' | 'decline' }`
-- [ ] Guard: invitation must be 'pending' status
-- [ ] Guard: daywork must still be 'active' status (if not, return 400 "This job is no longer available")
-- [ ] **Accept flow:**
-  1. Check crew has availability (reuse existing availability gate logic)
-  2. Append `DAYWORK.INVITATION_ACCEPTED` event (updates invitation to 'accepted')
-  3. Append `DAYWORK.APPLIED` event (creates application — same as normal apply)
-  4. Use `appendEvents` batch for atomicity
-  5. Return `{ application: { id, status } }`
-- [ ] **Decline flow:**
-  1. Append `DAYWORK.INVITATION_DECLINED` event
-  2. Return `{ success: true }`
-
-**UI — `apps/web/src/app/(app)/discover/page.tsx`:**
-
-- [ ] Add "Invitations" tab between Browse and Applied
-- [ ] Badge count: fetch pending invitation count on mount (alongside applied count)
-- [ ] Invitation cards: show job details (same fields as discover cards: role, vessel, location, dates, rate, job reference) + "Invited by {employer name}" header
-- [ ] Each card has two buttons: "Accept" (green) and "Decline" (red) — NOT swipe-based (deliberate decisions, not rapid browsing)
-- [ ] Accept confirmation dialog: "Accept this invitation? You'll be added as an applicant for this job."
-- [ ] On accept success: remove from Invitations list, increment Applied badge count, show brief success toast/message
-- [ ] On decline: remove from Invitations list
-- [ ] Decline confirmation: "Decline this invitation? The employer won't be notified." (simple confirm)
-- [ ] Empty state: "No pending invitations"
-- [ ] Handle edge case: if crew taps Accept but daywork is no longer active, show error inline "This job is no longer available"
-
-**Tests:**
-
-- [ ] GET invitations returns only pending invitations for authenticated crew
-- [ ] GET invitations returns empty for non-crew hat
-- [ ] Respond accept: creates application, updates invitation status
-- [ ] Respond accept: returns 400 if daywork no longer active
-- [ ] Respond accept: returns 400 if crew has no availability
-- [ ] Respond decline: updates invitation status to declined
-- [ ] Respond: returns 403 if not the invited crew
-- [ ] Respond: returns 400 if invitation not pending
-
----
-
 ### Stage 57: Documentation + Edge Case Hardening
 
 Final pass: documentation updates, edge case testing, and cleanup.
@@ -131,6 +78,13 @@ Final pass: documentation updates, edge case testing, and cleanup.
 - [ ] Run ESLint — zero warnings/errors
 
 ## Done
+
+### Stage 56: Crew Invitations Tab + Accept/Decline (completed)
+
+- [x] GET /api/daywork/invitations — crew-only, returns pending invitations with hydrated daywork, employer, and NDA-safe vessel data
+- [x] POST /api/daywork/invitations/:id/respond — accept (availability check + atomic INVITATION_ACCEPTED + APPLIED) and decline (INVITATION_DECLINED)
+- [x] Discover page "Invitations" tab with badge count, invitation cards, accept/decline buttons, confirmation dialogs, inline error handling
+- [x] 3 invitations GET tests + 8 respond tests = 11 new tests; 431 total pass
 
 ### Stage 55: Review Page "Available" Tab (completed)
 

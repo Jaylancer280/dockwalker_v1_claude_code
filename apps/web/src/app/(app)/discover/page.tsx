@@ -17,6 +17,7 @@ import {
   MessageSquare,
   CalendarDays,
   ClipboardList,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -114,6 +115,32 @@ interface MyApplication {
   } | null;
 }
 
+interface Invitation {
+  id: string;
+  daywork_id: string;
+  employer_name: string | null;
+  created_at: string;
+  daywork: {
+    job_number: number;
+    start_date: string;
+    end_date: string;
+    working_days: number;
+    day_rate: number;
+    currency: string;
+    meals: string[];
+    notes: string | null;
+    daywork_status: string;
+    role_name: string | null;
+    port_name: string | null;
+    city_name: string | null;
+    region_name: string | null;
+    experience_label: string | null;
+    vessel_name: string | null;
+    vessel_type: string | null;
+    vessel_size_label: string | null;
+  } | null;
+}
+
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
   applied: { label: 'Applied', className: 'bg-primary/10 text-primary' },
   viewed: {
@@ -127,7 +154,7 @@ const SWIPE_THRESHOLD = 100;
 
 export default function DiscoverPage() {
   const prefs = usePreferences();
-  const [activeTab, setActiveTab] = useState<'browse' | 'applied'>('browse');
+  const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>('browse');
   const [cards, setCards] = useState<DayworkCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -147,6 +174,14 @@ export default function DiscoverPage() {
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
   const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+
+  // Invitations tab state
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [loadingInvitations, setLoadingInvitations] = useState(false);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+  const [invitationError, setInvitationError] = useState<string | null>(null);
+  const [confirmAcceptInv, setConfirmAcceptInv] = useState<Invitation | null>(null);
+  const [confirmDeclineInv, setConfirmDeclineInv] = useState<Invitation | null>(null);
 
   // Availability gate state
   const [hasAvailability, setHasAvailability] = useState<boolean | null>(null);
@@ -298,6 +333,60 @@ export default function DiscoverPage() {
     setWithdrawingId(null);
   }
 
+  const loadInvitations = useCallback(async () => {
+    setLoadingInvitations(true);
+    const res = await fetch('/api/daywork/invitations');
+    if (res.ok) {
+      const data = await res.json();
+      setInvitations(data.invitations ?? []);
+    }
+    setLoadingInvitations(false);
+  }, []);
+
+  // Load invitations on mount (for badge count) and when switching tabs
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    loadInvitations();
+  }, [activeTab, loadInvitations]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  async function handleAcceptInvitation(inv: Invitation) {
+    setRespondingId(inv.id);
+    setInvitationError(null);
+    const res = await fetch(`/api/daywork/invitations/${inv.id}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'accept' }),
+    });
+    if (res.ok) {
+      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      loadApplications();
+    } else {
+      const data = await res.json();
+      setInvitationError(data.error ?? 'Failed to accept invitation');
+    }
+    setRespondingId(null);
+    setConfirmAcceptInv(null);
+  }
+
+  async function handleDeclineInvitation(inv: Invitation) {
+    setRespondingId(inv.id);
+    setInvitationError(null);
+    const res = await fetch(`/api/daywork/invitations/${inv.id}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'decline' }),
+    });
+    if (res.ok) {
+      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+    } else {
+      const data = await res.json();
+      setInvitationError(data.error ?? 'Failed to decline invitation');
+    }
+    setRespondingId(null);
+    setConfirmDeclineInv(null);
+  }
+
   const topCard = cards[0] ?? null;
   const nextCard = cards[1] ?? null;
 
@@ -331,6 +420,22 @@ export default function DiscoverPage() {
             Browse
           </button>
           <button
+            onClick={() => setActiveTab('invitations')}
+            className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'invitations'
+                ? 'border-b-2 border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Mail className="h-4 w-4" />
+            Invitations
+            {invitations.length > 0 && (
+              <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                {invitations.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setActiveTab('applied')}
             className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
               activeTab === 'applied'
@@ -348,6 +453,57 @@ export default function DiscoverPage() {
           </button>
         </div>
       </header>
+
+      {/* ───── Invitations tab ───── */}
+      {activeTab === 'invitations' && (
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-4">
+          {loadingInvitations && (
+            <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <p className="text-sm">Loading invitations...</p>
+            </div>
+          )}
+
+          {invitationError && (
+            <p className="text-center text-sm text-destructive">{invitationError}</p>
+          )}
+
+          {!loadingInvitations && invitations.length === 0 && (
+            <Card className="mt-8">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-base">No pending invitations</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  When employers invite you to a job, it will appear here.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setActiveTab('browse')}
+                >
+                  Browse jobs
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {!loadingInvitations &&
+            invitations.map((inv) => (
+              <InvitationCard
+                key={inv.id}
+                invitation={inv}
+                responding={respondingId === inv.id}
+                onAccept={() => setConfirmAcceptInv(inv)}
+                onDecline={() => setConfirmDeclineInv(inv)}
+              />
+            ))}
+        </div>
+      )}
 
       {/* ───── Applied tab ───── */}
       {activeTab === 'applied' && (
@@ -680,6 +836,57 @@ export default function DiscoverPage() {
           onCancel={() => setShowAvailOverlay(false)}
         />
       )}
+
+      {/* Accept invitation confirmation */}
+      <Dialog open={!!confirmAcceptInv} onOpenChange={() => setConfirmAcceptInv(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Accept this invitation?</DialogTitle>
+            <DialogDescription>
+              You&apos;ll be added as an applicant for this job.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmAcceptInv(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!!respondingId}
+              onClick={() => {
+                if (confirmAcceptInv) handleAcceptInvitation(confirmAcceptInv);
+              }}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Accept
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Decline invitation confirmation */}
+      <Dialog open={!!confirmDeclineInv} onOpenChange={() => setConfirmDeclineInv(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline this invitation?</DialogTitle>
+            <DialogDescription>The employer won&apos;t be notified.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmDeclineInv(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!!respondingId}
+              onClick={() => {
+                if (confirmDeclineInv) handleDeclineInvitation(confirmDeclineInv);
+              }}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Decline
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
@@ -1022,6 +1229,98 @@ function ApplicationCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </Card>
+  );
+}
+
+function InvitationCard({
+  invitation,
+  responding,
+  onAccept,
+  onDecline,
+}: {
+  invitation: Invitation;
+  responding: boolean;
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  const dw = invitation.daywork;
+  if (!dw) return null;
+
+  const symbol = currencySymbol(dw.currency);
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-2 pt-4">
+        {/* Invited by header */}
+        <p className="text-xs font-medium text-primary">
+          Invited by {invitation.employer_name ?? 'an employer'}
+        </p>
+
+        {/* Role + vessel */}
+        <div>
+          <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
+          <p className="text-sm text-muted-foreground">
+            {dw.vessel_name ?? 'Unknown vessel'}
+            {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
+          </p>
+        </div>
+
+        {/* Details */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-sm">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span>
+              {dw.port_name ?? 'Unknown'}
+              {dw.city_name && `, ${dw.city_name}`}
+              {dw.region_name && ` · ${dw.region_name}`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span>
+              {dw.start_date} — {dw.end_date} ({dw.working_days} day
+              {dw.working_days !== 1 ? 's' : ''})
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm">
+            <DollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="font-medium">
+              {symbol}
+              {dw.day_rate}/day
+            </span>
+          </div>
+        </div>
+
+        {/* Footer: job ref */}
+        <p className="text-xs text-muted-foreground/60">
+          DW-{String(dw.job_number).padStart(5, '0')}
+        </p>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            disabled={responding}
+            onClick={onDecline}
+          >
+            <X className="mr-1 h-3.5 w-3.5" />
+            Decline
+          </Button>
+          <Button size="sm" className="flex-1" disabled={responding} onClick={onAccept}>
+            {responding ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Check className="mr-1 h-3.5 w-3.5" />
+            )}
+            Accept
+          </Button>
+        </div>
+      </CardContent>
     </Card>
   );
 }
