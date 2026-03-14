@@ -62,6 +62,8 @@
 
 - [Stage 53] Invitation schema + types + events — `daywork_invitations` table (migration 00030) with RLS, indexes, unique constraint; `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED` event types and payloads; `DayworkInvitation` model interface; `invitation` aggregate type; revocation logic in `DAYWORK.ACCEPTED`, `DAYWORK.CANCELLED_BY_EMPLOYER`, `DAYWORK.RELISTED`; auto-accept on `DAYWORK.APPLIED` when matching invitation exists; 4 integration tests; 401 unit tests pass
 
+- [Stage 54] Employer available crew API + invite route — `GET /api/daywork/:id/available-crew` queries crew with matching availability in the same city, excludes applied/invited/employer, default role filter with `allRoles=true` override, returns enriched profiles sorted by available_days (limit 50) with invitation count; `POST /api/daywork/:id/invite` validates ownership, active status, crew existence, no duplicate application/invitation, enforces 2-invitation limit, appends `DAYWORK.INVITED` event; 16 new tests (8 available-crew + 8 invite); 417 tests pass
+
 ## Current Schema Version
 
 v30 — daywork invitations (30 migrations applied)

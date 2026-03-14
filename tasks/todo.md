@@ -158,6 +158,46 @@ Final pass: documentation updates, edge case testing, and cleanup.
 
 ## Done
 
+### Stage 54: Employer Available Crew API + Invite Route (completed)
+
+**Available crew API — `apps/web/src/app/api/daywork/[id]/available-crew/route.ts`:**
+
+- [x] Auth: require employer/agent hat, must own the posting
+- [x] Guard: daywork must be `active` status
+- [x] Query available crew: resolve port → city, find matching availability windows, exclude applied/invited/employer
+- [x] Default role filter matching daywork's `role_id`, `allRoles=true` to skip
+- [x] Enrich with profile data and availability overlap days
+- [x] Limit 50 results, ordered by available_days DESC
+- [x] Response shape: `{ crew, invitation_count, invitation_limit: 2 }`
+
+**Invite API — `apps/web/src/app/api/daywork/[id]/invite/route.ts`:**
+
+- [x] Auth: require employer/agent hat, must own the posting
+- [x] Guard: daywork must be `active` status
+- [x] Validate: crew person exists, no existing application or invitation
+- [x] Enforce limit: max 2 pending invitations per daywork
+- [x] Append `DAYWORK.INVITED` event
+- [x] Return `{ invitation: { id, status } }` with 201
+
+**Tests (16 new, 417 total):**
+
+- [x] Available crew: returns crew with availability overlap in same city
+- [x] Available crew: excludes crew who already applied
+- [x] Available crew: excludes crew already invited
+- [x] Available crew: excludes employer themselves
+- [x] Available crew: default role filter matches daywork role
+- [x] Available crew: `allRoles=true` returns crew of any role
+- [x] Available crew: returns 403 if not posting owner
+- [x] Available crew: returns empty if daywork is not active
+- [x] Invite: creates invitation, returns 201
+- [x] Invite: returns 400 when invitation limit (2) reached
+- [x] Invite: returns 400 if crew already applied
+- [x] Invite: returns 400 if crew already invited
+- [x] Invite: returns 403 if not employer hat
+- [x] Invite: returns 400 if daywork not active
+- [x] Invite: returns 401 when unauthenticated
+- [x] Invite: returns 400 if crewPersonId missing
+
 ### Stage 53: Invitation Schema + Types + Events (completed)
 
 **Migration `00030_daywork_invitations.sql`:**
