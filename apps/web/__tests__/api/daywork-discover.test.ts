@@ -53,6 +53,7 @@ function makeDayworksChain(data: unknown[], hasExcludedIds = false) {
   filterProxy.gte = vi.fn().mockReturnValue(filterProxy);
   filterProxy.lte = vi.fn().mockReturnValue(filterProxy);
   filterProxy.eq = vi.fn().mockReturnValue(filterProxy);
+  filterProxy.contains = vi.fn().mockReturnValue(filterProxy);
   filterProxy.order = mockOrder;
 
   // .neq() or .not() before optional filters
@@ -149,6 +150,7 @@ describe('GET /api/daywork/discover', () => {
       name: 'NDA Vessel',
       nda_flag: true,
       vessel_type: 'private',
+      size_band_id: 'sb1',
       vessel_size_bands: { label: '40-50m' },
     });
   });
@@ -219,5 +221,138 @@ describe('GET /api/daywork/discover', () => {
     const eqCall = selectCall.eq();
     const neqCall = eqCall.neq();
     expect(neqCall.not).toHaveBeenCalledWith('id', 'in', '(d2,d3)');
+  });
+
+  it('filters by certificationId using contains on required_certification_ids', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const { chain, filterProxy } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(chain);
+
+    const res = await GET(makeRequest('?certificationId=cert-123'));
+    expect(res.status).toBe(200);
+    expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-123']);
+  });
+
+  it('certificationId=none filters for jobs with no cert requirements', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const { chain, filterProxy } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(chain);
+
+    const res = await GET(makeRequest('?certificationId=none'));
+    expect(res.status).toBe(200);
+    expect(filterProxy.eq).toHaveBeenCalledWith('required_certification_ids', '{}');
+    expect(filterProxy.contains).not.toHaveBeenCalled();
+  });
+
+  it('filters by experienceBracketId using eq on experience_bracket_id', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const { chain, filterProxy } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(chain);
+
+    const res = await GET(makeRequest('?experienceBracketId=eb-456'));
+    expect(res.status).toBe(200);
+    expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-456');
+  });
+
+  it('filters by sizeBandId via post-fetch vessel data', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const dayworks = [
+      { id: 'd1', vessel_id: 'v1', poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
+      { id: 'd2', vessel_id: 'v2', poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
+    ];
+
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
+    // v1 has size band sb-match, v2 has sb-other
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'v1', imo_number: null, name: 'Vessel A', vessel_type: 'motor', size_band_id: 'sb-match', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
+      error: null,
+    });
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'sail', size_band_id: 'sb-other', size_band_label: '20-30m', nda_flag: false, owner_person_id: 'o2' }],
+      error: null,
+    });
+
+    const res = await GET(makeRequest('?sizeBandId=sb-match'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.dayworks).toHaveLength(1);
+    expect(body.dayworks[0].vessels.name).toBe('Vessel A');
+  });
+
+  it('applies combined filters (role + cert + bracket) together', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const { chain, filterProxy } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(chain);
+
+    const res = await GET(makeRequest('?roleId=r1&certificationId=cert-1&experienceBracketId=eb-1'));
+    expect(res.status).toBe(200);
+    // Role filter is applied via the initial .eq() chain, but cert and bracket go through filterProxy
+    expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);
+    expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-1');
+  });
+
+  it('sizeBandId filter excludes dayworks with no vessel (vessel_id null)', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const dayworks = [
+      { id: 'd1', vessel_id: null, poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
+      { id: 'd2', vessel_id: 'v2', poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
+    ];
+
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
+    // Only v2 has a vessel — and it matches the filter
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'motor', size_band_id: 'sb-target', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
+      error: null,
+    });
+
+    const res = await GET(makeRequest('?sizeBandId=sb-target'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // d1 (no vessel) excluded, d2 (matching band) included
+    expect(body.dayworks).toHaveLength(1);
+    expect(body.dayworks[0].vessels.name).toBe('Vessel B');
+  });
+
+  it('applies all seven filters simultaneously', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const dayworks = [
+      { id: 'd1', vessel_id: 'v1', poster_person_id: 'other', start_date: '2026-04-10', end_date: '2026-04-15' },
+    ];
+
+    const { chain, filterProxy } = makeDayworksChain(dayworks);
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+    mockFromAuth.mockReturnValueOnce(chain);
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'v1', imo_number: null, name: 'Test Vessel', vessel_type: 'motor', size_band_id: 'sb-1', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
+      error: null,
+    });
+
+    const res = await GET(
+      makeRequest('?roleId=r1&portId=p1&startDate=2026-04-01&endDate=2026-04-30&certificationId=cert-1&experienceBracketId=eb-1&sizeBandId=sb-1'),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.dayworks).toHaveLength(1);
+
+    // DB-level filters
+    expect(filterProxy.gte).toHaveBeenCalledWith('start_date', '2026-04-01');
+    expect(filterProxy.lte).toHaveBeenCalledWith('end_date', '2026-04-30');
+    expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);
+    expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-1');
+    // Post-fetch filter (sizeBandId) verified by the result including only matching vessel
+    expect(body.dayworks[0].vessels.size_band_id).toBe('sb-1');
   });
 });

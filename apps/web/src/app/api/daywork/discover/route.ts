@@ -37,7 +37,7 @@ interface PublicVesselRow {
 }
 
 /**
- * GET /api/daywork/discover?roleId=&portId=&startDate=&endDate=
+ * GET /api/daywork/discover?roleId=&portId=&startDate=&endDate=&certificationId=&experienceBracketId=&sizeBandId=
  * Returns active daywork postings for crew discovery.
  * Excludes the crew's own postings and jobs they have already interacted with.
  * Ordered by recency (newest first).
@@ -56,6 +56,9 @@ export async function GET(request: Request) {
   const filterPortId = searchParams.get('portId');
   const filterStartDate = searchParams.get('startDate');
   const filterEndDate = searchParams.get('endDate');
+  const filterCertificationId = searchParams.get('certificationId');
+  const filterExperienceBracketId = searchParams.get('experienceBracketId');
+  const filterSizeBandId = searchParams.get('sizeBandId');
 
   // Get IDs of dayworks this crew has already interacted with
   const { data: existingApps } = await supabase
@@ -99,6 +102,16 @@ export async function GET(request: Request) {
   if (filterEndDate) {
     query = query.lte('end_date', filterEndDate);
   }
+  if (filterCertificationId) {
+    if (filterCertificationId === 'none') {
+      query = query.eq('required_certification_ids', '{}');
+    } else {
+      query = query.contains('required_certification_ids', [filterCertificationId]);
+    }
+  }
+  if (filterExperienceBracketId) {
+    query = query.eq('experience_bracket_id', filterExperienceBracketId);
+  }
 
   query = query.order('created_at', { ascending: false });
 
@@ -129,7 +142,7 @@ export async function GET(request: Request) {
 
   const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
 
-  const hydrated = filtered.map((daywork) => {
+  let hydrated = filtered.map((daywork) => {
     const vessel = vesselMap.get(daywork.vessel_id);
 
     return {
@@ -139,11 +152,17 @@ export async function GET(request: Request) {
             name: vessel.name,
             nda_flag: vessel.nda_flag,
             vessel_type: vessel.vessel_type,
+            size_band_id: vessel.size_band_id,
             vessel_size_bands: vessel.size_band_label ? { label: vessel.size_band_label } : null,
           }
         : null,
     };
   });
+
+  // Post-fetch filter: sizeBandId requires vessel data which comes from RPC
+  if (filterSizeBandId) {
+    hydrated = hydrated.filter((dw) => dw.vessels?.size_band_id === filterSizeBandId);
+  }
 
   return NextResponse.json({ dayworks: hydrated });
 }

@@ -185,6 +185,8 @@ Claude Code MUST update documentation as part of every session's Close step.
 | `packages/types/README.md` | **Edit when referenced code changes** | New/changed/removed type exports.                                                                                               |
 | `packages/db/README.md`    | **Edit when referenced code changes** | New/changed/removed DB helpers or RPCs.                                                                                         |
 | `supabase/README.md`       | **Edit when referenced code changes** | New migrations, changed RPCs, changed conventions.                                                                              |
+| `tasks/todo.md`            | **Read + Write**                      | Every session. Read at Orient, write checklist at Plan, mark complete during Implement, clean up at Close.                      |
+| `tasks/lessons.md`         | **Read + Append**                     | Read at Orient. Append immediately after any user correction. Review and deduplicate periodically.                              |
 
 ### Catch-All Rules
 
@@ -208,15 +210,33 @@ If a session changes code that an `.md` file documents, updating that `.md` file
 
 ### 1. Orient
 
-Read `CLAUDE.md` and `BUILD_STATE.md`. Read `dockwalker_mission.md` for product context. Verify repo state matches Build State.
+Read these files in order:
 
-### 2. Confirm Scope
+1. `CLAUDE.md` (this file — architectural rules)
+2. `BUILD_STATE.md` (current build progress, schema version, deferred decisions)
+3. `dockwalker_mission.md` (product context and negative space)
+4. `tasks/lessons.md` (past mistakes and project-specific patterns — do not repeat these)
+5. `tasks/todo.md` (in-flight work from previous sessions)
 
-State which task, expected files, done condition, and what will NOT be touched. Wait for confirmation before writing code.
+Verify repo state matches Build State. If `tasks/todo.md` has incomplete items from a previous session, surface them to the user before starting new work.
+
+### 2. Plan
+
+State which task, expected files, done condition, and what will NOT be touched.
+
+**Plan-first rule:** For any task touching 3+ files or requiring a migration, write a checklist to `tasks/todo.md` before writing code. Each checklist item should be a concrete, verifiable action (not "implement feature" but "add column X to table Y").
+
+Wait for user confirmation before proceeding to implementation.
 
 ### 3. Implement
 
-Build end-to-end. If scope changes needed, stop and report. A task is complete when: code implemented, tests written and passing, tsc + eslint pass, no console.log/TODO.
+Build end-to-end, marking checklist items in `tasks/todo.md` as complete (`[x]`) as each is finished.
+
+**Stop-and-replan rule:** If implementation diverges from the plan — unexpected dependency, scope creep, broken assumption — stop immediately. Update the checklist in `tasks/todo.md` with the revised plan. Get user confirmation before continuing.
+
+**Lessons check:** Before editing any file, verify the change does not repeat a pattern documented in `tasks/lessons.md`.
+
+A task is complete when: code implemented, tests written and passing, tsc + eslint pass, no console.log/TODO.
 
 ### 4. Present Changes
 
@@ -235,12 +255,20 @@ For every file changed in this session, check the Documentation Governance table
 7. If DB helpers changed, update `packages/db/README.md`
 8. If migrations/rollbacks changed, update `supabase/README.md`
 9. If monorepo structure changed, update root `README.md`
+10. Move completed items in `tasks/todo.md` to the Done section
+11. If the user corrected you during this session, append the pattern to `tasks/lessons.md`
 
 A task is NOT complete until all applicable documentation is updated.
 
 ### 6. Close
 
 State what was built, suggest commit message, confirm pre-commit passes. Confirm all documentation updates from step 5 were applied.
+
+Verify: `tasks/todo.md` reflects current state (no stale in-progress items). `tasks/lessons.md` captures any new lessons from this session.
+
+### Self-Improvement Rule
+
+After ANY correction from the user — wrong assumption, missed edge case, repeated mistake, style preference — append the pattern to `tasks/lessons.md` **immediately**, before continuing work. Do not wait until the Close step. The correction is the trigger; the lesson must be written before the next line of code.
 
 ## Human Review Checklist
 
@@ -249,6 +277,35 @@ State what was built, suggest commit message, confirm pre-commit passes. Confirm
 3. Does this change auth or RLS? Who can access what?
 4. What input would make the new tests fail?
 5. Did anything regress in the existing test suite?
+
+## Two-Agent Workflow
+
+When running two terminals simultaneously, agents operate in distinct roles. Role is assigned by the user's opening message, not by this file.
+
+### Planning Agent (read-only on source code)
+
+- Explores codebase, researches questions, reviews implementation output, drafts test cases
+- Writes ONLY to `tasks/todo.md` and `tasks/lessons.md`
+- Never edits source files, migrations, types, or tests
+- Populates `tasks/todo.md` with detailed checklists before implementation starts
+
+### Implementation Agent (executes the plan)
+
+- Reads `tasks/todo.md` at Orient — this is the work spec
+- Reads `tasks/lessons.md` at Orient — these are guardrails
+- Marks checklist items `[x]` as completed during Implement
+- Follows the full Session Protocol (Orient through Close)
+
+### File Access by Role
+
+| File               | Planning Agent | Implementation Agent |
+| ------------------ | -------------- | -------------------- |
+| `tasks/todo.md`    | Read + Write   | Read + Mark Complete |
+| `tasks/lessons.md` | Read + Write   | Read + Append        |
+| Source code        | Read only      | Read + Write         |
+| `BUILD_STATE.md`   | Read only      | Append + Edit        |
+
+On single-agent days, one agent fulfills both roles — writes its own checklist, then implements it.
 
 ---
 

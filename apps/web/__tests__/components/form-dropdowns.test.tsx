@@ -72,10 +72,11 @@ let fromSpy: ReturnType<typeof vi.fn>;
 
 function createMockQueryBuilder(table: string) {
   const result = { data: TABLE_DATA[table] ?? [], error: null };
-  const builder = {
+  const builder: Record<string, unknown> = {
     select: vi.fn(() => builder),
-    order: vi.fn(() => Promise.resolve(result)),
+    order: vi.fn(() => builder),
     eq: vi.fn(() => builder),
+    then: (resolve: (v: unknown) => void) => resolve(result),
   };
   return builder;
 }

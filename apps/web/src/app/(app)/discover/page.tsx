@@ -74,6 +74,17 @@ interface DayworkCard {
 interface LookupItem {
   id: string;
   name: string;
+  category?: string;
+}
+
+interface ExperienceBracketItem {
+  id: string;
+  label: string;
+}
+
+interface SizeBandItem {
+  id: string;
+  label: string;
 }
 
 interface MyApplication {
@@ -128,6 +139,9 @@ export default function DiscoverPage() {
   const [filterPortId, setFilterPortId] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterCertId, setFilterCertId] = useState('');
+  const [filterExperienceBracketId, setFilterExperienceBracketId] = useState('');
+  const [filterSizeBandId, setFilterSizeBandId] = useState('');
 
   // Applied tab state
   const [applications, setApplications] = useState<MyApplication[]>([]);
@@ -141,6 +155,9 @@ export default function DiscoverPage() {
 
   // Lookups for filters
   const [roles, setRoles] = useState<LookupItem[]>([]);
+  const [certifications, setCertifications] = useState<LookupItem[]>([]);
+  const [experienceBrackets, setExperienceBrackets] = useState<ExperienceBracketItem[]>([]);
+  const [sizeBands, setSizeBands] = useState<SizeBandItem[]>([]);
 
   // Check crew availability on mount — only 'available' status allows applying
   const checkAvailability = useCallback(async () => {
@@ -155,10 +172,20 @@ export default function DiscoverPage() {
   useEffect(() => {
     async function loadLookups() {
       const supabase = createClient();
-      const [rolesRes] = await Promise.all([
+      const [rolesRes, certsRes, bracketsRes, bandsRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name').order('sort_order'),
+        supabase
+          .from('certifications')
+          .select('id, name, category')
+          .order('category')
+          .order('name'),
+        supabase.from('experience_brackets').select('id, label').order('min_months'),
+        supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data);
+      if (certsRes.data) setCertifications(certsRes.data);
+      if (bracketsRes.data) setExperienceBrackets(bracketsRes.data);
+      if (bandsRes.data) setSizeBands(bandsRes.data);
     }
     loadLookups();
   }, []);
@@ -176,13 +203,25 @@ export default function DiscoverPage() {
     if (filterPortId && filterPortId !== 'all') params.set('portId', filterPortId);
     if (filterStartDate) params.set('startDate', filterStartDate);
     if (filterEndDate) params.set('endDate', filterEndDate);
+    if (filterCertId && filterCertId !== 'all') params.set('certificationId', filterCertId);
+    if (filterExperienceBracketId && filterExperienceBracketId !== 'all')
+      params.set('experienceBracketId', filterExperienceBracketId);
+    if (filterSizeBandId && filterSizeBandId !== 'all') params.set('sizeBandId', filterSizeBandId);
 
     const qs = params.toString();
     const res = await fetch(`/api/daywork/discover${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     if (data.dayworks) setCards(data.dayworks);
     setLoading(false);
-  }, [filterRoleId, filterPortId, filterStartDate, filterEndDate]);
+  }, [
+    filterRoleId,
+    filterPortId,
+    filterStartDate,
+    filterEndDate,
+    filterCertId,
+    filterExperienceBracketId,
+    filterSizeBandId,
+  ]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -407,6 +446,64 @@ export default function DiscoverPage() {
                       onChange={(e) => setFilterEndDate(e.target.value)}
                     />
                   </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">
+                      Certification
+                    </label>
+                    <Select value={filterCertId} onValueChange={setFilterCertId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All certs" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All certs</SelectItem>
+                        <SelectItem value="none">No certs required</SelectItem>
+                        {certifications.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Experience</label>
+                    <Select
+                      value={filterExperienceBracketId}
+                      onValueChange={setFilterExperienceBracketId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All levels" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All levels</SelectItem>
+                        {experienceBrackets.map((eb) => (
+                          <SelectItem key={eb.id} value={eb.id}>
+                            {eb.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Vessel size</label>
+                  <Select value={filterSizeBandId} onValueChange={setFilterSizeBandId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All sizes" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All sizes</SelectItem>
+                      {sizeBands.map((sb) => (
+                        <SelectItem key={sb.id} value={sb.id}>
+                          {convertSizeBandLabel(sb.label, prefs.lengthUnit)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>

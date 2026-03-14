@@ -56,6 +56,8 @@
 
 - [Stage 50] Experience enhancements — `vessel_type` renamed to `vessel_operation` (charter|private), new `vessel_type` column (motor|sail) on vessels for M/Y S/Y prefix; `charter_or_private` → `vessel_operation` on crew_experiences; `rotation_type` → `contract_type` with new values (permanent, rotational, seasonal, crossing, delivery, temporary); `rotation_details` → `contract_details`; day-level date precision (month → date inputs); end date >= start date API validation; new `RolePicker` component (department → role searchable hierarchy); new `FlagStatePicker` component (searchable text filter); vessel name inputs prefixed with greyed-out M/Y or S/Y based on vessel type; total days onboard summary on profile experience section; all API routes, onboarding, profile, add-experience pages updated; migration 00029 + rollback; 391 tests pass
 
+- [Stage 51] Discovery filter expansion — certification (`certificationId`, special value `none` for no-cert-required jobs), experience bracket (`experienceBracketId`), and vessel size band (`sizeBandId`, post-fetch) filters on discover API + UI; fixed form-dropdowns component test mock (thenable query builder); 398 tests pass
+
 ## Current Schema Version
 
 v29 — experience enhancements (29 migrations applied)
