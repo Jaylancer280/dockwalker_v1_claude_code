@@ -92,6 +92,38 @@ export async function POST(request: Request) {
 
     // Step 2: For experienced crew, create vessels + experiences
     if (identityType === 'crew' && Array.isArray(body_experiences) && body_experiences.length > 0) {
+      // Validate no date overlaps within the batch
+      type ExpEntry = { experience: { startDate: string; endDate?: string; isCurrent?: boolean } };
+      const ranges = (body_experiences as ExpEntry[]).map((e) => ({
+        start: e.experience.startDate,
+        end: e.experience.endDate ?? null,
+      }));
+      for (let i = 0; i < ranges.length; i++) {
+        for (let j = i + 1; j < ranges.length; j++) {
+          const a = ranges[i];
+          const b = ranges[j];
+          const aEndsAfterBStarts = !a.end || a.end >= b.start;
+          const bEndsAfterAStarts = !b.end || b.end >= a.start;
+          if (aEndsAfterBStarts && bEndsAfterAStarts) {
+            return NextResponse.json(
+              { error: 'Experience dates overlap with each other' },
+              { status: 409 },
+            );
+          }
+        }
+      }
+
+      // Validate at most one is_current
+      const currentCount = (body_experiences as ExpEntry[]).filter(
+        (e) => e.experience.isCurrent,
+      ).length;
+      if (currentCount > 1) {
+        return NextResponse.json(
+          { error: 'Only one experience can be marked as current' },
+          { status: 409 },
+        );
+      }
+
       for (const entry of body_experiences) {
         const { vessel, experience } = entry as {
           vessel: {

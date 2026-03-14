@@ -14,6 +14,7 @@ vi.mock('@dockwalker/db', () => ({
 }));
 
 const mockFrom = vi.fn();
+const mockServiceFrom = vi.fn();
 
 function guardOk(overrides: Record<string, unknown> = {}) {
   return {
@@ -23,10 +24,33 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFrom },
-      serviceClient: { rpc: vi.fn() },
+      serviceClient: { from: mockServiceFrom, rpc: vi.fn() },
       ...overrides,
     },
   };
+}
+
+function mockServiceQuery(table: string, data: unknown) {
+  mockServiceFrom.mockImplementationOnce((t: string) => {
+    if (t !== table) throw new Error(`Unexpected table: ${t}`);
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({ data }),
+          }),
+        }),
+      }),
+    };
+  });
+}
+
+function mockServiceExperiences(data: unknown) {
+  mockServiceFrom.mockImplementationOnce(() => ({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data }),
+    }),
+  }));
 }
 
 const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -158,6 +182,8 @@ describe('POST /api/experiences', () => {
 
   it('returns 201 on success', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+    // No is_current, so only the overlap query fires
+    mockServiceExperiences([]);
 
     const res = await POST(jsonRequest({
       vesselId: 'v1',
@@ -173,6 +199,42 @@ describe('POST /api/experiences', () => {
     expect(body.id).toBeDefined();
     expect(mockAppendEvent).toHaveBeenCalledOnce();
     expect(mockAppendEvent.mock.calls[0][1].eventType).toBe('EXPERIENCE.ADDED');
+  });
+
+  it('returns 409 when dates overlap with existing experience', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // Existing experience: Jan-Jun 2024
+    mockServiceExperiences([
+      { id: 'exp-existing', start_date: '2024-01-01', end_date: '2024-06-01' },
+    ]);
+
+    const res = await POST(jsonRequest({
+      vesselId: 'v1',
+      roleId: 'r1',
+      startDate: '2024-03-01',
+      endDate: '2024-09-01',
+      vesselOperation: 'charter',
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain('overlap');
+  });
+
+  it('returns 409 when is_current and another current exists', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // is_current check returns existing current
+    mockServiceQuery('crew_experiences', [{ id: 'exp-current' }]);
+
+    const res = await POST(jsonRequest({
+      vesselId: 'v1',
+      roleId: 'r1',
+      startDate: '2025-01-01',
+      vesselOperation: 'charter',
+      isCurrent: true,
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain('current experience');
   });
 });
 
@@ -244,6 +306,50 @@ describe('PATCH /api/experiences/:id', () => {
     expect(res.status).toBe(200);
     expect(mockAppendEvent).toHaveBeenCalledOnce();
     expect(mockAppendEvent.mock.calls[0][1].eventType).toBe('EXPERIENCE.UPDATED');
+  });
+
+  it('returns 409 when updated dates overlap with another experience', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // Ownership check
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'exp1' } }),
+          }),
+        }),
+      }),
+    });
+    // Fetch this experience's current dates
+    mockServiceFrom.mockImplementationOnce(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { start_date: '2024-01-01', end_date: '2024-06-01' },
+          }),
+        }),
+      }),
+    }));
+    // Fetch other experiences (has overlapping one)
+    mockServiceFrom.mockImplementationOnce(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          neq: vi.fn().mockResolvedValue({
+            data: [{ id: 'exp2', start_date: '2024-03-01', end_date: '2024-09-01' }],
+          }),
+        }),
+      }),
+    }));
+
+    const req = new Request('http://localhost/api/experiences/exp1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: '2024-01-01', endDate: '2024-08-01' }),
+    });
+    const res = await PATCH(req, makeParams('exp1'));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain('overlap');
   });
 });
 

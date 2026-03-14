@@ -94,8 +94,17 @@ export async function GET() {
 
   const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
 
+  // Filter out invitations where the daywork start date has already passed
+  const today = new Date().toISOString().slice(0, 10);
+  const validInvitations = invitations.filter((inv) => {
+    const dw = dayworkMap.get(inv.daywork_id) as Record<string, unknown> | undefined;
+    if (!dw) return true; // keep if daywork not found (will show null daywork)
+    const startDate = dw.start_date as string | null;
+    return !startDate || startDate >= today;
+  });
+
   // Hydrate invitations
-  const hydrated = invitations.map((inv) => {
+  const hydrated = validInvitations.map((inv) => {
     const dw = dayworkMap.get(inv.daywork_id) as Record<string, unknown> | undefined;
     const vesselId = dw?.vessel_id as string | undefined;
     const vessel = vesselId ? vesselMap.get(vesselId) : null;

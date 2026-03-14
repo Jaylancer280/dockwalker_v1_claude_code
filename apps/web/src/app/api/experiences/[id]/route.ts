@@ -90,6 +90,61 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     );
   }
 
+  // Check for is_current duplicate (excluding this experience)
+  if (isCurrent) {
+    const { data: currentExps } = await serviceClient
+      .from('crew_experiences')
+      .select('id')
+      .eq('person_id', user.id)
+      .eq('is_current', true)
+      .neq('id', id)
+      .limit(1);
+
+    if (currentExps && currentExps.length > 0) {
+      return NextResponse.json(
+        { error: 'You already have a current experience. End it before adding another.' },
+        { status: 409 },
+      );
+    }
+  }
+
+  // Check for date overlap with existing experiences (excluding this one)
+  if (startDate || endDate !== undefined) {
+    // Need the full record to compute overlap when only one date is changing
+    const { data: thisExp } = await serviceClient
+      .from('crew_experiences')
+      .select('start_date, end_date')
+      .eq('id', id)
+      .single();
+
+    const effectiveStart = startDate ?? thisExp?.start_date;
+    const effectiveEnd = endDate !== undefined ? endDate : thisExp?.end_date;
+
+    if (effectiveStart) {
+      const { data: otherExps } = await serviceClient
+        .from('crew_experiences')
+        .select('id, start_date, end_date')
+        .eq('person_id', user.id)
+        .neq('id', id);
+
+      if (otherExps) {
+        const hasOverlap = otherExps.some((exp) => {
+          const expStart = exp.start_date;
+          const expEnd = exp.end_date;
+          const newEndsAfterExpStarts = !effectiveEnd || effectiveEnd >= expStart;
+          const expEndsAfterNewStarts = !expEnd || expEnd >= effectiveStart;
+          return newEndsAfterExpStarts && expEndsAfterNewStarts;
+        });
+        if (hasOverlap) {
+          return NextResponse.json(
+            { error: 'Experience dates overlap with an existing entry' },
+            { status: 409 },
+          );
+        }
+      }
+    }
+  }
+
   // Build payload with only provided fields
   const payload: Record<string, unknown> = {};
   if (roleId !== undefined) payload.role_id = roleId;

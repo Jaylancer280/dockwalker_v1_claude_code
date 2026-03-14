@@ -133,6 +133,48 @@ export async function POST(request: Request) {
     );
   }
 
+  // Check for is_current duplicate
+  if (isCurrent) {
+    const { data: currentExps } = await serviceClient
+      .from('crew_experiences')
+      .select('id')
+      .eq('person_id', user.id)
+      .eq('is_current', true)
+      .limit(1);
+
+    if (currentExps && currentExps.length > 0) {
+      return NextResponse.json(
+        { error: 'You already have a current experience. End it before adding another.' },
+        { status: 409 },
+      );
+    }
+  }
+
+  // Check for date overlap with existing experiences
+  const { data: existingExps } = await serviceClient
+    .from('crew_experiences')
+    .select('id, start_date, end_date')
+    .eq('person_id', user.id);
+
+  if (existingExps) {
+    const newStart = startDate;
+    const newEnd = endDate ?? null;
+    const hasOverlap = existingExps.some((exp) => {
+      const expStart = exp.start_date;
+      const expEnd = exp.end_date;
+      // Two ranges overlap if each starts before the other ends
+      const newEndsAfterExpStarts = !newEnd || newEnd >= expStart;
+      const expEndsAfterNewStarts = !expEnd || expEnd >= newStart;
+      return newEndsAfterExpStarts && expEndsAfterNewStarts;
+    });
+    if (hasOverlap) {
+      return NextResponse.json(
+        { error: 'Experience dates overlap with an existing entry' },
+        { status: 409 },
+      );
+    }
+  }
+
   const experienceId = randomUUID();
 
   try {

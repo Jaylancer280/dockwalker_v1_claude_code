@@ -72,6 +72,8 @@
 
 - [Stage 58] Invite confirmation dialog + polish — invite button/swipe now opens confirmation dialog ("Invite {name} for {role} — DW-{number}") before sending; fetches daywork job_number and role name on page load; minAvailableDays API filter clamped to 0-365; deferred decision added for size band post-fetch sparseness; fixed test mock for new supabase query chain; 431 tests pass
 
+- [Stage 59] Correctness fixes — overlap, expiry, experience dates: (1) invitation accept now calls `check_no_overlap` RPC to prevent double-booking before creating application; (2) past-start-date invitations filtered from GET response and rejected with 400 on accept; (3) verified declined invitations already excluded from available-crew query (no code change needed); (4) experience POST/PATCH enforce date overlap validation against existing crew_experiences + prevent duplicate `is_current` entries; onboarding batch validates intra-batch date overlaps and multiple is_current; 5 new tests (436 total)
+
 ## Current Schema Version
 
 v30 — daywork invitations (30 migrations applied)

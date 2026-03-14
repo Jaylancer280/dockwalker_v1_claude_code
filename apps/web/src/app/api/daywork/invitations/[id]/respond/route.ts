@@ -47,12 +47,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Check daywork is still active
   const { data: daywork } = await supabase
     .from('dayworks')
-    .select('id, status')
+    .select('id, status, start_date')
     .eq('id', invitation.daywork_id)
     .single();
 
   if (!daywork || daywork.status !== 'active') {
     return NextResponse.json({ error: 'This job is no longer available' }, { status: 400 });
+  }
+
+  // Reject if start date has already passed
+  if (action === 'accept' && daywork.start_date) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (daywork.start_date < today) {
+      return NextResponse.json({ error: 'This job has already started' }, { status: 400 });
+    }
   }
 
   if (action === 'decline') {
@@ -84,6 +92,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json(
       { error: 'Set your availability before accepting an invitation' },
       { status: 400 },
+    );
+  }
+
+  // Check for double-booking (overlapping accepted engagements)
+  const { data: overlap, error: overlapError } = await serviceClient.rpc('check_no_overlap', {
+    p_crew_person_id: user.id,
+    p_daywork_id: invitation.daywork_id,
+  });
+
+  if (overlapError) {
+    return NextResponse.json({ error: overlapError.message }, { status: 500 });
+  }
+
+  if (overlap === false) {
+    return NextResponse.json(
+      { error: 'You have an overlapping engagement for these dates' },
+      { status: 409 },
     );
   }
 

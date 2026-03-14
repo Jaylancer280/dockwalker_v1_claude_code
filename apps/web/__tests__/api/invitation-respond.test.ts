@@ -16,6 +16,8 @@ vi.mock('@dockwalker/db', () => ({
 
 const mockFromAuth = vi.fn();
 
+const mockServiceRpc = vi.fn();
+
 function guardOk(overrides: Record<string, unknown> = {}) {
   return {
     ok: true,
@@ -24,7 +26,7 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFromAuth },
-      serviceClient: { rpc: vi.fn() },
+      serviceClient: { rpc: mockServiceRpc },
       ...overrides,
     },
   };
@@ -87,8 +89,9 @@ describe('POST /api/daywork/invitations/:id/respond', () => {
   it('accept: creates application and updates invitation', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockInvitation(pendingInvitation);
-    mockDaywork({ id: 'dw-1', status: 'active' });
+    mockDaywork({ id: 'dw-1', status: 'active', start_date: '2099-01-01' });
     mockAvailability([{ id: 'aw-1' }]);
+    mockServiceRpc.mockResolvedValueOnce({ data: true, error: null });
 
     const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
     expect(res.status).toBe(200);
@@ -173,5 +176,29 @@ describe('POST /api/daywork/invitations/:id/respond', () => {
 
     const res = await POST(makeReq({ action: 'maybe' }), makeParams('inv-1'));
     expect(res.status).toBe(400);
+  });
+
+  it('accept: returns 409 if crew has overlapping engagement', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockInvitation(pendingInvitation);
+    mockDaywork({ id: 'dw-1', status: 'active', start_date: '2099-01-01' });
+    mockAvailability([{ id: 'aw-1' }]);
+    mockServiceRpc.mockResolvedValueOnce({ data: false, error: null });
+
+    const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain('overlapping engagement');
+  });
+
+  it('accept: returns 400 if daywork start date has passed', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockInvitation(pendingInvitation);
+    mockDaywork({ id: 'dw-1', status: 'active', start_date: '2020-01-01' });
+
+    const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('already started');
   });
 });
