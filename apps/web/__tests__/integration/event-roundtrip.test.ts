@@ -557,6 +557,58 @@ describe('DAYWORK.CANCELLED_BY_EMPLOYER revokes pending invitations', () => {
   });
 });
 
+describe('DAYWORK.RELISTED revokes pending invitations', () => {
+  const DAYWORK_ID = '44444444-4444-4444-4444-444444444004'; // Posting 4
+
+  it('revokes pending invitations when daywork is relisted', async () => {
+    // Clean up
+    await service.from('daywork_invitations').delete().eq('daywork_id', DAYWORK_ID);
+    await service.from('dayworks').update({ status: 'active' }).eq('id', DAYWORK_ID);
+
+    // Create invitation
+    await appendEvent(
+      'DAYWORK.INVITED',
+      DAYWORK_ID,
+      'invitation',
+      'employer',
+      { daywork_id: DAYWORK_ID, crew_person_id: CREW_ID },
+      EMPLOYER_ID,
+    );
+
+    // Verify pending
+    const { data: before } = await service
+      .from('daywork_invitations')
+      .select('status')
+      .eq('daywork_id', DAYWORK_ID)
+      .eq('crew_person_id', CREW_ID)
+      .single();
+    expect(before?.status).toBe('pending');
+
+    // Relist daywork
+    await appendEvent(
+      'DAYWORK.RELISTED',
+      DAYWORK_ID,
+      'daywork',
+      'employer',
+      { daywork_id: DAYWORK_ID },
+      EMPLOYER_ID,
+    );
+
+    // Invitation should be revoked
+    const { data: inv } = await service
+      .from('daywork_invitations')
+      .select('status')
+      .eq('daywork_id', DAYWORK_ID)
+      .eq('crew_person_id', CREW_ID)
+      .single();
+    expect(inv?.status).toBe('revoked');
+
+    // Clean up
+    await service.from('daywork_invitations').delete().eq('daywork_id', DAYWORK_ID);
+    await service.from('dayworks').update({ status: 'active' }).eq('id', DAYWORK_ID);
+  });
+});
+
 // ===========================================================================
 // 9. Message roundtrip
 // ===========================================================================

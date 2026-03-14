@@ -68,6 +68,8 @@
 
 - [Stage 56] Crew invitations tab + accept/decline — `GET /api/daywork/invitations` returns pending invitations for authenticated crew, hydrated with daywork details (role, vessel, location, dates, rate, job number), employer display name, and NDA-safe vessel data via `get_vessel_public` RPC; `POST /api/daywork/invitations/:id/respond` handles accept (validates availability, appends `DAYWORK.INVITATION_ACCEPTED` + `DAYWORK.APPLIED` atomically via `appendEvents`) and decline (`DAYWORK.INVITATION_DECLINED`); discover page gains "Invitations" tab between Browse and Applied with badge count, invitation cards showing job details + employer name, accept/decline buttons with confirmation dialogs, inline error handling for expired jobs; 11 new tests (3 invitations GET + 8 respond); 431 tests pass
 
+- [Stage 57] Edge case hardening — added integration test for `DAYWORK.RELISTED` revoking pending invitations (the only untested revocation path); all 5 invitation edge cases now verified: revocation on acceptance, auto-accept on crew apply, revocation on employer cancel, revocation on relist, 2-invitation API limit; all documentation already current from Stages 53-56; 431 unit tests pass
+
 ## Current Schema Version
 
 v30 — daywork invitations (30 migrations applied)

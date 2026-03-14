@@ -5,79 +5,36 @@
 
 ## Current Task
 
-Stage 57: Documentation + Edge Case Hardening
+None — invitation feature complete (Stages 53-57)
 
 ## Queue
-
-### ~~Stage 54: Employer Available Crew API + Invite Route~~ (moved to Done)
-
-API endpoints for browsing available crew and sending invitations.
-
-**Available crew API — `apps/web/src/app/api/daywork/[id]/available-crew/route.ts` (new GET):**
-
-- [ ] Auth: require employer/agent hat, must own the posting
-- [ ] Guard: daywork must be `active` status (not in_progress/completed/cancelled)
-- [ ] Query available crew:
-  1. Get daywork's start_date, end_date, location_port_id → resolve city_id from port
-  2. Find crew with `availability_windows` where: date BETWEEN start_date AND end_date, expires_at > now, not_available = false, city_id matches daywork's city
-  3. Exclude: crew who already applied (check `applications` table), crew already invited (check `daywork_invitations`), the employer themselves
-  4. Default: filter by daywork's `role_id` matching crew's `primary_role_id`
-  5. Accept optional query param `allRoles=true` to skip role filter
-- [ ] Enrich each crew member with: profile data (display_name, role, certs, experience bracket, bio, location), availability overlap days count, availability city
-- [ ] Limit: 50 results, ordered by available_days DESC (most available first)
-- [ ] Response shape: `{ crew: Array<enriched crew>, invitation_count: number, invitation_limit: 2 }`
-
-**Invite API — `apps/web/src/app/api/daywork/[id]/invite/route.ts` (new POST):**
-
-- [ ] Auth: require employer/agent hat, must own the posting
-- [ ] Guard: daywork must be `active` status
-- [ ] Body: `{ crewPersonId: string }`
-- [ ] Validate: crew person exists and has crew profile
-- [ ] Validate: no existing application or invitation for this crew+daywork
-- [ ] Enforce limit: count pending invitations for this daywork, reject with 400 if >= 2
-- [ ] Append `DAYWORK.INVITED` event via `appendEvent`
-- [ ] Return `{ invitation: { id, status } }`
-
-**Tests:**
-
-- [ ] Available crew: returns crew with availability overlap in same city
-- [ ] Available crew: excludes crew who already applied
-- [ ] Available crew: excludes crew already invited
-- [ ] Available crew: excludes employer themselves
-- [ ] Available crew: default role filter matches daywork role
-- [ ] Available crew: `allRoles=true` returns crew of any role
-- [ ] Available crew: returns 403 if not posting owner
-- [ ] Available crew: returns empty if daywork is not active
-- [ ] Invite: creates invitation, returns 201
-- [ ] Invite: returns 400 when invitation limit (2) reached
-- [ ] Invite: returns 400 if crew already applied
-- [ ] Invite: returns 400 if crew already invited
-
----
-
-### ~~Stage 55: Review Page "Available" Tab~~ (moved to Done)
-
----
 
 ### Stage 57: Documentation + Edge Case Hardening
 
 Final pass: documentation updates, edge case testing, and cleanup.
 
-- [ ] Update `BUILD_STATE.md`: stages 51-56, schema version v30, migration table entry for 00030
-- [ ] Update `packages/types/README.md`: new event types, DayworkInvitation model
-- [ ] Update `packages/db/README.md`: if appendEvent types were extended
-- [ ] Update `apps/web/README.md`: new API routes (available-crew, invite, invitations, respond)
-- [ ] Update `supabase/README.md`: migration 00030 entry
-- [ ] Verify: invitation revocation fires correctly when employer accepts crew (all pending invitations → revoked)
-- [ ] Verify: crew applying via Browse to a job they were invited to auto-accepts the invitation
-- [ ] Verify: daywork cancellation revokes pending invitations
-- [ ] Verify: daywork relist revokes pending invitations
-- [ ] Verify: invitation limit is enforced at API layer (not just UI)
-- [ ] Run full test suite: `cd apps/web && npx vitest run` — all tests pass
-- [ ] Run `tsc --noEmit` — zero errors
-- [ ] Run ESLint — zero warnings/errors
+- [x] Update `BUILD_STATE.md`: stages 51-56, schema version v30, migration table entry for 00030
+- [x] Update `packages/types/README.md`: new event types, DayworkInvitation model (already current from Stage 53)
+- [x] Update `packages/db/README.md`: appendEvents already documented (Stage 35)
+- [x] Update `apps/web/README.md`: new API routes (available-crew, invite, invitations, respond)
+- [x] Update `supabase/README.md`: migration 00030 entry (already current from Stage 53)
+- [x] Verify: invitation revocation fires correctly when employer accepts crew (integration test exists)
+- [x] Verify: crew applying via Browse to a job they were invited to auto-accepts the invitation (integration test exists)
+- [x] Verify: daywork cancellation revokes pending invitations (integration test exists)
+- [x] Verify: daywork relist revokes pending invitations (added integration test)
+- [x] Verify: invitation limit is enforced at API layer (unit test in invite.test.ts)
+- [x] Run full test suite: `cd apps/web && npx vitest run` — 431 tests pass
+- [x] Run `tsc --noEmit` — zero errors
+- [x] Run ESLint — zero warnings/errors
 
 ## Done
+
+### Stage 57: Documentation + Edge Case Hardening (completed)
+
+- [x] All documentation already current from Stages 53-56
+- [x] Added integration test for DAYWORK.RELISTED revoking pending invitations
+- [x] All 5 invitation edge cases verified (acceptance revocation, auto-accept, cancel revocation, relist revocation, API limit)
+- [x] 431 unit tests pass, TSC clean, ESLint clean
 
 ### Stage 56: Crew Invitations Tab + Accept/Decline (completed)
 
