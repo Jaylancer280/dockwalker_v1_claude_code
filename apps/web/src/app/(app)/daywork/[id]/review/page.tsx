@@ -17,10 +17,19 @@ import {
   User,
   MessageSquare,
   Star,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -29,6 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { createClient } from '@/lib/supabase/client';
 import { MY_JOBS_TAB_STORAGE_KEY } from '@/lib/my-jobs-tab';
 
 interface ApplicantProfile {
@@ -78,13 +88,33 @@ export default function ReviewApplicantsPage() {
     crewName: string;
   } | null>(null);
 
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterCertId, setFilterCertId] = useState('');
+  const [filterMinDays, setFilterMinDays] = useState('');
+  const [certifications, setCertifications] = useState<{ id: string; name: string }[]>([]);
+
+  // Load certifications for filter dropdown
+  useEffect(() => {
+    async function loadCerts() {
+      const supabase = createClient();
+      const { data } = await supabase.from('certifications').select('id, name').order('name');
+      if (data) setCertifications(data);
+    }
+    loadCerts();
+  }, []);
+
   const applicants = allApplicants.filter((a) => a.status === 'applied' || a.status === 'viewed');
   const shortlisted = allApplicants.filter((a) => a.status === 'shortlisted');
 
   const loadApplicants = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/daywork/${dayworkId}/applicants`);
+      const params = new URLSearchParams();
+      if (filterCertId && filterCertId !== 'all') params.set('certificationId', filterCertId);
+      if (filterMinDays) params.set('minAvailableDays', filterMinDays);
+      const qs = params.toString();
+      const res = await fetch(`/api/daywork/${dayworkId}/applicants${qs ? `?${qs}` : ''}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       if (data.applicants) setAllApplicants(data.applicants);
@@ -94,7 +124,7 @@ export default function ReviewApplicantsPage() {
     } finally {
       setLoading(false);
     }
-  }, [dayworkId]);
+  }, [dayworkId, filterCertId, filterMinDays]);
 
   useEffect(() => {
     loadApplicants();
@@ -179,7 +209,15 @@ export default function ReviewApplicantsPage() {
           <Link href="/daywork/mine" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-lg font-bold tracking-tight">Review Applicants</h1>
+          <h1 className="flex-1 text-lg font-bold tracking-tight">Review</h1>
+          <Button
+            variant={showFilters ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <SlidersHorizontal className="mr-1 h-4 w-4" />
+            Filters
+          </Button>
         </div>
       </header>
 
@@ -210,6 +248,42 @@ export default function ReviewApplicantsPage() {
       </div>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+        {/* Filters panel */}
+        {showFilters && (
+          <Card>
+            <CardContent className="flex flex-col gap-3 pt-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Certification</label>
+                <Select value={filterCertId} onValueChange={setFilterCertId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All certs" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All certs</SelectItem>
+                    {certifications.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Min available days
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="Any"
+                  value={filterMinDays}
+                  onChange={(e) => setFilterMinDays(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Card stack */}
         <div className="relative flex flex-1 items-start justify-center pt-4">
           {loading && (

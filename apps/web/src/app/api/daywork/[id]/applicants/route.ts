@@ -5,9 +5,12 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
  * GET /api/daywork/:id/applicants
  * Returns applicants for a daywork posting. Employer/agent only (must own the posting).
  */
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: dayworkId } = await params;
   const guard = await requireDomainUser();
+  const url = new URL(request.url);
+  const filterCertificationId = url.searchParams.get('certificationId');
+  const filterMinAvailableDays = url.searchParams.get('minAvailableDays');
   if (!guard.ok) return guard.response;
   const { user, supabase } = guard.value;
 
@@ -118,13 +121,27 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
   }
 
-  const enriched = (applications ?? []).map((app) => ({
+  let enriched = (applications ?? []).map((app) => ({
     ...app,
     available_days: availabilityMap[app.crew_person_id] ?? 0,
     availability_city: availabilityCityMap[app.crew_person_id] ?? null,
     availability_not_available: notAvailableSet.has(app.crew_person_id),
     past_daywork_count: engagementCountMap[app.crew_person_id] ?? 0,
   }));
+
+  // Post-enrichment filters
+  if (filterCertificationId) {
+    enriched = enriched.filter((a) => {
+      const profile = a.profiles as unknown as { certification_ids: string[] } | null;
+      return profile?.certification_ids?.includes(filterCertificationId) ?? false;
+    });
+  }
+  if (filterMinAvailableDays) {
+    const minDays = parseInt(filterMinAvailableDays, 10);
+    if (!isNaN(minDays)) {
+      enriched = enriched.filter((a) => a.available_days >= minDays);
+    }
+  }
 
   return NextResponse.json({ applicants: enriched });
 }

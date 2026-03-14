@@ -88,6 +88,164 @@ describe('GET /api/daywork/:id/applicants', () => {
     expect(res.status).toBe(403);
   });
 
+  it('filters by certificationId on enriched profile data', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // daywork query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'd1', poster_person_id: 'u1', start_date: '2026-04-01', end_date: '2026-04-05' },
+          }),
+        }),
+      }),
+    });
+    // applications — two applicants, only c1 has cert-123
+    const apps = [
+      { id: 'a1', crew_person_id: 'c1', status: 'applied', created_at: '2026-03-01', profiles: { certification_ids: ['cert-123', 'cert-456'] } },
+      { id: 'a2', crew_person_id: 'c2', status: 'applied', created_at: '2026-03-02', profiles: { certification_ids: ['cert-789'] } },
+    ];
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: apps, error: null }),
+          }),
+        }),
+      }),
+    });
+    // availability windows
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({ gt: vi.fn().mockResolvedValue({ data: [] }) }),
+      }),
+    });
+    // past engagements
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }),
+      }),
+    });
+
+    const res = await GET(
+      new Request('http://localhost?certificationId=cert-123'),
+      makeParams('d1'),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.applicants).toHaveLength(1);
+    expect(body.applicants[0].crew_person_id).toBe('c1');
+  });
+
+  it('filters by minAvailableDays on enriched availability data', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // daywork query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'd1', poster_person_id: 'u1', start_date: '2026-04-01', end_date: '2026-04-05' },
+          }),
+        }),
+      }),
+    });
+    // applications — two applicants
+    const apps = [
+      { id: 'a1', crew_person_id: 'c1', status: 'applied', created_at: '2026-03-01' },
+      { id: 'a2', crew_person_id: 'c2', status: 'applied', created_at: '2026-03-02' },
+    ];
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: apps, error: null }),
+          }),
+        }),
+      }),
+    });
+    // availability — c1 has 3 days in range, c2 has 1 day
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          gt: vi.fn().mockResolvedValue({
+            data: [
+              { person_id: 'c1', date: '2026-04-01', city_id: null, not_available: false },
+              { person_id: 'c1', date: '2026-04-02', city_id: null, not_available: false },
+              { person_id: 'c1', date: '2026-04-03', city_id: null, not_available: false },
+              { person_id: 'c2', date: '2026-04-01', city_id: null, not_available: false },
+            ],
+          }),
+        }),
+      }),
+    });
+    // past engagements
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }),
+      }),
+    });
+
+    const res = await GET(
+      new Request('http://localhost?minAvailableDays=2'),
+      makeParams('d1'),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.applicants).toHaveLength(1);
+    expect(body.applicants[0].crew_person_id).toBe('c1');
+    expect(body.applicants[0].available_days).toBe(3);
+  });
+
+  it('filters apply across both applied and shortlisted statuses', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // daywork query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'd1', poster_person_id: 'u1', start_date: '2026-04-01', end_date: '2026-04-05' },
+          }),
+        }),
+      }),
+    });
+    // applications — one applied (has cert), one shortlisted (no cert)
+    const apps = [
+      { id: 'a1', crew_person_id: 'c1', status: 'applied', created_at: '2026-03-01', profiles: { certification_ids: ['cert-123'] } },
+      { id: 'a2', crew_person_id: 'c2', status: 'shortlisted', created_at: '2026-03-02', profiles: { certification_ids: [] } },
+    ];
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: apps, error: null }),
+          }),
+        }),
+      }),
+    });
+    // availability windows
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({ gt: vi.fn().mockResolvedValue({ data: [] }) }),
+      }),
+    });
+    // past engagements
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }),
+      }),
+    });
+
+    const res = await GET(
+      new Request('http://localhost?certificationId=cert-123'),
+      makeParams('d1'),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Both statuses are in the response — filter removes c2 (shortlisted, no cert)
+    expect(body.applicants).toHaveLength(1);
+    expect(body.applicants[0].status).toBe('applied');
+  });
+
   it('returns 200 with enriched applicants', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     // daywork query

@@ -9,33 +9,6 @@
 
 ## Queue
 
-### Stage 52: Employer Review Page Filters
-
-Add certification and availability overlap filters to the employer's applicant review page.
-
-**API — `apps/web/src/app/api/daywork/[id]/applicants/route.ts`:**
-
-- [ ] Accept optional query param `minAvailableDays` (number) — filter applicants with `available_days >= minAvailableDays`
-- [ ] Accept optional query param `certificationId` (uuid) — filter applicants whose `certification_ids` array includes this cert
-- [ ] Apply filters server-side after enrichment (availability is computed post-fetch, so filter after enrichment loop)
-
-**UI — `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`:**
-
-- [ ] Add collapsible filters panel (same pattern as discover page) with "Filters" toggle button
-- [ ] Add `filterCertId` state + `<Select>` dropdown populated from `certifications` table
-- [ ] Add `filterMinDays` state + `<Select>` or `<Input type="number">` for minimum available days
-- [ ] Pass filters as query params when fetching applicants
-- [ ] Filters apply across both Applied and Shortlisted tabs (single fetch, client-side tab split happens after)
-- [ ] Rename page header from "Review Applicants" to "Review" (preparing for Stage 54's "Available" tab — keep title neutral)
-
-**Tests:**
-
-- [ ] Test applicants route with `certificationId` param filters correctly
-- [ ] Test applicants route with `minAvailableDays` param filters correctly
-- [ ] Test filters don't break existing tab split (Applied vs Shortlisted)
-
----
-
 ### Stage 53: Invitation Schema + Types + Events
 
 Foundation for proactive daywork. Migration, types, and event handling only — no API routes or UI yet.
@@ -227,6 +200,29 @@ Final pass: documentation updates, edge case testing, and cleanup.
 - [ ] Run ESLint — zero warnings/errors
 
 ## Done
+
+### Stage 52: Employer Review Page Filters (completed)
+
+**API — `apps/web/src/app/api/daywork/[id]/applicants/route.ts`:**
+
+- [x] Accept optional query param `minAvailableDays` (number) — filter applicants with `available_days >= minAvailableDays`
+- [x] Accept optional query param `certificationId` (uuid) — filter applicants whose `certification_ids` array includes this cert
+- [x] Apply filters server-side after enrichment (availability is computed post-fetch, so filter after enrichment loop)
+
+**UI — `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`:**
+
+- [x] Add collapsible filters panel (same pattern as discover page) with "Filters" toggle button
+- [x] Add `filterCertId` state + `<Select>` dropdown populated from `certifications` table
+- [x] Add `filterMinDays` state + `<Input type="number">` for minimum available days
+- [x] Pass filters as query params when fetching applicants
+- [x] Filters apply across both Applied and Shortlisted tabs (single fetch, client-side tab split happens after)
+- [x] Rename page header from "Review Applicants" to "Review"
+
+**Tests:**
+
+- [x] Test applicants route with `certificationId` param filters correctly
+- [x] Test applicants route with `minAvailableDays` param filters correctly
+- [x] Test filters don't break existing tab split (Applied vs Shortlisted)
 
 ### Stage 51: Discovery Filter Expansion (completed)
 

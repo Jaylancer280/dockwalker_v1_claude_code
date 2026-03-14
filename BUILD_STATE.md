@@ -58,6 +58,8 @@
 
 - [Stage 51] Discovery filter expansion — certification (`certificationId`, special value `none` for no-cert-required jobs), experience bracket (`experienceBracketId`), and vessel size band (`sizeBandId`, post-fetch) filters on discover API + UI; fixed form-dropdowns component test mock (thenable query builder); 398 tests pass
 
+- [Stage 52] Employer review page filters — `certificationId` and `minAvailableDays` query params on applicants API (post-enrichment filtering); collapsible filters panel on review page with certification dropdown and min available days input; filters apply across both Applied and Shortlisted tabs; header renamed from "Review Applicants" to "Review"; 401 tests pass
+
 ## Current Schema Version
 
 v29 — experience enhancements (29 migrations applied)
