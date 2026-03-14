@@ -74,9 +74,11 @@
 
 - [Stage 59] Correctness fixes — overlap, expiry, experience dates: (1) invitation accept now calls `check_no_overlap` RPC to prevent double-booking before creating application; (2) past-start-date invitations filtered from GET response and rejected with 400 on accept; (3) verified declined invitations already excluded from available-crew query (no code change needed); (4) experience POST/PATCH enforce date overlap validation against existing crew_experiences + prevent duplicate `is_current` entries; onboarding batch validates intra-batch date overlaps and multiple is_current; 5 new tests (436 total)
 
+- [Stage 60] Experience auto-derivation — `derive_experience_profile(person_id)` PostgreSQL function auto-computes `experience_bracket_id` (from total days across all crew_experiences) and `vessel_size_exposure_ids` (distinct size bands from experience vessels) on the profile; called after every `EXPERIENCE.ADDED`, `EXPERIENCE.UPDATED`, and `EXPERIENCE.REMOVED` event in `apply_projection`; zero experiences clears both fields; migration 00031; 4 new integration tests
+
 ## Current Schema Version
 
-v30 — daywork invitations (30 migrations applied)
+v31 — experience auto-derivation (31 migrations applied)
 
 ## Migrations Applied
 
@@ -112,6 +114,7 @@ v30 — daywork invitations (30 migrations applied)
 | `00028_crew_experiences.sql`                 | `crew_experiences` table, `flag_states` lookup (39 entries), green crew profile columns, per-registrant IMO uniqueness, `apply_projection` handlers for `EXPERIENCE.ADDED/UPDATED/REMOVED`                                                                                                     |
 | `00029_experience_enhancements.sql`          | Renames `vessel_type` → `vessel_operation` + new `vessel_type` (motor\|sail) on vessels; renames `charter_or_private` → `vessel_operation`, `rotation_type` → `contract_type`, `rotation_details` → `contract_details` on crew_experiences; updates `get_vessel_public` and `apply_projection` |
 | `00030_daywork_invitations.sql`              | `daywork_invitations` table with RLS + indexes; `apply_projection` handlers for `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED`; revocation logic on `DAYWORK.ACCEPTED`, `DAYWORK.CANCELLED_BY_EMPLOYER`, `DAYWORK.RELISTED`; auto-accept on `DAYWORK.APPLIED` |
+| `00031_experience_auto_derivation.sql`       | `derive_experience_profile(person_id)` function auto-computes `experience_bracket_id` + `vessel_size_exposure_ids` on profile from crew_experiences; called after `EXPERIENCE.ADDED/UPDATED/REMOVED` in `apply_projection`                                                                     |
 
 ## Deferred Decisions
 
@@ -123,7 +126,6 @@ v30 — daywork invitations (30 migrations applied)
 - Whether `daywork_templates` should remain CRUD forever or later move into the ledger
 - Admin tooling for duplicate vessel resolution (per-registrant IMO records may diverge)
 - "Verified against public records" badge on vessels
-- Auto-derivation of experience_bracket_id and vessel_size_exposure_ids on profile from crew_experiences (currently manual for green crew, deferred for experienced crew post-onboarding updates)
 - Size band discovery filter operates post-fetch (50-row DB limit applied before filtering) — may produce sparse results. Options: increase pre-filter limit when sizeBandId set, or denormalize size_band_id onto dayworks table
 
 ## In Progress

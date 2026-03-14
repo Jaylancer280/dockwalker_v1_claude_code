@@ -9,42 +9,6 @@
 
 ## Queue
 
-### Stage 60: Experience Bracket + Vessel Size Exposure Auto-Derivation
-
-Auto-derive `experience_bracket_id` and `vessel_size_exposure_ids` on the profile from `crew_experiences` data, so experienced crew don't need manual selection after onboarding.
-
-**60a. Migration 00031 — `apply_projection` update:**
-
-- [ ] In `EXPERIENCE.ADDED` handler: after inserting experience, call a new helper function `derive_experience_profile(p_person_id)`
-- [ ] In `EXPERIENCE.UPDATED` handler: after updating experience, call `derive_experience_profile(p_person_id)`
-- [ ] In `EXPERIENCE.REMOVED` handler: after deleting experience, call `derive_experience_profile(p_person_id)`
-- [ ] `derive_experience_profile(p_person_id)` function logic:
-  - Sum total days across all `crew_experiences` for person: `SUM(COALESCE(end_date, CURRENT_DATE) - start_date)` (use today's date for `is_current` entries)
-  - Convert to months: `total_days / 30.44`
-  - Find matching `experience_bracket`: `WHERE min_months <= total_months AND (max_months IS NULL OR max_months >= total_months)` ordered by `sort_order DESC LIMIT 1`
-  - Collect distinct `size_band_id` values from vessels linked to experiences: `SELECT DISTINCT v.size_band_id FROM crew_experiences ce JOIN vessels v ON ce.vessel_id = v.id WHERE ce.person_id = p_person_id AND v.size_band_id IS NOT NULL`
-  - `UPDATE profiles SET experience_bracket_id = derived_bracket, vessel_size_exposure_ids = derived_bands WHERE person_id = p_person_id`
-- [ ] Rollback `00031_rollback.sql`: revert `apply_projection` to v30 state (remove `derive_experience_profile` calls)
-
-**60b. Tests:**
-
-- [ ] Integration test: adding experience auto-updates profile `experience_bracket_id`
-- [ ] Integration test: adding second experience recalculates bracket from total days
-- [ ] Integration test: removing experience recalculates bracket downward
-- [ ] Integration test: `is_current` experience uses today's date for day calculation
-- [ ] Integration test: vessel size exposure IDs collected from experience vessels
-- [ ] Unit test: verify `derive_experience_profile` handles zero experiences (clears bracket)
-
-**60c. Cleanup:**
-
-- [ ] Run full test suite — all tests pass
-- [ ] Run `tsc --noEmit` — zero errors
-- [ ] Update `BUILD_STATE.md`: stage 60, schema version v31, migration 00031 entry
-- [ ] Update `supabase/README.md`: migration 00031 entry
-- [ ] Remove "Auto-derivation of experience_bracket_id and vessel_size_exposure_ids" from `BUILD_STATE.md` Deferred Decisions
-
----
-
 ### Stage 61: NDA Reveal-After-Acceptance + Immutability Guard
 
 Crew who are engaged (accepted) on an NDA vessel should see full vessel details. NDA flag cannot be downgraded from `true` to `false`.
@@ -330,6 +294,12 @@ Final pass: documentation updates, edge case testing, and cleanup.
 - [x] Run ESLint — zero warnings/errors
 
 ## Done
+
+### Stage 60: Experience Bracket + Vessel Size Exposure Auto-Derivation (completed)
+
+- [x] 60a: Migration 00031 — `derive_experience_profile` function + `apply_projection` calls after EXPERIENCE events
+- [x] 60b: 4 integration tests (add → bracket derived, add second → recalculated, remove → downward, remove all → cleared)
+- [x] 60c: 436 unit tests pass, TSC clean, BUILD_STATE.md + supabase/README.md updated, deferred decision removed
 
 ### Stage 59: Correctness Fixes — Overlap, Expiry, Experience Dates (completed)
 

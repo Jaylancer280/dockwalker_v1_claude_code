@@ -652,3 +652,124 @@ describe('MESSAGE.SENT roundtrip', () => {
     expect(msg?.engagement_id).toBe(eng.id);
   });
 });
+
+// ===========================================================================
+// 11. Experience auto-derivation roundtrip
+// ===========================================================================
+describe('Experience auto-derivation', () => {
+  const EXP_ID_1 = 'eeeeeeee-eeee-eeee-eeee-eeeeeeee0001';
+  const EXP_ID_2 = 'eeeeeeee-eeee-eeee-eeee-eeeeeeee0002';
+  const EXP_BRACKET_GREEN = 'f0000000-0000-0000-0000-000000000001';
+  const EXP_BRACKET_6_12 = 'f0000000-0000-0000-0000-000000000002';
+  const SIZE_BAND_3 = 'f1000000-0000-0000-0000-000000000003';
+
+  // Clean up before each test
+  async function cleanExperiences() {
+    await service.from('crew_experiences').delete().eq('person_id', CREW_ID);
+  }
+
+  it('EXPERIENCE.ADDED auto-derives experience_bracket_id and vessel_size_exposure_ids', async () => {
+    await cleanExperiences();
+
+    // Add 90-day experience (3 months → Green bracket)
+    await appendEvent(
+      'EXPERIENCE.ADDED',
+      EXP_ID_1,
+      'experience',
+      'crew',
+      {
+        id: EXP_ID_1,
+        vessel_id: VESSEL_ID,
+        role_id: ROLE_CAPTAIN,
+        start_date: '2024-01-01',
+        end_date: '2024-04-01',
+        is_current: false,
+        vessel_operation: 'charter',
+      },
+      CREW_ID,
+    );
+
+    const { data: profile } = await service
+      .from('profiles')
+      .select('experience_bracket_id, vessel_size_exposure_ids')
+      .eq('person_id', CREW_ID)
+      .single();
+
+    // ~90 days = ~2.96 months → Green (0-6 months)
+    expect(profile?.experience_bracket_id).toBe(EXP_BRACKET_GREEN);
+    // Vessel's size_band_id should appear in exposure
+    expect(profile?.vessel_size_exposure_ids).toContain(SIZE_BAND_4);
+  });
+
+  it('adding second experience recalculates bracket from total days', async () => {
+    // First experience already exists from previous test (90 days)
+    // Add another 270-day experience (total ~360 days = ~11.8 months → 6-12 bracket)
+    await appendEvent(
+      'EXPERIENCE.ADDED',
+      EXP_ID_2,
+      'experience',
+      'crew',
+      {
+        id: EXP_ID_2,
+        vessel_id: VESSEL_ID,
+        role_id: ROLE_CAPTAIN,
+        start_date: '2024-06-01',
+        end_date: '2025-02-25',
+        is_current: false,
+        vessel_operation: 'private',
+      },
+      CREW_ID,
+    );
+
+    const { data: profile } = await service
+      .from('profiles')
+      .select('experience_bracket_id, vessel_size_exposure_ids')
+      .eq('person_id', CREW_ID)
+      .single();
+
+    // ~360 days = ~11.8 months → 6-12 months bracket
+    expect(profile?.experience_bracket_id).toBe(EXP_BRACKET_6_12);
+  });
+
+  it('EXPERIENCE.REMOVED recalculates bracket downward', async () => {
+    // Remove the second experience (270 days), leaving only 90-day one
+    await appendEvent(
+      'EXPERIENCE.REMOVED',
+      EXP_ID_2,
+      'experience',
+      'crew',
+      {},
+      CREW_ID,
+    );
+
+    const { data: profile } = await service
+      .from('profiles')
+      .select('experience_bracket_id')
+      .eq('person_id', CREW_ID)
+      .single();
+
+    // Back to ~90 days → Green bracket
+    expect(profile?.experience_bracket_id).toBe(EXP_BRACKET_GREEN);
+  });
+
+  it('removing all experiences clears bracket', async () => {
+    // Remove the last experience
+    await appendEvent(
+      'EXPERIENCE.REMOVED',
+      EXP_ID_1,
+      'experience',
+      'crew',
+      {},
+      CREW_ID,
+    );
+
+    const { data: profile } = await service
+      .from('profiles')
+      .select('experience_bracket_id, vessel_size_exposure_ids')
+      .eq('person_id', CREW_ID)
+      .single();
+
+    expect(profile?.experience_bracket_id).toBeNull();
+    expect(profile?.vessel_size_exposure_ids).toEqual([]);
+  });
+});
