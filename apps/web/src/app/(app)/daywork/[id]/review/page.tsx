@@ -123,16 +123,33 @@ export default function ReviewApplicantsPage() {
   const [allRoles, setAllRoles] = useState(false);
   const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [pendingInvite, setPendingInvite] = useState<AvailableCrew | null>(null);
+  const [dayworkMeta, setDayworkMeta] = useState<{
+    job_number: number | null;
+    role_name: string | null;
+  }>({ job_number: null, role_name: null });
 
-  // Load certifications for filter dropdown
+  // Load certifications for filter dropdown + daywork meta for invite dialog
   useEffect(() => {
+    const supabase = createClient();
     async function loadCerts() {
-      const supabase = createClient();
       const { data } = await supabase.from('certifications').select('id, name').order('name');
       if (data) setCertifications(data);
     }
+    async function loadDayworkMeta() {
+      const { data } = await supabase
+        .from('dayworks')
+        .select('job_number, yacht_roles:role_id(name)')
+        .eq('id', dayworkId)
+        .single();
+      if (data) {
+        const role = data.yacht_roles as unknown as { name: string } | null;
+        setDayworkMeta({ job_number: data.job_number, role_name: role?.name ?? null });
+      }
+    }
     loadCerts();
-  }, []);
+    loadDayworkMeta();
+  }, [dayworkId]);
 
   const applicants = allApplicants.filter((a) => a.status === 'applied' || a.status === 'viewed');
   const shortlisted = allApplicants.filter((a) => a.status === 'shortlisted');
@@ -282,6 +299,10 @@ export default function ReviewApplicantsPage() {
       setInviteError(data.error ?? 'Failed to send invitation');
     }
     setActing(false);
+  }
+
+  function requestInvite(crew: AvailableCrew) {
+    setPendingInvite(crew);
   }
 
   function handlePass(personId: string) {
@@ -530,7 +551,7 @@ export default function ReviewApplicantsPage() {
                 <SwipeableAvailableCrew
                   key={(topCard as AvailableCrew).person_id}
                   crew={topCard as AvailableCrew}
-                  onInvite={() => handleInvite((topCard as AvailableCrew).person_id)}
+                  onInvite={() => requestInvite(topCard as AvailableCrew)}
                   onPass={() => handlePass((topCard as AvailableCrew).person_id)}
                   disabled={acting || inviteLimitReached}
                 />
@@ -579,7 +600,7 @@ export default function ReviewApplicantsPage() {
               <X className="h-6 w-6" />
             </button>
             <button
-              onClick={() => handleInvite((topCard as AvailableCrew).person_id)}
+              onClick={() => requestInvite(topCard as AvailableCrew)}
               disabled={acting || inviteLimitReached}
               className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
               title={inviteLimitReached ? 'Invitation limit reached' : 'Invite'}
@@ -627,6 +648,38 @@ export default function ReviewApplicantsPage() {
             >
               <Check className="mr-2 h-4 w-4" />
               Accept
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!pendingInvite} onOpenChange={() => setPendingInvite(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite {pendingInvite?.display_name}?</DialogTitle>
+            <DialogDescription>
+              Invite {pendingInvite?.display_name} for {dayworkMeta.role_name ?? 'this role'}
+              {dayworkMeta.job_number
+                ? ` — DW-${String(dayworkMeta.job_number).padStart(5, '0')}`
+                : ''}
+              . This will use 1 of your {invitationLimit} invitations for this posting.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setPendingInvite(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={acting}
+              onClick={() => {
+                if (pendingInvite) {
+                  handleInvite(pendingInvite.person_id);
+                  setPendingInvite(null);
+                }
+              }}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              Invite
             </Button>
           </DialogFooter>
         </DialogContent>

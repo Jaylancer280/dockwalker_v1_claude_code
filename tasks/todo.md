@@ -5,7 +5,7 @@
 
 ## Current Task
 
-None — invitation feature complete (Stages 53-57)
+(none)
 
 ## Queue
 
@@ -28,6 +28,15 @@ Final pass: documentation updates, edge case testing, and cleanup.
 - [x] Run ESLint — zero warnings/errors
 
 ## Done
+
+### Stage 58: Invite confirmation dialog + polish (completed)
+
+- [x] Invite button/swipe now opens confirmation dialog with crew name, role, and job number
+- [x] Fetches daywork meta (job_number + role name) on page load
+- [x] minAvailableDays API filter clamped to 0-365 (UI already had min=0)
+- [x] Deferred decision added for size band post-fetch sparseness
+- [x] Fixed test mock for new supabase query chain
+- [x] 431 tests pass, TSC clean
 
 ### Stage 57: Documentation + Edge Case Hardening (completed)
 

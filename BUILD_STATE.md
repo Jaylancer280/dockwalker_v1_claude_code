@@ -70,6 +70,8 @@
 
 - [Stage 57] Edge case hardening — added integration test for `DAYWORK.RELISTED` revoking pending invitations (the only untested revocation path); all 5 invitation edge cases now verified: revocation on acceptance, auto-accept on crew apply, revocation on employer cancel, revocation on relist, 2-invitation API limit; all documentation already current from Stages 53-56; 431 unit tests pass
 
+- [Stage 58] Invite confirmation dialog + polish — invite button/swipe now opens confirmation dialog ("Invite {name} for {role} — DW-{number}") before sending; fetches daywork job_number and role name on page load; minAvailableDays API filter clamped to 0-365; deferred decision added for size band post-fetch sparseness; fixed test mock for new supabase query chain; 431 tests pass
+
 ## Current Schema Version
 
 v30 — daywork invitations (30 migrations applied)
@@ -120,6 +122,7 @@ v30 — daywork invitations (30 migrations applied)
 - Admin tooling for duplicate vessel resolution (per-registrant IMO records may diverge)
 - "Verified against public records" badge on vessels
 - Auto-derivation of experience_bracket_id and vessel_size_exposure_ids on profile from crew_experiences (currently manual for green crew, deferred for experienced crew post-onboarding updates)
+- Size band discovery filter operates post-fetch (50-row DB limit applied before filtering) — may produce sparse results. Options: increase pre-filter limit when sizeBandId set, or denormalize size_band_id onto dayworks table
 
 ## In Progress
 

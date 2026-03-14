@@ -137,8 +137,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     });
   }
   if (filterMinAvailableDays) {
-    const minDays = parseInt(filterMinAvailableDays, 10);
-    if (!isNaN(minDays)) {
+    const parsed = parseInt(filterMinAvailableDays, 10);
+    if (!isNaN(parsed)) {
+      const minDays = Math.max(0, Math.min(parsed, 365));
       enriched = enriched.filter((a) => a.available_days >= minDays);
     }
   }

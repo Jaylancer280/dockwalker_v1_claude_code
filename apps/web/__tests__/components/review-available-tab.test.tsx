@@ -70,6 +70,9 @@ vi.mock('@/lib/supabase/client', () => ({
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         order: vi.fn().mockResolvedValue({ data: [] }),
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null }),
+        }),
       }),
     }),
   }),
