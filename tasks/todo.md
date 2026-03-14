@@ -9,49 +9,6 @@
 
 ## Queue
 
-### Stage 53: Invitation Schema + Types + Events
-
-Foundation for proactive daywork. Migration, types, and event handling only — no API routes or UI yet.
-
-**Migration `00030_daywork_invitations.sql`:**
-
-- [ ] Create `daywork_invitations` table: `id (uuid PK)`, `daywork_id (uuid FK dayworks)`, `crew_person_id (uuid FK persons)`, `employer_person_id (uuid FK persons)`, `status (text CHECK: pending/accepted/declined/revoked)`, `created_at (timestamptz)`
-- [ ] Unique constraint: `(daywork_id, crew_person_id)` — one invitation per crew per posting
-- [ ] RLS policies: employer can read own invitations (employer_person_id = auth.uid()), crew can read invitations sent to them (crew_person_id = auth.uid()), writes via service role only
-- [ ] Indexes: `idx_invitations_daywork`, `idx_invitations_crew`, `idx_invitations_status`
-- [ ] `apply_projection` handlers for new events:
-  - `DAYWORK.INVITED` → INSERT into daywork_invitations (status: 'pending')
-  - `DAYWORK.INVITATION_ACCEPTED` → UPDATE invitation status to 'accepted'
-  - `DAYWORK.INVITATION_DECLINED` → UPDATE invitation status to 'declined'
-- [ ] Revocation logic in existing `apply_projection` handlers:
-  - `DAYWORK.ACCEPTED` → UPDATE all pending invitations for this daywork to 'revoked' (alongside existing auto-reject of applications)
-  - `DAYWORK.CANCELLED_BY_EMPLOYER` → UPDATE all pending invitations to 'revoked'
-  - `DAYWORK.RELISTED` → UPDATE all pending invitations to 'revoked' (terms changed)
-  - `DAYWORK.APPLIED` → if matching pending invitation exists for this crew+daywork, UPDATE to 'accepted' (crew applied via Browse instead of via invitation)
-
-**Rollback `00030_daywork_invitations_rollback.sql`:**
-
-- [ ] Drop `daywork_invitations` table, revert `apply_projection` to v29 state
-
-**Types — `packages/types/src/events.ts`:**
-
-- [ ] Add `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED` to event type union
-- [ ] Add payload shapes to `EventPayloadMap`:
-  - `DAYWORK.INVITED`: `{ daywork_id, crew_person_id }`
-  - `DAYWORK.INVITATION_ACCEPTED`: `{ daywork_id, invitation_id }`
-  - `DAYWORK.INVITATION_DECLINED`: `{ daywork_id, invitation_id }`
-- [ ] Add `DayworkInvitation` model interface: `{ id, daywork_id, crew_person_id, employer_person_id, status, created_at }`
-- [ ] Add `invitation` to aggregate type union
-
-**Tests:**
-
-- [ ] Integration test: `DAYWORK.INVITED` creates invitation row with status 'pending'
-- [ ] Integration test: `DAYWORK.ACCEPTED` revokes all pending invitations for that daywork
-- [ ] Integration test: `DAYWORK.APPLIED` auto-accepts matching pending invitation
-- [ ] Integration test: `DAYWORK.CANCELLED_BY_EMPLOYER` revokes pending invitations
-
----
-
 ### Stage 54: Employer Available Crew API + Invite Route
 
 API endpoints for browsing available crew and sending invitations.
@@ -200,6 +157,30 @@ Final pass: documentation updates, edge case testing, and cleanup.
 - [ ] Run ESLint — zero warnings/errors
 
 ## Done
+
+### Stage 53: Invitation Schema + Types + Events (completed)
+
+**Migration `00030_daywork_invitations.sql`:**
+
+- [x] Create `daywork_invitations` table with RLS, indexes, unique constraint
+- [x] `apply_projection` handlers: `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED`
+- [x] Revocation logic: `DAYWORK.ACCEPTED`, `DAYWORK.CANCELLED_BY_EMPLOYER`, `DAYWORK.RELISTED` revoke pending invitations
+- [x] Auto-accept: `DAYWORK.APPLIED` auto-accepts matching pending invitation
+
+**Rollback `00030_daywork_invitations_rollback.sql`:**
+
+- [x] Drop table, revert `apply_projection` to v29 state
+
+**Types — `packages/types/src/events.ts`:**
+
+- [x] Added 3 event types, payload shapes, `DayworkInvitation` interface, `invitation` aggregate type
+
+**Tests:**
+
+- [x] Integration: `DAYWORK.INVITED` creates pending invitation
+- [x] Integration: `DAYWORK.ACCEPTED` revokes pending invitations
+- [x] Integration: `DAYWORK.APPLIED` auto-accepts matching invitation
+- [x] Integration: `DAYWORK.CANCELLED_BY_EMPLOYER` revokes pending invitations
 
 ### Stage 52: Employer Review Page Filters (completed)
 

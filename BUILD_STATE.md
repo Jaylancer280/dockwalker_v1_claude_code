@@ -60,9 +60,11 @@
 
 - [Stage 52] Employer review page filters — `certificationId` and `minAvailableDays` query params on applicants API (post-enrichment filtering); collapsible filters panel on review page with certification dropdown and min available days input; filters apply across both Applied and Shortlisted tabs; header renamed from "Review Applicants" to "Review"; 401 tests pass
 
+- [Stage 53] Invitation schema + types + events — `daywork_invitations` table (migration 00030) with RLS, indexes, unique constraint; `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED` event types and payloads; `DayworkInvitation` model interface; `invitation` aggregate type; revocation logic in `DAYWORK.ACCEPTED`, `DAYWORK.CANCELLED_BY_EMPLOYER`, `DAYWORK.RELISTED`; auto-accept on `DAYWORK.APPLIED` when matching invitation exists; 4 integration tests; 401 unit tests pass
+
 ## Current Schema Version
 
-v29 — experience enhancements (29 migrations applied)
+v30 — daywork invitations (30 migrations applied)
 
 ## Migrations Applied
 
@@ -97,6 +99,7 @@ v29 — experience enhancements (29 migrations applied)
 | `00027_vessel_loa.sql`                       | Adds `loa_meters NUMERIC` to `vessels`; updates `get_vessel_public` to return `loa_meters`; updates `apply_projection` to write `loa_meters` on `VESSEL.CREATED` and `VESSEL.UPDATED`                                                                                                          |
 | `00028_crew_experiences.sql`                 | `crew_experiences` table, `flag_states` lookup (39 entries), green crew profile columns, per-registrant IMO uniqueness, `apply_projection` handlers for `EXPERIENCE.ADDED/UPDATED/REMOVED`                                                                                                     |
 | `00029_experience_enhancements.sql`          | Renames `vessel_type` → `vessel_operation` + new `vessel_type` (motor\|sail) on vessels; renames `charter_or_private` → `vessel_operation`, `rotation_type` → `contract_type`, `rotation_details` → `contract_details` on crew_experiences; updates `get_vessel_public` and `apply_projection` |
+| `00030_daywork_invitations.sql`              | `daywork_invitations` table with RLS + indexes; `apply_projection` handlers for `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED`; revocation logic on `DAYWORK.ACCEPTED`, `DAYWORK.CANCELLED_BY_EMPLOYER`, `DAYWORK.RELISTED`; auto-accept on `DAYWORK.APPLIED` |
 
 ## Deferred Decisions
 

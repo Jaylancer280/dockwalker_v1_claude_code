@@ -55,6 +55,7 @@ The app depends on these Postgres functions in the `public` schema:
 | `apply_projection` (VESSEL LOA)               | 00027     | Writes `loa_meters` on `VESSEL.CREATED` insert and `VESSEL.UPDATED` update                                                                                                                                                                                                                        |
 | `apply_projection` (EXPERIENCE.\*)            | 00028     | Handles `EXPERIENCE.ADDED` (insert into `crew_experiences`), `EXPERIENCE.UPDATED` (partial update), `EXPERIENCE.REMOVED` (delete). Also handles extended `PROFILE.CREATED/UPDATED` with green crew fields                                                                                         |
 | `apply_projection` (EXPERIENCE enhancements)  | 00029     | Renames `vessel_type` → `vessel_operation` + new `vessel_type` (motor\|sail) on vessels; renames `charter_or_private` → `vessel_operation`, `rotation_type` → `contract_type`, `rotation_details` → `contract_details` on crew_experiences; updates all projection handlers with new column names |
+| `daywork_invitations` table + events          | 00030     | `daywork_invitations` table with RLS + indexes; `DAYWORK.INVITED/INVITATION_ACCEPTED/INVITATION_DECLINED` event handlers; revocation on `DAYWORK.ACCEPTED`, `CANCELLED_BY_EMPLOYER`, `RELISTED`; auto-accept on `DAYWORK.APPLIED` when matching pending invitation exists                         |
 
 ## Daywork Status Lifecycle
 

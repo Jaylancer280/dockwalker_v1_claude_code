@@ -20,6 +20,10 @@ export type EventType =
   | 'DAYWORK.CANCELLED_BY_EMPLOYER'
   | 'DAYWORK.COMPLETED'
   | 'DAYWORK.RELISTED'
+  // Invitation (daywork aggregate)
+  | 'DAYWORK.INVITED'
+  | 'DAYWORK.INVITATION_ACCEPTED'
+  | 'DAYWORK.INVITATION_DECLINED'
   // Application aggregate
   | 'DAYWORK.APPLIED'
   | 'DAYWORK.VIEWED'
@@ -55,7 +59,7 @@ export type EventType =
   | 'MESSAGE.SENT';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience';
+export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -151,6 +155,18 @@ export interface EventPayloadMap {
     start_date?: string;
     end_date?: string;
     working_days?: number;
+  };
+  'DAYWORK.INVITED': {
+    daywork_id: string;
+    crew_person_id: string;
+  };
+  'DAYWORK.INVITATION_ACCEPTED': {
+    daywork_id: string;
+    invitation_id: string;
+  };
+  'DAYWORK.INVITATION_DECLINED': {
+    daywork_id: string;
+    invitation_id: string;
   };
   'DAYWORK.APPLIED': {
     id: string;
@@ -313,4 +329,14 @@ export interface EventPayloadMap {
     content: string;
     is_system?: boolean;
   };
+}
+
+/** Materialised daywork invitation row */
+export interface DayworkInvitation {
+  id: string;
+  daywork_id: string;
+  crew_person_id: string;
+  employer_person_id: string;
+  status: 'pending' | 'accepted' | 'declined' | 'revoked';
+  created_at: string;
 }
