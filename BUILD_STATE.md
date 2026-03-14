@@ -64,6 +64,8 @@
 
 - [Stage 54] Employer available crew API + invite route — `GET /api/daywork/:id/available-crew` queries crew with matching availability in the same city, excludes applied/invited/employer, default role filter with `allRoles=true` override, returns enriched profiles sorted by available_days (limit 50) with invitation count; `POST /api/daywork/:id/invite` validates ownership, active status, crew existence, no duplicate application/invitation, enforces 2-invitation limit, appends `DAYWORK.INVITED` event; 16 new tests (8 available-crew + 8 invite); 417 tests pass
 
+- [Stage 55] Review page "Available" tab — third tab on employer review page for browsing and inviting available crew; lazy-loaded from `GET /api/daywork/:id/available-crew` on first tab activation; swipe right = Invite (calls `POST /api/daywork/:id/invite`), swipe left = Pass (client-side only, session-tracked); dedicated `SwipeableAvailableCrew` and `AvailableCrewCard` components (no application message/date, availability days highlighted in green); "Show all roles" toggle re-fetches with `allRoles=true`; invitation usage indicator ("X of 2 invitations used"); invite button disabled when limit reached; empty states for "no available crew" and "invitation limit reached"; 3 new component tests; 420 tests pass
+
 ## Current Schema Version
 
 v30 — daywork invitations (30 migrations applied)

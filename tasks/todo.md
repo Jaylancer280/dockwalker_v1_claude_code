@@ -9,7 +9,7 @@
 
 ## Queue
 
-### Stage 54: Employer Available Crew API + Invite Route
+### ~~Stage 54: Employer Available Crew API + Invite Route~~ (moved to Done)
 
 API endpoints for browsing available crew and sending invitations.
 
@@ -55,33 +55,7 @@ API endpoints for browsing available crew and sending invitations.
 
 ---
 
-### Stage 55: Review Page "Available" Tab
-
-Employer-facing UI for browsing and inviting available crew.
-
-**UI — `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`:**
-
-- [ ] Add third tab: "Available" with count badge (from API response)
-- [ ] Fetch available crew from `GET /api/daywork/:id/available-crew` on tab select (lazy load — don't fetch until tab is active)
-- [ ] Reuse existing card stack + swipe mechanic:
-  - Right swipe = Invite (calls `POST /api/daywork/:id/invite`)
-  - Left swipe = Pass (client-side only — remove from stack, no API call)
-  - NO upward swipe / shortlist on Available tab (only applied crew can be shortlisted)
-- [ ] Card content: same layout as applicant cards but without application message and applied date; show availability overlap days prominently
-- [ ] Swipe overlay labels: "INVITE" (green, right), "PASS" (red, left)
-- [ ] Button controls: Pass (left, red X) and Invite (right, green envelope/send icon). No center shortlist button.
-- [ ] Show invitation usage: "1 of 2 invitations used" indicator above the card stack
-- [ ] When invitation limit reached: disable invite swipe/button, show "Invitation limit reached" message
-- [ ] "Show all roles" toggle above cards (sends `allRoles=true` to API, re-fetches)
-- [ ] Empty states: "No available crew nearby" / "Invitation limit reached"
-- [ ] After successful invite: remove crew from stack, increment invitation count display
-- [ ] Session-based pass tracking: track passed crew IDs in component state so they don't reappear until page reload
-
-**Tests:**
-
-- [ ] Component renders three tabs with correct counts
-- [ ] Available tab shows invite/pass buttons (no shortlist)
-- [ ] Invitation limit indicator displays correctly
+### ~~Stage 55: Review Page "Available" Tab~~ (moved to Done)
 
 ---
 
@@ -157,6 +131,19 @@ Final pass: documentation updates, edge case testing, and cleanup.
 - [ ] Run ESLint — zero warnings/errors
 
 ## Done
+
+### Stage 55: Review Page "Available" Tab (completed)
+
+- [x] Add third tab "Available" with count badge, lazy-loaded on first activation
+- [x] Swipe right = Invite (calls POST /api/daywork/:id/invite), swipe left = Pass (client-side)
+- [x] Dedicated `SwipeableAvailableCrew` (horizontal drag only) and `AvailableCrewCard` (no message/date, green availability)
+- [x] "INVITE" / "PASS" swipe overlay labels
+- [x] Pass (X) and Invite (Send) button controls — no shortlist button
+- [x] Invitation usage indicator: "X of 2 invitations used"
+- [x] Invite disabled when limit reached; "Invitation limit reached" empty state
+- [x] "Show all roles" checkbox toggle re-fetches API
+- [x] Session-based pass tracking via component state
+- [x] 3 component tests: three tabs render, crew loads with indicator, limit reached state
 
 ### Stage 54: Employer Available Crew API + Invite Route (completed)
 

@@ -18,6 +18,8 @@ import {
   MessageSquare,
   Star,
   SlidersHorizontal,
+  Send,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -67,7 +69,25 @@ interface Applicant {
   past_daywork_count: number;
 }
 
-type TabView = 'applicants' | 'shortlist';
+interface AvailableCrew {
+  person_id: string;
+  display_name: string;
+  primary_role_id: string;
+  certification_ids: string[];
+  experience_bracket_id: string;
+  vessel_size_exposure_ids: string[];
+  bio: string | null;
+  location_port_id: string;
+  yacht_roles: { name: string; department: string } | null;
+  experience_brackets: { label: string } | null;
+  ports: {
+    name: string;
+    cities: { name: string; regions: { name: string } };
+  } | null;
+  available_days: number;
+}
+
+type TabView = 'applicants' | 'shortlist' | 'available';
 
 const SWIPE_THRESHOLD = 100;
 
@@ -93,6 +113,16 @@ export default function ReviewApplicantsPage() {
   const [filterCertId, setFilterCertId] = useState('');
   const [filterMinDays, setFilterMinDays] = useState('');
   const [certifications, setCertifications] = useState<{ id: string; name: string }[]>([]);
+
+  // Available crew state
+  const [availableCrew, setAvailableCrew] = useState<AvailableCrew[]>([]);
+  const [availableLoading, setAvailableLoading] = useState(false);
+  const [availableLoaded, setAvailableLoaded] = useState(false);
+  const [invitationCount, setInvitationCount] = useState(0);
+  const invitationLimit = 2;
+  const [allRoles, setAllRoles] = useState(false);
+  const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Load certifications for filter dropdown
   useEffect(() => {
@@ -130,18 +160,55 @@ export default function ReviewApplicantsPage() {
     loadApplicants();
   }, [loadApplicants]);
 
+  const loadAvailableCrew = useCallback(async () => {
+    setAvailableLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (allRoles) params.set('allRoles', 'true');
+      const qs = params.toString();
+      const res = await fetch(`/api/daywork/${dayworkId}/available-crew${qs ? `?${qs}` : ''}`);
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      setAvailableCrew(data.crew ?? []);
+      setInvitationCount(data.invitation_count ?? 0);
+    } catch {
+      setAvailableCrew([]);
+    } finally {
+      setAvailableLoading(false);
+      setAvailableLoaded(true);
+    }
+  }, [dayworkId, allRoles]);
+
+  // Lazy load: fetch available crew only when tab is first activated
+  useEffect(() => {
+    if (tab === 'available' && !availableLoaded) {
+      loadAvailableCrew();
+    }
+  }, [tab, availableLoaded, loadAvailableCrew]);
+
+  // Re-fetch when allRoles changes (only if tab is active)
+  useEffect(() => {
+    if (tab === 'available' && availableLoaded) {
+      loadAvailableCrew();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRoles]);
+
+  // Filter out passed crew from the visible stack
+  const visibleAvailable = availableCrew.filter((c) => !passedIds.has(c.person_id));
+
   // Fire DAYWORK.VIEWED when a card is shown
   const viewedRef = useRef<Set<string>>(new Set());
-  const currentStack = tab === 'applicants' ? applicants : shortlisted;
+  const applicantStack = tab === 'applicants' ? applicants : shortlisted;
   useEffect(() => {
-    const top = currentStack[0];
+    const top = applicantStack[0];
     if (top && !viewedRef.current.has(top.crew_person_id)) {
       viewedRef.current.add(top.crew_person_id);
       fetch(`/api/daywork/${dayworkId}/applicants/${top.crew_person_id}/view`, {
         method: 'POST',
       });
     }
-  }, [currentStack, dayworkId]);
+  }, [applicantStack, dayworkId]);
 
   async function handleShortlist(crewId: string) {
     setActing(true);
@@ -199,8 +266,32 @@ export default function ReviewApplicantsPage() {
     setActing(false);
   }
 
-  const topCard = currentStack[0] ?? null;
-  const nextCard = currentStack[1] ?? null;
+  async function handleInvite(personId: string) {
+    setActing(true);
+    setInviteError(null);
+    const res = await fetch(`/api/daywork/${dayworkId}/invite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ crewPersonId: personId }),
+    });
+    if (res.ok) {
+      setAvailableCrew((prev) => prev.filter((c) => c.person_id !== personId));
+      setInvitationCount((prev) => prev + 1);
+    } else {
+      const data = await res.json();
+      setInviteError(data.error ?? 'Failed to send invitation');
+    }
+    setActing(false);
+  }
+
+  function handlePass(personId: string) {
+    setPassedIds((prev) => new Set(prev).add(personId));
+  }
+
+  const currentStack = tab === 'available' ? [] : tab === 'applicants' ? applicants : shortlisted;
+  const topCard = tab === 'available' ? (visibleAvailable[0] ?? null) : (currentStack[0] ?? null);
+  const nextCard = tab === 'available' ? (visibleAvailable[1] ?? null) : (currentStack[1] ?? null);
+  const inviteLimitReached = invitationCount >= invitationLimit;
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
@@ -244,6 +335,17 @@ export default function ReviewApplicantsPage() {
           >
             Shortlist{shortlisted.length > 0 ? ` (${shortlisted.length})` : ''}
           </button>
+          <button
+            onClick={() => setTab('available')}
+            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === 'available'
+                ? 'border-b-2 border-foreground text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Available
+            {availableLoaded && visibleAvailable.length > 0 ? ` (${visibleAvailable.length})` : ''}
+          </button>
         </div>
       </div>
 
@@ -284,16 +386,43 @@ export default function ReviewApplicantsPage() {
           </Card>
         )}
 
+        {/* Available tab: allRoles toggle + invitation usage */}
+        {tab === 'available' && availableLoaded && (
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={allRoles}
+                onChange={(e) => {
+                  setAllRoles(e.target.checked);
+                  setAvailableLoaded(false);
+                }}
+                className="h-4 w-4 rounded border-border"
+              />
+              Show all roles
+            </label>
+            <p className="text-xs text-muted-foreground">
+              {invitationCount} of {invitationLimit} invitations used
+            </p>
+          </div>
+        )}
+
+        {/* Invite error message */}
+        {inviteError && <p className="text-center text-sm text-destructive">{inviteError}</p>}
+
         {/* Card stack */}
         <div className="relative flex flex-1 items-start justify-center pt-4">
-          {loading && (
+          {/* Loading states */}
+          {((tab !== 'available' && loading) || (tab === 'available' && availableLoading)) && (
             <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin" />
-              <p className="text-sm">Loading applicants...</p>
+              <p className="text-sm">
+                {tab === 'available' ? 'Finding available crew...' : 'Loading applicants...'}
+              </p>
             </div>
           )}
 
-          {!loading && error && (
+          {tab !== 'available' && !loading && error && (
             <div className="flex flex-col items-center gap-2 pt-20 text-center">
               <p className="text-sm text-destructive">{error}</p>
               <Button variant="outline" size="sm" onClick={loadApplicants}>
@@ -302,7 +431,8 @@ export default function ReviewApplicantsPage() {
             </div>
           )}
 
-          {!loading && !error && currentStack.length === 0 && (
+          {/* Empty states */}
+          {tab !== 'available' && !loading && !error && currentStack.length === 0 && (
             <Card className="w-full">
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -341,34 +471,79 @@ export default function ReviewApplicantsPage() {
             </Card>
           )}
 
-          {!loading && currentStack.length > 0 && (
+          {tab === 'available' &&
+            !availableLoading &&
+            availableLoaded &&
+            visibleAvailable.length === 0 && (
+              <Card className="w-full">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <CardTitle className="text-base">
+                      {inviteLimitReached ? 'Invitation limit reached' : 'No available crew nearby'}
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {inviteLimitReached
+                      ? `You\u2019ve used all ${invitationLimit} invitations for this posting.`
+                      : 'No crew with matching availability found. Try enabling "Show all roles" to broaden the search.'}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+          {/* Applicant/Shortlist card stack */}
+          {tab !== 'available' && !loading && currentStack.length > 0 && (
             <div className="relative h-[440px] w-full">
               {nextCard && (
                 <div className="absolute inset-0 z-0">
-                  <ApplicantCard applicant={nextCard} isPreview />
+                  <ApplicantCard applicant={nextCard as Applicant} isPreview />
                 </div>
               )}
 
               {topCard && (
                 <SwipeableApplicant
-                  key={topCard.crew_person_id}
-                  applicant={topCard}
+                  key={(topCard as Applicant).crew_person_id}
+                  applicant={topCard as Applicant}
                   tab={tab}
-                  onAccept={() => requestAccept(topCard.crew_person_id)}
-                  onReject={() => handleReject(topCard.crew_person_id)}
-                  onShortlist={() => handleShortlist(topCard.crew_person_id)}
+                  onAccept={() => requestAccept((topCard as Applicant).crew_person_id)}
+                  onReject={() => handleReject((topCard as Applicant).crew_person_id)}
+                  onShortlist={() => handleShortlist((topCard as Applicant).crew_person_id)}
                   disabled={acting}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Available crew card stack */}
+          {tab === 'available' && !availableLoading && visibleAvailable.length > 0 && (
+            <div className="relative h-[440px] w-full">
+              {nextCard && (
+                <div className="absolute inset-0 z-0">
+                  <AvailableCrewCard crew={nextCard as AvailableCrew} isPreview />
+                </div>
+              )}
+
+              {topCard && (
+                <SwipeableAvailableCrew
+                  key={(topCard as AvailableCrew).person_id}
+                  crew={topCard as AvailableCrew}
+                  onInvite={() => handleInvite((topCard as AvailableCrew).person_id)}
+                  onPass={() => handlePass((topCard as AvailableCrew).person_id)}
+                  disabled={acting || inviteLimitReached}
                 />
               )}
             </div>
           )}
         </div>
 
-        {/* Action buttons */}
-        {!loading && topCard && (
+        {/* Action buttons — applicant/shortlist tabs */}
+        {tab !== 'available' && !loading && topCard && (
           <div className="flex items-center justify-center gap-6 pb-4">
             <button
-              onClick={() => handleReject(topCard.crew_person_id)}
+              onClick={() => handleReject((topCard as Applicant).crew_person_id)}
               disabled={acting}
               className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
             >
@@ -376,7 +551,7 @@ export default function ReviewApplicantsPage() {
             </button>
             {tab === 'applicants' && (
               <button
-                onClick={() => handleShortlist(topCard.crew_person_id)}
+                onClick={() => handleShortlist((topCard as Applicant).crew_person_id)}
                 disabled={acting}
                 className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-500 text-amber-500 transition-colors hover:bg-amber-500 hover:text-white disabled:opacity-50"
               >
@@ -384,7 +559,7 @@ export default function ReviewApplicantsPage() {
               </button>
             )}
             <button
-              onClick={() => requestAccept(topCard.crew_person_id)}
+              onClick={() => requestAccept((topCard as Applicant).crew_person_id)}
               disabled={acting}
               className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
             >
@@ -393,11 +568,38 @@ export default function ReviewApplicantsPage() {
           </div>
         )}
 
+        {/* Action buttons — available tab */}
+        {tab === 'available' && !availableLoading && topCard && visibleAvailable.length > 0 && (
+          <div className="flex items-center justify-center gap-6 pb-4">
+            <button
+              onClick={() => handlePass((topCard as AvailableCrew).person_id)}
+              disabled={acting}
+              className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            <button
+              onClick={() => handleInvite((topCard as AvailableCrew).person_id)}
+              disabled={acting || inviteLimitReached}
+              className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
+              title={inviteLimitReached ? 'Invitation limit reached' : 'Invite'}
+            >
+              <Send className="h-6 w-6" />
+            </button>
+          </div>
+        )}
+
         {/* Counter */}
-        {!loading && currentStack.length > 0 && (
+        {tab !== 'available' && !loading && currentStack.length > 0 && (
           <p className="text-center text-xs text-muted-foreground">
             {currentStack.length} {tab === 'applicants' ? 'applicant' : 'shortlisted'}
             {currentStack.length !== 1 ? 's' : ''} to review
+          </p>
+        )}
+        {tab === 'available' && !availableLoading && visibleAvailable.length > 0 && (
+          <p className="text-center text-xs text-muted-foreground">
+            {visibleAvailable.length} crew member{visibleAvailable.length !== 1 ? 's' : ''}{' '}
+            available
           </p>
         )}
       </div>
@@ -537,6 +739,138 @@ function SwipeableApplicant({
 
       <ApplicantCard applicant={applicant} />
     </motion.div>
+  );
+}
+
+function SwipeableAvailableCrew({
+  crew,
+  onInvite,
+  onPass,
+  disabled,
+}: {
+  crew: AvailableCrew;
+  onInvite: () => void;
+  onPass: () => void;
+  disabled: boolean;
+}) {
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-15, 15]);
+  const inviteOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
+  const passOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
+
+  function handleDragEnd(_: unknown, info: PanInfo) {
+    if (disabled && info.offset.x > SWIPE_THRESHOLD) {
+      // Can't invite when disabled (limit reached) — snap back
+      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+      return;
+    }
+
+    if (info.offset.x > SWIPE_THRESHOLD) {
+      hapticMedium();
+      animate(x, 400, { duration: 0.3 });
+      setTimeout(onInvite, 300);
+    } else if (info.offset.x < -SWIPE_THRESHOLD) {
+      hapticLight();
+      animate(x, -400, { duration: 0.3 });
+      setTimeout(onPass, 300);
+    } else {
+      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+    }
+  }
+
+  return (
+    <motion.div
+      className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
+      style={{ x, rotate }}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.8}
+      onDragEnd={handleDragEnd}
+    >
+      <motion.div
+        className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border-2 border-success bg-success/10 px-3 py-1 text-sm font-bold text-success"
+        style={{ opacity: inviteOpacity }}
+      >
+        INVITE
+      </motion.div>
+      <motion.div
+        className="pointer-events-none absolute right-4 top-4 z-20 rounded-lg border-2 border-destructive bg-destructive/10 px-3 py-1 text-sm font-bold text-destructive"
+        style={{ opacity: passOpacity }}
+      >
+        PASS
+      </motion.div>
+
+      <AvailableCrewCard crew={crew} />
+    </motion.div>
+  );
+}
+
+function AvailableCrewCard({ crew, isPreview }: { crew: AvailableCrew; isPreview?: boolean }) {
+  return (
+    <div
+      className={`h-full w-full rounded-2xl border border-border bg-background shadow-lg ${
+        isPreview ? 'scale-[0.97] opacity-60' : ''
+      }`}
+    >
+      <div className="flex h-full flex-col p-5">
+        {/* Name + role */}
+        <div className="mb-3">
+          <h3 className="text-lg font-bold">{crew.display_name ?? 'Unknown'}</h3>
+          <p className="text-sm text-muted-foreground">
+            {crew.yacht_roles?.name ?? 'No primary role'}
+            {crew.yacht_roles?.department && ` · ${crew.yacht_roles.department}`}
+          </p>
+        </div>
+
+        {/* Details */}
+        <div className="flex flex-col gap-2.5">
+          {crew.experience_brackets?.label && (
+            <div className="flex items-center gap-2 text-sm">
+              <Award className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>{crew.experience_brackets.label} experience</span>
+            </div>
+          )}
+
+          {crew.ports && (
+            <div className="flex items-center gap-2 text-sm">
+              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>
+                {crew.ports.name}
+                {crew.ports.cities?.name && `, ${crew.ports.cities.name}`}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-sm">
+            <Calendar className="h-4 w-4 shrink-0 text-success" />
+            <span className="font-medium text-success">
+              {crew.available_days} available day{crew.available_days !== 1 ? 's' : ''} in range
+            </span>
+          </div>
+        </div>
+
+        {/* Badges */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {(crew.certification_ids?.length ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {crew.certification_ids.length} cert
+              {crew.certification_ids.length !== 1 ? 's' : ''}
+            </Badge>
+          )}
+          {(crew.vessel_size_exposure_ids?.length ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {crew.vessel_size_exposure_ids.length} vessel size
+              {crew.vessel_size_exposure_ids.length !== 1 ? 's' : ''}
+            </Badge>
+          )}
+        </div>
+
+        {/* Bio */}
+        {crew.bio && <p className="mt-3 text-sm text-muted-foreground line-clamp-3">{crew.bio}</p>}
+
+        <div className="flex-1" />
+      </div>
+    </div>
   );
 }
 
