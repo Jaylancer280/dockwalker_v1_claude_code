@@ -31,7 +31,6 @@ interface CrewProfile {
   vessel_size_exposure: { id: string; label: string }[];
   location: { port: string; city: string; region: string } | null;
   experiences: CrewExperience[];
-  past_daywork_count: number;
 }
 
 interface EmployerProfile {
@@ -84,11 +83,12 @@ export function ProfileOverlay({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+      style={{ bottom: 'calc(var(--nav-height, 0px) + env(safe-area-inset-bottom))' }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[85vh] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background">
+      <div className="mb-2 flex max-h-[85vh] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-2xl bg-background shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-bold">Profile</h2>
@@ -272,12 +272,6 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
           })}
         </div>
       )}
-
-      {/* Past daywork count */}
-      <p className="text-xs text-muted-foreground">
-        {profile.past_daywork_count} completed daywork engagement
-        {profile.past_daywork_count !== 1 ? 's' : ''}
-      </p>
     </div>
   );
 }

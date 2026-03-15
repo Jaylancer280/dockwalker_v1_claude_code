@@ -103,15 +103,13 @@ describe('GET /api/profile/[personId]', () => {
     // Experiences fetch
     mockFrom.mockReturnValueOnce(mockChain([]));
 
-    // Past daywork count
-    mockFrom.mockReturnValueOnce(mockChain(null, { count: 3 }));
-
     const res = await GET(new Request('http://localhost'), makeParams('p2'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.display_name).toBe('Test Crew');
     expect(body.identity_type).toBe('crew');
-    expect(body.past_daywork_count).toBe(3);
+    // No reputation metrics exposed
+    expect(body.past_daywork_count).toBeUndefined();
     // Verify no salary fields
     expect(body.salary_amount).toBeUndefined();
     expect(body.salary_currency).toBeUndefined();
@@ -189,8 +187,6 @@ describe('GET /api/profile/[personId]', () => {
     );
     // Experiences
     mockFrom.mockReturnValueOnce(mockChain([]));
-    // Count
-    mockFrom.mockReturnValueOnce(mockChain(null, { count: 0 }));
 
     const res = await GET(new Request('http://localhost'), makeParams('p2'));
     expect(res.status).toBe(200);
@@ -237,8 +233,7 @@ describe('GET /api/profile/[personId]', () => {
       ]),
     );
 
-    // Count
-    mockFrom.mockReturnValueOnce(mockChain(null, { count: 1 }));
+
 
     const res = await GET(new Request('http://localhost'), makeParams('p2'));
     expect(res.status).toBe(200);

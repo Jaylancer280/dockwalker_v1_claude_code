@@ -18,6 +18,7 @@ import {
   CalendarDays,
   ClipboardList,
   Mail,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -1039,7 +1040,20 @@ function JobCard({
       <div className="flex h-full flex-col p-5">
         {/* Role + vessel */}
         <div className="mb-3">
-          <h3 className="text-lg font-bold">{card.yacht_roles?.name ?? 'Unknown role'}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="flex-1 text-lg font-bold">{card.yacht_roles?.name ?? 'Unknown role'}</h3>
+            {!isPreview && (
+              <button
+                className="text-muted-foreground hover:text-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewProfile?.(card.poster_person_id);
+                }}
+              >
+                <User className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground">
             {card.vessels?.nda_flag
               ? 'NDA Vessel'
@@ -1049,17 +1063,9 @@ function JobCard({
           </p>
         </div>
 
-        {/* Poster */}
+        {/* Poster name */}
         {card.poster_name && (
-          <button
-            className="mb-2 text-left text-xs text-muted-foreground hover:text-primary hover:underline"
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewProfile?.(card.poster_person_id);
-            }}
-          >
-            Posted by {card.poster_name}
-          </button>
+          <p className="mb-2 text-xs text-muted-foreground">Posted by {card.poster_name}</p>
         )}
 
         {/* Details */}
@@ -1178,12 +1184,12 @@ function ApplicationCard({
               {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
             </p>
           </div>
-          {dw.poster_name && dw.poster_person_id && (
+          {dw.poster_person_id && (
             <button
-              className="text-left text-xs text-muted-foreground hover:text-primary hover:underline"
+              className="shrink-0 text-muted-foreground hover:text-primary"
               onClick={() => onViewProfile?.(dw.poster_person_id!)}
             >
-              {dw.poster_name}
+              <User className="h-4 w-4" />
             </button>
           )}
           <Badge className={`shrink-0 text-[10px] ${statusInfo.className}`}>
@@ -1318,27 +1324,27 @@ function InvitationCard({
       <CardContent className="flex flex-col gap-2 pt-4">
         {/* Invited by header */}
         <p className="text-xs font-medium text-primary">
-          Invited by{' '}
-          {invitation.employer_person_id ? (
-            <button
-              className="hover:underline"
-              onClick={() => onViewProfile?.(invitation.employer_person_id)}
-            >
-              {invitation.employer_name ?? 'an employer'}
-            </button>
-          ) : (
-            (invitation.employer_name ?? 'an employer')
-          )}
+          Invited by {invitation.employer_name ?? 'an employer'}
         </p>
 
         {/* Role + vessel */}
-        <div>
-          <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
-          <p className="text-sm text-muted-foreground">
-            {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
-            {dw.vessel_name ?? 'Unknown vessel'}
-            {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
-          </p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
+            <p className="text-sm text-muted-foreground">
+              {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
+              {dw.vessel_name ?? 'Unknown vessel'}
+              {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
+            </p>
+          </div>
+          {invitation.employer_person_id && (
+            <button
+              className="mt-0.5 shrink-0 text-muted-foreground hover:text-primary"
+              onClick={() => onViewProfile?.(invitation.employer_person_id)}
+            >
+              <User className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
         {/* Details */}

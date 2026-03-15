@@ -139,13 +139,6 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     .eq('person_id', personId)
     .order('start_date', { ascending: false });
 
-  // Count past completed daywork engagements
-  const { count: pastDayworkCount } = await supabase
-    .from('active_engagements')
-    .select('id', { count: 'exact', head: true })
-    .eq('crew_person_id', personId)
-    .eq('status', 'completed');
-
   const ports = profile.ports as {
     name: string;
     cities: { name: string; regions: { name: string } };
@@ -186,7 +179,6 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
         description: exp.description,
       };
     }),
-    past_daywork_count: pastDayworkCount ?? 0,
   };
 }
 
