@@ -372,7 +372,7 @@ export default function DiscoverPage() {
       setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
       loadApplications();
     } else {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setInvitationError(data.error ?? 'Failed to accept invitation');
     }
     setRespondingId(null);
@@ -390,7 +390,7 @@ export default function DiscoverPage() {
     if (res.ok) {
       setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
     } else {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setInvitationError(data.error ?? 'Failed to decline invitation');
     }
     setRespondingId(null);

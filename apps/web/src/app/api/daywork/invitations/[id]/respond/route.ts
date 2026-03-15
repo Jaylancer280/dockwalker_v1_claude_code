@@ -64,17 +64,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   if (action === 'decline') {
-    await appendEvent(serviceClient, {
-      eventType: 'DAYWORK.INVITATION_DECLINED',
-      aggregateId: invitationId,
-      aggregateType: 'invitation',
-      roleContext: 'crew',
-      payload: {
-        daywork_id: invitation.daywork_id,
-        invitation_id: invitationId,
-      },
-      personId: user.id,
-    });
+    try {
+      await appendEvent(serviceClient, {
+        eventType: 'DAYWORK.INVITATION_DECLINED',
+        aggregateId: invitationId,
+        aggregateType: 'invitation',
+        roleContext: 'crew',
+        payload: {
+          daywork_id: invitation.daywork_id,
+          invitation_id: invitationId,
+        },
+        personId: user.id,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to decline invitation';
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true });
   }
@@ -114,31 +119,36 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Append INVITATION_ACCEPTED + APPLIED atomically
   const applicationId = crypto.randomUUID();
-  await appendEvents(serviceClient, [
-    {
-      eventType: 'DAYWORK.INVITATION_ACCEPTED',
-      aggregateId: invitationId,
-      aggregateType: 'invitation',
-      roleContext: 'crew',
-      payload: {
-        daywork_id: invitation.daywork_id,
-        invitation_id: invitationId,
+  try {
+    await appendEvents(serviceClient, [
+      {
+        eventType: 'DAYWORK.INVITATION_ACCEPTED',
+        aggregateId: invitationId,
+        aggregateType: 'invitation',
+        roleContext: 'crew',
+        payload: {
+          daywork_id: invitation.daywork_id,
+          invitation_id: invitationId,
+        },
+        personId: user.id,
       },
-      personId: user.id,
-    },
-    {
-      eventType: 'DAYWORK.APPLIED',
-      aggregateId: `${user.id}:${invitation.daywork_id}`,
-      aggregateType: 'application',
-      roleContext: 'crew',
-      payload: {
-        id: applicationId,
-        daywork_id: invitation.daywork_id,
-        crew_person_id: user.id,
+      {
+        eventType: 'DAYWORK.APPLIED',
+        aggregateId: `${user.id}:${invitation.daywork_id}`,
+        aggregateType: 'application',
+        roleContext: 'crew',
+        payload: {
+          id: applicationId,
+          daywork_id: invitation.daywork_id,
+          crew_person_id: user.id,
+        },
+        personId: user.id,
       },
-      personId: user.id,
-    },
-  ]);
+    ]);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to accept invitation';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 
   return NextResponse.json({ application: { id: applicationId, status: 'applied' } });
 }
