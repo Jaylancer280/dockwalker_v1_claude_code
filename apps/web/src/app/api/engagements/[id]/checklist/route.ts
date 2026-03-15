@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvents } from '@dockwalker/db';
 import type { AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
+import { notifyOnEvent } from '@/lib/push-triggers';
 import { randomUUID } from 'crypto';
 
 /**
@@ -116,6 +117,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     ];
 
     await appendEvents(serviceClient, events);
+
+    notifyOnEvent(serviceClient, 'CHECKLIST.SET', { engagement_id: engagementId }, user.id);
 
     return NextResponse.json({ success: true, updated: isUpdate });
   } catch (err) {

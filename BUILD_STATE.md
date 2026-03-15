@@ -76,9 +76,23 @@
 
 - [Stage 60] Experience auto-derivation — `derive_experience_profile(person_id)` PostgreSQL function auto-computes `experience_bracket_id` (from total days across all crew_experiences) and `vessel_size_exposure_ids` (distinct size bands from experience vessels) on the profile; called after every `EXPERIENCE.ADDED`, `EXPERIENCE.UPDATED`, and `EXPERIENCE.REMOVED` event in `apply_projection`; zero experiences clears both fields; migration 00031; 4 new integration tests
 
+- [Stage 61] NDA reveal-after-acceptance + immutability guard — `get_vessel_public` now reveals IMO to crew with an active engagement on a daywork linked to the NDA vessel (joins `active_engagements` + `dayworks`); new `PATCH /api/vessels/[id]` route with full validation, LOA-based size band auto-derivation, and NDA immutability guard (400 if trying to set `nda_flag: false` when currently `true`); migration 00032; 2 integration tests (non-engaged crew masked, engaged crew revealed); 8 new unit tests (444 total)
+
+- [Stage 62] Integration test expansion — 15 new integration tests covering: engagement lifecycle (DAYWORK.COMPLETED, COMPLETION_CONFIRMED, RATED_BY_CREW, RATED_BY_EMPLOYER), cancellation (CANCELLED_BY_CREW with reason, CANCELLED_BY_EMPLOYER with reason), work started (WORK_STARTED initiation, WORK_STARTED_CONFIRMED with timestamp), postponement (PROPOSED, ACCEPTED applies dates, REJECTED cancels), checklist (CHECKLIST.SET creates items, ITEM_TOGGLED add/remove); 62e (experience CRUD) and 62g (auto-derivation) already covered by Stage 60
+
+- [Stage 63] Push token infrastructure — `device_tokens` table (migration 00033) with RLS, unique `(person_id, token)`, platform enum (apns/fcm/web); `POST /api/push-tokens` upserts token, `DELETE /api/push-tokens` removes token; client-side `push-notifications.ts` updated: registration listener POSTs token to API (with localStorage change detection), new `deregisterPushToken()` for sign-out cleanup; 8 new unit tests (452 total)
+
+- [Stage 64] Push targeted notifications — server-side push delivery via `push-delivery.ts` (FCM HTTP v1 API + APNs HTTP/2, with JWT auth, token caching, invalid token cleanup); `push-triggers.ts` maps 13 event types to push notifications with correct recipient, title, body, and deep-link data; `notifyOnEvent()` wired fire-and-forget into 12 API routes (apply, accept, reject, shortlist, invite, messages, complete, work-started, cancel-crew, cancel-employer, propose-postponement, checklist); graceful no-op when push credentials not configured; 15 new tests (467 total)
+
+- [Stage 65] Push broadcast notifications — `DAYWORK.POSTED` triggers notifications to crew with active availability in the same city; port→city resolution, poster exclusion, deduplication; in-memory 60-second debounce queue collapses multiple postings into single "X new opportunities" notification per recipient; single posting sends specific "New {role} daywork in {city}" notification; best-effort (queue cleared on server restart); 4 new broadcast tests (471 total)
+
+- [Stage 66] Push in-app handling — `PushToast` component for foreground notification display (slide-down banner, auto-dismiss 5s, tappable to navigate); `resolveDeepLinkUrl()` maps push data screen types to in-app routes (chat→/messages/:id, discover→/discover, review→/daywork/:id/review); foreground listener suppresses toast if user already on target screen; tap listener navigates via deep link; badge management deferred (requires third-party Capacitor plugin not yet installed); 11 new tests (4 toast component + 7 deep link mapping); 482 tests pass
+
+- [Stage 67] Post-implementation hardening — (1) DAYWORK.ACCEPTED push deep-link now sends `engagementId` instead of `dayworkId`, accept route fetches engagement before notifyOnEvent; (2) system message suppression in MESSAGE.SENT already implemented (verified); (3) integration test false positives: MESSAGE.SENT test now fails loudly on missing engagement, experience auto-derivation "second experience" test is self-contained; (4) onboarding batch validates new experiences against existing `crew_experiences` for date overlaps; (5) APNs key read failures now logged with `console.error` for production diagnosis; 483 tests pass
+
 ## Current Schema Version
 
-v31 — experience auto-derivation (31 migrations applied)
+v33 — device tokens (33 migrations applied)
 
 ## Migrations Applied
 
@@ -115,6 +129,8 @@ v31 — experience auto-derivation (31 migrations applied)
 | `00029_experience_enhancements.sql`          | Renames `vessel_type` → `vessel_operation` + new `vessel_type` (motor\|sail) on vessels; renames `charter_or_private` → `vessel_operation`, `rotation_type` → `contract_type`, `rotation_details` → `contract_details` on crew_experiences; updates `get_vessel_public` and `apply_projection` |
 | `00030_daywork_invitations.sql`              | `daywork_invitations` table with RLS + indexes; `apply_projection` handlers for `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED`; revocation logic on `DAYWORK.ACCEPTED`, `DAYWORK.CANCELLED_BY_EMPLOYER`, `DAYWORK.RELISTED`; auto-accept on `DAYWORK.APPLIED` |
 | `00031_experience_auto_derivation.sql`       | `derive_experience_profile(person_id)` function auto-computes `experience_bracket_id` + `vessel_size_exposure_ids` on profile from crew_experiences; called after `EXPERIENCE.ADDED/UPDATED/REMOVED` in `apply_projection`                                                                     |
+| `00032_nda_reveal_after_acceptance.sql`      | Updates `get_vessel_public` to reveal IMO when caller has an active engagement on a daywork linked to the vessel; NDA immutability enforced at API layer                                                                                                                                       |
+| `00033_device_tokens.sql`                    | `device_tokens` table with RLS, unique `(person_id, token)`, platform enum (apns/fcm/web). CRUD utility data, not event-sourced.                                                                                                                                                               |
 
 ## Deferred Decisions
 
@@ -122,7 +138,7 @@ v31 — experience auto-derivation (31 migrations applied)
 - NDA access request features (crew requesting NDA info)
 - Vessel deactivation
 - Internal metrics (availability reliability, engagement frequency)
-- Push notifications — build as a single pass after all flows are complete. Client scaffolding exists (`push-notifications.ts`, `NativeInit`). Remaining: token storage table + API, server-side delivery (APNs/FCM), in-app notification UI, deep linking on tap. Trigger points: every event type that warrants a notification (accepted, applied, messaged, cancelled, postponement, work started, completion, checklist, rating nudge). Notification priority matrix and delivery channel decisions documented in conversation — design holistically when ready
+- Push notifications — token infrastructure (Stage 63), targeted delivery (Stage 64), broadcast (Stage 65), and in-app handling (Stage 66) complete. Remaining: badge management (requires `@capawesome/capacitor-badge` or similar third-party plugin)
 - Whether `daywork_templates` should remain CRUD forever or later move into the ledger
 - Admin tooling for duplicate vessel resolution (per-registrant IMO records may diverge)
 - "Verified against public records" badge on vessels

@@ -622,10 +622,8 @@ describe('MESSAGE.SENT roundtrip', () => {
       .eq('daywork_id', DAYWORK_ID)
       .single();
 
-    if (!eng) {
-      // Skip if apply→accept test hasn't run (test isolation)
-      return;
-    }
+    expect(eng).toBeTruthy();
+    if (!eng) throw new Error('Engagement not found');
 
     const MSG_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb001';
 
@@ -702,7 +700,26 @@ describe('Experience auto-derivation', () => {
   });
 
   it('adding second experience recalculates bracket from total days', async () => {
-    // First experience already exists from previous test (90 days)
+    await cleanExperiences();
+
+    // Set up first experience (90 days) within this test
+    await appendEvent(
+      'EXPERIENCE.ADDED',
+      EXP_ID_1,
+      'experience',
+      'crew',
+      {
+        id: EXP_ID_1,
+        vessel_id: VESSEL_ID,
+        role_id: ROLE_CAPTAIN,
+        start_date: '2024-01-01',
+        end_date: '2024-04-01',
+        is_current: false,
+        vessel_operation: 'charter',
+      },
+      CREW_ID,
+    );
+
     // Add another 270-day experience (total ~360 days = ~11.8 months → 6-12 bracket)
     await appendEvent(
       'EXPERIENCE.ADDED',
@@ -771,5 +788,766 @@ describe('Experience auto-derivation', () => {
 
     expect(profile?.experience_bracket_id).toBeNull();
     expect(profile?.vessel_size_exposure_ids).toEqual([]);
+  });
+});
+
+// ===========================================================================
+// 9. NDA reveal-after-acceptance
+// ===========================================================================
+describe('NDA reveal-after-acceptance', () => {
+  const NDA_VESSEL_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0001';
+  const NDA_DAYWORK_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0002';
+  const NDA_APP_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeee0003';
+
+  // Sign in as crew to test get_vessel_public with auth.uid() = CREW_ID
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let crewClient: any;
+
+  beforeAll(async () => {
+    // Create authenticated crew client
+    const anon = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: signInError } = await anon.auth.signInWithPassword({
+      email: 'c@1',
+      password: '12345678',
+    });
+    if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
+    crewClient = anon;
+
+    // Create NDA vessel owned by employer
+    await appendEvent(
+      'VESSEL.CREATED',
+      NDA_VESSEL_ID,
+      'vessel',
+      'employer',
+      {
+        id: NDA_VESSEL_ID,
+        imo_number: '9999999',
+        name: 'NDA Secret Yacht',
+        vessel_type: 'motor',
+        vessel_operation: 'charter',
+        size_band_id: SIZE_BAND_4,
+        loa_meters: 85,
+        nda_flag: true,
+      },
+      EMPLOYER_ID,
+    );
+
+    // Post a daywork on that NDA vessel
+    await appendEvent(
+      'DAYWORK.POSTED',
+      NDA_DAYWORK_ID,
+      'daywork',
+      'employer',
+      {
+        id: NDA_DAYWORK_ID,
+        vessel_id: NDA_VESSEL_ID,
+        role_id: ROLE_CAPTAIN,
+        location_port_id: PORT_VAUBAN,
+        start_date: '2099-01-01',
+        end_date: '2099-01-07',
+        working_days: 7,
+        required_certification_ids: [],
+        day_rate: 500,
+        currency: 'EUR',
+        meals: [],
+      },
+      EMPLOYER_ID,
+    );
+
+    // Crew applies
+    await appendEvent(
+      'DAYWORK.APPLIED',
+      `${CREW_ID}:${NDA_DAYWORK_ID}`,
+      'application',
+      'crew',
+      { id: NDA_APP_ID, daywork_id: NDA_DAYWORK_ID },
+      CREW_ID,
+    );
+  });
+
+  it('non-engaged crew sees null IMO for NDA vessel', async () => {
+    // Before acceptance, crew should NOT see IMO
+    const { data } = await crewClient.rpc('get_vessel_public', {
+      p_vessel_id: NDA_VESSEL_ID,
+    });
+
+    expect(data).toHaveLength(1);
+    expect(data[0].nda_flag).toBe(true);
+    expect(data[0].imo_number).toBeNull();
+  });
+
+  it('engaged crew sees IMO after acceptance', async () => {
+    // Employer accepts crew
+    await appendEvent(
+      'DAYWORK.ACCEPTED',
+      `${CREW_ID}:${NDA_DAYWORK_ID}`,
+      'application',
+      'employer',
+      {},
+      EMPLOYER_ID,
+    );
+
+    // Verify engagement exists
+    const { data: engagement } = await service
+      .from('active_engagements')
+      .select('id, status')
+      .eq('crew_person_id', CREW_ID)
+      .eq('daywork_id', NDA_DAYWORK_ID)
+      .single();
+
+    expect(engagement?.status).toBe('active');
+
+    // Now crew should see full IMO
+    const { data } = await crewClient.rpc('get_vessel_public', {
+      p_vessel_id: NDA_VESSEL_ID,
+    });
+
+    expect(data).toHaveLength(1);
+    expect(data[0].nda_flag).toBe(true);
+    expect(data[0].imo_number).toBe('9999999');
+  });
+});
+
+// ===========================================================================
+// 10. Engagement lifecycle: completion, confirmation, ratings
+// ===========================================================================
+describe('Engagement lifecycle — completion + ratings', () => {
+  // Use seed daywork 5 which is in_progress with active engagement
+  const DW5 = '44444444-4444-4444-4444-444444444005';
+  let engagementId: string;
+
+  beforeAll(async () => {
+    const { data } = await service
+      .from('active_engagements')
+      .select('id')
+      .eq('daywork_id', DW5)
+      .eq('status', 'active')
+      .single();
+    engagementId = data?.id ?? '';
+  });
+
+  it('DAYWORK.COMPLETED sets daywork completed and engagement completed', async () => {
+    await appendEvent(
+      'DAYWORK.COMPLETED',
+      DW5,
+      'daywork',
+      'employer',
+      {},
+      EMPLOYER_ID,
+    );
+
+    const { data: dw } = await service
+      .from('dayworks')
+      .select('status')
+      .eq('id', DW5)
+      .single();
+    expect(dw?.status).toBe('completed');
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('status')
+      .eq('id', engagementId)
+      .single();
+    expect(eng?.status).toBe('completed');
+  });
+
+  it('ENGAGEMENT.COMPLETION_CONFIRMED sets crew_completion_status', async () => {
+    await appendEvent(
+      'ENGAGEMENT.COMPLETION_CONFIRMED',
+      engagementId,
+      'engagement',
+      'crew',
+      {},
+      CREW_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('crew_completion_status')
+      .eq('id', engagementId)
+      .single();
+    expect(eng?.crew_completion_status).toBe('confirmed');
+  });
+
+  it('ENGAGEMENT.RATED_BY_CREW persists crew rating', async () => {
+    // Clean up any existing rating
+    await service.from('engagement_ratings').delete()
+      .eq('engagement_id', engagementId)
+      .eq('rater_role', 'crew');
+
+    await appendEvent(
+      'ENGAGEMENT.RATED_BY_CREW',
+      engagementId,
+      'engagement',
+      'crew',
+      {
+        pay_accuracy: 'accurate',
+        meals_accuracy: 'accurate',
+        role_accuracy: 'accurate',
+        working_days_accuracy: 'accurate',
+        vessel_condition: 4,
+        would_work_on_vessel_again: true,
+        communication_accuracy: true,
+        overall_match: 5,
+      },
+      CREW_ID,
+    );
+
+    const { data: rating } = await service
+      .from('engagement_ratings')
+      .select('rater_role, overall_match, would_work_on_vessel_again')
+      .eq('engagement_id', engagementId)
+      .eq('rater_role', 'crew')
+      .single();
+
+    expect(rating?.rater_role).toBe('crew');
+    expect(rating?.overall_match).toBe(5);
+    expect(rating?.would_work_on_vessel_again).toBe(true);
+  });
+
+  it('ENGAGEMENT.RATED_BY_EMPLOYER persists employer rating', async () => {
+    // Clean up any existing rating
+    await service.from('engagement_ratings').delete()
+      .eq('engagement_id', engagementId)
+      .eq('rater_role', 'employer');
+
+    await appendEvent(
+      'ENGAGEMENT.RATED_BY_EMPLOYER',
+      engagementId,
+      'engagement',
+      'employer',
+      {
+        skills_as_advertised: 'accurate',
+        certifications_verified: 'verified',
+        punctuality: 'on_time',
+        would_rehire: true,
+        communication_accuracy: true,
+        overall_match: 4,
+      },
+      EMPLOYER_ID,
+    );
+
+    const { data: rating } = await service
+      .from('engagement_ratings')
+      .select('rater_role, overall_match, would_rehire')
+      .eq('engagement_id', engagementId)
+      .eq('rater_role', 'employer')
+      .single();
+
+    expect(rating?.rater_role).toBe('employer');
+    expect(rating?.overall_match).toBe(4);
+    expect(rating?.would_rehire).toBe(true);
+  });
+});
+
+// ===========================================================================
+// 11. Cancellation roundtrips
+// ===========================================================================
+describe('Cancellation events', () => {
+  // Create fresh daywork + engagement for cancellation tests
+  const CANCEL_DW = 'cccccccc-cccc-cccc-dddd-000000000001';
+  const CANCEL_APP = 'cccccccc-cccc-cccc-dddd-000000000002';
+  const CANCEL_AGG = `${CREW_ID}:${CANCEL_DW}`;
+
+  beforeAll(async () => {
+    // Clean up from previous runs
+    await service.from('messages').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', CANCEL_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('active_engagements').delete().eq('daywork_id', CANCEL_DW);
+    await service.from('applications').delete().eq('daywork_id', CANCEL_DW);
+    await service.from('dayworks').delete().eq('id', CANCEL_DW);
+
+    // Post a daywork
+    await appendEvent('DAYWORK.POSTED', CANCEL_DW, 'daywork', 'employer', {
+      id: CANCEL_DW,
+      vessel_id: VESSEL_ID,
+      role_id: ROLE_CAPTAIN,
+      location_port_id: PORT_VAUBAN,
+      start_date: '2098-06-01',
+      end_date: '2098-06-07',
+      working_days: 7,
+      required_certification_ids: [],
+      day_rate: 400,
+      currency: 'EUR',
+      meals: [],
+    }, EMPLOYER_ID);
+
+    // Apply + accept to create engagement
+    await appendEvent('DAYWORK.APPLIED', CANCEL_AGG, 'application', 'crew', {
+      id: CANCEL_APP,
+      daywork_id: CANCEL_DW,
+    }, CREW_ID);
+
+    await appendEvent('DAYWORK.ACCEPTED', CANCEL_AGG, 'application', 'employer', {}, EMPLOYER_ID);
+  });
+
+  it('ENGAGEMENT.CANCELLED_BY_CREW sets cancelled_by to crew', async () => {
+    await appendEvent(
+      'ENGAGEMENT.CANCELLED_BY_CREW',
+      CANCEL_AGG,
+      'engagement',
+      'crew',
+      { reason_category: 'personal_reasons', reason_text: 'Family emergency' },
+      CREW_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('status, cancelled_by, cancellation_reason_category')
+      .eq('daywork_id', CANCEL_DW)
+      .single();
+
+    expect(eng?.status).toBe('cancelled');
+    expect(eng?.cancelled_by).toBe('crew');
+    expect(eng?.cancellation_reason_category).toBe('personal_reasons');
+  });
+});
+
+describe('Employer cancellation of daywork', () => {
+  const EMP_CANCEL_DW = 'cccccccc-cccc-cccc-dddd-000000000003';
+  const EMP_CANCEL_APP = 'cccccccc-cccc-cccc-dddd-000000000004';
+  const EMP_CANCEL_AGG = `${CREW_ID}:${EMP_CANCEL_DW}`;
+
+  beforeAll(async () => {
+    // Clean up
+    await service.from('messages').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', EMP_CANCEL_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('active_engagements').delete().eq('daywork_id', EMP_CANCEL_DW);
+    await service.from('applications').delete().eq('daywork_id', EMP_CANCEL_DW);
+    await service.from('dayworks').delete().eq('id', EMP_CANCEL_DW);
+
+    // Post + apply + accept
+    await appendEvent('DAYWORK.POSTED', EMP_CANCEL_DW, 'daywork', 'employer', {
+      id: EMP_CANCEL_DW,
+      vessel_id: VESSEL_ID,
+      role_id: ROLE_CAPTAIN,
+      location_port_id: PORT_VAUBAN,
+      start_date: '2098-07-01',
+      end_date: '2098-07-07',
+      working_days: 7,
+      required_certification_ids: [],
+      day_rate: 400,
+      currency: 'EUR',
+      meals: [],
+    }, EMPLOYER_ID);
+
+    await appendEvent('DAYWORK.APPLIED', EMP_CANCEL_AGG, 'application', 'crew', {
+      id: EMP_CANCEL_APP,
+      daywork_id: EMP_CANCEL_DW,
+    }, CREW_ID);
+
+    await appendEvent('DAYWORK.ACCEPTED', EMP_CANCEL_AGG, 'application', 'employer', {}, EMPLOYER_ID);
+  });
+
+  it('ENGAGEMENT.CANCELLED_BY_EMPLOYER sets cancelled_by to employer', async () => {
+    await appendEvent(
+      'ENGAGEMENT.CANCELLED_BY_EMPLOYER',
+      EMP_CANCEL_AGG,
+      'engagement',
+      'employer',
+      { reason_category: 'vessel_leaving', reason_text: 'Vessel departed early' },
+      EMPLOYER_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('status, cancelled_by, cancellation_reason_category')
+      .eq('daywork_id', EMP_CANCEL_DW)
+      .single();
+
+    expect(eng?.status).toBe('cancelled');
+    expect(eng?.cancelled_by).toBe('employer');
+    expect(eng?.cancellation_reason_category).toBe('vessel_leaving');
+  });
+});
+
+// ===========================================================================
+// 12. Work started + postponement
+// ===========================================================================
+describe('Work started confirmation', () => {
+  const WS_DW = 'cccccccc-cccc-cccc-dddd-000000000005';
+  const WS_APP = 'cccccccc-cccc-cccc-dddd-000000000006';
+  const WS_AGG = `${CREW_ID}:${WS_DW}`;
+  let wsEngagementId: string;
+
+  beforeAll(async () => {
+    // Clean up
+    await service.from('engagement_checklists').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', WS_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('messages').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', WS_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('active_engagements').delete().eq('daywork_id', WS_DW);
+    await service.from('applications').delete().eq('daywork_id', WS_DW);
+    await service.from('dayworks').delete().eq('id', WS_DW);
+
+    // Post + apply + accept
+    await appendEvent('DAYWORK.POSTED', WS_DW, 'daywork', 'employer', {
+      id: WS_DW,
+      vessel_id: VESSEL_ID,
+      role_id: ROLE_CAPTAIN,
+      location_port_id: PORT_VAUBAN,
+      start_date: '2098-08-01',
+      end_date: '2098-08-07',
+      working_days: 7,
+      required_certification_ids: [],
+      day_rate: 400,
+      currency: 'EUR',
+      meals: [],
+    }, EMPLOYER_ID);
+
+    await appendEvent('DAYWORK.APPLIED', WS_AGG, 'application', 'crew', {
+      id: WS_APP, daywork_id: WS_DW,
+    }, CREW_ID);
+
+    await appendEvent('DAYWORK.ACCEPTED', WS_AGG, 'application', 'employer', {}, EMPLOYER_ID);
+
+    const { data } = await service
+      .from('active_engagements')
+      .select('id')
+      .eq('daywork_id', WS_DW)
+      .single();
+    wsEngagementId = data?.id ?? '';
+  });
+
+  it('ENGAGEMENT.WORK_STARTED records initiator', async () => {
+    await appendEvent(
+      'ENGAGEMENT.WORK_STARTED',
+      WS_DW,
+      'engagement',
+      'crew',
+      { engagement_id: wsEngagementId, initiated_by: 'crew' },
+      CREW_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('work_started_status')
+      .eq('id', wsEngagementId)
+      .single();
+    expect(eng?.work_started_status).toBe('initiated_by_crew');
+  });
+
+  it('ENGAGEMENT.WORK_STARTED_CONFIRMED sets confirmed + timestamp', async () => {
+    await appendEvent(
+      'ENGAGEMENT.WORK_STARTED_CONFIRMED',
+      WS_DW,
+      'engagement',
+      'employer',
+      { engagement_id: wsEngagementId },
+      EMPLOYER_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('work_started_status, work_started_at')
+      .eq('id', wsEngagementId)
+      .single();
+    expect(eng?.work_started_status).toBe('confirmed');
+    expect(eng?.work_started_at).toBeTruthy();
+  });
+});
+
+describe('Postponement flow', () => {
+  const PP_DW = 'cccccccc-cccc-cccc-dddd-000000000007';
+  const PP_APP = 'cccccccc-cccc-cccc-dddd-000000000008';
+  const PP_AGG = `${CREW_ID}:${PP_DW}`;
+  let ppEngagementId: string;
+
+  beforeAll(async () => {
+    // Clean up
+    await service.from('messages').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', PP_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('active_engagements').delete().eq('daywork_id', PP_DW);
+    await service.from('applications').delete().eq('daywork_id', PP_DW);
+    await service.from('dayworks').delete().eq('id', PP_DW);
+
+    // Post + apply + accept
+    await appendEvent('DAYWORK.POSTED', PP_DW, 'daywork', 'employer', {
+      id: PP_DW,
+      vessel_id: VESSEL_ID,
+      role_id: ROLE_CAPTAIN,
+      location_port_id: PORT_VAUBAN,
+      start_date: '2098-09-01',
+      end_date: '2098-09-07',
+      working_days: 7,
+      required_certification_ids: [],
+      day_rate: 400,
+      currency: 'EUR',
+      meals: [],
+    }, EMPLOYER_ID);
+
+    await appendEvent('DAYWORK.APPLIED', PP_AGG, 'application', 'crew', {
+      id: PP_APP, daywork_id: PP_DW,
+    }, CREW_ID);
+
+    await appendEvent('DAYWORK.ACCEPTED', PP_AGG, 'application', 'employer', {}, EMPLOYER_ID);
+
+    const { data } = await service
+      .from('active_engagements')
+      .select('id')
+      .eq('daywork_id', PP_DW)
+      .single();
+    ppEngagementId = data?.id ?? '';
+  });
+
+  it('ENGAGEMENT.POSTPONEMENT_PROPOSED records proposed dates', async () => {
+    await appendEvent(
+      'ENGAGEMENT.POSTPONEMENT_PROPOSED',
+      PP_DW,
+      'engagement',
+      'employer',
+      {
+        engagement_id: ppEngagementId,
+        proposed_start_date: '2098-09-10',
+        proposed_end_date: '2098-09-17',
+        proposed_working_days: 7,
+      },
+      EMPLOYER_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('postponement_status, proposed_start_date, proposed_end_date')
+      .eq('id', ppEngagementId)
+      .single();
+
+    expect(eng?.postponement_status).toBe('proposed');
+    expect(eng?.proposed_start_date).toBe('2098-09-10');
+    expect(eng?.proposed_end_date).toBe('2098-09-17');
+  });
+
+  it('ENGAGEMENT.POSTPONEMENT_ACCEPTED applies new dates to engagement and daywork', async () => {
+    await appendEvent(
+      'ENGAGEMENT.POSTPONEMENT_ACCEPTED',
+      PP_DW,
+      'engagement',
+      'crew',
+      {
+        engagement_id: ppEngagementId,
+        daywork_id: PP_DW,
+        new_start_date: '2098-09-10',
+        new_end_date: '2098-09-17',
+        new_working_days: 7,
+      },
+      CREW_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('start_date, end_date, postponement_status')
+      .eq('id', ppEngagementId)
+      .single();
+
+    expect(eng?.postponement_status).toBe('accepted');
+    expect(eng?.start_date).toBe('2098-09-10');
+    expect(eng?.end_date).toBe('2098-09-17');
+
+    const { data: dw } = await service
+      .from('dayworks')
+      .select('start_date, end_date')
+      .eq('id', PP_DW)
+      .single();
+
+    expect(dw?.start_date).toBe('2098-09-10');
+    expect(dw?.end_date).toBe('2098-09-17');
+  });
+});
+
+describe('Postponement rejection cancels engagement', () => {
+  const PR_DW = 'cccccccc-cccc-cccc-dddd-000000000009';
+  const PR_APP = 'cccccccc-cccc-cccc-dddd-00000000000a';
+  const PR_AGG = `${CREW_ID}:${PR_DW}`;
+  let prEngagementId: string;
+
+  beforeAll(async () => {
+    // Clean up
+    await service.from('messages').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', PR_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('active_engagements').delete().eq('daywork_id', PR_DW);
+    await service.from('applications').delete().eq('daywork_id', PR_DW);
+    await service.from('dayworks').delete().eq('id', PR_DW);
+
+    // Post + apply + accept + propose
+    await appendEvent('DAYWORK.POSTED', PR_DW, 'daywork', 'employer', {
+      id: PR_DW,
+      vessel_id: VESSEL_ID,
+      role_id: ROLE_CAPTAIN,
+      location_port_id: PORT_VAUBAN,
+      start_date: '2098-10-01',
+      end_date: '2098-10-07',
+      working_days: 7,
+      required_certification_ids: [],
+      day_rate: 400,
+      currency: 'EUR',
+      meals: [],
+    }, EMPLOYER_ID);
+
+    await appendEvent('DAYWORK.APPLIED', PR_AGG, 'application', 'crew', {
+      id: PR_APP, daywork_id: PR_DW,
+    }, CREW_ID);
+
+    await appendEvent('DAYWORK.ACCEPTED', PR_AGG, 'application', 'employer', {}, EMPLOYER_ID);
+
+    const { data } = await service
+      .from('active_engagements')
+      .select('id')
+      .eq('daywork_id', PR_DW)
+      .single();
+    prEngagementId = data?.id ?? '';
+
+    await appendEvent('ENGAGEMENT.POSTPONEMENT_PROPOSED', PR_DW, 'engagement', 'employer', {
+      engagement_id: prEngagementId,
+      proposed_start_date: '2098-10-10',
+      proposed_end_date: '2098-10-17',
+      proposed_working_days: 7,
+    }, EMPLOYER_ID);
+  });
+
+  it('ENGAGEMENT.POSTPONEMENT_REJECTED cancels the engagement', async () => {
+    await appendEvent(
+      'ENGAGEMENT.POSTPONEMENT_REJECTED',
+      PR_DW,
+      'engagement',
+      'crew',
+      {
+        engagement_id: prEngagementId,
+        crew_person_id: CREW_ID,
+        daywork_id: PR_DW,
+      },
+      CREW_ID,
+    );
+
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('status, cancelled_by, postponement_status')
+      .eq('id', prEngagementId)
+      .single();
+
+    expect(eng?.status).toBe('cancelled');
+    expect(eng?.cancelled_by).toBe('postponement');
+    expect(eng?.postponement_status).toBe('rejected');
+  });
+});
+
+// ===========================================================================
+// 13. Checklist roundtrip
+// ===========================================================================
+describe('Checklist events', () => {
+  const CK_DW = 'cccccccc-cccc-cccc-dddd-00000000000b';
+  const CK_APP = 'cccccccc-cccc-cccc-dddd-00000000000c';
+  const CK_AGG = `${CREW_ID}:${CK_DW}`;
+  let ckEngagementId: string;
+
+  beforeAll(async () => {
+    // Clean up
+    await service.from('engagement_checklists').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', CK_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('messages').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', CK_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('active_engagements').delete().eq('daywork_id', CK_DW);
+    await service.from('applications').delete().eq('daywork_id', CK_DW);
+    await service.from('dayworks').delete().eq('id', CK_DW);
+
+    // Post + apply + accept
+    await appendEvent('DAYWORK.POSTED', CK_DW, 'daywork', 'employer', {
+      id: CK_DW,
+      vessel_id: VESSEL_ID,
+      role_id: ROLE_CAPTAIN,
+      location_port_id: PORT_VAUBAN,
+      start_date: '2098-11-01',
+      end_date: '2098-11-07',
+      working_days: 7,
+      required_certification_ids: [],
+      day_rate: 400,
+      currency: 'EUR',
+      meals: [],
+    }, EMPLOYER_ID);
+
+    await appendEvent('DAYWORK.APPLIED', CK_AGG, 'application', 'crew', {
+      id: CK_APP, daywork_id: CK_DW,
+    }, CREW_ID);
+
+    await appendEvent('DAYWORK.ACCEPTED', CK_AGG, 'application', 'employer', {}, EMPLOYER_ID);
+
+    const { data } = await service
+      .from('active_engagements')
+      .select('id')
+      .eq('daywork_id', CK_DW)
+      .single();
+    ckEngagementId = data?.id ?? '';
+  });
+
+  it('CHECKLIST.SET creates checklist with items', async () => {
+    const items = [
+      { id: 'item-1', label: 'Bring passport' },
+      { id: 'item-2', label: 'Bring STCW cert' },
+      { id: 'item-3', label: 'White polo required' },
+    ];
+
+    await appendEvent(
+      'CHECKLIST.SET',
+      ckEngagementId,
+      'checklist',
+      'employer',
+      { engagement_id: ckEngagementId, items },
+      EMPLOYER_ID,
+    );
+
+    const { data: checklist } = await service
+      .from('engagement_checklists')
+      .select('items, acknowledged_item_ids')
+      .eq('engagement_id', ckEngagementId)
+      .single();
+
+    expect(checklist?.items).toHaveLength(3);
+    expect(checklist?.acknowledged_item_ids).toEqual([]);
+  });
+
+  it('CHECKLIST.ITEM_TOGGLED adds item to acknowledged list', async () => {
+    await appendEvent(
+      'CHECKLIST.ITEM_TOGGLED',
+      ckEngagementId,
+      'checklist',
+      'crew',
+      { engagement_id: ckEngagementId, item_id: 'item-1', checked: true },
+      CREW_ID,
+    );
+
+    const { data: checklist } = await service
+      .from('engagement_checklists')
+      .select('acknowledged_item_ids')
+      .eq('engagement_id', ckEngagementId)
+      .single();
+
+    expect(checklist?.acknowledged_item_ids).toContain('item-1');
+  });
+
+  it('CHECKLIST.ITEM_TOGGLED unchecked removes item from acknowledged list', async () => {
+    await appendEvent(
+      'CHECKLIST.ITEM_TOGGLED',
+      ckEngagementId,
+      'checklist',
+      'crew',
+      { engagement_id: ckEngagementId, item_id: 'item-1', checked: false },
+      CREW_ID,
+    );
+
+    const { data: checklist } = await service
+      .from('engagement_checklists')
+      .select('acknowledged_item_ids')
+      .eq('engagement_id', ckEngagementId)
+      .single();
+
+    expect(checklist?.acknowledged_item_ids).not.toContain('item-1');
   });
 });

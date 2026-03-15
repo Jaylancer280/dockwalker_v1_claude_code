@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextResponse } from 'next/server';
 import { GET, POST } from '@/app/api/vessels/route';
+import { PATCH } from '@/app/api/vessels/[id]/route';
 
 const mockRequireDomainUser = vi.fn();
 vi.mock('@/lib/auth/require-domain-user', () => ({
@@ -255,6 +256,123 @@ describe('POST /api/vessels', () => {
         p_payload: expect.objectContaining({
           size_band_id: 'sb4',
           loa_meters: 95,
+        }),
+      }),
+    );
+  });
+});
+
+const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
+
+function makePatchRequest(body: unknown): Request {
+  return new Request('http://localhost/api/vessels/v1', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+describe('PATCH /api/vessels/:id', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns 404 when vessel not found', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain(null));
+
+    const res = await PATCH(makePatchRequest({ name: 'New Name' }), makeParams('v1'));
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 when no fields to update', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: false }));
+
+    const res = await PATCH(makePatchRequest({}), makeParams('v1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('No fields');
+  });
+
+  it('returns 400 when trying to remove NDA flag', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: true }));
+
+    const res = await PATCH(makePatchRequest({ ndaFlag: false }), makeParams('v1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('NDA flag cannot be removed');
+  });
+
+  it('returns 200 when setting NDA flag from false to true', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: false }));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await PATCH(makePatchRequest({ ndaFlag: true }), makeParams('v1'));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'VESSEL.UPDATED',
+        p_payload: expect.objectContaining({ nda_flag: true }),
+      }),
+    );
+  });
+
+  it('returns 200 on successful name update', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: false }));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await PATCH(makePatchRequest({ name: 'New Vessel Name' }), makeParams('v1'));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'VESSEL.UPDATED',
+        p_payload: expect.objectContaining({ name: 'New Vessel Name' }),
+      }),
+    );
+  });
+
+  it('returns 400 for invalid vessel type', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: false }));
+
+    const res = await PATCH(makePatchRequest({ vesselType: 'cargo' }), makeParams('v1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('motor or sail');
+  });
+
+  it('returns 400 for invalid vessel operation', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: false }));
+
+    const res = await PATCH(makePatchRequest({ vesselOperation: 'commercial' }), makeParams('v1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('private or charter');
+  });
+
+  it('auto-derives size band when LOA changes', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // Ownership check
+    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: false }));
+    // Size bands lookup
+    mockFromAuth.mockReturnValueOnce(makeSelectChain(sizeBands));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await PATCH(makePatchRequest({ loaMeters: 45 }), makeParams('v1'));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_payload: expect.objectContaining({
+          loa_meters: 45,
+          size_band_id: 'sb3',
         }),
       }),
     );

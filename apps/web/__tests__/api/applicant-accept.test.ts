@@ -7,6 +7,10 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
   requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
 
+vi.mock('@/lib/push-triggers', () => ({
+  notifyOnEvent: vi.fn(),
+}));
+
 const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
 const mockServiceFrom = vi.fn();

@@ -2,19 +2,18 @@
 -- Test profiles for local development — NOT for production
 -- =============================================================================
 --
--- Employer "Profile One"  → e@1 / 12345678  (hat: employer)
--- Crew     "Profile Two"  → c@1 / 12345678  (hat: crew)
+-- Employer "Profile One"  → e@1 / 87654321  (hat: employer)
+-- Crew     "Profile Two"  → c@1 / 87654321  (hat: crew)
 --
--- Includes: vessel, 3 daywork postings, availability for crew
+-- Includes: 2 vessels (1 NDA), crew availability, crew experience
 -- =============================================================================
 
 -- Fixed UUIDs for deterministic seeding
 -- Employer user:  11111111-1111-1111-1111-111111111111
 -- Crew user:      22222222-2222-2222-2222-222222222222
--- Vessel:         33333333-3333-3333-3333-333333333333
--- Daywork 1:      44444444-4444-4444-4444-444444444001
--- Daywork 2:      44444444-4444-4444-4444-444444444002
--- Daywork 3:      44444444-4444-4444-4444-444444444003
+-- Vessel 1:       33333333-3333-3333-3333-333333333333  (M/Y Serenity, 65m, charter)
+-- Vessel 2:       33333333-3333-3333-3333-333333333334  (M/Y Phantom, 45m, private, NDA)
+-- Crew exp vessel: 33333333-3333-3333-3333-333333333335 (S/Y Wanderer, 35m)
 
 -- ========================= AUTH USERS =========================
 
@@ -28,7 +27,7 @@ insert into auth.users (
   '11111111-1111-1111-1111-111111111111',
   'authenticated', 'authenticated',
   'e@1',
-  crypt('12345678', gen_salt('bf')),
+  crypt('87654321', gen_salt('bf')),
   now(),
   '{"provider": "email", "providers": ["email"]}'::jsonb,
   '{}'::jsonb,
@@ -38,7 +37,7 @@ insert into auth.users (
   '22222222-2222-2222-2222-222222222222',
   'authenticated', 'authenticated',
   'c@1',
-  crypt('12345678', gen_salt('bf')),
+  crypt('87654321', gen_salt('bf')),
   now(),
   '{"provider": "email", "providers": ["email"]}'::jsonb,
   '{}'::jsonb,
@@ -102,8 +101,9 @@ select public.onboard_person(
   '22222222-2222-2222-2222-222222222222'
 );
 
--- ========================= VESSEL (owned by employer) =========================
+-- ========================= VESSELS (owned by employer) =========================
 
+-- Vessel 1: M/Y Serenity — 65m charter vessel, public
 select public.append_event(
   'VESSEL.CREATED',
   '33333333-3333-3333-3333-333333333333',
@@ -116,87 +116,89 @@ select public.append_event(
     'vessel_type', 'motor',
     'vessel_operation', 'charter',
     'size_band_id', 'f1000000-0000-0000-0000-000000000005',
-    'loa_meters', 55,
+    'loa_meters', 65,
     'nda_flag', false
   ),
   '11111111-1111-1111-1111-111111111111'
 );
 
--- ========================= DAYWORK POSTINGS (by employer) =========================
-
--- Posting 1: Deckhand needed, starts in 3 days, Port Vauban
+-- Vessel 2: M/Y Phantom — 45m private vessel, NDA
 select public.append_event(
-  'DAYWORK.POSTED',
-  '44444444-4444-4444-4444-444444444001',
-  'daywork',
+  'VESSEL.CREATED',
+  '33333333-3333-3333-3333-333333333334',
+  'vessel',
   'employer',
   jsonb_build_object(
-    'id', '44444444-4444-4444-4444-444444444001',
-    'vessel_id', '33333333-3333-3333-3333-333333333333',
-    'role_id', 'd0000000-0000-0000-0000-000000000006',
-    'location_port_id', 'c0000000-0000-0000-0000-000000000001',
-    'start_date', (current_date + interval '3 days')::date,
-    'end_date', (current_date + interval '7 days')::date,
-    'working_days', 5,
-    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000005"]'::jsonb,
-    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000003',
-    'day_rate', 250,
-    'currency', 'EUR',
-    'meals', '["breakfast","lunch"]'::jsonb,
-    'notes', 'Charter prep — sanding, polishing, provisioning. Early start at 07:00.'
+    'id', '33333333-3333-3333-3333-333333333334',
+    'imo_number', '9876544',
+    'name', 'Phantom',
+    'vessel_type', 'motor',
+    'vessel_operation', 'private',
+    'size_band_id', 'f1000000-0000-0000-0000-000000000003',
+    'loa_meters', 45,
+    'nda_flag', true
   ),
   '11111111-1111-1111-1111-111111111111'
 );
 
--- Posting 2: Stewardess needed, starts in 5 days, Port Vauban
+-- Vessel 3: S/Y Wanderer — 35m sail vessel for crew experience history
 select public.append_event(
-  'DAYWORK.POSTED',
-  '44444444-4444-4444-4444-444444444002',
-  'daywork',
+  'VESSEL.CREATED',
+  '33333333-3333-3333-3333-333333333335',
+  'vessel',
   'employer',
   jsonb_build_object(
-    'id', '44444444-4444-4444-4444-444444444002',
-    'vessel_id', '33333333-3333-3333-3333-333333333333',
-    'role_id', 'd0000000-0000-0000-0000-000000000014',
-    'location_port_id', 'c0000000-0000-0000-0000-000000000001',
-    'start_date', (current_date + interval '5 days')::date,
-    'end_date', (current_date + interval '8 days')::date,
-    'working_days', 4,
-    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000006"]'::jsonb,
-    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000002',
-    'day_rate', 200,
-    'currency', 'EUR',
-    'meals', '["breakfast","lunch","dinner"]'::jsonb,
-    'notes', 'Interior deep clean before owner trip. Silver service experience preferred.'
+    'id', '33333333-3333-3333-3333-333333333335',
+    'imo_number', '9876545',
+    'name', 'Wanderer',
+    'vessel_type', 'sail',
+    'vessel_operation', 'charter',
+    'size_band_id', 'f1000000-0000-0000-0000-000000000002',
+    'loa_meters', 35,
+    'nda_flag', false
   ),
   '11111111-1111-1111-1111-111111111111'
 );
 
--- Posting 3: Day Worker (General) needed, starts in 1 day, Port Gallice
-select public.append_event(
-  'DAYWORK.POSTED',
-  '44444444-4444-4444-4444-444444444003',
-  'daywork',
-  'employer',
-  jsonb_build_object(
-    'id', '44444444-4444-4444-4444-444444444003',
-    'vessel_id', '33333333-3333-3333-3333-333333333333',
-    'role_id', 'd0000000-0000-0000-0000-000000000020',
-    'location_port_id', 'c0000000-0000-0000-0000-000000000002',
-    'start_date', (current_date + interval '1 day')::date,
-    'end_date', (current_date + interval '1 day')::date,
-    'working_days', 1,
-    'required_certification_ids', '[]'::jsonb,
-    'experience_bracket_id', null,
-    'day_rate', 180,
-    'currency', 'EUR',
-    'meals', '["lunch"]'::jsonb,
-    'notes', 'Quick wash-down and line handling for departure. No experience required.'
-  ),
-  '11111111-1111-1111-1111-111111111111'
+-- ========================= CREW EXPERIENCE (Profile Two) =========================
+-- Direct inserts (experience aggregate_type not in events check constraint)
+
+-- Past experience 1: Deckhand on S/Y Wanderer, 6 months ago for 4 months
+insert into public.crew_experiences (
+  id, person_id, vessel_id, role_id,
+  start_date, end_date, is_current, vessel_operation,
+  flag_state, contract_type, description
+) values (
+  'aa000000-0000-0000-0000-000000000001',
+  '22222222-2222-2222-2222-222222222222',
+  '33333333-3333-3333-3333-333333333335',
+  'd0000000-0000-0000-0000-000000000006',
+  (current_date - interval '10 months')::date,
+  (current_date - interval '6 months')::date,
+  false, 'charter', 'GBR', 'seasonal',
+  'Med charter season — washing, varnishing, tender ops, water sports setup for guests.'
 );
 
--- ========================= CREW AVAILABILITY (next 14 days) =========================
+-- Past experience 2: Deckhand on M/Y Serenity, 2 months ago for 3 months
+insert into public.crew_experiences (
+  id, person_id, vessel_id, role_id,
+  start_date, end_date, is_current, vessel_operation,
+  flag_state, contract_type, description
+) values (
+  'aa000000-0000-0000-0000-000000000002',
+  '22222222-2222-2222-2222-222222222222',
+  '33333333-3333-3333-3333-333333333333',
+  'd0000000-0000-0000-0000-000000000006',
+  (current_date - interval '5 months')::date,
+  (current_date - interval '2 months')::date,
+  false, 'charter', 'CYM', 'rotational',
+  'Busy charter rotation in the Western Med — Antibes, Cannes, Monaco circuit.'
+);
+
+-- Auto-derive experience bracket and vessel size exposure from crew_experiences
+select public.derive_experience_profile('22222222-2222-2222-2222-222222222222');
+
+-- ========================= CREW AVAILABILITY (next 14 days in Antibes) =========================
 
 select public.append_event(
   'AVAILABILITY.SET',
@@ -205,8 +207,10 @@ select public.append_event(
   'crew',
   jsonb_build_object(
     'start_date', current_date,
-    'end_date', (current_date + interval '14 days')::date,
-    'expires_at', (now() + interval '14 days')::timestamptz
+    'end_date', (current_date + interval '13 days')::date,
+    'expires_at', (now() + interval '7 days')::timestamptz,
+    'city_id', 'b0000000-0000-0000-0000-000000000001',
+    'port_id', 'c0000000-0000-0000-0000-000000000001'
   ),
   '22222222-2222-2222-2222-222222222222'
 );

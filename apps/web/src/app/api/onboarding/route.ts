@@ -92,16 +92,31 @@ export async function POST(request: Request) {
 
     // Step 2: For experienced crew, create vessels + experiences
     if (identityType === 'crew' && Array.isArray(body_experiences) && body_experiences.length > 0) {
-      // Validate no date overlaps within the batch
+      // Defensive: check batch against any pre-existing experiences
       type ExpEntry = { experience: { startDate: string; endDate?: string; isCurrent?: boolean } };
+      const { data: existingExps } = await serviceClient
+        .from('crew_experiences')
+        .select('start_date, end_date')
+        .eq('person_id', user.id);
+
       const ranges = (body_experiences as ExpEntry[]).map((e) => ({
         start: e.experience.startDate,
         end: e.experience.endDate ?? null,
       }));
-      for (let i = 0; i < ranges.length; i++) {
-        for (let j = i + 1; j < ranges.length; j++) {
-          const a = ranges[i];
-          const b = ranges[j];
+
+      const allRanges = [
+        ...ranges,
+        ...(existingExps ?? []).map((e: { start_date: string; end_date: string | null }) => ({
+          start: e.start_date,
+          end: e.end_date,
+        })),
+      ];
+
+      // Validate no date overlaps within batch + existing
+      for (let i = 0; i < allRanges.length; i++) {
+        for (let j = i + 1; j < allRanges.length; j++) {
+          const a = allRanges[i];
+          const b = allRanges[j];
           const aEndsAfterBStarts = !a.end || a.end >= b.start;
           const bEndsAfterAStarts = !b.end || b.end >= a.start;
           if (aEndsAfterBStarts && bEndsAfterAStarts) {

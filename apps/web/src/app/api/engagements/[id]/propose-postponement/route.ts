@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvents, checkNoOverlapExcluding } from '@dockwalker/db';
 import type { AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
+import { notifyOnEvent } from '@/lib/push-triggers';
 import { randomUUID } from 'crypto';
 
 /**
@@ -157,6 +158,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       ] satisfies AppendEventParams<keyof EventPayloadMap>[]);
 
+      notifyOnEvent(
+        serviceClient,
+        'ENGAGEMENT.CANCELLED_BY_EMPLOYER',
+        {
+          engagement_id: engagementId,
+          daywork_id: engagement.daywork_id,
+          crew_person_id: engagement.crew_person_id,
+        },
+        user.id,
+      );
+
       return NextResponse.json({ outcome: 'conflict_confirmed' });
     }
 
@@ -192,6 +204,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         personId: user.id,
       },
     ] satisfies AppendEventParams<keyof EventPayloadMap>[]);
+
+    notifyOnEvent(
+      serviceClient,
+      'ENGAGEMENT.POSTPONEMENT_PROPOSED',
+      {
+        engagement_id: engagementId,
+        daywork_id: engagement.daywork_id,
+        crew_person_id: engagement.crew_person_id,
+      },
+      user.id,
+    );
 
     return NextResponse.json({ outcome: 'proposed' });
   } catch (err) {

@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvents } from '@dockwalker/db';
 import type { AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
+import { notifyOnEvent } from '@/lib/push-triggers';
 import { randomUUID } from 'crypto';
 
 const VALID_REASON_CATEGORIES = [
@@ -207,6 +208,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     await appendEvents(serviceClient, events);
+
+    notifyOnEvent(
+      serviceClient,
+      'ENGAGEMENT.CANCELLED_BY_EMPLOYER',
+      {
+        engagement_id: engagementId,
+        daywork_id: engagement.daywork_id,
+        crew_person_id: engagement.crew_person_id,
+      },
+      user.id,
+    );
 
     return NextResponse.json({ success: true, relisted });
   } catch (err) {

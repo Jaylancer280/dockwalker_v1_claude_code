@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 import { randomUUID } from 'crypto';
 
 /**
@@ -108,6 +109,13 @@ export async function POST(
       },
       personId: user.id,
     });
+
+    notifyOnEvent(
+      serviceClient,
+      'MESSAGE.SENT',
+      { engagement_id: engagementId, sender_person_id: user.id, content: trimmed },
+      user.id,
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {

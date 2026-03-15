@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { NativeInit } from '@/components/native-init';
+import { PushToast } from '@/components/push-toast';
 import './globals.css';
 
 const geist = localFont({
@@ -47,6 +48,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geist.variable} font-sans antialiased`}>
         <NativeInit />
+        <PushToast />
         {children}
       </body>
     </html>

@@ -1,7 +1,7 @@
 # Task Board
 
 > Shared between planning and implementation agents. Planning agent writes, implementation agent executes.
-> Mark items `[x]` as completed. Never delete completed items — move to Done section at session end.
+> Mark items `[x]` as completed. Remove completed items from the list — see git history for past work.
 
 ## Current Task
 
@@ -9,458 +9,313 @@
 
 ## Queue
 
-### Stage 61: NDA Reveal-After-Acceptance + Immutability Guard
+### Stage 68: UX Quick Fixes
 
-Crew who are engaged (accepted) on an NDA vessel should see full vessel details. NDA flag cannot be downgraded from `true` to `false`.
+Six independent UI/API fixes. No migrations required.
 
-**61a. `get_vessel_public` RPC update — migration 00032:**
+**68a: Hat switch instant refresh (item #1)**
 
-- [ ] Current logic: nulls `imo_number` when `nda_flag=true` AND caller is not owner
-- [ ] New logic: also reveal full details (including IMO and name) when caller has an `active` engagement on a daywork linked to this vessel
-- [ ] Add join: check `active_engagements ae JOIN dayworks d ON ae.daywork_id = d.id WHERE ae.crew_person_id = auth.uid() AND ae.status = 'active' AND d.vessel_id = p_vessel_id`
-- [ ] If crew is engaged: return full vessel data regardless of NDA flag
-- [ ] Rollback `00032_rollback.sql`: revert `get_vessel_public` to v31 state
+- [ ] In `apps/web/src/components/hat-switcher.tsx`: after successful POST to `/api/hat`, call `window.location.reload()` instead of `router.refresh()` — `router.refresh()` only re-renders the current page's server components but does NOT update layout-level state (bottom navbar icons, routing guards). A full page reload forces the layout to re-read the hat from the server. Alternatively, if a lighter approach is preferred: emit a custom event `dw:hat-changed` and have the layout/navbar listen for it to re-fetch the user's hat — but full reload is simpler and hat switches are infrequent
+- [ ] Test manually: switch hat on profile → navbar and routing should reflect new hat immediately
 
-**61b. NDA immutability — `VESSEL.UPDATED` handler:**
+**68b: Clear availability without location (item #2)**
 
-- [ ] In `apply_projection` `VESSEL.UPDATED` handler: if `nda_flag` is being set to `false` and current vessel has `nda_flag = true`, skip the update (silently ignore the downgrade)
-- [ ] Alternative: API layer validation in `PATCH /api/vessels/[id]` — return 400 if trying to set `nda_flag: false` when current value is `true`, with message `{ error: 'NDA flag cannot be removed once set' }`
-- [ ] Prefer API layer validation (explicit error) over silent projection skip
+- [ ] In `apps/web/src/components/availability-overlay.tsx`: verify the confirm button disabled logic. Current code: `isValid = isClearingAll || (locationValue?.cityId && ...)`. The `isClearingAll` flag should short-circuit the city requirement. If the bug is that users can't easily reach the "clear" state (must manually deselect all dates), add an explicit "Clear availability" button/action that doesn't require interacting with the date grid or city picker at all — a direct path to the DELETE `{ clearAll: true }` call
+- [ ] Ensure the overlay shows a clear UX path: if user has existing availability, show a prominent "Clear availability" link/button separate from the date grid, so they don't need to deselect dates one-by-one and don't need to set a location
+- [ ] Test: open overlay with existing availability → tap "Clear availability" → should clear without requiring city selection
 
-**61c. Tests:**
+**68c: Availability today is not past (item #6)**
 
-- [ ] Integration test: engaged crew sees full vessel details for NDA vessel
-- [ ] Integration test: non-engaged crew sees masked vessel details for NDA vessel (existing behavior)
-- [ ] Unit test: PATCH vessel returns 400 when trying to remove NDA flag
-- [ ] Unit test: PATCH vessel succeeds when setting NDA flag from false to true
+- [ ] In `apps/web/src/app/api/availability/route.ts`: the `startDay < today` check uses `new Date()` which on the server (Vercel/UTC) may be a different calendar day than the client's local time. Investigate: if a crew member in UTC+2 sets availability for "today" (March 15 in their timezone) but the server in UTC still has March 14 at 23:00, the server's `today` would be March 14, so `startDay (March 15) < today (March 14)` passes. The reverse issue: if the client is in UTC-5 and it's still March 14 evening, but the server (UTC) already has March 15 — the client sends "March 14" which the server sees as `< today (March 15)` → rejected
+- [ ] Fix: use the date string comparison directly (lexicographic `YYYY-MM-DD`) instead of `Date` object comparison to avoid timezone issues. Compute `todayStr` as `new Date().toISOString().slice(0, 10)` (UTC date) and compare strings. Or better: accept today's date from the client as a reference and validate within ±1 day tolerance. Simplest fix: compute today in UTC consistently on both client and server
+- [ ] In `apps/web/src/components/availability-overlay.tsx`: ensure the 14-day grid starts from today in UTC (not local time) to match the server
+- [ ] **Month label must be shown** in the availability calendar header (e.g., "March 2026") — if the 14-day window spans two months, show both month headers
+- [ ] Test: setting availability for today should succeed regardless of timezone offset
 
-**61d. Cleanup:**
+**68d: Certifications shown as pills (item #7)**
+
+- [ ] In `apps/web/src/app/(app)/profile/page.tsx`: replace the "X certification(s)" count text (view mode, ~lines 451-458) with a flex-wrap row of pill badges showing each certification's actual name
+- [ ] Load certification names by joining `certification_ids` against the `certifications` lookup table (already fetched for edit mode — reuse the same `certs` array)
+- [ ] Style: small rounded pills (`px-2 py-0.5 text-xs rounded-full bg-muted`) with cert name text
+
+**68e: Vessel size bands shown as bands (item #8)**
+
+- [ ] In `apps/web/src/app/(app)/profile/page.tsx`: replace the "X size band(s)" count text (view mode, ~lines 459-466) with a flex-wrap row of pill badges showing each size band's label (e.g., "24m - 35m")
+- [ ] Load size band labels from the `vessel_size_bands` lookup (already fetched for edit mode — reuse the same `sizeBands` array). Convert labels using user's preferred unit (m/ft) via `usePreferences`
+- [ ] Style: same pill pattern as certifications
+
+**68f: Shortlisted crew can withdraw (item #12)**
+
+- [ ] In `apps/web/src/app/api/daywork/[id]/withdraw/route.ts`: change the status check from `status !== 'applied'` to `!['applied', 'viewed', 'shortlisted'].includes(status)` — the SQL projection already supports withdrawal from these statuses
+- [ ] In `apps/web/src/app/(app)/discover/page.tsx` (ApplicationCard): change `canWithdraw` from `status === 'applied'` to `['applied', 'viewed', 'shortlisted'].includes(status)` so the Withdraw button appears for shortlisted applications too
+- [ ] Add a confirmation dialog for shortlisted withdrawals: "You've been shortlisted for this position. Are you sure you want to withdraw?"
+- [ ] Test: add test case in withdraw tests for shortlisted status → 200 success
+- [ ] Test: verify accepted/rejected/completed statuses still return 400
+
+**68g: Verification**
 
 - [ ] Run full test suite — all tests pass
 - [ ] Run `tsc --noEmit` — zero errors
-- [ ] Update `BUILD_STATE.md`: stage 61, schema version v32, migration 00032 entry
-- [ ] Update `supabase/README.md`: migration 00032 entry
+- [ ] Run ESLint — zero warnings/errors
 
 ---
 
-### Stage 62: Integration Test Expansion
+### Stage 69: Vessel Soft Data Separation + Templates Cleanup
 
-Fill gaps in the integration test suite. All tests hit real local Supabase.
+Items #10 and #13. Migration required.
 
-**62a. Engagement lifecycle tests — `__tests__/integration/event-roundtrip.test.ts`:**
+**Design rationale:** Vessel entities should store only immutable physical facts (IMO, name, LOA, vessel_type motor/sail). Soft data like `vessel_operation` (charter/private) and `flag_state` evolve over time and are recorded per-experience, not per-vessel. Multiple crew members listing the same vessel may record different operations for different time periods. Templates store job details only — vessel selection is per-posting.
 
-- [ ] Test: `DAYWORK.COMPLETED` — employer marks complete, daywork status becomes `completed`, engagement status becomes `completed`
-- [ ] Test: `ENGAGEMENT.COMPLETION_CONFIRMED` — crew confirms completion, `crew_completion_status` set to `confirmed`
-- [ ] Test: `ENGAGEMENT.COMPLETION_DISPUTED` — crew disputes, `crew_completion_status` set to `disputed`
-- [ ] Test: `ENGAGEMENT.RATED_BY_CREW` — crew rating persisted to `engagement_ratings`
-- [ ] Test: `ENGAGEMENT.RATED_BY_EMPLOYER` — employer rating persisted to `engagement_ratings`
+**69a: Migration 00034 — remove vessel_operation from vessels**
 
-**62b. Cancellation tests:**
+- [ ] Create `supabase/migrations/00034_vessel_soft_data_separation.sql`:
+  - DROP `vessel_operation` column from `vessels` table
+  - Update `apply_projection` `VESSEL.CREATED` handler: remove `vessel_operation` from INSERT
+  - Update `apply_projection` `VESSEL.UPDATED` handler: remove `vessel_operation` from UPDATE
+  - Update `get_vessel_public` RPC: remove `vessel_operation` from returned fields
+  - DROP `vessel_id` column from `daywork_templates` table
+- [ ] Create `supabase/rollbacks/00034_vessel_soft_data_separation.down.sql`:
+  - ADD `vessel_operation` column back to `vessels` (varchar, default 'private')
+  - ADD `vessel_id` column back to `daywork_templates` (uuid FK to vessels)
+  - Restore previous `apply_projection` and `get_vessel_public`
 
-- [ ] Test: `DAYWORK.CANCELLED_BY_EMPLOYER` — daywork status becomes `cancelled`, active engagement cancelled, pending apps rejected
-- [ ] Test: `ENGAGEMENT.CANCELLED_BY_CREW` — engagement cancelled, `cancelled_by` set to `crew`
-- [ ] Test: `ENGAGEMENT.CANCELLED_BY_EMPLOYER` — engagement cancelled, `cancelled_by` set to `employer`
+**69b: Update types**
 
-**62c. Work started + postponement tests:**
+- [ ] In `packages/types/`: remove `vessel_operation` from `Vessel` interface; remove `vessel_id` from `DayworkTemplate` interface (if exists)
+- [ ] In `VESSEL.CREATED` and `VESSEL.UPDATED` event payloads: remove `vessel_operation`
 
-- [ ] Test: `ENGAGEMENT.WORK_STARTED` — initiator's side recorded
-- [ ] Test: `ENGAGEMENT.WORK_STARTED_CONFIRMED` — both sides confirmed, `work_started_at` timestamped
-- [ ] Test: `DAYWORK.POSTPONED` — new dates recorded on engagement
-- [ ] Test: `DAYWORK.POSTPONEMENT_APPROVED` — dates applied to daywork
-- [ ] Test: `DAYWORK.POSTPONEMENT_REJECTED` — engagement cancelled
+**69c: Update vessel API routes**
 
-**62d. Checklist tests:**
+- [ ] In `POST /api/vessels`: remove `vessel_operation` from request validation and event payload. Vessel creation now accepts: `imoNumber`, `name`, `vesselType` (motor/sail), `loaMeters`, `ndaFlag`
+- [ ] In `PATCH /api/vessels/[id]`: remove `vessel_operation` from update payload
+- [ ] In `GET /api/vessels`: remove `vessel_operation` from response (or let DB handle — column won't exist)
 
-- [ ] Test: `CHECKLIST.SET` — checklist created in `engagement_checklists`
-- [ ] Test: `CHECKLIST.ITEM_TOGGLED` — item ID added to/removed from `acknowledged_item_ids`
+**69d: Update vessel forms**
 
-**62e. Experience CRUD tests:**
+- [ ] In `apps/web/src/app/(app)/profile/add-experience/page.tsx`: when creating a new vessel via IMO not-found, remove the vessel-level "Operation" dropdown (charter/private). The experience-level `expVesselOperation` field already captures this. Remove the confusing duplication — the form label should read "Vessel operation during your time" (not "Vessel operation")
+- [ ] In onboarding vessel creation: same change — remove vessel-level operation, keep experience-level only
+- [ ] In `apps/web/src/components/vessels/vessel-selector.tsx` (employer vessel management): if this shows vessel_operation, remove it
+- [ ] **Keep `vessel_operation` on daywork postings:** The daywork table should retain its own `vessel_operation` field for information density — employers set it per-posting. This is NOT inherited from the vessel entity. If `vessel_operation` is currently read from the vessel join at posting time, change it to a standalone field on the daywork form (charter/private dropdown). This is informational, not a vessel fact
 
-- [ ] Test: `EXPERIENCE.ADDED` — experience row created in `crew_experiences`
-- [ ] Test: `EXPERIENCE.UPDATED` — experience row updated
-- [ ] Test: `EXPERIENCE.REMOVED` — experience row deleted
-- [ ] Test: experience date overlap rejected (if Stage 59d adds DB-level enforcement)
+**69e: Update templates**
 
-**62f. Application supersede test:**
+- [ ] In template POST/PUT API routes: remove `vessel_id` / `vesselId` from accepted fields
+- [ ] In template GET API: remove vessel join from select
+- [ ] In post-daywork form: when loading a template, do not pre-fill vessel — vessel selector starts empty
+- [ ] In save-template flow: do not include current vesselId in saved template data
 
-- [ ] Test: `APPLICATION.SUPERSEDED` — accepting one application auto-supersedes overlapping pending applications
+**69f: Update all tests**
 
-**62g. Auto-derivation tests (depends on Stage 60):**
+- [ ] Update vessel creation tests to not send `vessel_operation`
+- [ ] Update vessel PATCH tests
+- [ ] Update template tests if they reference vessel_id
+- [ ] Update onboarding tests if they send vessel_operation on vessel creation
+- [ ] Update form-dropdowns component test if it mocks vessel_operation
 
-- [ ] Test: adding experience auto-derives profile `experience_bracket_id`
-- [ ] Test: adding experience auto-populates `vessel_size_exposure_ids`
+**69g: Verification**
 
-**62h. Cleanup:**
-
-- [ ] Run full integration test suite: `cd apps/web && npm run test:integration`
-- [ ] Run full unit test suite — all pass
-- [ ] Update `BUILD_STATE.md`: stage 62
-
----
-
-### Stage 63: Push Token Infrastructure
-
-Device token storage + management API. No delivery yet.
-
-**63a. Migration 00033 — `device_tokens` table:**
-
-- [ ] Create `device_tokens` table: `id uuid PK, person_id uuid FK(persons) NOT NULL, token text NOT NULL, platform text NOT NULL CHECK (platform IN ('apns', 'fcm', 'web')), created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()`
-- [ ] Unique constraint on `(person_id, token)` — same device, same person = upsert
-- [ ] Index on `person_id` for lookup
-- [ ] RLS: users can read/write their own tokens only (`person_id = auth.uid()`)
-- [ ] Rollback `00033_rollback.sql`: drop `device_tokens` table
-
-**63b. API routes:**
-
-- [ ] `POST /api/push-tokens` — upsert device token: auth required, accepts `{ token: string, platform: 'apns' | 'fcm' | 'web' }`, inserts or updates on conflict `(person_id, token)`, returns 201
-- [ ] `DELETE /api/push-tokens` — remove token: auth required, accepts `{ token: string }`, deletes matching row for authenticated user, returns 200
-- [ ] Input validation: token non-empty string, platform enum check
-
-**63c. Client-side token persistence — `apps/web/src/lib/push-notifications.ts`:**
-
-- [ ] In registration listener: when token received, POST to `/api/push-tokens` with token and platform (`ios` → `apns`, `android` → `fcm`)
-- [ ] Store token in localStorage to detect changes (only re-POST if token changed)
-- [ ] On sign-out: DELETE `/api/push-tokens` with current token to clean up
-
-**63d. Tests:**
-
-- [ ] Test: POST push-tokens creates token, returns 201
-- [ ] Test: POST push-tokens upserts on duplicate (person_id, token)
-- [ ] Test: POST push-tokens returns 400 on missing/invalid platform
-- [ ] Test: POST push-tokens returns 401 when unauthenticated
-- [ ] Test: DELETE push-tokens removes matching token
-- [ ] Test: DELETE push-tokens returns 401 when unauthenticated
-
-**63e. Cleanup:**
-
-- [ ] Run full test suite — all pass
+- [ ] Run full test suite — all tests pass
 - [ ] Run `tsc --noEmit` — zero errors
-- [ ] Update `BUILD_STATE.md`: stage 63, schema version v33, migration 00033 entry
-- [ ] Update `supabase/README.md`: migration 00033 entry
-- [ ] Update `apps/web/README.md`: new push-tokens API routes
-- [ ] Remove push notifications from `BUILD_STATE.md` Deferred Decisions (infrastructure now exists)
 
 ---
 
-### Stage 64: Push Targeted Notifications
+### Stage 70: Experience Edit + IMO Auto-Populate
 
-Server-side delivery for 1:1 notifications triggered by events.
+Items #3 and #9. No migration — uses existing PATCH /api/experiences/[id].
 
-**64a. Push delivery service — `apps/web/src/lib/push-delivery.ts`:**
+**70a: Edit experience page**
 
-- [ ] Create push delivery helper: `sendPushToUser(personId: string, title: string, body: string, data?: Record<string, string>)`
-- [ ] Queries `device_tokens` for person, sends to each token
-- [ ] APNs delivery via `@parse/node-apns` or HTTP/2 direct (evaluate dependency)
-- [ ] FCM delivery via `firebase-admin` SDK or FCM HTTP v1 API
-- [ ] Handle token invalidation: if delivery returns invalid/expired token error, delete the token row
-- [ ] Env vars: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY_PATH`, `FCM_PROJECT_ID`, `FCM_SERVICE_ACCOUNT_KEY`
+- [ ] Create `apps/web/src/app/(app)/profile/edit-experience/[id]/page.tsx` (or reuse add-experience with an `?edit=ID` query param — pick whichever is cleaner)
+- [ ] On mount: `GET /api/experiences` and find the entry by ID, pre-populate all form fields (vessel name from lookup, role, dates, vessel_operation, flag_state, contract_type, contract_details, description, isCurrent)
+- [ ] On submit: `PATCH /api/experiences/[id]` with updated fields
+- [ ] Reuse the same form layout as add-experience (DRY — extract a shared `ExperienceForm` component if the duplication is significant)
 
-**64b. Post-event notification triggers — `apps/web/src/lib/push-triggers.ts`:**
+**70b: Profile page edit button**
 
-- [ ] `notifyOnEvent(eventType: string, payload: object)` — called after `appendEvent` / `appendEvents` in API routes
-- [ ] Event → notification mapping:
-  - `DAYWORK.APPLIED` → notify employer: "New applicant for DW-{job_number}" (priority: normal)
-  - `DAYWORK.ACCEPTED` → notify crew: "You've been accepted for DW-{job_number}!" (priority: high)
-  - `DAYWORK.REJECTED` → notify crew: "Update on your application for DW-{job_number}" (priority: normal)
-  - `DAYWORK.SHORTLISTED` → notify crew: "You've been shortlisted for DW-{job_number}" (priority: normal)
-  - `DAYWORK.INVITED` → notify crew: "You've been invited to DW-{job_number}" (priority: high)
-  - `MESSAGE.SENT` → notify other party: "{sender_name}: {preview}" (priority: normal)
-  - `ENGAGEMENT.WORK_STARTED` → notify other party: "Work started confirmation requested for DW-{job_number}" (priority: normal)
-  - `ENGAGEMENT.CANCELLED_BY_CREW` / `ENGAGEMENT.CANCELLED_BY_EMPLOYER` → notify other party: "Engagement cancelled for DW-{job_number}" (priority: high)
-  - `DAYWORK.COMPLETED` → notify crew: "DW-{job_number} marked complete — please confirm" (priority: normal)
-  - `DAYWORK.POSTPONED` → notify crew: "Date change proposed for DW-{job_number}" (priority: normal)
-  - `CHECKLIST.SET` → notify crew: "Pre-arrival checklist updated for DW-{job_number}" (priority: normal)
-- [ ] Each notification carries `data: { screen: 'chat', engagementId: '...' }` (or `screen: 'discover'` for invitations) for deep linking
+- [ ] In `apps/web/src/app/(app)/profile/page.tsx`: add an "Edit" button (pencil icon) on each experience card alongside the existing "Remove" button
+- [ ] Edit button navigates to `/profile/edit-experience/[id]`
 
-**64c. Wire triggers into API routes:**
+**70c: IMO auto-populate UX improvement**
 
-- [ ] Add `notifyOnEvent()` call after each `appendEvent` / `appendEvents` in the relevant routes
-- [ ] Notifications are fire-and-forget (don't await, don't fail the request on notification error)
-- [ ] Wrap in try/catch so push failures never break the API response
+- [ ] In the vessel section of the experience form (both add and edit): when IMO lookup returns a found vessel, display it as a selectable card/banner: "M/Y Sunrise — 45m — Motor" with a "Use this vessel" button that auto-fills vessel name, LOA, vessel_type
+- [ ] If the user dismisses the suggestion, they can enter vessel details manually (new vessel with same IMO for their account)
+- [ ] Make it clear that selecting an existing vessel reuses the vessel record (the form fields become read-only for immutable data: name, LOA, vessel_type) but the experience-specific fields (operation, flag_state, etc.) remain editable
 
-**64d. Tests:**
+**70d: Tests**
 
-- [ ] Test: `sendPushToUser` queries device_tokens and calls delivery (mock delivery layer)
-- [ ] Test: `sendPushToUser` removes invalid tokens on delivery failure
-- [ ] Test: `notifyOnEvent` maps each event type to correct recipient and message
-- [ ] Test: notification failure does not propagate to caller
+- [ ] Test PATCH /api/experiences/[id] already exists — verify it covers the edit flow
+- [ ] Add component test for edit-experience page if the project has component tests for add-experience
 
-**64e. Cleanup:**
+**70e: Verification**
 
-- [ ] Run full test suite — all pass
+- [ ] Run full test suite — all tests pass
 - [ ] Run `tsc --noEmit` — zero errors
-- [ ] Update `BUILD_STATE.md`: stage 64
-- [ ] Update `apps/web/README.md`: new env vars for APNs/FCM, push delivery architecture
 
 ---
 
-### Stage 65: Push Broadcast Notifications
+### Stage 71: Contract Type Structured Inputs
 
-`DAYWORK.POSTED` → notify matching available crew in same city+role, with batching.
+Item #11. Possible migration for canonical rotation patterns lookup table, or client-side canonical lists.
 
-**65a. Broadcast delivery — extend `push-triggers.ts`:**
+**71a: Design the canonical lists**
 
-- [ ] `DAYWORK.POSTED` handler: query `availability_windows` for crew in same city with `not_available = false` and `expires_at > now()`
-- [ ] Default: filter by matching `role_id` (crew's profile role matches daywork role)
-- [ ] Collect all matching crew `person_id`s, look up their device tokens
-- [ ] Send notification: "New {role} daywork in {port_name} — DW-{job_number}" (priority: normal)
-- [ ] Data payload: `{ screen: 'discover', dayworkId: '...' }`
+- [ ] Rotation patterns for `rotational` contract type: canonical options like `2:2`, `3:3`, `3:1`, `4:2`, `5:1`, `6:2`, `2:1`, `10:10`, `other` (free text) — each with a "weeks" or "months" unit selector
+- [ ] Display format: "X on : Y off" with unit, stored as structured string in `contract_details` (e.g., "2:2 months", "3:1 weeks")
+- [ ] For `permanent` contract type: "Days leave per year" — positive integer free text input (e.g., 28, 30, 45)
+- [ ] For `seasonal`: free text for season description (e.g., "March — October") — keep as-is
+- [ ] For `crossing`, `delivery`, `temporary`: no additional details needed — hide contract_details
 
-**65b. Batching/collapsing for multiple postings:**
+**71b: UI components**
 
-- [ ] If multiple `DAYWORK.POSTED` events fire within a 60-second window for the same city, collapse into a single notification per recipient
-- [ ] Implementation: use a lightweight in-memory debounce queue (Map of `city_id → { timer, dayworkIds }`)
-- [ ] After 60-second window, send collapsed notification: "X new daywork opportunities in {city_name}"
-- [ ] Single posting (no collapse): send specific notification as in 65a
-- [ ] Note: this is best-effort — server restarts clear the queue, which is acceptable
+- [ ] In the experience form (add + edit): when `contractType` changes, show/hide the appropriate sub-fields:
+  - `rotational` → show ratio picker (two number inputs "X on : Y off") + unit dropdown (weeks/months)
+  - `permanent` → show "Days leave per year" number input
+  - `seasonal` → show free text "Season period" input (existing behavior)
+  - `crossing` / `delivery` / `temporary` → hide contract_details entirely
+- [ ] Rotation ratio picker: two small number inputs side-by-side with ":" separator, plus "weeks"/"months" dropdown. Pre-fill with common patterns as quick-select buttons (2:2, 3:3, 3:1, 5:1) that populate the inputs
 
-**65c. Tests:**
+**71c: Data storage**
 
-- [ ] Test: DAYWORK.POSTED triggers notifications to matching crew in same city
-- [ ] Test: crew in different city NOT notified
-- [ ] Test: crew with `not_available = true` NOT notified
-- [ ] Test: multiple postings within 60s collapsed into single notification
-- [ ] Test: single posting after 60s sends specific notification
+- [ ] `contract_details` remains a text field (max 100 chars) — no migration needed
+- [ ] Serialize rotation as `"X:Y weeks"` or `"X:Y months"` (e.g., "2:2 months")
+- [ ] Serialize permanent leave as `"X days leave/year"` (e.g., "28 days leave/year")
+- [ ] Parse existing free-text `contract_details` gracefully on edit — if it doesn't match the pattern, show in free-text fallback mode
 
-**65d. Cleanup:**
+**71d: Verification**
 
-- [ ] Run full test suite — all pass
+- [ ] Run full test suite — all tests pass
 - [ ] Run `tsc --noEmit` — zero errors
-- [ ] Update `BUILD_STATE.md`: stage 65
 
 ---
 
-### Stage 66: Push In-App Handling
+### Stage 72: Job Detail Vessel Visibility
 
-Foreground display, deep linking on tap, badge management.
+Item #4. No migration — purely UI changes.
 
-**66a. Foreground notification display — `push-notifications.ts`:**
+**72a: Discover page job cards**
 
-- [ ] In foreground push received listener: show a toast/banner notification (not native alert)
-- [ ] Use a simple in-app toast component (new `PushToast` component or use existing UI primitives)
-- [ ] Toast shows title + body, tappable to navigate
-- [ ] Auto-dismiss after 5 seconds
-- [ ] Don't show toast if user is already on the relevant screen (compare `data.screen` + `data.engagementId` with current route)
+- [ ] Ensure vessel name is prominent on every card (already shown — verify it's not easy to miss)
+- [ ] For non-NDA vessels: after acceptance (crew has engagement), show IMO on the card if `imo_number` is returned by `get_vessel_public`
+- [ ] Add vessel type prefix (M/Y or S/Y) before vessel name on discover cards, consistent with profile display
 
-**66b. Deep linking on tap — `push-notifications.ts`:**
+**72b: Message thread daywork-summary-card**
 
-- [ ] In push action performed listener: read `data.screen` and navigate accordingly
-- [ ] `screen: 'chat'` + `engagementId` → navigate to `/messages/{engagementId}`
-- [ ] `screen: 'discover'` → navigate to `/discover` (Invitations tab if `type: invitation`)
-- [ ] `screen: 'review'` + `dayworkId` → navigate to `/daywork/{dayworkId}/review`
-- [ ] Use Next.js `router.push()` (or Capacitor-aware navigation if needed)
+- [ ] In `daywork-summary-card.tsx`: add vessel type prefix (M/Y or S/Y), size band, and vessel LOA to the summary
+- [ ] After acceptance (crew is in an engagement), if the vessel is NDA and `imo_number` is revealed via `get_vessel_public`, show `IMO: XXXXXXX` in the summary card. The context API already returns vessel data — verify it includes `imo_number` for engaged crew
 
-**66c. Badge management:**
+**72c: Invitation cards on discover page**
 
-- [ ] On notification received: increment app badge count (Capacitor Badge plugin)
-- [ ] On app foreground: clear badge count
-- [ ] On navigating to relevant screen: clear badge count
+- [ ] Verify invitation cards show vessel name prominently with M/Y/S/Y prefix
+- [ ] Add size band to invitation cards if not already present
 
-**66d. Tests:**
+**72d: Application cards on discover page**
 
-- [ ] Component test: PushToast renders with title and body, auto-dismisses
-- [ ] Test: deep link navigation maps screen types to correct routes
+- [ ] Verify application cards show vessel name with prefix and size band
 
-**66e. Cleanup:**
+**72e: Verification**
 
-- [ ] Run full test suite — all pass
+- [ ] Visual review: vessel info is immediately visible (not hidden behind a tap) across all job display contexts
 - [ ] Run `tsc --noEmit` — zero errors
-- [ ] Update `BUILD_STATE.md`: stage 66
-- [ ] Update `apps/web/README.md`: push notification architecture, toast component
+
+---
+
+### Stage 73: Working Days Calendar Selection
+
+Item #14. No migration — `working_days` column becomes a JSONB array of date strings OR remains an int with a new `working_day_dates` column. Design decision needed.
+
+**73a: Design decision — data model**
+
+- [ ] Option A: Add `working_day_dates date[]` column to `dayworks` — stores the specific selected dates. `working_days` (int) becomes derived as `array_length(working_day_dates, 1)`. Migration required
+- [ ] Option B: Keep `working_days` as int only, add `working_day_dates` as optional. If dates provided, `working_days = length(dates)`. If not provided (backward compat), `working_days` is the manual number
+- [ ] **Recommended: Option B** — backward compatible, existing postings keep working, new postings get specific dates
+- [ ] Migration 00035: add `working_day_dates date[]` column to `dayworks` and `daywork_templates`, update `apply_projection` DAYWORK.POSTED handler
+
+**73b: Post-daywork form calendar UI**
+
+- [ ] Replace the working days number input with a visual calendar grid
+- [ ] Calendar shows only dates within the selected start_date — end_date range
+- [ ] All dates in range are selectable — employer picks any subset as working days (start/end dates are NOT auto-included, employer chooses freely)
+- [ ] Dates outside the range are disabled/not shown
+- [ ] Selected dates highlighted (e.g., solid primary color). Unselected dates within range shown as available but muted
+- [ ] Show count: "X of Y days selected" below the calendar
+- [ ] **Month label must be shown** in the calendar header (e.g., "March 2026") — if the range spans two months, show both month headers
+- [ ] Calendar only appears after start_date and end_date are both set
+- [ ] If start/end date changes, reset the selected working days that fall outside the new range
+
+**73c: API validation**
+
+- [ ] In `POST /api/daywork`: accept optional `workingDayDates` array of `YYYY-MM-DD` strings
+- [ ] Validate: all dates must be within [start_date, end_date] range inclusive
+- [ ] Validate: no duplicates
+- [ ] If `workingDayDates` provided: derive `working_days = workingDayDates.length`; store both
+- [ ] If not provided: use `workingDays` int as before (backward compat)
+- [ ] `DAYWORK.POSTED` event payload extended with optional `working_day_dates`
+
+**73d: Display**
+
+- [ ] On discover cards and summary cards: if `working_day_dates` is populated, show the specific dates (or at minimum show "X days" with tooltip/expandable showing which days). If only `working_days` int, show "X days" as before
+- [ ] On templates: save `working_day_dates` if available, but dates are relative to a date range that changes per posting — consider only saving `working_days` count on templates, not specific dates
+
+**73e: Verification**
+
+- [ ] Tests for new API validation (dates within range, no duplicates, backward compat)
+- [ ] Run full test suite — all tests pass
+- [ ] Run `tsc --noEmit` — zero errors
+
+---
+
+### Stage 74: Job Expiry + Stale Engagement Cleanup
+
+Item #5. Design confirmed by user.
+
+**74a: Active jobs past end_date — prompt to extend or close**
+
+- [ ] In mine page API (`GET /api/daywork/mine`): add computed `is_overdue: boolean` field — true when `status === 'active' && end_date < today`
+- [ ] In mine page UI (Active tab): overdue postings show a warning banner: "This job ended on {end_date}. Extend or close?"
+- [ ] "Extend" button opens a date-extension overlay: new end_date picker (must be >= today), optionally update working days/calendar. Submits to new `POST /api/daywork/:id/extend`
+- [ ] "Close" button cancels the posting (calls existing cancel endpoint)
+- [ ] New `POST /api/daywork/:id/extend` route: validates employer ownership, `active` status, new end_date >= today; appends `DAYWORK.EXTENDED` event with `{ end_date, working_days?, working_day_dates? }`
+- [ ] New event type `DAYWORK.EXTENDED` in types + `apply_projection`: updates `end_date` (and optionally `working_days`/`working_day_dates`) on the daywork row
+- [ ] Migration 00036: add `DAYWORK.EXTENDED` handler to `apply_projection`
+
+**74b: In-progress engagements past end_date — 3 day grace then prompt**
+
+- [ ] In conversations API: add computed `is_overdue: boolean` — true when engagement `status === 'active'` and daywork `end_date + 3 days < today`
+- [ ] In chat page: overdue engagement shows a banner for employer: "This engagement ended {X} days ago. Mark complete or extend dates?"
+- [ ] Crew sees: "This engagement has ended. Waiting for employer to mark complete."
+- [ ] Reuse the extend flow from 74a for the "Extend dates" option
+
+**74c: Rating timeout — 14 days after completion**
+
+- [ ] In conversations API: add computed `rating_expires_at: ISO8601` — `completed_at + 14 days` for completed engagements
+- [ ] When `rating_expires_at < now()`: rating window is closed. Thread auto-moves to History tab regardless of rating status
+- [ ] Chat page: if rating window expired and user hasn't rated, show "Rating period has ended" instead of rating prompt
+- [ ] No event needed — this is query-time logic only. Existing `has_rated` flag still works; we just add the time gate
+
+**74d: Query-time enforcement (no background jobs)**
+
+- [ ] All expiry checks run at API query time — computed fields on responses, not DB state changes
+- [ ] Discovery API: already excludes `active` jobs past start_date from crew browse (verify)
+- [ ] Mine API: overdue flag is additive (UI prompt only, does not change DB status)
+- [ ] Conversations API: rating timeout computed from `completed_at` timestamp on engagement
+
+**74e: Tests**
+
+- [ ] Test extend route: 200 success, 400 if end_date in past, 403 if not owner, 400 if not active
+- [ ] Test mine API: `is_overdue` true when end_date < today
+- [ ] Test conversations API: `rating_expires_at` computed correctly, expired threads flagged
+- [ ] Run full test suite — all tests pass
+- [ ] Run `tsc --noEmit` — zero errors
 
 ---
 
 ### Documentation Tasks (implementation agent — during Close of final stage)
 
-- [ ] Update `BUILD_STATE.md` Deferred Decisions: remove "Push notifications" entry (now implemented), remove "Auto-derivation of experience_bracket_id..." entry (now implemented in Stage 60)
-- [ ] Verify all README files are current
-
-### Stage 57: Documentation + Edge Case Hardening
-
-Final pass: documentation updates, edge case testing, and cleanup.
-
-- [x] Update `BUILD_STATE.md`: stages 51-56, schema version v30, migration table entry for 00030
-- [x] Update `packages/types/README.md`: new event types, DayworkInvitation model (already current from Stage 53)
-- [x] Update `packages/db/README.md`: appendEvents already documented (Stage 35)
-- [x] Update `apps/web/README.md`: new API routes (available-crew, invite, invitations, respond)
-- [x] Update `supabase/README.md`: migration 00030 entry (already current from Stage 53)
-- [x] Verify: invitation revocation fires correctly when employer accepts crew (integration test exists)
-- [x] Verify: crew applying via Browse to a job they were invited to auto-accepts the invitation (integration test exists)
-- [x] Verify: daywork cancellation revokes pending invitations (integration test exists)
-- [x] Verify: daywork relist revokes pending invitations (added integration test)
-- [x] Verify: invitation limit is enforced at API layer (unit test in invite.test.ts)
-- [x] Run full test suite: `cd apps/web && npx vitest run` — 431 tests pass
-- [x] Run `tsc --noEmit` — zero errors
-- [x] Run ESLint — zero warnings/errors
+- [ ] Update `BUILD_STATE.md`: new stages, schema version, migration table
+- [ ] Update `apps/web/README.md`: new/changed API routes
+- [ ] Update `supabase/README.md`: new migrations
+- [ ] Update `packages/types/README.md`: changed types
 
 ## Done
 
-### Stage 60: Experience Bracket + Vessel Size Exposure Auto-Derivation (completed)
-
-- [x] 60a: Migration 00031 — `derive_experience_profile` function + `apply_projection` calls after EXPERIENCE events
-- [x] 60b: 4 integration tests (add → bracket derived, add second → recalculated, remove → downward, remove all → cleared)
-- [x] 60c: 436 unit tests pass, TSC clean, BUILD_STATE.md + supabase/README.md updated, deferred decision removed
-
-### Stage 59: Correctness Fixes — Overlap, Expiry, Experience Dates (completed)
-
-- [x] 59a: Invitation accept calls `check_no_overlap()` RPC — returns 409 on overlap
-- [x] 59b: Past-start-date invitations filtered from GET, rejected with 400 on accept
-- [x] 59c: Verified declined invitations already excluded from available-crew (no change needed)
-- [x] 59d: Experience POST/PATCH enforce date overlap + is_current duplicate checks; onboarding batch validates intra-batch overlaps
-- [x] 59e: 436 tests pass, TSC clean, BUILD_STATE.md updated
-
-### Stage 58: Invite confirmation dialog + polish (completed)
-
-- [x] Invite button/swipe now opens confirmation dialog with crew name, role, and job number
-- [x] Fetches daywork meta (job_number + role name) on page load
-- [x] minAvailableDays API filter clamped to 0-365 (UI already had min=0)
-- [x] Deferred decision added for size band post-fetch sparseness
-- [x] Fixed test mock for new supabase query chain
-- [x] 431 tests pass, TSC clean
-
-### Stage 57: Documentation + Edge Case Hardening (completed)
-
-- [x] All documentation already current from Stages 53-56
-- [x] Added integration test for DAYWORK.RELISTED revoking pending invitations
-- [x] All 5 invitation edge cases verified (acceptance revocation, auto-accept, cancel revocation, relist revocation, API limit)
-- [x] 431 unit tests pass, TSC clean, ESLint clean
-
-### Stage 56: Crew Invitations Tab + Accept/Decline (completed)
-
-- [x] GET /api/daywork/invitations — crew-only, returns pending invitations with hydrated daywork, employer, and NDA-safe vessel data
-- [x] POST /api/daywork/invitations/:id/respond — accept (availability check + atomic INVITATION_ACCEPTED + APPLIED) and decline (INVITATION_DECLINED)
-- [x] Discover page "Invitations" tab with badge count, invitation cards, accept/decline buttons, confirmation dialogs, inline error handling
-- [x] 3 invitations GET tests + 8 respond tests = 11 new tests; 431 total pass
-
-### Stage 55: Review Page "Available" Tab (completed)
-
-- [x] Add third tab "Available" with count badge, lazy-loaded on first activation
-- [x] Swipe right = Invite (calls POST /api/daywork/:id/invite), swipe left = Pass (client-side)
-- [x] Dedicated `SwipeableAvailableCrew` (horizontal drag only) and `AvailableCrewCard` (no message/date, green availability)
-- [x] "INVITE" / "PASS" swipe overlay labels
-- [x] Pass (X) and Invite (Send) button controls — no shortlist button
-- [x] Invitation usage indicator: "X of 2 invitations used"
-- [x] Invite disabled when limit reached; "Invitation limit reached" empty state
-- [x] "Show all roles" checkbox toggle re-fetches API
-- [x] Session-based pass tracking via component state
-- [x] 3 component tests: three tabs render, crew loads with indicator, limit reached state
-
-### Stage 54: Employer Available Crew API + Invite Route (completed)
-
-**Available crew API — `apps/web/src/app/api/daywork/[id]/available-crew/route.ts`:**
-
-- [x] Auth: require employer/agent hat, must own the posting
-- [x] Guard: daywork must be `active` status
-- [x] Query available crew: resolve port → city, find matching availability windows, exclude applied/invited/employer
-- [x] Default role filter matching daywork's `role_id`, `allRoles=true` to skip
-- [x] Enrich with profile data and availability overlap days
-- [x] Limit 50 results, ordered by available_days DESC
-- [x] Response shape: `{ crew, invitation_count, invitation_limit: 2 }`
-
-**Invite API — `apps/web/src/app/api/daywork/[id]/invite/route.ts`:**
-
-- [x] Auth: require employer/agent hat, must own the posting
-- [x] Guard: daywork must be `active` status
-- [x] Validate: crew person exists, no existing application or invitation
-- [x] Enforce limit: max 2 pending invitations per daywork
-- [x] Append `DAYWORK.INVITED` event
-- [x] Return `{ invitation: { id, status } }` with 201
-
-**Tests (16 new, 417 total):**
-
-- [x] Available crew: returns crew with availability overlap in same city
-- [x] Available crew: excludes crew who already applied
-- [x] Available crew: excludes crew already invited
-- [x] Available crew: excludes employer themselves
-- [x] Available crew: default role filter matches daywork role
-- [x] Available crew: `allRoles=true` returns crew of any role
-- [x] Available crew: returns 403 if not posting owner
-- [x] Available crew: returns empty if daywork is not active
-- [x] Invite: creates invitation, returns 201
-- [x] Invite: returns 400 when invitation limit (2) reached
-- [x] Invite: returns 400 if crew already applied
-- [x] Invite: returns 400 if crew already invited
-- [x] Invite: returns 403 if not employer hat
-- [x] Invite: returns 400 if daywork not active
-- [x] Invite: returns 401 when unauthenticated
-- [x] Invite: returns 400 if crewPersonId missing
-
-### Stage 53: Invitation Schema + Types + Events (completed)
-
-**Migration `00030_daywork_invitations.sql`:**
-
-- [x] Create `daywork_invitations` table with RLS, indexes, unique constraint
-- [x] `apply_projection` handlers: `DAYWORK.INVITED`, `DAYWORK.INVITATION_ACCEPTED`, `DAYWORK.INVITATION_DECLINED`
-- [x] Revocation logic: `DAYWORK.ACCEPTED`, `DAYWORK.CANCELLED_BY_EMPLOYER`, `DAYWORK.RELISTED` revoke pending invitations
-- [x] Auto-accept: `DAYWORK.APPLIED` auto-accepts matching pending invitation
-
-**Rollback `00030_daywork_invitations_rollback.sql`:**
-
-- [x] Drop table, revert `apply_projection` to v29 state
-
-**Types — `packages/types/src/events.ts`:**
-
-- [x] Added 3 event types, payload shapes, `DayworkInvitation` interface, `invitation` aggregate type
-
-**Tests:**
-
-- [x] Integration: `DAYWORK.INVITED` creates pending invitation
-- [x] Integration: `DAYWORK.ACCEPTED` revokes pending invitations
-- [x] Integration: `DAYWORK.APPLIED` auto-accepts matching invitation
-- [x] Integration: `DAYWORK.CANCELLED_BY_EMPLOYER` revokes pending invitations
-
-### Stage 52: Employer Review Page Filters (completed)
-
-**API — `apps/web/src/app/api/daywork/[id]/applicants/route.ts`:**
-
-- [x] Accept optional query param `minAvailableDays` (number) — filter applicants with `available_days >= minAvailableDays`
-- [x] Accept optional query param `certificationId` (uuid) — filter applicants whose `certification_ids` array includes this cert
-- [x] Apply filters server-side after enrichment (availability is computed post-fetch, so filter after enrichment loop)
-
-**UI — `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`:**
-
-- [x] Add collapsible filters panel (same pattern as discover page) with "Filters" toggle button
-- [x] Add `filterCertId` state + `<Select>` dropdown populated from `certifications` table
-- [x] Add `filterMinDays` state + `<Input type="number">` for minimum available days
-- [x] Pass filters as query params when fetching applicants
-- [x] Filters apply across both Applied and Shortlisted tabs (single fetch, client-side tab split happens after)
-- [x] Rename page header from "Review Applicants" to "Review"
-
-**Tests:**
-
-- [x] Test applicants route with `certificationId` param filters correctly
-- [x] Test applicants route with `minAvailableDays` param filters correctly
-- [x] Test filters don't break existing tab split (Applied vs Shortlisted)
-
-### Stage 51: Discovery Filter Expansion (completed)
-
-**API — `apps/web/src/app/api/daywork/discover/route.ts`:**
-
-- [x] Accept new query params: `certificationId` (uuid), `experienceBracketId` (uuid), `sizeBandId` (uuid)
-- [x] `certificationId` filter: `.contains('required_certification_ids', [certificationId])` — shows only jobs requiring this cert (crew filtering by certs they hold)
-- [x] `certificationId=none` filter: `.eq('required_certification_ids', '{}')` — shows only jobs with no cert requirements
-- [x] `experienceBracketId` filter: `.eq('experience_bracket_id', experienceBracketId)` on the dayworks query
-- [x] `sizeBandId` filter: post-fetch filter on hydrated vessel data (vessel's `size_band_id` matches)
-
-**UI — `apps/web/src/app/(app)/discover/page.tsx`:**
-
-- [x] Add `filterCertId` state + `<Select>` dropdown populated from `certifications` table with "No certs required" option
-- [x] Add `filterExperienceBracketId` state + `<Select>` dropdown populated from `experience_brackets` table
-- [x] Add `filterSizeBandId` state + `<Select>` dropdown populated from `vessel_size_bands` table (labels in user's preferred unit via `usePreferences`)
-- [x] Wire all three new filters into `loadCards()` fetch URL as query params
-- [x] Layout: certification + experience bracket on one row (2-col), size band on its own row below
-
-**Tests — `apps/web/__tests__/api/daywork-discover.test.ts`:**
-
-- [x] certificationId filter (contains)
-- [x] certificationId=none filter (eq empty array)
-- [x] experienceBracketId filter (eq)
-- [x] sizeBandId post-fetch filter
-- [x] sizeBandId excludes dayworks with no vessel
-- [x] Combined filters (role + cert + bracket)
-- [x] All seven filters simultaneously
-
-**Other fixes:**
-
-- [x] Fixed form-dropdowns component test mock (thenable query builder for chained `.order()`)
-- [x] Updated existing test assertion for `size_band_id` in vessel response
+(See git history for completed stages 51-67)

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 
 /**
  * POST /api/daywork/:id/applicants/:crewId/reject
@@ -65,6 +66,13 @@ export async function POST(
       },
       personId: user.id,
     });
+
+    notifyOnEvent(
+      serviceClient,
+      'DAYWORK.REJECTED',
+      { daywork_id: dayworkId, crew_person_id: crewId },
+      user.id,
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {

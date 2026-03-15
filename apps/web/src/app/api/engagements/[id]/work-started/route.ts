@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvents } from '@dockwalker/db';
 import type { AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
+import { notifyOnEvent } from '@/lib/push-triggers';
 import { randomUUID } from 'crypto';
 
 /**
@@ -88,6 +89,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       ] satisfies AppendEventParams<keyof EventPayloadMap>[]);
 
+      notifyOnEvent(
+        serviceClient,
+        'ENGAGEMENT.WORK_STARTED',
+        { engagement_id: engagementId, initiated_by: myRole },
+        user.id,
+      );
+
       return NextResponse.json({ status: `initiated_by_${myRole}` });
     }
 
@@ -136,6 +144,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         personId: user.id,
       },
     ] satisfies AppendEventParams<keyof EventPayloadMap>[]);
+
+    notifyOnEvent(
+      serviceClient,
+      'ENGAGEMENT.WORK_STARTED_CONFIRMED',
+      { engagement_id: engagementId, confirmed_by: myRole },
+      user.id,
+    );
 
     return NextResponse.json({ status: 'confirmed' });
   } catch (err) {

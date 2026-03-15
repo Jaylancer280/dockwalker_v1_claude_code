@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 import { randomUUID } from 'crypto';
 
 /**
@@ -181,6 +182,13 @@ export async function POST(request: Request) {
       },
       personId: user.id,
     });
+
+    notifyOnEvent(
+      serviceClient,
+      'DAYWORK.POSTED',
+      { id: dayworkId, location_port_id: locationPortId, role_id: roleId },
+      user.id,
+    );
 
     return NextResponse.json({ id: dayworkId }, { status: 201 });
   } catch (err) {

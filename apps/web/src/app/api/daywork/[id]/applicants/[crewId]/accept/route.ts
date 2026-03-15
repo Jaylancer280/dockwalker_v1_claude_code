@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 
 /**
  * POST /api/daywork/:id/applicants/:crewId/accept
@@ -91,13 +92,25 @@ export async function POST(
       personId: user.id,
     });
 
-    // Fetch the newly created engagement ID for the client
+    // Fetch the newly created engagement ID for the client and for push deep-link
     const { data: engagement } = await serviceClient
       .from('active_engagements')
       .select('id')
       .eq('crew_person_id', crewId)
       .eq('daywork_id', dayworkId)
       .single();
+
+    notifyOnEvent(
+      serviceClient,
+      'DAYWORK.ACCEPTED',
+      {
+        daywork_id: dayworkId,
+        crew_person_id: crewId,
+        employer_person_id: user.id,
+        engagement_id: engagement?.id,
+      },
+      user.id,
+    );
 
     return NextResponse.json({
       success: true,

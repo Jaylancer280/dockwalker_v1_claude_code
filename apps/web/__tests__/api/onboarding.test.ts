@@ -154,6 +154,12 @@ describe('POST /api/onboarding', () => {
     mockFromAuth.mockReturnValueOnce(makeChain(null));
     mockRpc.mockResolvedValueOnce({ error: null });
 
+    // Existing crew_experiences lookup — none
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    });
     // Vessel lookup — not found
     mockServiceFrom.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
@@ -214,6 +220,12 @@ describe('POST /api/onboarding', () => {
     mockFromAuth.mockReturnValueOnce(makeChain(null));
     mockRpc.mockResolvedValueOnce({ error: null });
 
+    // Existing crew_experiences lookup — none
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+      }),
+    });
     // Vessel lookup — found existing
     mockServiceFrom.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
@@ -252,5 +264,34 @@ describe('POST /api/onboarding', () => {
     expect(mockAppendEvent).toHaveBeenCalledTimes(1);
     expect(mockAppendEvent.mock.calls[0][1].eventType).toBe('EXPERIENCE.ADDED');
     expect(mockAppendEvent.mock.calls[0][1].payload.vessel_id).toBe('existing-v1');
+  });
+
+  it('returns 409 when batch experiences overlap with existing crew_experiences', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFromAuth.mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    // Existing crew_experiences — overlaps with the batch entry
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({
+          data: [{ start_date: '2024-03-01', end_date: '2024-09-01' }],
+          error: null,
+        }),
+      }),
+    });
+
+    const res = await POST(makeRequest({
+      identityType: 'crew',
+      currentHat: 'crew',
+      profile: { displayName: 'Overlap Crew', onboardingVersion: 2 },
+      experiences: [{
+        vessel: { imoNumber: '1234567', name: 'M/Y Test', vesselType: 'charter', loaMeters: 45 },
+        experience: { roleId: 'r1', startDate: '2024-01-01', endDate: '2024-06-01', charterOrPrivate: 'charter' },
+      }],
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain('overlap');
   });
 });
