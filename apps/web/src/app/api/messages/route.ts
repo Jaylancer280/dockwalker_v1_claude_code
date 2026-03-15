@@ -24,31 +24,39 @@ export async function GET() {
   let allEngagements: EngagementRow[];
 
   if (isCrew) {
-    const { data: asCrew } = await supabase
+    const { data: asCrew, error: crewError } = await supabase
       .from('active_engagements')
       .select(
         `
         id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
-        crew_completion_status, updated_at,
+        crew_completion_status,
         dayworks(yacht_roles(name), ports(name)),
         profiles!active_engagements_employer_person_id_profiles_fkey(display_name)
       `,
       )
       .eq('crew_person_id', user.id);
 
+    if (crewError) {
+      return NextResponse.json({ error: crewError.message }, { status: 500 });
+    }
+
     allEngagements = (asCrew ?? []).map((e) => ({ ...e, role: 'crew' as const }));
   } else {
-    const { data: asEmployer } = await supabase
+    const { data: asEmployer, error: employerError } = await supabase
       .from('active_engagements')
       .select(
         `
         id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
-        crew_completion_status, updated_at,
+        crew_completion_status,
         dayworks(yacht_roles(name), ports(name)),
         profiles!active_engagements_crew_person_id_profiles_fkey(display_name)
       `,
       )
       .eq('employer_person_id', user.id);
+
+    if (employerError) {
+      return NextResponse.json({ error: employerError.message }, { status: 500 });
+    }
 
     allEngagements = (asEmployer ?? []).map((e) => ({ ...e, role: 'employer' as const }));
   }
@@ -100,18 +108,18 @@ export async function GET() {
   const OVERDUE_GRACE_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
   const conversations = allEngagements.map((eng) => {
-    // Rating timeout: 14 days after completion
+    // Rating timeout: 14 days after the engagement's end_date
     let ratingExpiresAt: string | null = null;
     let ratingExpired = false;
-    if (eng.status === 'completed' && eng.updated_at) {
-      const completedAt = new Date(eng.updated_at as string).getTime();
-      const expiresAt = completedAt + RATING_WINDOW_MS;
+    const endDate = eng.end_date as string;
+    if (eng.status === 'completed' && endDate) {
+      const endMs = new Date(endDate + 'T23:59:59Z').getTime();
+      const expiresAt = endMs + RATING_WINDOW_MS;
       ratingExpiresAt = new Date(expiresAt).toISOString();
       ratingExpired = nowMs > expiresAt;
     }
 
     // Overdue: active engagement past end_date + 3 day grace
-    const endDate = eng.end_date as string;
     const endMs = endDate ? new Date(endDate + 'T23:59:59Z').getTime() : 0;
     const isOverdue =
       eng.status === 'active' && endDate < todayStr && nowMs - endMs > OVERDUE_GRACE_MS;
