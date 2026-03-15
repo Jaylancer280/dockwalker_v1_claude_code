@@ -62,6 +62,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Vessel soft data separation                   | 00034     | Drops `vessel_operation` from vessels, drops `vessel_id` from templates, updates `apply_projection` and `get_vessel_public`                                                                                                                                                                       |
 | Working day dates                             | 00035     | `working_day_dates date[]` on dayworks/templates; post-projection trigger for DAYWORK.POSTED                                                                                                                                                                                                      |
 | Daywork extended                              | 00036     | `DAYWORK.EXTENDED` event handler via trigger: updates end_date, working_days, working_day_dates                                                                                                                                                                                                   |
+| Missing aggregate types                       | 00037     | Adds `invitation` and `experience` to `events_aggregate_type_check` CHECK constraint                                                                                                                                                                                                              |
 
 ## Daywork Status Lifecycle
 

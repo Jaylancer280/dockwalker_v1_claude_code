@@ -114,9 +114,15 @@
 
 - [Stage 79] Wire profile drill-down into existing pages — discover page job cards show "Posted by {name}" tappable to overlay; application cards show poster name; invitation cards make employer name tappable; review page applicant cards get User icon button; chat kebab menu gets "View profile" as first item; discover API resolves poster display names; applications API returns `poster_person_id` and `poster_name`; invitations API returns `employer_person_id`; 500 tests pass
 
+- [Stage 81] Fix missing aggregate_type CHECK values — migration 00037 adds `invitation` and `experience` to `events_aggregate_type_check` (both were missing since Stages 46/53, causing real DB failures); 4 new integration tests (INVITED, INVITATION_ACCEPTED, EXPERIENCE.ADDED, EXPERIENCE.UPDATED); aggregate_type consistency check script in pre-commit; all client-side `res.json()` error branches guarded with `.catch(() => ({}))`
+
+- [Stage 82] Redirect after accepting applicant — dismissing the "Go to messages" dialog now redirects to `/daywork/mine` In Progress tab instead of leaving employer on empty review page
+
+- [Stage 83] Post-migration smoke test procedure documented in `tasks/lessons.md` — flag for human edit to add to CLAUDE.md Session Protocol
+
 ## Current Schema Version
 
-v36 — daywork extended (36 migrations applied)
+v37 — missing aggregate types (37 migrations applied)
 
 ## Migrations Applied
 
@@ -158,6 +164,7 @@ v36 — daywork extended (36 migrations applied)
 | `00034_vessel_soft_data_separation.sql`      | Drops `vessel_operation` from vessels, drops `vessel_id` from daywork_templates, updates `apply_projection` and `get_vessel_public` to remove vessel_operation                                                                                                                                 |
 | `00035_working_day_dates.sql`                | Adds `working_day_dates date[]` nullable column to dayworks and templates; post-projection trigger `apply_working_day_dates` writes dates from DAYWORK.POSTED payload                                                                                                                          |
 | `00036_daywork_extended.sql`                 | `DAYWORK.EXTENDED` event handler via trigger: updates end_date, working_days, working_day_dates on dayworks row                                                                                                                                                                                |
+| `00037_missing_aggregate_types.sql`          | Adds `invitation` and `experience` to `events_aggregate_type_check` CHECK constraint (both were missing since Stages 46/53)                                                                                                                                                                    |
 
 ## Deferred Decisions
 

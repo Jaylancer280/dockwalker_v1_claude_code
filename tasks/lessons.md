@@ -19,4 +19,31 @@
 - **Rollbacks must be self-contained:** Every rollback file must fully restore the previous state without manual steps. If a migration replaces `apply_projection`, the rollback must include the full previous `apply_projection` body — not a comment saying "restore manually". If a migration creates triggers/functions, the rollback must DROP them. Test rollbacks mentally: "if I run only this file, does the DB return to the exact prior state?"
 - **Wire data through to UI when the backend supports it:** When a backend capability exists (e.g., `get_vessel_public` reveals IMO for engaged crew), the API query, TypeScript interface, and UI component must all be updated in the same stage. Leaving the data layer complete but the UI unwired means the feature is invisible to users and gets forgotten.
 - **Don't split event handling architecture:** All event→projection logic should go through `apply_projection` — do not create standalone trigger functions for individual event types. Splitting creates a maintenance burden where some events are in the main function and others are in separate triggers, making the projection logic harder to reason about and rollback.
+- **New aggregate_type values need a CHECK constraint update:** The `events` table has a CHECK constraint (`events_aggregate_type_check`) that enumerates allowed `aggregate_type` values. When introducing a new aggregate type (e.g., `'invitation'`, `'experience'`), the migration MUST expand this constraint. Both `'invitation'` (Stage 53) and `'experience'` (Stage 46) were missed, causing production failures across multiple features for many stages. **Before any migration is complete, grep all `aggregateType` values in API routes and verify every one appears in the CHECK constraint.**
+- **Unit tests with mocked Supabase give false confidence on DB constraints:** Mocked tests never hit real CHECK constraints, RLS policies, FK validations, NOT NULL enforcement, or trigger execution. A feature can pass 500 unit tests and still crash on the first real DB operation. **Every migration that adds or modifies constraints, aggregate types, or column restrictions must be validated with `npx supabase db reset` and a manual smoke test against the real local DB.** Integration tests (`test:integration`) exist for this purpose — use them. Do not rely solely on mocked unit tests for database-layer correctness.
 - **Never show completion/performance metrics in profiles:** Displaying "X completed daywork engagements" is a reputation signal that disadvantages green crew. The mission doc prohibits surfacing metrics that function as ratings: completion counts, engagement frequency, would-rehire rates, reliability scores. However, informational counts like "X active postings" (current state, not performance history) are fine — they describe what someone is doing now, not how well they've done in the past. The distinction: current factual state = OK, historical performance metric = not OK.
+- **Post-migration smoke test procedure:** After any session that includes a migration, before presenting changes: (1) `npx supabase db reset` from repo root, (2) `cd apps/web && npm run test:integration` — all must pass, (3) verify the specific flows the migration affects against the real local DB. Flag for human edit: add this to CLAUDE.md Session Protocol step 3 (Implement).
+- **Always guard `res.json()` against empty response bodies:** API routes can return empty bodies on unhandled exceptions (500 with no catch). Client code must never call `res.json()` without checking first. Pattern: `const text = await res.text(); const data = text ? JSON.parse(text) : {};`. Apply this wherever the client reads an error response body. This has caused `SyntaxError: Unexpected end of JSON input` runtime crashes.
+- **UX dead-ends after state transitions:** When a user action changes the underlying state so that the current page is no longer valid (e.g., accepting an applicant makes the review page empty, completing a job makes the in-progress tab stale), the UI must redirect or update — never leave the user on a page that no longer makes sense. Check: "after this action, is the current page still meaningful?"
+- **`apply_projection` replacements must be diffed against the previous version:** When a migration does `CREATE OR REPLACE FUNCTION apply_projection(...)`, the new body must include ALL existing event handlers — not just the ones being changed. Diff the new function against the previous migration's version line-by-line. A missing handler silently drops event processing for that type with no error, no test failure, and no visible symptom until a user triggers that specific event on real data.
+
+## Procedures
+
+### Post-migration smoke test (mandatory)
+
+After ANY session that includes a migration, before presenting changes:
+
+1. `npx supabase db reset` from repo root
+2. Open app in browser at `http://localhost:3000`
+3. For each flow affected by the migration, perform the action manually:
+   - If CHECK constraints changed: try every `aggregateType` that passes through the constraint
+   - If `apply_projection` changed: trigger each modified event type and verify the projection table updates
+   - If columns added/removed: verify forms that read/write those columns still work
+   - If RLS changed: verify both authorized and unauthorized access
+4. Check browser console — zero errors
+5. Check Supabase logs (`npx supabase logs`) — zero SQL errors
+6. Only then proceed to Present Changes step
+
+### Pre-commit aggregate_type audit (automated)
+
+Before every commit, verify all `aggregateType` values used in API routes exist in the `events_aggregate_type_check` constraint. This is automated via pre-commit script (Stage 81c).

@@ -1550,3 +1550,125 @@ describe('Checklist events', () => {
     expect(checklist?.acknowledged_item_ids).not.toContain('item-1');
   });
 });
+
+// ===========================================================================
+// Invitation aggregate_type roundtrip (catches CHECK constraint)
+// ===========================================================================
+describe('Invitation aggregate_type roundtrip', () => {
+  const INV_DAYWORK_ID = '44444444-4444-4444-4444-444444444008';
+  const INV_ID = 'aaaa0000-0000-0000-0000-000000000099';
+
+  it('DAYWORK.INVITED creates a pending invitation', async () => {
+    await appendEvent(
+      'DAYWORK.INVITED',
+      INV_DAYWORK_ID,
+      'invitation',
+      'employer',
+      {
+        daywork_id: INV_DAYWORK_ID,
+        crew_person_id: CREW_ID,
+      },
+      EMPLOYER_ID,
+    );
+
+    const { data } = await service
+      .from('daywork_invitations')
+      .select('status, crew_person_id')
+      .eq('daywork_id', INV_DAYWORK_ID)
+      .eq('crew_person_id', CREW_ID)
+      .single();
+
+    expect(data?.status).toBe('pending');
+  });
+
+  it('DAYWORK.INVITATION_ACCEPTED updates invitation status', async () => {
+    // Get the invitation ID
+    const { data: inv } = await service
+      .from('daywork_invitations')
+      .select('id')
+      .eq('daywork_id', INV_DAYWORK_ID)
+      .eq('crew_person_id', CREW_ID)
+      .single();
+
+    expect(inv).toBeTruthy();
+
+    await appendEvent(
+      'DAYWORK.INVITATION_ACCEPTED',
+      inv!.id,
+      'invitation',
+      'crew',
+      {
+        daywork_id: INV_DAYWORK_ID,
+        invitation_id: inv!.id,
+      },
+      CREW_ID,
+    );
+
+    const { data: updated } = await service
+      .from('daywork_invitations')
+      .select('status')
+      .eq('id', inv!.id)
+      .single();
+
+    expect(updated?.status).toBe('accepted');
+  });
+});
+
+// ===========================================================================
+// Experience aggregate_type roundtrip (catches CHECK constraint)
+// ===========================================================================
+describe('Experience aggregate_type roundtrip', () => {
+  const EXP_ID = 'eeee0000-0000-0000-0000-000000000099';
+  const ROLE_DECKHAND = 'd0000000-0000-0000-0000-000000000006';
+
+  it('EXPERIENCE.ADDED creates a crew_experiences row', async () => {
+    await appendEvent(
+      'EXPERIENCE.ADDED',
+      EXP_ID,
+      'experience',
+      'crew',
+      {
+        id: EXP_ID,
+        vessel_id: VESSEL_ID,
+        role_id: ROLE_DECKHAND,
+        start_date: '2025-01-01',
+        end_date: '2025-06-01',
+        is_current: false,
+        vessel_operation: 'charter',
+      },
+      CREW_ID,
+    );
+
+    const { data } = await service
+      .from('crew_experiences')
+      .select('id, vessel_operation, start_date')
+      .eq('id', EXP_ID)
+      .single();
+
+    expect(data?.vessel_operation).toBe('charter');
+    expect(data?.start_date).toBe('2025-01-01');
+  });
+
+  it('EXPERIENCE.UPDATED modifies the experience row', async () => {
+    await appendEvent(
+      'EXPERIENCE.UPDATED',
+      EXP_ID,
+      'experience',
+      'crew',
+      {
+        vessel_operation: 'private',
+        description: 'Updated via integration test',
+      },
+      CREW_ID,
+    );
+
+    const { data } = await service
+      .from('crew_experiences')
+      .select('vessel_operation, description')
+      .eq('id', EXP_ID)
+      .single();
+
+    expect(data?.vessel_operation).toBe('private');
+    expect(data?.description).toBe('Updated via integration test');
+  });
+});

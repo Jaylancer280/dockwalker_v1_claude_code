@@ -241,7 +241,7 @@ export default function ReviewApplicantsPage() {
         prev.map((a) => (a.crew_person_id === crewId ? { ...a, status: 'shortlisted' } : a)),
       );
     } else {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       alert(data.error ?? 'Failed to shortlist');
     }
     setActing(false);
@@ -270,7 +270,7 @@ export default function ReviewApplicantsPage() {
         setAcceptedDialog({ crewName, engagementId: data.engagementId });
       }
     } else {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       alert(data.error ?? 'Failed to accept');
     }
     setActing(false);
@@ -299,7 +299,7 @@ export default function ReviewApplicantsPage() {
       setAvailableCrew((prev) => prev.filter((c) => c.person_id !== personId));
       setInvitationCount((prev) => prev + 1);
     } else {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setInviteError(data.error ?? 'Failed to send invitation');
     }
     setActing(false);
@@ -690,7 +690,16 @@ export default function ReviewApplicantsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!acceptedDialog} onOpenChange={() => setAcceptedDialog(null)}>
+      <Dialog
+        open={!!acceptedDialog}
+        onOpenChange={() => {
+          setAcceptedDialog(null);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(MY_JOBS_TAB_STORAGE_KEY, 'in-progress');
+          }
+          router.push('/daywork/mine');
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Crew member accepted</DialogTitle>

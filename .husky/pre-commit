@@ -6,6 +6,7 @@ bash .husky/check-no-todo.sh
 bash .husky/check-rollbacks.sh
 bash .husky/check-docs-freshness.sh
 bash .husky/check-schema-version.sh
+bash scripts/check-aggregate-types.sh
 
 # Type check
 npm run type-check
