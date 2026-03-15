@@ -352,4 +352,54 @@ describe('POST /api/daywork', () => {
       }),
     );
   });
+
+  it('accepts workingDayDates and derives workingDays from array length', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    setupFkMocks();
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const dates = [futureDate(1), futureDate(3), futureDate(5)];
+    const res = await POST(
+      makeRequest({ ...validBody, workingDayDates: dates, workingDays: 5 }),
+    );
+    expect(res.status).toBe(201);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_payload: expect.objectContaining({
+          working_days: 3,
+          working_day_dates: dates,
+        }),
+      }),
+    );
+  });
+
+  it('returns 400 when workingDayDates contains dates outside range', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await POST(
+      makeRequest({
+        ...validBody,
+        workingDayDates: [futureDate(10)],
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('within the start-end date range');
+  });
+
+  it('returns 400 when workingDayDates contains duplicates', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const d = futureDate(2);
+    const res = await POST(
+      makeRequest({
+        ...validBody,
+        workingDayDates: [d, d],
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('duplicates');
+  });
 });

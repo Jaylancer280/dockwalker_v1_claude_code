@@ -99,7 +99,6 @@ interface ExperienceEntry {
     imo_number: string;
     name: string;
     vessel_type: string;
-    vessel_operation: string;
     size_band_id: string;
     loa_meters: number;
     vessel_size_bands: unknown;
@@ -144,6 +143,10 @@ export default function ProfilePage() {
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
 
+  // Name maps for view-mode pills
+  const [certNames, setCertNames] = useState<Record<string, string>>({});
+  const [sizeBandNames, setSizeBandNames] = useState<Record<string, string>>({});
+
   const loadProfile = useCallback(async () => {
     const res = await fetch('/api/profile');
     const data = await res.json();
@@ -171,10 +174,41 @@ export default function ProfilePage() {
     }
   }, []);
 
+  // Load cert and size band names for view-mode pills
+  const loadLookupNames = useCallback(async (p: Profile) => {
+    const supabase = createClient();
+    if (p.certification_ids?.length > 0) {
+      const { data } = await supabase
+        .from('certifications')
+        .select('id, name')
+        .in('id', p.certification_ids);
+      if (data) {
+        const map: Record<string, string> = {};
+        for (const c of data) map[c.id] = c.name;
+        setCertNames(map);
+      }
+    }
+    if (p.vessel_size_exposure_ids?.length > 0) {
+      const { data } = await supabase
+        .from('vessel_size_bands')
+        .select('id, label')
+        .in('id', p.vessel_size_exposure_ids);
+      if (data) {
+        const map: Record<string, string> = {};
+        for (const s of data) map[s.id] = s.label;
+        setSizeBandNames(map);
+      }
+    }
+  }, []);
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (profile) loadLookupNames(profile);
+  }, [profile, loadLookupNames]);
 
   useEffect(() => {
     if (person?.identity_type === 'crew') {
@@ -451,17 +485,31 @@ export default function ProfilePage() {
             {profile.certification_ids?.length > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground">Certifications</p>
-                <p className="text-sm text-muted-foreground">
-                  {profile.certification_ids.length} certification(s)
-                </p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {profile.certification_ids.map((certId) => {
+                    const certName = certNames[certId];
+                    return (
+                      <span key={certId} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {certName ?? certId.slice(0, 8)}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             )}
             {profile.vessel_size_exposure_ids?.length > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground">Vessel Size Exposure</p>
-                <p className="text-sm text-muted-foreground">
-                  {profile.vessel_size_exposure_ids.length} size band(s)
-                </p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {profile.vessel_size_exposure_ids.map((sbId) => {
+                    const sbLabel = sizeBandNames[sbId];
+                    return (
+                      <span key={sbId} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {sbLabel ?? sbId.slice(0, 8)}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -590,7 +638,19 @@ export default function ProfilePage() {
                         {exp.description && (
                           <p className="mt-2 text-sm text-muted-foreground">{exp.description}</p>
                         )}
-                        <div className="mt-3 flex justify-end">
+                        <div className="mt-3 flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 gap-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/profile/edit-experience/${exp.id}`);
+                            }}
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Edit
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"

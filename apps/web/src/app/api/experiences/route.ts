@@ -32,7 +32,7 @@ export async function GET() {
       id, vessel_id, role_id, start_date, end_date, is_current,
       vessel_operation, flag_state, contract_type, contract_details,
       description, created_at, updated_at,
-      vessels(id, imo_number, name, vessel_type, vessel_operation, size_band_id, loa_meters, vessel_size_bands(label)),
+      vessels(id, imo_number, name, vessel_type, size_band_id, loa_meters, vessel_size_bands(label)),
       yacht_roles(id, name, department)
     `,
     )

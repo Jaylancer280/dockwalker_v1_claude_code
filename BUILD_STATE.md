@@ -90,9 +90,23 @@
 
 - [Stage 67] Post-implementation hardening — (1) DAYWORK.ACCEPTED push deep-link now sends `engagementId` instead of `dayworkId`, accept route fetches engagement before notifyOnEvent; (2) system message suppression in MESSAGE.SENT already implemented (verified); (3) integration test false positives: MESSAGE.SENT test now fails loudly on missing engagement, experience auto-derivation "second experience" test is self-contained; (4) onboarding batch validates new experiences against existing `crew_experiences` for date overlaps; (5) APNs key read failures now logged with `console.error` for production diagnosis; 483 tests pass
 
+- [Stage 68] UX quick fixes — hat switch uses full page reload; explicit "Clear all availability" button; UTC-consistent date handling in availability API + overlay with month labels; cert and size band pills on profile; shortlisted/viewed crew can withdraw; 487 tests pass
+
+- [Stage 69] Vessel soft data separation + templates cleanup — `vessel_operation` removed from vessels table (soft data lives on crew_experiences only); `vessel_id` removed from daywork_templates; `get_vessel_public` updated; vessel API routes/forms/types updated; migration 00034; 485 tests pass
+
+- [Stage 70] Experience edit + IMO auto-populate — new `/profile/edit-experience/[id]` page with PATCH /api/experiences/[id]; edit button on profile experience cards; IMO lookup shows selectable vessel card with "Enter manually" dismissal
+
+- [Stage 71] Contract type structured inputs — rotational contract type gets quick-select pills (2:2, 3:3, etc.) + ratio picker (on:off) + weeks/months unit; permanent gets "Days leave per year" input; seasonal keeps free text; crossing/delivery/temporary hide details; applied to both add and edit experience pages
+
+- [Stage 72] Job detail vessel visibility — M/Y or S/Y prefix on vessel names across discover cards, application cards, invitation cards, and chat daywork summary; summary card extended with size band and LOA; context API returns vessel_type, loa_meters, vessel_size_bands
+
+- [Stage 73] Working days calendar selection — `working_day_dates date[]` nullable column on dayworks and templates (migration 00035); post-projection trigger writes dates; API accepts optional `workingDayDates` array with range/duplicate validation; backward compatible; 488 tests pass
+
+- [Stage 74] Job expiry + stale engagement cleanup — `POST /api/daywork/:id/extend` route with DAYWORK.EXTENDED event (migration 00036); mine API adds computed `is_overdue` flag; conversations API adds `rating_expires_at`, `rating_expired`, `is_overdue` (3-day grace); all query-time, no background jobs; 493 tests pass
+
 ## Current Schema Version
 
-v33 — device tokens (33 migrations applied)
+v36 — daywork extended (36 migrations applied)
 
 ## Migrations Applied
 
@@ -131,6 +145,9 @@ v33 — device tokens (33 migrations applied)
 | `00031_experience_auto_derivation.sql`       | `derive_experience_profile(person_id)` function auto-computes `experience_bracket_id` + `vessel_size_exposure_ids` on profile from crew_experiences; called after `EXPERIENCE.ADDED/UPDATED/REMOVED` in `apply_projection`                                                                     |
 | `00032_nda_reveal_after_acceptance.sql`      | Updates `get_vessel_public` to reveal IMO when caller has an active engagement on a daywork linked to the vessel; NDA immutability enforced at API layer                                                                                                                                       |
 | `00033_device_tokens.sql`                    | `device_tokens` table with RLS, unique `(person_id, token)`, platform enum (apns/fcm/web). CRUD utility data, not event-sourced.                                                                                                                                                               |
+| `00034_vessel_soft_data_separation.sql`      | Drops `vessel_operation` from vessels, drops `vessel_id` from daywork_templates, updates `apply_projection` and `get_vessel_public` to remove vessel_operation                                                                                                                                 |
+| `00035_working_day_dates.sql`                | Adds `working_day_dates date[]` nullable column to dayworks and templates; post-projection trigger `apply_working_day_dates` writes dates from DAYWORK.POSTED payload                                                                                                                          |
+| `00036_daywork_extended.sql`                 | `DAYWORK.EXTENDED` event handler via trigger: updates end_date, working_days, working_day_dates on dayworks row                                                                                                                                                                                |
 
 ## Deferred Decisions
 

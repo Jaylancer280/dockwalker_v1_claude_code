@@ -95,7 +95,7 @@ describe('GET /api/experiences', () => {
         description: 'Deckhand on M/Y Test',
         created_at: '2024-01-01',
         updated_at: '2024-01-01',
-        vessels: { id: 'v1', imo_number: '1234567', name: 'Test', vessel_type: 'motor', vessel_operation: 'charter', size_band_id: 'sb1', loa_meters: 45, vessel_size_bands: { label: '40-50m' } },
+        vessels: { id: 'v1', imo_number: '1234567', name: 'Test', vessel_type: 'motor', size_band_id: 'sb1', loa_meters: 45, vessel_size_bands: { label: '40-50m' } },
         yacht_roles: { id: 'r1', name: 'Deckhand', department: 'deck' },
       },
     ];

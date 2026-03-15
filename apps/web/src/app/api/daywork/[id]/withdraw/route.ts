@@ -24,7 +24,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'No application found' }, { status: 404 });
   }
 
-  if (application.status !== 'applied') {
+  const withdrawableStatuses = ['applied', 'viewed', 'shortlisted'];
+  if (!withdrawableStatuses.includes(application.status)) {
     return NextResponse.json(
       { error: `Cannot withdraw a ${application.status} application` },
       { status: 400 },

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,7 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RolePicker } from '@/components/role-picker';
 import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
-import { ChevronLeft, Loader2, Search } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 
 interface RoleItem {
   id: string;
@@ -39,24 +39,18 @@ const CONTRACT_TYPES = [
   { value: 'temporary', label: 'Temporary' },
 ];
 
-export default function AddExperiencePage() {
+export default function EditExperiencePage() {
   const router = useRouter();
+  const { id } = useParams<{ id: string }>();
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // IMO lookup
-  const [imoNumber, setImoNumber] = useState('');
-  const [lookingUpImo, setLookingUpImo] = useState(false);
-  const [imoMessage, setImoMessage] = useState('');
-  const [useExisting, setUseExisting] = useState(false);
-  const [existingVesselId, setExistingVesselId] = useState('');
-
-  // Vessel fields
+  // Vessel info (read-only)
   const [vesselName, setVesselName] = useState('');
-  const [vesselType, setVesselType] = useState<'motor' | 'sail'>('motor');
-  const [loaMeters, setLoaMeters] = useState('');
+  const [vesselType, setVesselType] = useState('motor');
 
   // Experience fields
   const [roleId, setRoleId] = useState('');
@@ -69,83 +63,53 @@ export default function AddExperiencePage() {
   const [contractDetails, setContractDetails] = useState('');
   const [description, setDescription] = useState('');
 
-  const loadLookups = useCallback(async () => {
+  const loadData = useCallback(async () => {
     const supabase = createClient();
-    const [rolesRes, flagsRes] = await Promise.all([
+    const [rolesRes, flagsRes, expRes] = await Promise.all([
       supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
       supabase.from('flag_states').select('id, name').order('sort_order'),
+      fetch('/api/experiences'),
     ]);
     if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
     if (flagsRes.data) setFlagStates(flagsRes.data);
+
+    if (expRes.ok) {
+      const data = await expRes.json();
+      const exp = (data.experiences ?? []).find((e: { id: string }) => e.id === id);
+      if (exp) {
+        setRoleId(exp.role_id ?? '');
+        setExpVesselOperation(exp.vessel_operation ?? 'charter');
+        setFlagState(exp.flag_state ?? '');
+        setStartDate(exp.start_date ?? '');
+        setEndDate(exp.end_date ?? '');
+        setIsCurrent(exp.is_current ?? false);
+        setContractType(exp.contract_type ?? '');
+        setContractDetails(exp.contract_details ?? '');
+        setDescription(exp.description ?? '');
+        if (exp.vessels) {
+          setVesselName(exp.vessels.name ?? '');
+          setVesselType(exp.vessels.vessel_type ?? 'motor');
+        }
+      }
+    }
     setLoading(false);
-  }, []);
+  }, [id]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    loadLookups();
-  }, [loadLookups]);
+    loadData();
+  }, [loadData]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  async function handleImoLookup() {
-    if (imoNumber.length !== 7) return;
-    setLookingUpImo(true);
-    setImoMessage('');
-    const res = await fetch(`/api/vessels/lookup?imo=${imoNumber}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.found) {
-        const prefix = data.vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
-        setImoMessage(`Found: ${prefix} ${data.vessel.name} (${data.vessel.loa_meters}m)`);
-        setVesselName(data.vessel.name);
-        setLoaMeters(String(data.vessel.loa_meters));
-        setVesselType(data.vessel.vessel_type);
-        setExistingVesselId(data.vessel.id);
-        setUseExisting(true);
-      } else {
-        setImoMessage('Not found — enter vessel details below');
-        setUseExisting(false);
-        setExistingVesselId('');
-      }
-    }
-    setLookingUpImo(false);
-  }
-
   async function handleSubmit() {
-    if (!roleId || !startDate || !expVesselOperation || !imoNumber) return;
+    if (!roleId || !startDate) return;
     setSubmitting(true);
+    setError(null);
 
-    let vesselId = existingVesselId;
-
-    // Create vessel if not using existing
-    if (!useExisting) {
-      if (!vesselName || !loaMeters) {
-        setSubmitting(false);
-        return;
-      }
-      const vesselRes = await fetch('/api/vessels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imoNumber,
-          name: vesselName,
-          vesselType,
-          loaMeters: Number(loaMeters),
-          ndaFlag: false,
-        }),
-      });
-      if (!vesselRes.ok) {
-        setSubmitting(false);
-        return;
-      }
-      const vesselData = await vesselRes.json();
-      vesselId = vesselData.id;
-    }
-
-    const res = await fetch('/api/experiences', {
-      method: 'POST',
+    const res = await fetch(`/api/experiences/${id}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        vesselId,
         roleId,
         startDate,
         endDate: endDate || null,
@@ -160,6 +124,9 @@ export default function AddExperiencePage() {
 
     if (res.ok) {
       router.push('/profile');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? 'Failed to update experience');
     }
     setSubmitting(false);
   }
@@ -190,125 +157,13 @@ export default function AddExperiencePage() {
 
       <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Add experience</h1>
+          <h1 className="text-xl font-bold tracking-tight">Edit experience</h1>
           <p className="text-sm text-muted-foreground">
-            Add a vessel experience entry to your profile
+            {vesselPrefix} {vesselName || 'Unknown vessel'}
           </p>
         </div>
 
-        {/* IMO lookup */}
-        <div className="flex flex-col gap-1.5">
-          <Label>IMO number</Label>
-          <div className="flex gap-2">
-            <Input
-              placeholder="7 digits"
-              value={imoNumber}
-              onChange={(e) => {
-                setImoNumber(e.target.value.replace(/\D/g, '').slice(0, 7));
-                setUseExisting(false);
-                setExistingVesselId('');
-                setImoMessage('');
-              }}
-              maxLength={7}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={imoNumber.length !== 7 || lookingUpImo}
-              onClick={handleImoLookup}
-            >
-              {lookingUpImo ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-          {imoMessage && !useExisting && (
-            <p className="text-xs text-muted-foreground">{imoMessage}</p>
-          )}
-        </div>
-
-        {/* Found vessel card */}
-        {useExisting && (
-          <div className="rounded-lg border border-success/40 bg-success/5 p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">
-                  {vesselType === 'sail' ? 'S/Y' : 'M/Y'} {vesselName}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {loaMeters}m · IMO {imoNumber}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => {
-                  setUseExisting(false);
-                  setExistingVesselId('');
-                  setImoMessage('Enter vessel details below');
-                }}
-              >
-                Enter manually
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Vessel details — shown when not using existing vessel */}
-        {!useExisting && (
-          <>
-            {/* Vessel type (motor/sail) + Operation (charter/private) */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>Vessel type</Label>
-                <Select
-                  value={vesselType}
-                  onValueChange={(v) => setVesselType(v as 'motor' | 'sail')}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="motor">Motor (M/Y)</SelectItem>
-                    <SelectItem value="sail">Sail (S/Y)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Vessel name with M/Y or S/Y prefix */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Vessel name</Label>
-              <div className="flex">
-                <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                  {vesselPrefix}
-                </span>
-                <Input
-                  placeholder="Vessel Name"
-                  value={vesselName}
-                  onChange={(e) => setVesselName(e.target.value)}
-                  className="rounded-l-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>LOA (meters)</Label>
-              <Input
-                type="number"
-                placeholder="45"
-                value={loaMeters}
-                onChange={(e) => setLoaMeters(e.target.value)}
-                min={1}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Role — department hierarchy picker */}
+        {/* Role */}
         <div className="flex flex-col gap-1.5">
           <Label>Role held</Label>
           <RolePicker roles={roles} value={roleId} onValueChange={setRoleId} />
@@ -331,13 +186,13 @@ export default function AddExperiencePage() {
           </Select>
         </div>
 
-        {/* Flag state — searchable picker */}
+        {/* Flag state */}
         <div className="flex flex-col gap-1.5">
           <Label>Flag state</Label>
           <FlagStatePicker flagStates={flagStates} value={flagState} onValueChange={setFlagState} />
         </div>
 
-        {/* Dates — day-level precision */}
+        {/* Dates */}
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label>Start date</Label>
@@ -504,10 +359,13 @@ export default function AddExperiencePage() {
           />
         </div>
 
+        {/* Error */}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
         {/* Submit */}
         <Button
           onClick={handleSubmit}
-          disabled={submitting || !roleId || !startDate || !imoNumber}
+          disabled={submitting || !roleId || !startDate}
           className="w-full"
         >
           {submitting ? (
@@ -516,7 +374,7 @@ export default function AddExperiencePage() {
               Saving...
             </>
           ) : (
-            'Add experience'
+            'Save changes'
           )}
         </Button>
       </div>

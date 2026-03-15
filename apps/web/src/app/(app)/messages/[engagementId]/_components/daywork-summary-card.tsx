@@ -26,7 +26,11 @@ export function DayworkSummaryCard({ context }: { context: EngagementContext }) 
         {dw.vessels?.name && (
           <div className="flex items-center gap-2">
             <Anchor className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span>{dw.vessels.name}</span>
+            <span>
+              {dw.vessels.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} {dw.vessels.name}
+              {dw.vessels.vessel_size_bands?.label && ` · ${dw.vessels.vessel_size_bands.label}`}
+              {dw.vessels.loa_meters && ` · ${dw.vessels.loa_meters}m`}
+            </span>
           </div>
         )}
         {location && (

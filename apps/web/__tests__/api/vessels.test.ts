@@ -62,7 +62,6 @@ const validBody = {
   imoNumber: '1234567',
   name: 'MY Test Yacht',
   vesselType: 'motor',
-  vesselOperation: 'private',
   loaMeters: 35,
   ndaFlag: false,
 };
@@ -176,15 +175,6 @@ describe('POST /api/vessels', () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('motor or sail');
-  });
-
-  it('returns 400 for invalid vessel operation', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk());
-
-    const res = await POST(makeRequest({ ...validBody, vesselOperation: 'commercial' }));
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain('private or charter');
   });
 
   it('returns 400 for invalid LOA', async () => {
@@ -345,16 +335,6 @@ describe('PATCH /api/vessels/:id', () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('motor or sail');
-  });
-
-  it('returns 400 for invalid vessel operation', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockFromAuth.mockReturnValueOnce(makeSelectChain({ id: 'v1', nda_flag: false }));
-
-    const res = await PATCH(makePatchRequest({ vesselOperation: 'commercial' }), makeParams('v1'));
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toContain('private or charter');
   });
 
   it('auto-derives size band when LOA changes', async () => {

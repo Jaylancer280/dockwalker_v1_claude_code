@@ -202,20 +202,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'End date must be on or after start date' }, { status: 400 });
   }
 
-  // Enforce 14-day rolling window: no dates before today or after today+13
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const maxDate = new Date(today);
-  maxDate.setDate(maxDate.getDate() + 13);
+  // Enforce 14-day rolling window using UTC date strings to avoid timezone issues
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const maxDateObj = new Date();
+  maxDateObj.setUTCDate(maxDateObj.getUTCDate() + 13);
+  const maxDateStr = maxDateObj.toISOString().slice(0, 10);
 
-  const startDay = new Date(startDate + 'T00:00:00');
-  const endDay = new Date(endDate + 'T00:00:00');
-
-  if (startDay < today) {
+  if (startDate < todayStr) {
     return NextResponse.json({ error: 'Cannot set availability for past dates' }, { status: 400 });
   }
 
-  if (endDay > maxDate) {
+  if (endDate > maxDateStr) {
     return NextResponse.json(
       { error: 'Availability can only be set within the next 14 days' },
       { status: 400 },

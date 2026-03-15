@@ -58,7 +58,6 @@ interface VesselExperienceEntry {
     imoNumber: string;
     name: string;
     vesselType: 'motor' | 'sail';
-    vesselOperation: 'charter' | 'private';
     loaMeters: string;
     useExisting: boolean;
     existingVesselId?: string;
@@ -118,7 +117,6 @@ function emptyExperienceEntry(): VesselExperienceEntry {
       imoNumber: '',
       name: '',
       vesselType: 'motor',
-      vesselOperation: 'charter',
       loaMeters: '',
       useExisting: false,
     },
@@ -233,7 +231,6 @@ export default function OnboardingPage() {
                     ...e.vessel,
                     name: data.vessel.name,
                     vesselType: data.vessel.vessel_type ?? 'motor',
-                    vesselOperation: data.vessel.vessel_operation ?? 'charter',
                     loaMeters: String(data.vessel.loa_meters),
                     useExisting: true,
                     existingVesselId: data.vessel.id,
@@ -303,7 +300,6 @@ export default function OnboardingPage() {
                   imoNumber: e.vessel.imoNumber,
                   name: e.vessel.name,
                   vesselType: e.vessel.vesselType,
-                  vesselOperation: e.vessel.vesselOperation,
                   loaMeters: Number(e.vessel.loaMeters) || 0,
                 },
                 experience: {
@@ -889,21 +885,6 @@ export default function OnboardingPage() {
                     <SelectContent>
                       <SelectItem value="motor">Motor (M/Y)</SelectItem>
                       <SelectItem value="sail">Sail (S/Y)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label>Vessel operation</Label>
-                  <Select
-                    value={entry.vessel.vesselOperation}
-                    onValueChange={(v) => updateEntry(entry.key, 'vessel', { vesselOperation: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="charter">Charter</SelectItem>
-                      <SelectItem value="private">Private</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

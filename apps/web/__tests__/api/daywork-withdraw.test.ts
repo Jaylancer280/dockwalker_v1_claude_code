@@ -61,7 +61,7 @@ describe('POST /api/daywork/:id/withdraw', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 400 when application not in applied state', async () => {
+  it('returns 400 when application is in accepted state', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({ id: 'app1', status: 'accepted' }),
@@ -73,10 +73,64 @@ describe('POST /api/daywork/:id/withdraw', () => {
     expect(body.error).toContain('accepted');
   });
 
-  it('returns 200 on successful withdrawal', async () => {
+  it('returns 400 when application is in rejected state', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({ id: 'app1', status: 'rejected' }),
+    );
+
+    const res = await POST(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('rejected');
+  });
+
+  it('returns 400 when application is in completed state', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({ id: 'app1', status: 'completed' }),
+    );
+
+    const res = await POST(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('completed');
+  });
+
+  it('returns 200 on successful withdrawal from applied state', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(
       makeChain({ id: 'app1', status: 'applied' }),
+    );
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({ p_event_type: 'APPLICATION.WITHDRAWN' }),
+    );
+  });
+
+  it('returns 200 on successful withdrawal from shortlisted state', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({ id: 'app1', status: 'shortlisted' }),
+    );
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({ p_event_type: 'APPLICATION.WITHDRAWN' }),
+    );
+  });
+
+  it('returns 200 on successful withdrawal from viewed state', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({ id: 'app1', status: 'viewed' }),
     );
     mockRpc.mockResolvedValueOnce({ error: null });
 

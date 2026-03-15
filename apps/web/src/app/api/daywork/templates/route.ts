@@ -14,12 +14,11 @@ export async function GET() {
     .from('daywork_templates')
     .select(
       `
-      id, name, vessel_id, role_id, location_port_id,
+      id, name, role_id, location_port_id,
       working_days, required_certification_ids, experience_bracket_id,
       day_rate, currency, meals, notes, created_at,
       yacht_roles(name),
-      ports(name, cities(name, regions(name))),
-      vessels(name)
+      ports(name, cities(name, regions(name)))
     `,
     )
     .eq('person_id', user.id)
@@ -48,7 +47,6 @@ export async function POST(request: Request) {
     .insert({
       person_id: user.id,
       name: body.name,
-      vessel_id: body.vesselId || null,
       role_id: body.roleId || null,
       location_port_id: body.locationPortId || null,
       working_days: body.workingDays || null,

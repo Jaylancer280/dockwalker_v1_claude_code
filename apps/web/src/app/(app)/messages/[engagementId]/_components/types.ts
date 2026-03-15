@@ -57,7 +57,12 @@ export interface EngagementContext {
     notes: string | null;
     yacht_roles: { name: string } | null;
     ports: { name: string; cities: { name: string } | null } | null;
-    vessels: { name: string } | null;
+    vessels: {
+      name: string;
+      vessel_type?: string;
+      loa_meters?: number;
+      vessel_size_bands?: { label: string } | null;
+    } | null;
   } | null;
   other_name: string;
   has_rated: boolean;

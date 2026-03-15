@@ -3,7 +3,6 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
 
 const VALID_VESSEL_TYPES = ['motor', 'sail'] as const;
-const VALID_VESSEL_OPERATIONS = ['private', 'charter'] as const;
 
 /**
  * PATCH /api/vessels/[id]
@@ -30,17 +29,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   }
 
   const body = await request.json();
-  const { name, vesselType, vesselOperation, loaMeters, ndaFlag } = body;
+  const { name, vesselType, loaMeters, ndaFlag } = body;
 
   if (vesselType && !VALID_VESSEL_TYPES.includes(vesselType)) {
     return NextResponse.json({ error: 'vesselType must be motor or sail' }, { status: 400 });
-  }
-
-  if (vesselOperation && !VALID_VESSEL_OPERATIONS.includes(vesselOperation)) {
-    return NextResponse.json(
-      { error: 'vesselOperation must be private or charter' },
-      { status: 400 },
-    );
   }
 
   if (loaMeters !== undefined) {
@@ -63,7 +55,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const payload: Record<string, unknown> = {};
   if (name !== undefined) payload.name = name.trim();
   if (vesselType !== undefined) payload.vessel_type = vesselType;
-  if (vesselOperation !== undefined) payload.vessel_operation = vesselOperation;
   if (ndaFlag !== undefined) payload.nda_flag = ndaFlag;
 
   // Auto-derive size band from LOA if LOA is changing

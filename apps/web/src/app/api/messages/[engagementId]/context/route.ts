@@ -26,7 +26,7 @@ export async function GET(
         job_number, working_days, day_rate, currency, meals, notes,
         yacht_roles(name),
         ports(name, cities(name)),
-        vessels(name)
+        vessels(name, vessel_type, loa_meters, vessel_size_bands(label))
       )
     `,
     )

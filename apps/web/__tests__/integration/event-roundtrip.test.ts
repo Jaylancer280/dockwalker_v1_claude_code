@@ -826,7 +826,6 @@ describe('NDA reveal-after-acceptance', () => {
         imo_number: '9999999',
         name: 'NDA Secret Yacht',
         vessel_type: 'motor',
-        vessel_operation: 'charter',
         size_band_id: SIZE_BAND_4,
         loa_meters: 85,
         nda_flag: true,

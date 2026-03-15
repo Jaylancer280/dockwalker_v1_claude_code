@@ -34,6 +34,7 @@ export async function POST(request: Request) {
     startDate,
     endDate,
     workingDays,
+    workingDayDates,
     requiredCertificationIds,
     experienceBracketId,
     dayRate,
@@ -113,6 +114,42 @@ export async function POST(request: Request) {
     );
   }
 
+  // Validate workingDayDates if provided
+  let resolvedWorkingDays = days;
+  if (workingDayDates && Array.isArray(workingDayDates) && workingDayDates.length > 0) {
+    // All dates must be valid YYYY-MM-DD strings
+    const invalidDate = workingDayDates.some(
+      (d: string) => typeof d !== 'string' || isNaN(new Date(d).getTime()),
+    );
+    if (invalidDate) {
+      return NextResponse.json(
+        { error: 'All workingDayDates must be valid YYYY-MM-DD strings' },
+        { status: 400 },
+      );
+    }
+
+    // All dates must be within [startDate, endDate] range
+    const outOfRange = workingDayDates.some((d: string) => d < startDate || d > endDate);
+    if (outOfRange) {
+      return NextResponse.json(
+        { error: 'All workingDayDates must be within the start-end date range' },
+        { status: 400 },
+      );
+    }
+
+    // No duplicates
+    const uniqueDates = new Set(workingDayDates);
+    if (uniqueDates.size !== workingDayDates.length) {
+      return NextResponse.json(
+        { error: 'workingDayDates must not contain duplicates' },
+        { status: 400 },
+      );
+    }
+
+    // Derive working_days from dates
+    resolvedWorkingDays = workingDayDates.length;
+  }
+
   // Validate meals if provided
   const validMeals = ['breakfast', 'lunch', 'dinner'];
   if (meals && !Array.isArray(meals)) {
@@ -172,7 +209,8 @@ export async function POST(request: Request) {
         location_port_id: locationPortId,
         start_date: startDate,
         end_date: endDate,
-        working_days: days,
+        working_days: resolvedWorkingDays,
+        ...(workingDayDates?.length ? { working_day_dates: workingDayDates } : {}),
         required_certification_ids: requiredCertificationIds ?? [],
         experience_bracket_id: experienceBracketId ?? null,
         day_rate: parsedDayRate,

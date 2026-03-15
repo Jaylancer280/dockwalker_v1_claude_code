@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowRightLeft } from 'lucide-react';
 
@@ -12,7 +11,6 @@ interface HatSwitcherProps {
 
 export function HatSwitcher({ currentHat, identityType }: HatSwitcherProps) {
   const [switching, setSwitching] = useState(false);
-  const router = useRouter();
 
   // Agents can't switch
   if (identityType === 'agent') {
@@ -33,7 +31,7 @@ export function HatSwitcher({ currentHat, identityType }: HatSwitcherProps) {
       body: JSON.stringify({ hat: otherHat }),
     });
     if (res.ok) {
-      router.refresh();
+      window.location.reload();
     }
     setSwitching(false);
   }

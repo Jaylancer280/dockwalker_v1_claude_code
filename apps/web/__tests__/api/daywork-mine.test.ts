@@ -67,7 +67,7 @@ describe('GET /api/daywork/mine', () => {
     const res = await GET(makeRequest());
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.dayworks).toEqual(dayworks);
+    expect(body.dayworks).toEqual([{ id: 'd1', status: 'active', is_overdue: false }]);
   });
 
   it('passes roleId and portId filters to query', async () => {

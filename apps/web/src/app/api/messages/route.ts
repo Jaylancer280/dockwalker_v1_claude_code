@@ -29,7 +29,7 @@ export async function GET() {
       .select(
         `
         id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
-        crew_completion_status,
+        crew_completion_status, updated_at,
         dayworks(yacht_roles(name), ports(name)),
         profiles!active_engagements_employer_person_id_profiles_fkey(display_name)
       `,
@@ -43,7 +43,7 @@ export async function GET() {
       .select(
         `
         id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
-        crew_completion_status,
+        crew_completion_status, updated_at,
         dayworks(yacht_roles(name), ports(name)),
         profiles!active_engagements_crew_person_id_profiles_fkey(display_name)
       `,
@@ -94,11 +94,37 @@ export async function GET() {
     }
   }
 
-  const conversations = allEngagements.map((eng) => ({
-    ...eng,
-    has_rated: ratedEngagementIds.has(eng.id),
-    last_message: lastMessages[eng.id] ?? null,
-  }));
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const nowMs = Date.now();
+  const RATING_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+  const OVERDUE_GRACE_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+  const conversations = allEngagements.map((eng) => {
+    // Rating timeout: 14 days after completion
+    let ratingExpiresAt: string | null = null;
+    let ratingExpired = false;
+    if (eng.status === 'completed' && eng.updated_at) {
+      const completedAt = new Date(eng.updated_at as string).getTime();
+      const expiresAt = completedAt + RATING_WINDOW_MS;
+      ratingExpiresAt = new Date(expiresAt).toISOString();
+      ratingExpired = nowMs > expiresAt;
+    }
+
+    // Overdue: active engagement past end_date + 3 day grace
+    const endDate = eng.end_date as string;
+    const endMs = endDate ? new Date(endDate + 'T23:59:59Z').getTime() : 0;
+    const isOverdue =
+      eng.status === 'active' && endDate < todayStr && nowMs - endMs > OVERDUE_GRACE_MS;
+
+    return {
+      ...eng,
+      has_rated: ratedEngagementIds.has(eng.id),
+      last_message: lastMessages[eng.id] ?? null,
+      rating_expires_at: ratingExpiresAt,
+      rating_expired: ratingExpired,
+      is_overdue: isOverdue,
+    };
+  });
 
   // Sort by last message time (most recent first), then by engagement creation
   conversations.sort((a, b) => {

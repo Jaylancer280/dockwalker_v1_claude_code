@@ -14,7 +14,7 @@ function toDateStr(d: Date): string {
 
 function addDays(d: Date, n: number): Date {
   const r = new Date(d);
-  r.setDate(r.getDate() + n);
+  r.setUTCDate(r.getUTCDate() + n);
   return r;
 }
 
@@ -48,10 +48,12 @@ export function AvailabilityOverlay({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Build 14-day grid from today
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = toDateStr(today);
+  // Build 14-day grid from today in UTC to match server
+  const nowUtc = new Date();
+  const today = new Date(
+    Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate()),
+  );
+  const todayStr = today.toISOString().split('T')[0];
 
   const days: Date[] = [];
   for (let i = 0; i < 14; i++) {
@@ -62,7 +64,7 @@ export function AvailabilityOverlay({
   const weeks: Date[][] = [];
   let currentWeek: Date[] = [];
   for (const day of days) {
-    const dow = day.getDay();
+    const dow = day.getUTCDay();
     const mondayIdx = dow === 0 ? 6 : dow - 1;
     if (currentWeek.length > 0 && mondayIdx === 0) {
       weeks.push(currentWeek);
@@ -235,6 +237,21 @@ export function AvailabilityOverlay({
             />
           </section>
 
+          {/* Clear availability — direct path when user has existing data */}
+          {hasExisting && !notAvailable && (
+            <section>
+              <button
+                onClick={() => {
+                  setSelectedDates(new Set());
+                  setNotAvailable(false);
+                }}
+                className="text-xs text-destructive hover:underline"
+              >
+                Clear all availability
+              </button>
+            </section>
+          )}
+
           {/* Not available toggle */}
           <section>
             <button
@@ -299,6 +316,25 @@ export function AvailabilityOverlay({
               </div>
             </div>
 
+            {/* Month label(s) */}
+            {(() => {
+              const firstMonth = days[0].toLocaleDateString('en-GB', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+              });
+              const lastMonth = days[days.length - 1].toLocaleDateString('en-GB', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+              });
+              return (
+                <p className="mb-1 text-sm font-semibold">
+                  {firstMonth === lastMonth ? firstMonth : `${firstMonth} / ${lastMonth}`}
+                </p>
+              );
+            })()}
+
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-1">
               {DAYS.map((d) => (
@@ -311,7 +347,7 @@ export function AvailabilityOverlay({
             {/* Calendar rows */}
             {weeks.map((week, wi) => {
               // Pad start of first week to align with day-of-week
-              const firstDow = week[0].getDay();
+              const firstDow = week[0].getUTCDay();
               const padStart = firstDow === 0 ? 6 : firstDow - 1;
 
               return (
@@ -333,7 +369,7 @@ export function AvailabilityOverlay({
                           ${isSelected ? 'bg-success text-white font-medium' : 'hover:bg-accent cursor-pointer'}
                         `}
                       >
-                        {day.getDate()}
+                        {day.getUTCDate()}
                       </button>
                     );
                   })}

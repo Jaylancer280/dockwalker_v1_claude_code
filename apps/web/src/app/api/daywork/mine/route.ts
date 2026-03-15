@@ -49,5 +49,12 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ dayworks: dayworks ?? [] });
+  // Add computed is_overdue flag for active postings past end_date
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const enriched = (dayworks ?? []).map((dw) => ({
+    ...dw,
+    is_overdue: dw.status === 'active' && dw.end_date < todayStr,
+  }));
+
+  return NextResponse.json({ dayworks: enriched });
 }

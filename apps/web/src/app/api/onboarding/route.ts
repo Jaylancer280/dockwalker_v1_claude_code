@@ -145,7 +145,6 @@ export async function POST(request: Request) {
             imoNumber: string;
             name: string;
             vesselType: string;
-            vesselOperation: string;
             loaMeters: number;
           };
           experience: {
@@ -203,7 +202,6 @@ export async function POST(request: Request) {
               imo_number: imoClean,
               name: vessel.name,
               vessel_type: vessel.vesselType,
-              vessel_operation: vessel.vesselOperation,
               size_band_id: sizeBand.id,
               loa_meters: loa,
               nda_flag: false,

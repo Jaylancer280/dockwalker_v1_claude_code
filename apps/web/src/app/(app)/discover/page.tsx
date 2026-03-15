@@ -1011,7 +1011,9 @@ function JobCard({
         <div className="mb-3">
           <h3 className="text-lg font-bold">{card.yacht_roles?.name ?? 'Unknown role'}</h3>
           <p className="text-sm text-muted-foreground">
-            {card.vessels?.nda_flag ? 'NDA Vessel' : (card.vessels?.name ?? 'Unknown vessel')}
+            {card.vessels?.nda_flag
+              ? 'NDA Vessel'
+              : `${card.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} ${card.vessels?.name ?? 'Unknown vessel'}`}
             {card.vessels?.vessel_size_bands?.label &&
               ` · ${convertSizeBandLabel(card.vessels.vessel_size_bands.label, lengthUnit)}`}
           </p>
@@ -1115,7 +1117,8 @@ function ApplicationCard({
 
   const statusInfo = STATUS_LABELS[application.status] ?? STATUS_LABELS.applied;
   const symbol = currencySymbol(dw.currency);
-  const canWithdraw = application.status === 'applied';
+  const canWithdraw = ['applied', 'viewed', 'shortlisted'].includes(application.status);
+  const isShortlisted = application.status === 'shortlisted';
 
   return (
     <Card>
@@ -1125,6 +1128,7 @@ function ApplicationCard({
           <div className="min-w-0 flex-1">
             <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
             <p className="text-sm text-muted-foreground">
+              {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
               {dw.vessel_name ?? 'Unknown vessel'}
               {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
             </p>
@@ -1200,6 +1204,11 @@ function ApplicationCard({
           <DialogHeader>
             <DialogTitle>Withdraw application?</DialogTitle>
             <DialogDescription>
+              {isShortlisted && (
+                <span className="mb-1 block font-medium text-foreground">
+                  You&apos;ve been shortlisted for this position.
+                </span>
+              )}
               This will remove your application for{' '}
               <span className="font-medium text-foreground">{dw.role_name ?? 'this job'}</span>
               {dw.vessel_name && (
@@ -1261,6 +1270,7 @@ function InvitationCard({
         <div>
           <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
           <p className="text-sm text-muted-foreground">
+            {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
             {dw.vessel_name ?? 'Unknown vessel'}
             {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
           </p>

@@ -4,7 +4,6 @@ import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
 const VALID_VESSEL_TYPES = ['motor', 'sail'] as const;
-const VALID_VESSEL_OPERATIONS = ['private', 'charter'] as const;
 
 /**
  * GET /api/vessels
@@ -18,7 +17,7 @@ export async function GET() {
   const { data: vessels, error } = await supabase
     .from('vessels')
     .select(
-      'id, imo_number, name, vessel_type, vessel_operation, size_band_id, loa_meters, nda_flag, created_at, vessel_size_bands(label)',
+      'id, imo_number, name, vessel_type, size_band_id, loa_meters, nda_flag, created_at, vessel_size_bands(label)',
     )
     .eq('owner_person_id', user.id)
     .order('created_at', { ascending: false });
@@ -38,7 +37,6 @@ export async function GET() {
  *   imoNumber: string (required),
  *   name: string (required),
  *   vesselType: 'motor' | 'sail' (required),
- *   vesselOperation: 'private' | 'charter' (required),
  *   loaMeters: number (required, LOA in meters — size band auto-derived),
  *   ndaFlag: boolean (optional, default false)
  * }
@@ -49,11 +47,11 @@ export async function POST(request: Request) {
   const { user, person, supabase, serviceClient } = guard.value;
 
   const body = await request.json();
-  const { imoNumber, name, vesselType, vesselOperation, loaMeters, ndaFlag } = body;
+  const { imoNumber, name, vesselType, loaMeters, ndaFlag } = body;
 
-  if (!imoNumber || !name || !vesselType || !vesselOperation || loaMeters == null) {
+  if (!imoNumber || !name || !vesselType || loaMeters == null) {
     return NextResponse.json(
-      { error: 'imoNumber, name, vesselType, vesselOperation, and loaMeters are required' },
+      { error: 'imoNumber, name, vesselType, and loaMeters are required' },
       { status: 400 },
     );
   }
@@ -65,13 +63,6 @@ export async function POST(request: Request) {
 
   if (!VALID_VESSEL_TYPES.includes(vesselType)) {
     return NextResponse.json({ error: 'vesselType must be motor or sail' }, { status: 400 });
-  }
-
-  if (!VALID_VESSEL_OPERATIONS.includes(vesselOperation)) {
-    return NextResponse.json(
-      { error: 'vesselOperation must be private or charter' },
-      { status: 400 },
-    );
   }
 
   const loa = Number(loaMeters);
@@ -128,7 +119,6 @@ export async function POST(request: Request) {
         imo_number: imoClean,
         name,
         vessel_type: vesselType,
-        vessel_operation: vesselOperation,
         size_band_id: sizeBand.id,
         loa_meters: loa,
         nda_flag: person.current_hat === 'crew' ? false : (ndaFlag ?? false),

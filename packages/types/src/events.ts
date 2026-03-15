@@ -120,7 +120,6 @@ export interface EventPayloadMap {
     imo_number: string;
     name: string;
     vessel_type: string;
-    vessel_operation: string;
     size_band_id: string;
     loa_meters: number;
     nda_flag: boolean;
@@ -128,7 +127,6 @@ export interface EventPayloadMap {
   'VESSEL.UPDATED': {
     name?: string;
     vessel_type?: string;
-    vessel_operation?: string;
     size_band_id?: string;
     loa_meters?: number;
     nda_flag?: boolean;
@@ -141,6 +139,7 @@ export interface EventPayloadMap {
     start_date: string;
     end_date: string;
     working_days: number;
+    working_day_dates?: string[];
     required_certification_ids: string[];
     experience_bracket_id: string | null;
     day_rate: number;
@@ -155,6 +154,12 @@ export interface EventPayloadMap {
     start_date?: string;
     end_date?: string;
     working_days?: number;
+  };
+  'DAYWORK.EXTENDED': {
+    daywork_id: string;
+    end_date: string;
+    working_days?: number;
+    working_day_dates?: string[];
   };
   'DAYWORK.INVITED': {
     daywork_id: string;

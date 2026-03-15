@@ -853,14 +853,13 @@ values (
 -- Saved template for quick repeat posting
 
 insert into public.daywork_templates (
-  id, person_id, name, vessel_id, role_id, location_port_id,
+  id, person_id, name, role_id, location_port_id,
   working_days, required_certification_ids, experience_bracket_id,
   day_rate, currency, meals, notes
 ) values (
   'bb000000-0000-0000-0000-000000000001',
   '11111111-1111-1111-1111-111111111111',
   'Standard Deckhand - Antibes',
-  '33333333-3333-3333-3333-333333333333',
   'd0000000-0000-0000-0000-000000000006',
   'c0000000-0000-0000-0000-000000000001',
   3,
