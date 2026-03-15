@@ -15,6 +15,8 @@ import {
   Plus,
   Trash2,
   Ship,
+  Compass,
+  Briefcase,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -395,6 +397,27 @@ export default function ProfilePage() {
           <span className="text-sm text-muted-foreground">Current role:</span>
           <HatSwitcher currentHat={person.current_hat} identityType={person.identity_type} />
         </div>
+
+        {/* Quick action CTA */}
+        {!editing && (
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => router.push(isCrewHat ? '/discover' : '/daywork/mine')}
+          >
+            {isCrewHat ? (
+              <>
+                <Compass className="h-4 w-4" />
+                Find daywork
+              </>
+            ) : (
+              <>
+                <Briefcase className="h-4 w-4" />
+                My jobs
+              </>
+            )}
+          </Button>
+        )}
 
         {/* Availability card — crew hat only, view mode only */}
         {profile.identity_type === 'crew' && isCrewHat && !editing && (

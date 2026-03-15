@@ -41,6 +41,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { createClient } from '@/lib/supabase/client';
+import { ProfileOverlay } from '@/components/profile-overlay';
 import { MY_JOBS_TAB_STORAGE_KEY } from '@/lib/my-jobs-tab';
 
 interface ApplicantProfile {
@@ -107,6 +108,9 @@ export default function ReviewApplicantsPage() {
     crewId: string;
     crewName: string;
   } | null>(null);
+
+  // Profile overlay
+  const [viewProfileId, setViewProfileId] = useState<string | null>(null);
 
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -533,6 +537,7 @@ export default function ReviewApplicantsPage() {
                   onReject={() => handleReject((topCard as Applicant).crew_person_id)}
                   onShortlist={() => handleShortlist((topCard as Applicant).crew_person_id)}
                   disabled={acting}
+                  onViewProfile={setViewProfileId}
                 />
               )}
             </div>
@@ -708,6 +713,15 @@ export default function ReviewApplicantsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Profile overlay */}
+      {viewProfileId && (
+        <ProfileOverlay
+          personId={viewProfileId}
+          isOpen={true}
+          onClose={() => setViewProfileId(null)}
+        />
+      )}
     </main>
   );
 }
@@ -719,6 +733,7 @@ function SwipeableApplicant({
   onReject,
   onShortlist,
   disabled,
+  onViewProfile,
 }: {
   applicant: Applicant;
   tab: TabView;
@@ -726,6 +741,7 @@ function SwipeableApplicant({
   onReject: () => void;
   onShortlist: () => void;
   disabled: boolean;
+  onViewProfile?: (personId: string) => void;
 }) {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -790,7 +806,7 @@ function SwipeableApplicant({
         </motion.div>
       )}
 
-      <ApplicantCard applicant={applicant} />
+      <ApplicantCard applicant={applicant} onViewProfile={onViewProfile} />
     </motion.div>
   );
 }
@@ -927,7 +943,15 @@ function AvailableCrewCard({ crew, isPreview }: { crew: AvailableCrew; isPreview
   );
 }
 
-function ApplicantCard({ applicant, isPreview }: { applicant: Applicant; isPreview?: boolean }) {
+function ApplicantCard({
+  applicant,
+  isPreview,
+  onViewProfile,
+}: {
+  applicant: Applicant;
+  isPreview?: boolean;
+  onViewProfile?: (personId: string) => void;
+}) {
   const profile = applicant.profiles;
 
   return (
@@ -943,6 +967,17 @@ function ApplicantCard({ applicant, isPreview }: { applicant: Applicant; isPrevi
             <h3 className="text-lg font-bold">{profile?.display_name ?? 'Unknown'}</h3>
             {applicant.status === 'shortlisted' && (
               <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+            )}
+            {!isPreview && (
+              <button
+                className="ml-auto text-muted-foreground hover:text-primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewProfile?.(applicant.crew_person_id);
+                }}
+              >
+                <User className="h-4 w-4" />
+              </button>
             )}
           </div>
           <p className="text-sm text-muted-foreground">

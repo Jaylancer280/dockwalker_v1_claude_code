@@ -19,6 +19,7 @@ interface ApplicationRow {
     notes: string | null;
     status: string;
     vessel_id: string;
+    poster_person_id: string;
     yacht_roles: { id: string; name: string } | null;
     ports: {
       id: string;
@@ -58,7 +59,7 @@ export async function GET() {
       id, daywork_id, status, message, created_at,
       dayworks(
         id, job_number, start_date, end_date, working_days,
-        day_rate, currency, meals, notes, status, vessel_id,
+        day_rate, currency, meals, notes, status, vessel_id, poster_person_id,
         yacht_roles(id, name),
         ports(id, name, cities(name, regions(name))),
         experience_brackets(label)
@@ -93,8 +94,24 @@ export async function GET() {
 
   const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
 
+  // Resolve poster display names
+  const posterIds = [
+    ...new Set(rows.map((r) => r.dayworks?.poster_person_id).filter(Boolean) as string[]),
+  ];
+  const posterNameMap = new Map<string, string>();
+  if (posterIds.length > 0) {
+    const { data: posterProfiles } = await supabase
+      .from('profiles')
+      .select('person_id, display_name')
+      .in('person_id', posterIds);
+    for (const p of posterProfiles ?? []) {
+      posterNameMap.set(p.person_id, p.display_name);
+    }
+  }
+
   const hydrated = rows.map((app) => {
     const vessel = app.dayworks?.vessel_id ? vesselMap.get(app.dayworks.vessel_id) : null;
+    const posterId = app.dayworks?.poster_person_id ?? null;
     return {
       id: app.id,
       daywork_id: app.daywork_id,
@@ -112,6 +129,8 @@ export async function GET() {
             meals: app.dayworks.meals,
             notes: app.dayworks.notes,
             daywork_status: app.dayworks.status,
+            poster_person_id: posterId,
+            poster_name: posterId ? (posterNameMap.get(posterId) ?? null) : null,
             role_name: app.dayworks.yacht_roles?.name ?? null,
             port_name: app.dayworks.ports?.name ?? null,
             city_name: app.dayworks.ports?.cities?.name ?? null,

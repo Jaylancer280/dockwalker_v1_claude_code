@@ -106,6 +106,14 @@
 
 - [Stage 75] Post-implementation regression fixes — (1) rollback 00034 now includes full `apply_projection` body (was missing, would cause NULL constraint violation on vessel_operation during replay); (2) rollback 00035 drops orphaned trigger + function before column drops; (3) IMO reveal wired through chat context API and daywork summary card (`imo_number` shown for crew with active engagements on NDA vessels, completing Stage 61's data layer)
 
+- [Stage 76] Post-onboarding landing route — onboarding already redirects to `/profile` (confirmed); dashboard page now redirects to `/profile` for all hats (not hat-routed); profile page adds "Find daywork" (crew) or "My jobs" (employer) CTA button
+
+- [Stage 77] View-only profile API — new `GET /api/profile/[personId]` with context validation (engagement, application, or invitation relationship required); crew profiles include bio, role, certs, experience bracket, vessel size exposure, experiences (no salary), past daywork count; employer profiles include agency, role specializations, non-NDA vessels, active posting count; 7 new tests (500 total)
+
+- [Stage 78] Profile overlay component — `ProfileOverlay` slide-up card with crew view (expandable experience cards, cert/size-band pills, past daywork count) and employer view (vessels, role specializations, active postings); fetches from view-only API; loading spinner and error state
+
+- [Stage 79] Wire profile drill-down into existing pages — discover page job cards show "Posted by {name}" tappable to overlay; application cards show poster name; invitation cards make employer name tappable; review page applicant cards get User icon button; chat kebab menu gets "View profile" as first item; discover API resolves poster display names; applications API returns `poster_person_id` and `poster_name`; invitations API returns `employer_person_id`; 500 tests pass
+
 ## Current Schema Version
 
 v36 — daywork extended (36 migrations applied)

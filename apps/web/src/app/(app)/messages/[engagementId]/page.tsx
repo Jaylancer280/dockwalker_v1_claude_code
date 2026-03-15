@@ -26,6 +26,7 @@ import { PostponementFormOverlay } from './_components/postponement-form-overlay
 import { RatingFormOverlay } from './_components/rating-form-overlay';
 import { ChecklistFormOverlay } from './_components/checklist-form-overlay';
 import { DayworkSummaryCard } from './_components/daywork-summary-card';
+import { ProfileOverlay } from '@/components/profile-overlay';
 import { ChecklistCard } from './_components/checklist-card';
 import {
   WorkStartedBanner,
@@ -51,6 +52,7 @@ export default function ChatPage() {
   const [showPostponementForm, setShowPostponementForm] = useState(false);
   const [showChecklistForm, setShowChecklistForm] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
+  const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [relistingAfterRejection, setRelistingAfterRejection] = useState(false);
   const [respondingCrewCancel, setRespondingCrewCancel] = useState(false);
@@ -465,6 +467,19 @@ export default function ChatPage() {
               </Button>
               {showActionMenu && (
                 <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-border bg-background shadow-lg">
+                  {/* View other party's profile */}
+                  <button
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                    onClick={() => {
+                      setShowActionMenu(false);
+                      const otherPersonId = isCrew
+                        ? context.employer_person_id
+                        : context.crew_person_id;
+                      setViewProfileId(otherPersonId);
+                    }}
+                  >
+                    View profile
+                  </button>
                   {/* Work started — available to both parties */}
                   {context.work_started_status === null && (
                     <button
@@ -777,6 +792,15 @@ export default function ChatPage() {
           submitting={submittingRating}
           onSubmit={handleSubmitRating}
           onCancel={() => setShowRating(false)}
+        />
+      )}
+
+      {/* Profile overlay */}
+      {viewProfileId && (
+        <ProfileOverlay
+          personId={viewProfileId}
+          isOpen={true}
+          onClose={() => setViewProfileId(null)}
         />
       )}
     </main>

@@ -119,6 +119,7 @@ export async function GET() {
     return {
       id: inv.id,
       daywork_id: inv.daywork_id,
+      employer_person_id: inv.employer_person_id,
       employer_name: employerMap.get(inv.employer_person_id) ?? null,
       created_at: inv.created_at,
       daywork: dw

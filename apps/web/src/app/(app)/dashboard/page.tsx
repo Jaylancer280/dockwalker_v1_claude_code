@@ -24,5 +24,5 @@ export default async function DashboardPage() {
 
   if (!person) redirect('/onboarding');
 
-  redirect(person.current_hat === 'crew' ? '/discover' : '/daywork/mine');
+  redirect('/profile');
 }

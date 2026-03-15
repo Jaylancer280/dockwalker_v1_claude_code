@@ -28,6 +28,15 @@ function makeRequest(query = ''): Request {
   return new Request(`http://localhost/api/daywork/discover${query}`);
 }
 
+/** Profiles chain for poster name resolution: .select().in() → resolves */
+function makeProfilesChain(data: unknown[] = []) {
+  return {
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ data }),
+    }),
+  };
+}
+
 /** Applications query chain: .select().eq().in() */
 function makeAppsChain(data: unknown[]) {
   return {
@@ -141,6 +150,7 @@ describe('GET /api/daywork/discover', () => {
       ],
       error: null,
     });
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
 
     const res = await GET(makeRequest());
     expect(res.status).toBe(200);
@@ -164,6 +174,7 @@ describe('GET /api/daywork/discover', () => {
 
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
 
     const res = await GET(makeRequest());
     expect(res.status).toBe(200);
@@ -210,6 +221,7 @@ describe('GET /api/daywork/discover', () => {
     ];
     const { chain } = makeDayworksChain(dayworks, true);
     mockFromAuth.mockReturnValueOnce(chain);
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
 
     const res = await GET(makeRequest());
     expect(res.status).toBe(200);
@@ -279,6 +291,7 @@ describe('GET /api/daywork/discover', () => {
       data: [{ id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'sail', size_band_id: 'sb-other', size_band_label: '20-30m', nda_flag: false, owner_person_id: 'o2' }],
       error: null,
     });
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
 
     const res = await GET(makeRequest('?sizeBandId=sb-match'));
     expect(res.status).toBe(200);
@@ -316,6 +329,7 @@ describe('GET /api/daywork/discover', () => {
       data: [{ id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'motor', size_band_id: 'sb-target', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
       error: null,
     });
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
 
     const res = await GET(makeRequest('?sizeBandId=sb-target'));
     expect(res.status).toBe(200);
@@ -339,6 +353,7 @@ describe('GET /api/daywork/discover', () => {
       data: [{ id: 'v1', imo_number: null, name: 'Test Vessel', vessel_type: 'motor', size_band_id: 'sb-1', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
       error: null,
     });
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
 
     const res = await GET(
       makeRequest('?roleId=r1&portId=p1&startDate=2026-04-01&endDate=2026-04-30&certificationId=cert-1&experienceBracketId=eb-1&sizeBandId=sb-1'),

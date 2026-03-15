@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { AvailabilityOverlay } from '@/components/availability-overlay';
+import { ProfileOverlay } from '@/components/profile-overlay';
 import { LocationPicker } from '@/components/location-picker';
 import { createClient } from '@/lib/supabase/client';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
@@ -70,6 +71,8 @@ interface DayworkCard {
   } | null;
   experience_brackets: { label: string } | null;
   required_certification_ids: string[] | null;
+  poster_person_id: string;
+  poster_name: string | null;
 }
 
 interface LookupItem {
@@ -104,6 +107,8 @@ interface MyApplication {
     meals: string[];
     notes: string | null;
     daywork_status: string;
+    poster_person_id: string | null;
+    poster_name: string | null;
     role_name: string | null;
     port_name: string | null;
     city_name: string | null;
@@ -118,6 +123,7 @@ interface MyApplication {
 interface Invitation {
   id: string;
   daywork_id: string;
+  employer_person_id: string;
   employer_name: string | null;
   created_at: string;
   daywork: {
@@ -182,6 +188,9 @@ export default function DiscoverPage() {
   const [invitationError, setInvitationError] = useState<string | null>(null);
   const [confirmAcceptInv, setConfirmAcceptInv] = useState<Invitation | null>(null);
   const [confirmDeclineInv, setConfirmDeclineInv] = useState<Invitation | null>(null);
+
+  // Profile overlay state
+  const [viewProfileId, setViewProfileId] = useState<string | null>(null);
 
   // Availability gate state
   const [hasAvailability, setHasAvailability] = useState<boolean | null>(null);
@@ -500,6 +509,7 @@ export default function DiscoverPage() {
                 responding={respondingId === inv.id}
                 onAccept={() => setConfirmAcceptInv(inv)}
                 onDecline={() => setConfirmDeclineInv(inv)}
+                onViewProfile={setViewProfileId}
               />
             ))}
         </div>
@@ -546,6 +556,7 @@ export default function DiscoverPage() {
                 application={app}
                 withdrawing={withdrawingId === app.daywork_id}
                 onWithdraw={() => handleWithdraw(app.daywork_id)}
+                onViewProfile={setViewProfileId}
               />
             ))}
         </div>
@@ -699,7 +710,12 @@ export default function DiscoverPage() {
                 {/* Next card preview (underneath) */}
                 {nextCard && (
                   <div className="absolute inset-0 z-0">
-                    <JobCard card={nextCard} isPreview lengthUnit={prefs.lengthUnit} />
+                    <JobCard
+                      card={nextCard}
+                      isPreview
+                      lengthUnit={prefs.lengthUnit}
+                      onViewProfile={setViewProfileId}
+                    />
                   </div>
                 )}
 
@@ -723,6 +739,7 @@ export default function DiscoverPage() {
                     composing={composingMessage}
                     disabled={applying}
                     lengthUnit={prefs.lengthUnit}
+                    onViewProfile={setViewProfileId}
                   />
                 )}
               </div>
@@ -887,6 +904,14 @@ export default function DiscoverPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Profile overlay */}
+      {viewProfileId && (
+        <ProfileOverlay
+          personId={viewProfileId}
+          isOpen={true}
+          onClose={() => setViewProfileId(null)}
+        />
+      )}
     </main>
   );
 }
@@ -907,6 +932,7 @@ const SwipeableCard = forwardRef<
     composing: boolean;
     disabled: boolean;
     lengthUnit?: 'm' | 'ft';
+    onViewProfile?: (personId: string) => void;
   }
 >(function SwipeableCard(
   {
@@ -919,6 +945,7 @@ const SwipeableCard = forwardRef<
     composing,
     disabled,
     lengthUnit = 'm',
+    onViewProfile,
   },
   ref,
 ) {
@@ -983,6 +1010,7 @@ const SwipeableCard = forwardRef<
       <JobCard
         card={card}
         onComposeMessage={composing ? undefined : onComposeMessage}
+        onViewProfile={onViewProfile}
         lengthUnit={lengthUnit}
       />
     </motion.div>
@@ -993,11 +1021,13 @@ function JobCard({
   card,
   isPreview,
   onComposeMessage,
+  onViewProfile,
   lengthUnit = 'm',
 }: {
   card: DayworkCard;
   isPreview?: boolean;
   onComposeMessage?: () => void;
+  onViewProfile?: (personId: string) => void;
   lengthUnit?: 'm' | 'ft';
 }) {
   return (
@@ -1018,6 +1048,19 @@ function JobCard({
               ` · ${convertSizeBandLabel(card.vessels.vessel_size_bands.label, lengthUnit)}`}
           </p>
         </div>
+
+        {/* Poster */}
+        {card.poster_name && (
+          <button
+            className="mb-2 text-left text-xs text-muted-foreground hover:text-primary hover:underline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewProfile?.(card.poster_person_id);
+            }}
+          >
+            Posted by {card.poster_name}
+          </button>
+        )}
 
         {/* Details */}
         <div className="flex flex-col gap-2.5">
@@ -1106,10 +1149,12 @@ function ApplicationCard({
   application,
   withdrawing,
   onWithdraw,
+  onViewProfile,
 }: {
   application: MyApplication;
   withdrawing: boolean;
   onWithdraw: () => void;
+  onViewProfile?: (personId: string) => void;
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const dw = application.daywork;
@@ -1133,6 +1178,14 @@ function ApplicationCard({
               {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
             </p>
           </div>
+          {dw.poster_name && dw.poster_person_id && (
+            <button
+              className="text-left text-xs text-muted-foreground hover:text-primary hover:underline"
+              onClick={() => onViewProfile?.(dw.poster_person_id!)}
+            >
+              {dw.poster_name}
+            </button>
+          )}
           <Badge className={`shrink-0 text-[10px] ${statusInfo.className}`}>
             {statusInfo.label}
           </Badge>
@@ -1247,11 +1300,13 @@ function InvitationCard({
   responding,
   onAccept,
   onDecline,
+  onViewProfile,
 }: {
   invitation: Invitation;
   responding: boolean;
   onAccept: () => void;
   onDecline: () => void;
+  onViewProfile?: (personId: string) => void;
 }) {
   const dw = invitation.daywork;
   if (!dw) return null;
@@ -1263,7 +1318,17 @@ function InvitationCard({
       <CardContent className="flex flex-col gap-2 pt-4">
         {/* Invited by header */}
         <p className="text-xs font-medium text-primary">
-          Invited by {invitation.employer_name ?? 'an employer'}
+          Invited by{' '}
+          {invitation.employer_person_id ? (
+            <button
+              className="hover:underline"
+              onClick={() => onViewProfile?.(invitation.employer_person_id)}
+            >
+              {invitation.employer_name ?? 'an employer'}
+            </button>
+          ) : (
+            (invitation.employer_name ?? 'an employer')
+          )}
         </p>
 
         {/* Role + vessel */}

@@ -142,11 +142,25 @@ export async function GET(request: Request) {
 
   const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
 
+  // Resolve poster display names
+  const posterIds = [...new Set(filtered.map((d) => d.poster_person_id))];
+  const posterNameMap = new Map<string, string>();
+  if (posterIds.length > 0) {
+    const { data: posterProfiles } = await supabase
+      .from('profiles')
+      .select('person_id, display_name')
+      .in('person_id', posterIds);
+    for (const p of posterProfiles ?? []) {
+      posterNameMap.set(p.person_id, p.display_name);
+    }
+  }
+
   let hydrated = filtered.map((daywork) => {
     const vessel = vesselMap.get(daywork.vessel_id);
 
     return {
       ...daywork,
+      poster_name: posterNameMap.get(daywork.poster_person_id) ?? null,
       vessels: vessel
         ? {
             name: vessel.name,
