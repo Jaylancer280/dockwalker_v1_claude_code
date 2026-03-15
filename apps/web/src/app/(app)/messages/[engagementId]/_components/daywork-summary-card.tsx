@@ -30,6 +30,7 @@ export function DayworkSummaryCard({ context }: { context: EngagementContext }) 
               {dw.vessels.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} {dw.vessels.name}
               {dw.vessels.vessel_size_bands?.label && ` · ${dw.vessels.vessel_size_bands.label}`}
               {dw.vessels.loa_meters && ` · ${dw.vessels.loa_meters}m`}
+              {dw.vessels.imo_number && ` · IMO ${dw.vessels.imo_number}`}
             </span>
           </div>
         )}

@@ -104,6 +104,8 @@
 
 - [Stage 74] Job expiry + stale engagement cleanup — `POST /api/daywork/:id/extend` route with DAYWORK.EXTENDED event (migration 00036); mine API adds computed `is_overdue` flag; conversations API adds `rating_expires_at`, `rating_expired`, `is_overdue` (3-day grace); all query-time, no background jobs; 493 tests pass
 
+- [Stage 75] Post-implementation regression fixes — (1) rollback 00034 now includes full `apply_projection` body (was missing, would cause NULL constraint violation on vessel_operation during replay); (2) rollback 00035 drops orphaned trigger + function before column drops; (3) IMO reveal wired through chat context API and daywork summary card (`imo_number` shown for crew with active engagements on NDA vessels, completing Stage 61's data layer)
+
 ## Current Schema Version
 
 v36 — daywork extended (36 migrations applied)

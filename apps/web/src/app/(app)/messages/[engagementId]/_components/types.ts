@@ -61,6 +61,7 @@ export interface EngagementContext {
       name: string;
       vessel_type?: string;
       loa_meters?: number;
+      imo_number?: string | null;
       vessel_size_bands?: { label: string } | null;
     } | null;
   } | null;
