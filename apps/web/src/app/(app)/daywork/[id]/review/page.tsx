@@ -123,7 +123,9 @@ export default function ReviewApplicantsPage() {
   const [availableLoading, setAvailableLoading] = useState(false);
   const [availableLoaded, setAvailableLoaded] = useState(false);
   const [invitationCount, setInvitationCount] = useState(0);
-  const invitationLimit = 2;
+  const [invitationLimit, setInvitationLimit] = useState(2);
+  const [positionsAvailable, setPositionsAvailable] = useState(1);
+  const [positionsFilled, setPositionsFilled] = useState(0);
   const [allRoles, setAllRoles] = useState(false);
   const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -169,6 +171,8 @@ export default function ReviewApplicantsPage() {
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       if (data.applicants) setAllApplicants(data.applicants);
+      if (data.positions_available !== undefined) setPositionsAvailable(data.positions_available);
+      if (data.positions_filled !== undefined) setPositionsFilled(data.positions_filled);
       setError(null);
     } catch {
       setError('Failed to load applicants. Please try again.');
@@ -192,6 +196,7 @@ export default function ReviewApplicantsPage() {
       const data = await res.json();
       setAvailableCrew(data.crew ?? []);
       setInvitationCount(data.invitation_count ?? 0);
+      if (data.invitation_limit !== undefined) setInvitationLimit(data.invitation_limit);
     } catch {
       setAvailableCrew([]);
     } finally {
@@ -262,10 +267,18 @@ export default function ReviewApplicantsPage() {
       const data = await res.json();
       const accepted = allApplicants.find((a) => a.crew_person_id === crewId);
       const crewName = accepted?.profiles?.display_name ?? 'the crew member';
-      // Clear all applicants — acceptance moves the daywork to in_progress,
-      // auto-rejecting all remaining applicants server-side
-      window.sessionStorage.setItem(MY_JOBS_TAB_STORAGE_KEY, 'in_progress');
-      setAllApplicants([]);
+      const newFilled = positionsFilled + 1;
+      setPositionsFilled(newFilled);
+
+      if (newFilled >= positionsAvailable) {
+        // Fully filled — all remaining applicants auto-rejected server-side
+        window.sessionStorage.setItem(MY_JOBS_TAB_STORAGE_KEY, 'in_progress');
+        setAllApplicants([]);
+      } else {
+        // Multi-crew with remaining positions — remove accepted, keep others
+        setAllApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
+      }
+
       if (data.engagementId) {
         setAcceptedDialog({ crewName, engagementId: data.engagementId });
       }
@@ -325,7 +338,14 @@ export default function ReviewApplicantsPage() {
           <Link href="/daywork/mine" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Link>
-          <h1 className="flex-1 text-lg font-bold tracking-tight">Review</h1>
+          <div className="flex flex-1 items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Review</h1>
+            {positionsAvailable > 1 && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+                {positionsFilled}/{positionsAvailable} filled
+              </span>
+            )}
+          </div>
           <Button
             variant={showFilters ? 'default' : 'outline'}
             size="sm"
@@ -635,8 +655,11 @@ export default function ReviewApplicantsPage() {
           <DialogHeader>
             <DialogTitle>Confirm acceptance</DialogTitle>
             <DialogDescription>
-              Accept {pendingAccept?.crewName} for this job? This will open a message thread and
-              reject all other applicants.
+              {positionsAvailable === 1
+                ? `Accept ${pendingAccept?.crewName} for this job? This will open a message thread and reject all other applicants.`
+                : positionsFilled + 1 >= positionsAvailable
+                  ? `Accept ${pendingAccept?.crewName}? This will fill the last position and reject remaining applicants.`
+                  : `Accept ${pendingAccept?.crewName}? (${positionsFilled + 1}/${positionsAvailable} positions will be filled)`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:gap-0">
@@ -694,21 +717,30 @@ export default function ReviewApplicantsPage() {
         open={!!acceptedDialog}
         onOpenChange={() => {
           setAcceptedDialog(null);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(MY_JOBS_TAB_STORAGE_KEY, 'in-progress');
+          if (positionsFilled >= positionsAvailable) {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem(MY_JOBS_TAB_STORAGE_KEY, 'in-progress');
+            }
+            router.push('/daywork/mine');
           }
-          router.push('/daywork/mine');
         }}
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Crew member accepted</DialogTitle>
             <DialogDescription>
-              A messaging thread has been opened with {acceptedDialog?.crewName}. You can now
-              coordinate details directly.
+              A messaging thread has been opened with {acceptedDialog?.crewName}.
+              {positionsFilled < positionsAvailable
+                ? ` ${positionsAvailable - positionsFilled} position${positionsAvailable - positionsFilled !== 1 ? 's' : ''} remaining.`
+                : ' All positions are now filled.'}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            {positionsFilled < positionsAvailable && (
+              <Button variant="outline" onClick={() => setAcceptedDialog(null)}>
+                Continue reviewing
+              </Button>
+            )}
             <Button
               onClick={() => {
                 if (acceptedDialog) {

@@ -74,6 +74,9 @@ interface DayworkCard {
   required_certification_ids: string[] | null;
   poster_person_id: string;
   poster_name: string | null;
+  positions_available: number;
+  positions_filled: number;
+  positions_remaining: number;
 }
 
 interface LookupItem {
@@ -118,6 +121,8 @@ interface MyApplication {
     vessel_name: string | null;
     vessel_type: string | null;
     vessel_size_label: string | null;
+    positions_available: number | null;
+    positions_filled: number | null;
   } | null;
 }
 
@@ -1063,10 +1068,25 @@ function JobCard({
           </p>
         </div>
 
-        {/* Poster name */}
-        {card.poster_name && (
-          <p className="mb-2 text-xs text-muted-foreground">Posted by {card.poster_name}</p>
-        )}
+        {/* Poster name + positions */}
+        <div className="mb-2 flex items-center gap-2">
+          {card.poster_name && (
+            <p className="text-xs text-muted-foreground">Posted by {card.poster_name}</p>
+          )}
+          {card.positions_available > 1 && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                card.positions_remaining === 1
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+              }`}
+            >
+              {card.positions_remaining === 1
+                ? 'Last position!'
+                : `${card.positions_remaining}/${card.positions_available} open`}
+            </span>
+          )}
+        </div>
 
         {/* Details */}
         <div className="flex flex-col gap-2.5">
@@ -1224,6 +1244,13 @@ function ApplicationCard({
             </span>
           </div>
         </div>
+
+        {/* Positions badge for multi-crew */}
+        {dw.positions_available && dw.positions_available > 1 && dw.positions_filled !== null && (
+          <span className="w-fit rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+            {dw.positions_available - dw.positions_filled}/{dw.positions_available} open
+          </span>
+        )}
 
         {/* Application message preview */}
         {application.message && (

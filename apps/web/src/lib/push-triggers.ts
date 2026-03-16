@@ -334,25 +334,23 @@ async function handleDayworkCompleted(
   const dayworkId = payload.daywork_id as string;
   const jobNumber = await getJobNumber(sc, dayworkId);
 
-  // Look up the engagement to find the crew member
-  const { data: engagement } = await sc
+  // Look up all engagements to find crew members (multi-crew support)
+  const { data: engagements } = await sc
     .from('active_engagements')
     .select('id, crew_person_id')
     .eq('daywork_id', dayworkId)
-    .single();
+    .in('status', ['active', 'completed']);
 
-  if (!engagement) return [];
+  if (!engagements || engagements.length === 0) return [];
 
-  return [
-    {
-      recipientPersonId: engagement.crew_person_id,
-      notification: {
-        title: 'Job Completed',
-        body: `${jobNumber} marked complete — please confirm`,
-        data: { screen: 'chat', engagementId: engagement.id },
-      },
+  return engagements.map((engagement) => ({
+    recipientPersonId: engagement.crew_person_id,
+    notification: {
+      title: 'Job Completed',
+      body: `${jobNumber} marked complete — please confirm`,
+      data: { screen: 'chat', engagementId: engagement.id },
     },
-  ];
+  }));
 }
 
 async function handlePostponement(

@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Verify user owns this daywork posting
   const { data: daywork } = await supabase
     .from('dayworks')
-    .select('id, poster_person_id, start_date, end_date')
+    .select('id, poster_person_id, start_date, end_date, positions_available, positions_filled')
     .eq('id', dayworkId)
     .single();
 
@@ -144,5 +144,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
   }
 
-  return NextResponse.json({ applicants: enriched });
+  return NextResponse.json({
+    applicants: enriched,
+    positions_available: daywork.positions_available,
+    positions_filled: daywork.positions_filled,
+    positions_remaining: daywork.positions_available - daywork.positions_filled,
+  });
 }

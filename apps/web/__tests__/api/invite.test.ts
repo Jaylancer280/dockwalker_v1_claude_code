@@ -40,6 +40,7 @@ const baseDaywork = {
   id: 'd1',
   poster_person_id: 'u1',
   status: 'active',
+  positions_available: 1,
 };
 
 // Helpers for sequential mock chain
@@ -125,13 +126,14 @@ describe('POST /api/daywork/:id/invite', () => {
     );
   });
 
-  it('returns 400 when invitation limit (2) reached', async () => {
+  it('returns 400 when invitation limit reached', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockProfile({ person_id: 'c1' });
     mockExistingApp(null);
     mockExistingInvite(null);
-    mockInvitationCount(2);
+    // positions_available=1, so limit = 1+2 = 3
+    mockInvitationCount(3);
 
     const res = await POST(makeReq({ crewPersonId: 'c1' }), makeParams('d1'));
     expect(res.status).toBe(400);

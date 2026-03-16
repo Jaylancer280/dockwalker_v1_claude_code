@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     currency,
     meals,
     notes,
+    positionsAvailable,
   } = body;
 
   // Validate required fields
@@ -150,6 +151,15 @@ export async function POST(request: Request) {
     resolvedWorkingDays = workingDayDates.length;
   }
 
+  // Validate positions available
+  const resolvedPositions = positionsAvailable ? parseInt(positionsAvailable, 10) : 1;
+  if (isNaN(resolvedPositions) || resolvedPositions < 1 || resolvedPositions > 20) {
+    return NextResponse.json(
+      { error: 'positionsAvailable must be between 1 and 20' },
+      { status: 400 },
+    );
+  }
+
   // Validate meals if provided
   const validMeals = ['breakfast', 'lunch', 'dinner'];
   if (meals && !Array.isArray(meals)) {
@@ -217,6 +227,7 @@ export async function POST(request: Request) {
         currency: resolvedCurrency,
         meals: meals ?? [],
         notes: notes ?? null,
+        positions_available: resolvedPositions,
       },
       personId: user.id,
     });

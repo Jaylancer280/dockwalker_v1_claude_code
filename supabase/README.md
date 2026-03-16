@@ -63,6 +63,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Working day dates                             | 00035     | `working_day_dates date[]` on dayworks/templates; post-projection trigger for DAYWORK.POSTED                                                                                                                                                                                                      |
 | Daywork extended                              | 00036     | `DAYWORK.EXTENDED` event handler via trigger: updates end_date, working_days, working_day_dates                                                                                                                                                                                                   |
 | Missing aggregate types                       | 00037     | Adds `invitation` and `experience` to `events_aggregate_type_check` CHECK constraint                                                                                                                                                                                                              |
+| Multi-crew positions                          | 00038     | `positions_available`/`positions_filled` on dayworks, `positions_available` on templates, full `apply_projection` rewrite with multi-crew fill logic, `DAYWORK.POSITIONS_UPDATED` handler, cascade cancel, no auto-revert                                                                         |
 
 ## Daywork Status Lifecycle
 

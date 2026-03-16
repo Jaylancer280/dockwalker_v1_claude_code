@@ -59,7 +59,7 @@ export async function GET() {
       id, daywork_id, status, message, created_at,
       dayworks(
         id, job_number, start_date, end_date, working_days,
-        day_rate, currency, meals, notes, status, vessel_id, poster_person_id,
+        day_rate, currency, meals, notes, status, vessel_id, poster_person_id, positions_available, positions_filled,
         yacht_roles(id, name),
         ports(id, name, cities(name, regions(name))),
         experience_brackets(label)

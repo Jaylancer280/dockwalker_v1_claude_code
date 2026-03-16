@@ -20,7 +20,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -45,6 +54,8 @@ interface DayworkPosting {
   currency: string;
   meals: string[];
   notes: string | null;
+  positions_available: number;
+  positions_filled: number;
   status: string;
   created_at: string;
   yacht_roles: { name: string } | null;
@@ -75,8 +86,17 @@ export default function MyPostingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
-  const [engagementByDaywork, setEngagementByDaywork] = useState<Record<string, string>>({});
+  const [engagementsByDaywork, setEngagementsByDaywork] = useState<
+    Record<string, { id: string; crew_person_id: string; crew_name?: string }[]>
+  >({});
   const [deletingTemplate, setDeletingTemplate] = useState<string | null>(null);
+  const [editPositions, setEditPositions] = useState<{
+    id: string;
+    current: number;
+    filled: number;
+  } | null>(null);
+  const [editPositionsValue, setEditPositionsValue] = useState('');
+  const [savingPositions, setSavingPositions] = useState(false);
   const [currentTab, setCurrentTab] = useState<MyJobsTab>('active');
   const [showFilters, setShowFilters] = useState(false);
   const [filterRoleId, setFilterRoleId] = useState('');
@@ -133,15 +153,27 @@ export default function MyPostingsPage() {
           const supabase = createClient();
           const { data: engagements } = await supabase
             .from('active_engagements')
-            .select('id, daywork_id')
+            .select(
+              'id, daywork_id, crew_person_id, profiles!active_engagements_crew_person_id_profiles_fkey(display_name)',
+            )
             .in('daywork_id', ipIds)
             .eq('status', 'active');
           if (engagements) {
-            const map: Record<string, string> = {};
+            const map: Record<
+              string,
+              { id: string; crew_person_id: string; crew_name?: string }[]
+            > = {};
             for (const eng of engagements) {
-              map[eng.daywork_id] = eng.id;
+              const profile = eng.profiles as unknown as { display_name: string } | null;
+              const entry = {
+                id: eng.id,
+                crew_person_id: eng.crew_person_id,
+                crew_name: profile?.display_name,
+              };
+              if (!map[eng.daywork_id]) map[eng.daywork_id] = [];
+              map[eng.daywork_id].push(entry);
             }
-            setEngagementByDaywork(map);
+            setEngagementsByDaywork(map);
           }
         }
       }
@@ -188,6 +220,23 @@ export default function MyPostingsPage() {
     const res = await fetch(`/api/daywork/${dayworkId}/cancel`, { method: 'POST' });
     if (res.ok) loadData();
     setCancelling(null);
+  }
+
+  async function handleSavePositions() {
+    if (!editPositions) return;
+    const val = parseInt(editPositionsValue, 10);
+    if (isNaN(val) || val < 1 || val > 20 || val < editPositions.filled) return;
+    setSavingPositions(true);
+    const res = await fetch(`/api/daywork/${editPositions.id}/update-positions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: val }),
+    });
+    if (res.ok) {
+      setEditPositions(null);
+      loadData();
+    }
+    setSavingPositions(false);
   }
 
   async function handleDeleteTemplate(id: string) {
@@ -247,11 +296,18 @@ export default function MyPostingsPage() {
             </span>
           </div>
 
-          {posting.experience_brackets?.label && (
-            <Badge variant="secondary" className="w-fit text-xs">
-              {posting.experience_brackets.label}
-            </Badge>
-          )}
+          <div className="flex flex-wrap gap-1.5">
+            {posting.experience_brackets?.label && (
+              <Badge variant="secondary" className="w-fit text-xs">
+                {posting.experience_brackets.label}
+              </Badge>
+            )}
+            {posting.positions_available > 1 && (
+              <Badge variant="secondary" className="w-fit text-xs">
+                {posting.positions_filled}/{posting.positions_available} crew accepted
+              </Badge>
+            )}
+          </div>
 
           {posting.meals && posting.meals.length > 0 && (
             <p className="text-xs text-muted-foreground">Meals: {posting.meals.join(', ')}</p>
@@ -271,6 +327,22 @@ export default function MyPostingsPage() {
                         Review applicants
                       </Button>
                     </Link>
+                    {posting.positions_available > 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditPositions({
+                            id: posting.id,
+                            current: posting.positions_available,
+                            filled: posting.positions_filled,
+                          });
+                          setEditPositionsValue(String(posting.positions_available));
+                        }}
+                      >
+                        Edit crew count
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -282,14 +354,27 @@ export default function MyPostingsPage() {
                     </Button>
                   </>
                 )}
-                {posting.status === 'in_progress' && engagementByDaywork[posting.id] && (
-                  <Link href={`/messages/${engagementByDaywork[posting.id]}`}>
-                    <Button variant="default" size="sm">
-                      <MessageSquare className="mr-1 h-3.5 w-3.5" />
-                      Go to chat
-                    </Button>
-                  </Link>
-                )}
+                {posting.status === 'in_progress' &&
+                  engagementsByDaywork[posting.id] &&
+                  (engagementsByDaywork[posting.id].length === 1 ? (
+                    <Link href={`/messages/${engagementsByDaywork[posting.id][0].id}`}>
+                      <Button variant="default" size="sm">
+                        <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                        Go to chat
+                      </Button>
+                    </Link>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {engagementsByDaywork[posting.id].map((eng) => (
+                        <Link key={eng.id} href={`/messages/${eng.id}`}>
+                          <Button variant="outline" size="sm" className="w-full justify-start">
+                            <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                            {eng.crew_name ?? 'Crew member'}
+                          </Button>
+                        </Link>
+                      ))}
+                    </div>
+                  ))}
               </div>
             </>
           )}
@@ -519,6 +604,33 @@ export default function MyPostingsPage() {
           </TabsContent>
         </Tabs>
       </div>
+      <Dialog open={!!editPositions} onOpenChange={() => setEditPositions(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit crew count</DialogTitle>
+            <DialogDescription>
+              {editPositions && editPositions.filled > 0
+                ? `${editPositions.filled} position${editPositions.filled !== 1 ? 's' : ''} already filled. Minimum is ${editPositions.filled}.`
+                : 'How many crew do you need for this job?'}
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            type="number"
+            min={editPositions?.filled ?? 1}
+            max={20}
+            value={editPositionsValue}
+            onChange={(e) => setEditPositionsValue(e.target.value)}
+          />
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEditPositions(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSavePositions} disabled={savingPositions}>
+              {savingPositions ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

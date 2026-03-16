@@ -119,10 +119,11 @@
 - [Stage 82] Redirect after accepting applicant — dismissing the "Go to messages" dialog now redirects to `/daywork/mine` In Progress tab instead of leaving employer on empty review page
 
 - [Stage 83] Post-migration smoke test procedure documented in `tasks/lessons.md` — flag for human edit to add to CLAUDE.md Session Protocol
+- [Stage 85c] Multi-crew listings — `positions_available`/`positions_filled` on dayworks, `DAYWORK.POSITIONS_UPDATED` event, multi-crew acceptance (conditional fill), no auto-revert on cancellation, "Find replacement" CTA, dynamic invitation limits, multi-crew chat links, edit crew count dialog
 
 ## Current Schema Version
 
-v37 — missing aggregate types (37 migrations applied)
+v38 — multi-crew positions (38 migrations applied)
 
 ## Migrations Applied
 
@@ -165,6 +166,7 @@ v37 — missing aggregate types (37 migrations applied)
 | `00035_working_day_dates.sql`                | Adds `working_day_dates date[]` nullable column to dayworks and templates; post-projection trigger `apply_working_day_dates` writes dates from DAYWORK.POSTED payload                                                                                                                          |
 | `00036_daywork_extended.sql`                 | `DAYWORK.EXTENDED` event handler via trigger: updates end_date, working_days, working_day_dates on dayworks row                                                                                                                                                                                |
 | `00037_missing_aggregate_types.sql`          | Adds `invitation` and `experience` to `events_aggregate_type_check` CHECK constraint (both were missing since Stages 46/53)                                                                                                                                                                    |
+| `00038_multi_crew_positions.sql`             | Multi-crew positions: `positions_available`/`positions_filled` columns, full `apply_projection` rewrite with atomic fill logic, `DAYWORK.POSITIONS_UPDATED` handler, cascade cancel of active engagements, no auto-revert on cancellation                                                      |
 
 ## Deferred Decisions
 

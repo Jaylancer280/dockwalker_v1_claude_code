@@ -20,7 +20,9 @@ export async function POST(
   // Verify ownership
   const { data: daywork } = await supabase
     .from('dayworks')
-    .select('id, poster_person_id, start_date, end_date, status')
+    .select(
+      'id, poster_person_id, start_date, end_date, status, positions_available, positions_filled',
+    )
     .eq('id', dayworkId)
     .single();
 
@@ -34,6 +36,10 @@ export async function POST(
 
   if (daywork.status !== 'active') {
     return NextResponse.json({ error: 'This posting is no longer active' }, { status: 400 });
+  }
+
+  if (daywork.positions_filled >= daywork.positions_available) {
+    return NextResponse.json({ error: 'All positions are filled' }, { status: 400 });
   }
 
   // Verify application exists and is in an acceptable state

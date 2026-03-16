@@ -76,7 +76,7 @@ export async function GET(request: Request) {
     .select(
       `
       id, job_number, vessel_id, start_date, end_date, working_days, day_rate, currency, meals, notes, status, created_at,
-      poster_person_id,
+      poster_person_id, positions_available, positions_filled,
       yacht_roles(id, name, department),
       ports(id, name, cities(name, regions(name))),
       experience_brackets(label),
@@ -157,9 +157,14 @@ export async function GET(request: Request) {
 
   let hydrated = filtered.map((daywork) => {
     const vessel = vesselMap.get(daywork.vessel_id);
+    const row = daywork as DiscoverDayworkRow & {
+      positions_available: number;
+      positions_filled: number;
+    };
 
     return {
       ...daywork,
+      positions_remaining: row.positions_available - row.positions_filled,
       poster_name: posterNameMap.get(daywork.poster_person_id) ?? null,
       vessels: vessel
         ? {

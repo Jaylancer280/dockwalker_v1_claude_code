@@ -78,6 +78,8 @@ export interface Daywork {
   currency: string;
   meals: MealOption[];
   notes: string | null;
+  positions_available: number;
+  positions_filled: number;
   status: 'active' | 'in_progress' | 'cancelled' | 'completed';
   created_at: string;
 }

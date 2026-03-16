@@ -20,6 +20,7 @@ export type EventType =
   | 'DAYWORK.CANCELLED_BY_EMPLOYER'
   | 'DAYWORK.COMPLETED'
   | 'DAYWORK.RELISTED'
+  | 'DAYWORK.POSITIONS_UPDATED'
   // Invitation (daywork aggregate)
   | 'DAYWORK.INVITED'
   | 'DAYWORK.INVITATION_ACCEPTED'
@@ -146,6 +147,7 @@ export interface EventPayloadMap {
     currency: string;
     meals: string[];
     notes: string | null;
+    positions_available?: number;
   };
   'DAYWORK.CANCELLED_BY_EMPLOYER': Record<string, never>;
   'DAYWORK.COMPLETED': { daywork_id: string };
@@ -154,6 +156,10 @@ export interface EventPayloadMap {
     start_date?: string;
     end_date?: string;
     working_days?: number;
+  };
+  'DAYWORK.POSITIONS_UPDATED': {
+    daywork_id: string;
+    positions_available: number;
   };
   'DAYWORK.EXTENDED': {
     daywork_id: string;

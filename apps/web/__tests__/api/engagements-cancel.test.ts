@@ -9,6 +9,7 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 }));
 
 const mockFromAuth = vi.fn();
+const mockFromService = vi.fn();
 const mockRpc = vi.fn();
 
 function makeChain(data: unknown) {
@@ -21,6 +22,19 @@ function makeChain(data: unknown) {
   };
 }
 
+// Mock for serviceClient.from('active_engagements') count query — returns 0 (no other engagements)
+function mockNoOtherEngagements() {
+  mockFromService.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          neq: vi.fn().mockResolvedValue({ count: 0 }),
+        }),
+      }),
+    }),
+  });
+}
+
 function guardOk(hat: 'crew' | 'employer' = 'crew') {
   return {
     ok: true,
@@ -29,7 +43,7 @@ function guardOk(hat: 'crew' | 'employer' = 'crew') {
       person: { id: 'u1', identity_type: 'crew', current_hat: hat },
       profile: { person_id: 'u1' },
       supabase: { from: mockFromAuth },
-      serviceClient: { rpc: mockRpc },
+      serviceClient: { from: mockFromService, rpc: mockRpc },
     },
   };
 }
@@ -304,6 +318,7 @@ describe('POST /api/engagements/:id/cancel-employer', () => {
         daywork_id: 'd1', status: 'active',
       }),
     );
+    mockNoOtherEngagements();
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2', 'ev3'], error: null });
 
     const req = makeRequest({
@@ -329,6 +344,7 @@ describe('POST /api/engagements/:id/cancel-employer', () => {
       .mockReturnValueOnce(
         makeChain({ start_date: '2099-01-01' }),
       );
+    mockNoOtherEngagements();
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2', 'ev3'], error: null });
 
     const req = makeRequest({

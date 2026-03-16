@@ -88,7 +88,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
-  if (typeof relist_requested !== 'boolean') {
+  if (relist_requested !== undefined && typeof relist_requested !== 'boolean') {
     return NextResponse.json({ error: 'relist_requested must be a boolean' }, { status: 400 });
   }
 
@@ -177,7 +177,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     let relisted = false;
 
-    if (relist_requested) {
+    // Check if other active engagements exist for this daywork (multi-crew)
+    const { count: otherActiveCount } = await serviceClient
+      .from('active_engagements')
+      .select('id', { count: 'exact', head: true })
+      .eq('daywork_id', engagement.daywork_id)
+      .eq('status', 'active')
+      .neq('id', engagementId);
+
+    if ((otherActiveCount ?? 0) > 0) {
+      // Multi-crew with remaining active engagements: just cancel this one, skip relist/cancel question
+      // Daywork stays in_progress
+    } else if (relist_requested) {
       const { data: daywork } = await supabase
         .from('dayworks')
         .select('start_date')

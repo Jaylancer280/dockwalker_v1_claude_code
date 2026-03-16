@@ -22,7 +22,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   // Fetch daywork with role_id and location
   const { data: daywork } = await supabase
     .from('dayworks')
-    .select('id, poster_person_id, start_date, end_date, role_id, location_port_id, status')
+    .select(
+      'id, poster_person_id, start_date, end_date, role_id, location_port_id, status, positions_available',
+    )
     .eq('id', dayworkId)
     .single();
 
@@ -34,8 +36,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'You do not own this posting' }, { status: 403 });
   }
 
+  const invitationLimit = (daywork.positions_available ?? 1) + 2;
+
   if (daywork.status !== 'active') {
-    return NextResponse.json({ crew: [], invitation_count: 0, invitation_limit: 2 });
+    return NextResponse.json({ crew: [], invitation_count: 0, invitation_limit: invitationLimit });
   }
 
   // Resolve port → city
@@ -72,7 +76,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({
       crew: [],
       invitation_count: invCount ?? 0,
-      invitation_limit: 2,
+      invitation_limit: invitationLimit,
     });
   }
 
@@ -97,7 +101,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({
       crew: [],
       invitation_count: invCount ?? 0,
-      invitation_limit: 2,
+      invitation_limit: invitationLimit,
     });
   }
 
@@ -131,7 +135,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({
       crew: [],
       invitation_count: invCount ?? 0,
-      invitation_limit: 2,
+      invitation_limit: invitationLimit,
     });
   }
 

@@ -7,6 +7,7 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 }));
 
 const mockFromAuth = vi.fn();
+const mockFromService = vi.fn();
 const mockRpc = vi.fn();
 
 function makeChain(data: unknown) {
@@ -19,6 +20,18 @@ function makeChain(data: unknown) {
   };
 }
 
+function mockNoOtherEngagements() {
+  mockFromService.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          neq: vi.fn().mockResolvedValue({ count: 0 }),
+        }),
+      }),
+    }),
+  });
+}
+
 function guardOk() {
   return {
     ok: true,
@@ -27,7 +40,7 @@ function guardOk() {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFromAuth },
-      serviceClient: { rpc: mockRpc },
+      serviceClient: { from: mockFromService, rpc: mockRpc },
     },
   };
 }
@@ -127,7 +140,7 @@ describe('POST /api/engagements/:id/cancel-employer (structured)', () => {
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
 
     const res = await cancelEmployer(
-      makeRequest({ reason_category: 'vessel_leaving' }),
+      makeRequest({ reason_category: 'vessel_leaving', relist_requested: 'yes' }),
       makeParams('e1'),
     );
     expect(res.status).toBe(400);
@@ -151,6 +164,7 @@ describe('POST /api/engagements/:id/cancel-employer (structured)', () => {
   it('returns 200 for vessel_leaving without relist', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
+    mockNoOtherEngagements();
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2', 'ev3'], error: null }); // batch
 
     const res = await cancelEmployer(
@@ -177,6 +191,7 @@ describe('POST /api/engagements/:id/cancel-employer (structured)', () => {
     mockFromAuth
       .mockReturnValueOnce(makeChain(activeEngagement))
       .mockReturnValueOnce(makeChain({ start_date: '2099-01-01' })); // future
+    mockNoOtherEngagements();
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2', 'ev3'], error: null }); // batch
 
     const res = await cancelEmployer(
@@ -205,6 +220,7 @@ describe('POST /api/engagements/:id/cancel-employer (structured)', () => {
     mockFromAuth
       .mockReturnValueOnce(makeChain(activeEngagement))
       .mockReturnValueOnce(makeChain({ start_date: '2020-01-01' })); // past
+    mockNoOtherEngagements();
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2'], error: null }); // batch (cancel + msg, no relist)
 
     const res = await cancelEmployer(
@@ -230,6 +246,7 @@ describe('POST /api/engagements/:id/cancel-employer (structured)', () => {
   it('returns 200 for crew_requirements_changed', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
+    mockNoOtherEngagements();
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2', 'ev3'], error: null });
 
     const res = await cancelEmployer(
@@ -243,6 +260,7 @@ describe('POST /api/engagements/:id/cancel-employer (structured)', () => {
   it('returns 200 for vessel_operational', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
+    mockNoOtherEngagements();
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2', 'ev3'], error: null });
 
     const res = await cancelEmployer(

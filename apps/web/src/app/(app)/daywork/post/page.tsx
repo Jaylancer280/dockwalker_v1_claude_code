@@ -47,6 +47,7 @@ interface Template {
   currency: string | null;
   meals: string[];
   notes: string | null;
+  positions_available: number | null;
 }
 
 type MealOption = 'breakfast' | 'lunch' | 'dinner';
@@ -72,6 +73,7 @@ export default function PostDayworkPage() {
   );
   const [meals, setMeals] = useState<MealOption[]>([]);
   const [notes, setNotes] = useState('');
+  const [positionsAvailable, setPositionsAvailable] = useState('1');
 
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
@@ -97,6 +99,7 @@ export default function PostDayworkPage() {
     setCurrency(t.currency ?? 'EUR');
     setMeals((t.meals as MealOption[]) ?? []);
     setNotes(t.notes ?? '');
+    setPositionsAvailable(t.positions_available ? String(t.positions_available) : '1');
   }
 
   useEffect(() => {
@@ -127,7 +130,7 @@ export default function PostDayworkPage() {
         const { data: dw } = await supabase
           .from('dayworks')
           .select(
-            'vessel_id, role_id, location_port_id, working_days, required_certification_ids, experience_bracket_id, day_rate, currency, meals, notes',
+            'vessel_id, role_id, location_port_id, working_days, required_certification_ids, experience_bracket_id, day_rate, currency, meals, notes, end_date',
           )
           .eq('id', fromDayworkId)
           .single();
@@ -143,7 +146,18 @@ export default function PostDayworkPage() {
           if (dw.currency) setCurrency(dw.currency);
           if (dw.meals?.length) setMeals(dw.meals as MealOption[]);
           if (dw.notes) setNotes(dw.notes);
-          // Dates intentionally left blank — employer must pick new dates
+          // For replacement postings, set dates and force 1 position
+          const isReplacement = searchParams.get('replacementDates') === 'true';
+          if (isReplacement) {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const startStr = tomorrow.toISOString().split('T')[0];
+            setStartDate(startStr);
+            if (dw.end_date) setEndDate(dw.end_date);
+            setPositionsAvailable('1');
+          }
+          // Otherwise dates intentionally left blank — employer must pick new dates
         }
       }
     }
@@ -185,6 +199,7 @@ export default function PostDayworkPage() {
         currency,
         meals,
         notes: notes || null,
+        positionsAvailable: parseInt(positionsAvailable, 10) || 1,
       }),
     });
 
@@ -230,6 +245,7 @@ export default function PostDayworkPage() {
         currency,
         meals,
         notes: notes || undefined,
+        positionsAvailable: parseInt(positionsAvailable, 10) || 1,
       }),
     });
 
@@ -351,6 +367,20 @@ export default function PostDayworkPage() {
             value={workingDays}
             onChange={(e) => setWorkingDays(e.target.value)}
             required
+          />
+        </div>
+
+        {/* Crew needed */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="positionsAvailable">Crew needed</Label>
+          <Input
+            id="positionsAvailable"
+            type="number"
+            min="1"
+            max="20"
+            placeholder="1"
+            value={positionsAvailable}
+            onChange={(e) => setPositionsAvailable(e.target.value)}
           />
         </div>
 

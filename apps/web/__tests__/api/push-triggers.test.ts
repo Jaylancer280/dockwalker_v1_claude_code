@@ -288,8 +288,8 @@ describe('notifyOnEvent', () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({
-                  data: { id: 'eng1', crew_person_id: 'crew1' },
+                in: vi.fn().mockResolvedValue({
+                  data: [{ id: 'eng1', crew_person_id: 'crew1' }],
                   error: null,
                 }),
               }),

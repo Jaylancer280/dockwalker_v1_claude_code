@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Verify daywork ownership and active status
   const { data: daywork } = await supabase
     .from('dayworks')
-    .select('id, poster_person_id, status')
+    .select('id, poster_person_id, status, positions_available')
     .eq('id', dayworkId)
     .single();
 
@@ -89,8 +89,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq('daywork_id', dayworkId)
     .eq('status', 'pending');
 
-  if ((count ?? 0) >= 2) {
-    return NextResponse.json({ error: 'Invitation limit reached (max 2)' }, { status: 400 });
+  const invitationLimit = (daywork.positions_available ?? 1) + 2;
+  if ((count ?? 0) >= invitationLimit) {
+    return NextResponse.json(
+      { error: `Invitation limit reached (max ${invitationLimit})` },
+      { status: 400 },
+    );
   }
 
   // Append DAYWORK.INVITED event
