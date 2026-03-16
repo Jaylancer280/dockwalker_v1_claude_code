@@ -123,6 +123,7 @@
 
 - [Stage 85a] Profile photos — `avatar_url` on profiles, Supabase Storage `avatars` bucket, avatar upload/delete API, Avatar + AvatarUpload components, integrated across profile, onboarding, messages, review, profile-overlay
 - [Stage 85b] Unread counts + notification centre — `message_read_cursors` + `notifications` tables, read cursor API, notification CRUD API, combined unread count endpoint, push-triggers write to notifications, bottom-nav badge, notification bell, notifications page, read cursor on chat mount
+- [Stage 86] Cursor-based discovery pagination — `cursor` query param on discover API, `has_more`/`next_cursor` in response, auto-load when card stack <= 5, retry on empty post-filter batches
 
 ## Current Schema Version
 
@@ -184,6 +185,9 @@ v40 — notifications and read cursors (40 migrations applied)
 - Admin tooling for duplicate vessel resolution (per-registrant IMO records may diverge)
 - "Verified against public records" badge on vessels
 - Size band discovery filter operates post-fetch (50-row DB limit applied before filtering) — may produce sparse results. Options: increase pre-filter limit when sizeBandId set, or denormalize size_band_id onto dayworks table
+- `GET /api/notifications/count` has N+1 query pattern: loops through each engagement and makes a separate Supabase count query per engagement to calculate unread messages. For a user with 20 engagements, that's 22 queries (1 notification count + 1 engagement list + 20 per-engagement message counts). Works at MVP scale but should be replaced with a single aggregate query or Postgres function before launch. Same pattern exists in `GET /api/messages` for per-conversation unread counts.
+- **Realtime messaging** — chat is currently poll-based (`setInterval`). Supabase Realtime is plug-and-play: one migration (`alter publication supabase_realtime add table public.messages`), replace polling with `supabase.channel().on('postgres_changes', ...)` subscription in `messages/[engagementId]/page.tsx`. RLS already gates access. Defer to polishing stage.
+- **Admin dashboard** — deferred to closer to launch. Scope: user lookup + deactivation, dispute viewer (ENGAGEMENT.COMPLETION_DISPUTED resolution), event log browser (read-only, filterable), crew list viewer, ability to send messages as "DockWalker Admin" (new sender identity, not tied to a person record). Option 2 approach: built-in `/admin` routes in the existing Next.js app behind a role check, using service role client. Not a quick CRUD panel — intended to be domain-aware with smart tooling.
 
 ## In Progress
 

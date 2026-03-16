@@ -169,6 +169,9 @@ export default function DiscoverPage() {
   const prefs = usePreferences();
   const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>('browse');
   const [cards, setCards] = useState<DayworkCard[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [composingMessage, setComposingMessage] = useState(false);
@@ -247,8 +250,7 @@ export default function DiscoverPage() {
   }, [checkAvailability]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const loadCards = useCallback(async () => {
-    setLoading(true);
+  const buildFilterParams = useCallback(() => {
     const params = new URLSearchParams();
     if (filterRoleId && filterRoleId !== 'all') params.set('roleId', filterRoleId);
     if (filterPortId && filterPortId !== 'all') params.set('portId', filterPortId);
@@ -258,12 +260,7 @@ export default function DiscoverPage() {
     if (filterExperienceBracketId && filterExperienceBracketId !== 'all')
       params.set('experienceBracketId', filterExperienceBracketId);
     if (filterSizeBandId && filterSizeBandId !== 'all') params.set('sizeBandId', filterSizeBandId);
-
-    const qs = params.toString();
-    const res = await fetch(`/api/daywork/discover${qs ? `?${qs}` : ''}`);
-    const data = await res.json();
-    if (data.dayworks) setCards(data.dayworks);
-    setLoading(false);
+    return params;
   }, [
     filterRoleId,
     filterPortId,
@@ -273,6 +270,65 @@ export default function DiscoverPage() {
     filterExperienceBracketId,
     filterSizeBandId,
   ]);
+
+  const loadCards = useCallback(async () => {
+    setLoading(true);
+    const params = buildFilterParams();
+    const qs = params.toString();
+    const res = await fetch(`/api/daywork/discover${qs ? `?${qs}` : ''}`);
+    const data = await res.json();
+    if (data.dayworks) setCards(data.dayworks);
+    setNextCursor(data.next_cursor ?? null);
+    setHasMore(data.has_more ?? false);
+    setLoading(false);
+  }, [buildFilterParams]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+
+    let currentCursor = nextCursor;
+    let retries = 0;
+    const MAX_RETRIES = 3;
+
+    while (retries < MAX_RETRIES) {
+      const params = buildFilterParams();
+      params.set('cursor', currentCursor);
+      const qs = params.toString();
+      const res = await fetch(`/api/daywork/discover?${qs}`);
+      const data = await res.json();
+      const newCards = data.dayworks ?? [];
+
+      if (newCards.length > 0) {
+        setCards((prev) => [...prev, ...newCards]);
+        setNextCursor(data.next_cursor ?? null);
+        setHasMore(data.has_more ?? false);
+        break;
+      }
+
+      // Empty batch (e.g. post-fetch sizeBand filter removed all results)
+      if (!data.has_more || !data.next_cursor) {
+        setNextCursor(null);
+        setHasMore(false);
+        break;
+      }
+
+      // Retry with new cursor
+      currentCursor = data.next_cursor;
+      retries++;
+    }
+
+    setLoadingMore(false);
+  }, [nextCursor, hasMore, loadingMore, buildFilterParams]);
+
+  // Auto-load more when card stack runs low
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (cards.length <= 5 && hasMore && !loadingMore && !loading) {
+      loadMore();
+    }
+  }, [cards.length, hasMore, loadingMore, loading, loadMore]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -817,10 +873,11 @@ export default function DiscoverPage() {
             </div>
           )}
 
-          {/* Counter */}
+          {/* Counter + loading more */}
           {!loading && cards.length > 0 && (
             <p className="text-center text-xs text-muted-foreground">
               {cards.length} job{cards.length !== 1 ? 's' : ''} available
+              {loadingMore && ' · loading more...'}
             </p>
           )}
         </div>

@@ -61,6 +61,7 @@ function makeDayworksChain(data: unknown[], hasExcludedIds = false) {
   const filterProxy: Record<string, ReturnType<typeof vi.fn>> = {};
   filterProxy.gte = vi.fn().mockReturnValue(filterProxy);
   filterProxy.lte = vi.fn().mockReturnValue(filterProxy);
+  filterProxy.lt = vi.fn().mockReturnValue(filterProxy);
   filterProxy.eq = vi.fn().mockReturnValue(filterProxy);
   filterProxy.contains = vi.fn().mockReturnValue(filterProxy);
   filterProxy.order = mockOrder;
@@ -369,5 +370,57 @@ describe('GET /api/daywork/discover', () => {
     expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-1');
     // Post-fetch filter (sizeBandId) verified by the result including only matching vessel
     expect(body.dayworks[0].vessels.size_band_id).toBe('sb-1');
+  });
+
+  it('returns has_more and next_cursor with first batch', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+
+    // Return fewer than 50 results → has_more should be false
+    const daywork = {
+      id: 'd1', job_number: 1, vessel_id: 'v1', start_date: '2026-04-01', end_date: '2026-04-05',
+      working_days: 5, day_rate: 250, currency: 'EUR', meals: [], notes: null, status: 'active',
+      created_at: '2026-03-15T12:00:00Z', poster_person_id: 'other',
+      positions_available: 1, positions_filled: 0,
+      yacht_roles: null, ports: null, experience_brackets: null, required_certification_ids: [],
+    };
+    const { chain } = makeDayworksChain([daywork]);
+    mockFromAuth.mockReturnValueOnce(chain);
+    mockRpc.mockResolvedValueOnce({ data: [], error: null });
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
+
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.has_more).toBe(false);
+    expect(body.next_cursor).toBeNull();
+    expect(body.dayworks).toHaveLength(1);
+  });
+
+  it('applies cursor filter when cursor param provided', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+
+    const { chain, filterProxy } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(chain);
+    // No profiles mock needed — 0 results means no poster resolution
+
+    const res = await GET(makeRequest('?cursor=2026-03-10T00:00:00Z'));
+    expect(res.status).toBe(200);
+    expect(filterProxy.lt).toHaveBeenCalledWith('created_at', '2026-03-10T00:00:00Z');
+  });
+
+  it('returns next_cursor as null when fewer than 50 results', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+
+    const { chain } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(chain);
+    // No vessel or profile mocks needed — 0 results means no hydration queries
+
+    const res = await GET(makeRequest());
+    const body = await res.json();
+    expect(body.has_more).toBe(false);
+    expect(body.next_cursor).toBeNull();
   });
 });

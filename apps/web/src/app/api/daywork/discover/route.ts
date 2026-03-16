@@ -59,6 +59,7 @@ export async function GET(request: Request) {
   const filterCertificationId = searchParams.get('certificationId');
   const filterExperienceBracketId = searchParams.get('experienceBracketId');
   const filterSizeBandId = searchParams.get('sizeBandId');
+  const cursor = searchParams.get('cursor');
 
   // Get IDs of dayworks this crew has already interacted with
   const { data: existingApps } = await supabase
@@ -111,6 +112,9 @@ export async function GET(request: Request) {
   }
   if (filterExperienceBracketId) {
     query = query.eq('experience_bracket_id', filterExperienceBracketId);
+  }
+  if (cursor) {
+    query = query.lt('created_at', cursor);
   }
 
   query = query.order('created_at', { ascending: false });
@@ -183,5 +187,10 @@ export async function GET(request: Request) {
     hydrated = hydrated.filter((dw) => dw.vessels?.size_band_id === filterSizeBandId);
   }
 
-  return NextResponse.json({ dayworks: hydrated });
+  const BATCH_SIZE = 50;
+  const hasMore = filtered.length === BATCH_SIZE;
+  const nextCursor =
+    hasMore && hydrated.length > 0 ? hydrated[hydrated.length - 1].created_at : null;
+
+  return NextResponse.json({ dayworks: hydrated, has_more: hasMore, next_cursor: nextCursor });
 }
