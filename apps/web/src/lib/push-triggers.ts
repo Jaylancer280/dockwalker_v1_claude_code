@@ -20,14 +20,79 @@ export function notifyOnEvent(
   resolveNotification(serviceClient, eventType, payload, actorPersonId)
     .then((contexts) => {
       for (const ctx of contexts) {
+        // Push notification
         sendPushToUser(serviceClient, ctx.recipientPersonId, ctx.notification).catch(() => {
           // swallow — push delivery errors are non-fatal
         });
+
+        // In-app notification (skip system messages)
+        if (eventType === 'MESSAGE.SENT' && payload.is_system) continue;
+
+        const notifType = mapEventToNotificationType(eventType);
+        if (notifType) {
+          const deepLink = resolveDeepLink(eventType, payload);
+          serviceClient
+            .from('notifications')
+            .insert({
+              person_id: ctx.recipientPersonId,
+              type: notifType,
+              title: ctx.notification.title,
+              body: ctx.notification.body,
+              deep_link: deepLink,
+            })
+            .then(() => {});
+        }
       }
     })
     .catch(() => {
       // swallow — resolution errors are non-fatal
     });
+}
+
+function mapEventToNotificationType(eventType: string): string | null {
+  const map: Record<string, string> = {
+    'DAYWORK.APPLIED': 'application_received',
+    'DAYWORK.ACCEPTED': 'application_accepted',
+    'DAYWORK.REJECTED': 'application_rejected',
+    'DAYWORK.INVITED': 'invitation_received',
+    'DAYWORK.SHORTLISTED': 'application_shortlisted',
+    'DAYWORK.POSTED': 'new_job_posted',
+    'MESSAGE.SENT': 'message_received',
+    'DAYWORK.COMPLETED': 'job_completed',
+    'ENGAGEMENT.CANCELLED_BY_CREW': 'engagement_cancelled',
+    'ENGAGEMENT.CANCELLED_BY_EMPLOYER': 'engagement_cancelled',
+    'ENGAGEMENT.WORK_STARTED': 'work_started',
+    'ENGAGEMENT.WORK_STARTED_CONFIRMED': 'work_started_confirmed',
+    'ENGAGEMENT.POSTPONEMENT_PROPOSED': 'postponement_proposed',
+    'CHECKLIST.SET': 'checklist_updated',
+  };
+  return map[eventType] ?? null;
+}
+
+function resolveDeepLink(eventType: string, payload: Record<string, unknown>): string | null {
+  switch (eventType) {
+    case 'DAYWORK.APPLIED':
+      return payload.daywork_id ? `/daywork/${payload.daywork_id}/review` : null;
+    case 'DAYWORK.ACCEPTED':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'DAYWORK.INVITED':
+      return '/daywork/invitations';
+    case 'MESSAGE.SENT':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'DAYWORK.POSTED':
+      return '/discover';
+    case 'DAYWORK.COMPLETED':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'ENGAGEMENT.CANCELLED_BY_CREW':
+    case 'ENGAGEMENT.CANCELLED_BY_EMPLOYER':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'ENGAGEMENT.POSTPONEMENT_PROPOSED':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'CHECKLIST.SET':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    default:
+      return null;
+  }
 }
 
 async function resolveNotification(

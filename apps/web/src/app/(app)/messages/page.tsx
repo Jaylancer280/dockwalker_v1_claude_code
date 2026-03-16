@@ -6,6 +6,7 @@ import { MessageSquare, MapPin, Calendar, Loader2, ClipboardCheck, Archive } fro
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
+import { NotificationBell } from '@/components/notification-bell';
 
 interface Conversation {
   id: string;
@@ -65,6 +66,7 @@ export default function MessagesPage() {
       <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <h1 className="text-lg font-bold tracking-tight">Messages</h1>
+          <NotificationBell />
         </div>
       </header>
 

@@ -80,6 +80,10 @@ export default function ChatPage() {
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
 
+    function markRead() {
+      fetch(`/api/messages/${engagementId}/read`, { method: 'POST' }).catch(() => {});
+    }
+
     async function init() {
       const [, userRes] = await Promise.all([
         Promise.all([loadContext(), loadMessages()]),
@@ -88,6 +92,8 @@ export default function ChatPage() {
       const userData = await userRes.json().catch(() => ({}));
       if (userData.userId) setUserId(userData.userId);
 
+      markRead();
+
       interval = setInterval(
         () => void Promise.all([loadContext(), loadMessages()]),
         POLL_INTERVAL,
@@ -95,8 +101,16 @@ export default function ChatPage() {
       pollRef.current = interval;
     }
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') markRead();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     void init();
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [engagementId, loadContext, loadMessages]);
 
   useEffect(() => {

@@ -54,6 +54,30 @@ function makeRatingsChain(data: unknown[]) {
   };
 }
 
+// Mock for read cursors query: .select().eq().in() -> { data }
+function makeCursorsChain(data: unknown[] = []) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data }),
+      }),
+    }),
+  };
+}
+
+// Mock for unread count per engagement: .select({count}).eq().neq().gt() -> { count }
+function makeUnreadCountChain(count = 0) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        neq: vi.fn().mockReturnValue({
+          gt: vi.fn().mockResolvedValue({ count }),
+        }),
+      }),
+    }),
+  };
+}
+
 describe('GET /api/messages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -99,7 +123,9 @@ describe('GET /api/messages', () => {
 
     mockFromAuth
       .mockReturnValueOnce(makeEngagementChain(crewEngagements)) // crew hat query
-      .mockReturnValueOnce(makeMessagesChain([]));               // messages
+      .mockReturnValueOnce(makeMessagesChain([]))                // messages
+      .mockReturnValueOnce(makeCursorsChain())                   // read cursors
+      .mockReturnValueOnce(makeUnreadCountChain());              // unread count per engagement
 
     const res = await GET();
     expect(res.status).toBe(200);
@@ -127,7 +153,9 @@ describe('GET /api/messages', () => {
 
     mockFromAuth
       .mockReturnValueOnce(makeEngagementChain(employerEngagements)) // employer hat query
-      .mockReturnValueOnce(makeMessagesChain([]));                   // messages
+      .mockReturnValueOnce(makeMessagesChain([]))                    // messages
+      .mockReturnValueOnce(makeCursorsChain())                       // read cursors
+      .mockReturnValueOnce(makeUnreadCountChain());                  // unread count
 
     const res = await GET();
     expect(res.status).toBe(200);
@@ -165,7 +193,9 @@ describe('GET /api/messages', () => {
     mockFromAuth
       .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([]))                       // ratings (none yet)
-      .mockReturnValueOnce(makeMessagesChain([]));                     // messages
+      .mockReturnValueOnce(makeMessagesChain([]))                      // messages
+      .mockReturnValueOnce(makeCursorsChain())                         // read cursors
+      .mockReturnValueOnce(makeUnreadCountChain());                    // unread count
 
     const res = await GET();
     expect(res.status).toBe(200);
@@ -191,7 +221,9 @@ describe('GET /api/messages', () => {
     mockFromAuth
       .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([{ engagement_id: 'e2' }])) // already rated
-      .mockReturnValueOnce(makeMessagesChain([]));                     // messages
+      .mockReturnValueOnce(makeMessagesChain([]))                      // messages
+      .mockReturnValueOnce(makeCursorsChain())                         // read cursors
+      .mockReturnValueOnce(makeUnreadCountChain());                    // unread count
 
     const res = await GET();
     expect(res.status).toBe(200);
@@ -216,7 +248,9 @@ describe('GET /api/messages', () => {
     mockFromAuth
       .mockReturnValueOnce(makeEngagementChain([cancelledEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([]))                       // ratings check (cancelled now ratable)
-      .mockReturnValueOnce(makeMessagesChain([]));                     // messages
+      .mockReturnValueOnce(makeMessagesChain([]))                      // messages
+      .mockReturnValueOnce(makeCursorsChain())                         // read cursors
+      .mockReturnValueOnce(makeUnreadCountChain());                    // unread count
 
     const res = await GET();
     expect(res.status).toBe(200);

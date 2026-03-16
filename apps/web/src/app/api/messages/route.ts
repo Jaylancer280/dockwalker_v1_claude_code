@@ -83,6 +83,7 @@ export async function GET() {
     string,
     { content: string; created_at: string; sender_person_id: string }
   > = {};
+  const unreadCounts: Record<string, number> = {};
 
   if (engagementIds.length > 0) {
     const { data: messages } = await supabase
@@ -99,6 +100,31 @@ export async function GET() {
           sender_person_id: msg.sender_person_id,
         };
       }
+    }
+
+    // Read cursors for unread counts
+    const { data: cursors } = await supabase
+      .from('message_read_cursors')
+      .select('engagement_id, last_read_at')
+      .eq('person_id', user.id)
+      .in('engagement_id', engagementIds);
+
+    const cursorMap = new Map<string, string>();
+    for (const c of cursors ?? []) {
+      cursorMap.set(c.engagement_id, c.last_read_at);
+    }
+
+    // Count unread per engagement
+    for (const engId of engagementIds) {
+      const lastRead = cursorMap.get(engId) ?? '1970-01-01T00:00:00Z';
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('engagement_id', engId)
+        .neq('sender_person_id', user.id)
+        .gt('created_at', lastRead);
+
+      unreadCounts[engId] = count ?? 0;
     }
   }
 
@@ -128,6 +154,7 @@ export async function GET() {
       ...eng,
       has_rated: ratedEngagementIds.has(eng.id),
       last_message: lastMessages[eng.id] ?? null,
+      unread_count: unreadCounts[eng.id] ?? 0,
       rating_expires_at: ratingExpiresAt,
       rating_expired: ratingExpired,
       is_overdue: isOverdue,
@@ -141,5 +168,6 @@ export async function GET() {
     return bTime.localeCompare(aTime);
   });
 
-  return NextResponse.json({ conversations });
+  const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
+  return NextResponse.json({ conversations, unread_total: unreadTotal });
 }

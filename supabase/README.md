@@ -65,6 +65,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Missing aggregate types                       | 00037     | Adds `invitation` and `experience` to `events_aggregate_type_check` CHECK constraint                                                                                                                                                                                                              |
 | Multi-crew positions                          | 00038     | `positions_available`/`positions_filled` on dayworks, `positions_available` on templates, full `apply_projection` rewrite with multi-crew fill logic, `DAYWORK.POSITIONS_UPDATED` handler, cascade cancel, no auto-revert                                                                         |
 | Profile avatar                                | 00039     | `avatar_url` on profiles, `apply_projection` PROFILE.CREATED/UPDATED with avatar_url, `avatars` storage bucket with RLS (public read, owner write, 2MB max, JPEG/PNG/WebP)                                                                                                                        |
+| Notifications + read cursors                  | 00040     | `message_read_cursors` table (composite PK), `notifications` table with type/title/body/deep_link/read, RLS on both, index for unread queries                                                                                                                                                     |
 
 ## Daywork Status Lifecycle
 

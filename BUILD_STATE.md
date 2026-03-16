@@ -122,10 +122,11 @@
 - [Stage 85c] Multi-crew listings — `positions_available`/`positions_filled` on dayworks, `DAYWORK.POSITIONS_UPDATED` event, multi-crew acceptance (conditional fill), no auto-revert on cancellation, "Find replacement" CTA, dynamic invitation limits, multi-crew chat links, edit crew count dialog
 
 - [Stage 85a] Profile photos — `avatar_url` on profiles, Supabase Storage `avatars` bucket, avatar upload/delete API, Avatar + AvatarUpload components, integrated across profile, onboarding, messages, review, profile-overlay
+- [Stage 85b] Unread counts + notification centre — `message_read_cursors` + `notifications` tables, read cursor API, notification CRUD API, combined unread count endpoint, push-triggers write to notifications, bottom-nav badge, notification bell, notifications page, read cursor on chat mount
 
 ## Current Schema Version
 
-v39 — profile avatar (39 migrations applied)
+v40 — notifications and read cursors (40 migrations applied)
 
 ## Migrations Applied
 
@@ -170,6 +171,7 @@ v39 — profile avatar (39 migrations applied)
 | `00037_missing_aggregate_types.sql`          | Adds `invitation` and `experience` to `events_aggregate_type_check` CHECK constraint (both were missing since Stages 46/53)                                                                                                                                                                    |
 | `00038_multi_crew_positions.sql`             | Multi-crew positions: `positions_available`/`positions_filled` columns, full `apply_projection` rewrite with atomic fill logic, `DAYWORK.POSITIONS_UPDATED` handler, cascade cancel of active engagements, no auto-revert on cancellation                                                      |
 | `00039_profile_avatar.sql`                   | Profile avatar: `avatar_url` column on profiles, `apply_projection` updated for PROFILE.CREATED/UPDATED with avatar_url, Supabase Storage `avatars` bucket with RLS (public read, owner write)                                                                                                 |
+| `00040_notifications_and_read_cursors.sql`   | `message_read_cursors` table (person_id + engagement_id PK), `notifications` table with type/title/body/deep_link/read, RLS on both, index for unread queries                                                                                                                                  |
 
 ## Deferred Decisions
 

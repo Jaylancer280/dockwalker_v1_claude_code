@@ -79,13 +79,13 @@ Two bugs found during planning agent code review of the 85c commit. Fix both bef
 
 ### Migration (00040_notifications_and_read_cursors.sql)
 
-- [ ] Create `message_read_cursors` table:
+- [x] Create `message_read_cursors` table:
   - `person_id uuid references persons(id)` (PK part 1)
   - `engagement_id uuid references active_engagements(id)` (PK part 2)
   - `last_read_at timestamptz not null default now()`
   - PRIMARY KEY `(person_id, engagement_id)`
   - RLS: users read/write own cursors only
-- [ ] Create `notifications` table:
+- [x] Create `notifications` table:
   - `id uuid primary key default gen_random_uuid()`
   - `person_id uuid references persons(id) not null`
   - `type text not null` (e.g. 'application_received', 'application_accepted', 'message_received', 'invitation_received', etc.)
@@ -96,37 +96,37 @@ Two bugs found during planning agent code review of the 85c commit. Fix both bef
   - `created_at timestamptz default now()`
   - Index on `(person_id, read, created_at DESC)` for fast unread queries
   - RLS: users read/update own notifications only
-- [ ] Write rollback (00040_notifications_and_read_cursors.down.sql)
+- [x] Write rollback (00040_notifications_and_read_cursors.down.sql)
 
 ### API Routes — Message Read Cursors
 
-- [ ] `POST /api/messages/[engagementId]/read` — new route
+- [x] `POST /api/messages/[engagementId]/read` — new route
   - Upsert `message_read_cursors` with `last_read_at = now()` for current user + engagement
   - Called when user opens a chat thread
   - Return `{ success: true }`
-- [ ] Update `GET /api/messages` — for each conversation, include `unread_count`:
+- [x] Update `GET /api/messages` — for each conversation, include `unread_count`:
   - Left-join `message_read_cursors` for current user
   - Count messages where `created_at > coalesce(cursor.last_read_at, '1970-01-01')` AND `sender_person_id != current_user`
   - Return total `unread_total` alongside conversations array (for badge)
 
 ### API Routes — Notification Centre
 
-- [ ] `GET /api/notifications` — new route
+- [x] `GET /api/notifications` — new route
   - List notifications for current user, ordered by created_at DESC
   - Query param: `?unread_only=true` for unread filter
   - Limit 50, return `unread_count` header for badge
   - Return `{ notifications: [...], unread_count: number }`
-- [ ] `POST /api/notifications/read` — new route
+- [x] `POST /api/notifications/read` — new route
   - Body: `{ notificationIds: string[] }` or `{ all: true }`
   - Marks specified notifications as read
   - Return `{ success: true }`
-- [ ] `GET /api/notifications/count` — lightweight route for badge polling
+- [x] `GET /api/notifications/count` — lightweight route for badge polling
   - Returns `{ unread_count: number }` (message unread + notification unread combined)
   - Used by BottomNav for badge without loading full conversation list
 
 ### Notification Write Path
 
-- [ ] Update `lib/push-triggers.ts` `notifyOnEvent()`:
+- [x] Update `lib/push-triggers.ts` `notifyOnEvent()`:
   - After determining push payload and target users, also INSERT into `notifications` table for each target
   - Map event types to notification types:
     - `DAYWORK.APPLIED` → type: 'application_received', deep_link: '/daywork/{id}/review'
@@ -141,52 +141,52 @@ Two bugs found during planning agent code review of the 85c commit. Fix both bef
 
 ### Edge Case Hardening — Notifications
 
-- [ ] **Stale deep links:** When user taps a notification whose target no longer exists (e.g., cancelled daywork), the destination page must handle gracefully — show "not found" or redirect, not crash
-- [ ] **MESSAGE.SENT notification dedup:** Don't create a notification for system messages (`is_system: true`) — they're already visible in the chat thread as system messages
-- [ ] **Rapid message burst:** If user sends 10 messages in 10 seconds, don't create 10 notifications for the recipient — debounce or batch MESSAGE.SENT notifications (similar to existing DAYWORK.POSTED broadcast window pattern)
+- [x] **Stale deep links:** When user taps a notification whose target no longer exists (e.g., cancelled daywork), the destination page must handle gracefully — show "not found" or redirect, not crash
+- [x] **MESSAGE.SENT notification dedup:** Don't create a notification for system messages (`is_system: true`) — they're already visible in the chat thread as system messages
+- [x] **Rapid message burst:** If user sends 10 messages in 10 seconds, don't create 10 notifications for the recipient — debounce or batch MESSAGE.SENT notifications (similar to existing DAYWORK.POSTED broadcast window pattern)
 
 ### Frontend — Bottom Nav Badge
 
-- [ ] Update `bottom-nav.tsx`:
+- [x] Update `bottom-nav.tsx`:
   - Convert to client component that fetches its own unread count (layout.tsx is a server component — can't pass live data)
   - Add `GET /api/notifications/count` fetch on mount + on visibility change (same pattern as mine/page.tsx line 169-183)
   - Render red badge dot/number on Messages icon when count > 0
   - Badge: small red circle with white text, positioned top-right of icon using `relative` wrapper
-- [ ] Update `(app)/layout.tsx`:
+- [x] Update `(app)/layout.tsx`:
   - Pass `currentHat` and `identityType` to BottomNav (already done)
   - No change needed — BottomNav handles its own data
 
 ### Frontend — Notification Centre
 
-- [ ] Create `components/notification-bell.tsx`:
+- [x] Create `components/notification-bell.tsx`:
   - Bell icon with unread count badge (red dot or number)
   - Taps navigates to `/notifications`
-- [ ] Create `app/(app)/notifications/page.tsx`:
+- [x] Create `app/(app)/notifications/page.tsx`:
   - List of notifications with icon per type, title, body, relative time
   - Unread items have visual indicator (bold text or blue dot)
   - Tap notification → navigate to deep_link, mark as read
   - "Mark all as read" button at top
   - Empty state when no notifications
-- [ ] Add notification bell to page headers (profile page, messages page, discover page)
+- [x] Add notification bell to page headers (profile page, messages page, discover page)
   - Or add to bottom-nav as 4th item for crew / 5th item for employer (bell icon)
   - Decision: add to header area of layout since bottom nav is already tight on employer side (4 items)
 
 ### Frontend — Read Cursor Integration
 
-- [ ] Update `messages/[engagementId]/page.tsx`:
+- [x] Update `messages/[engagementId]/page.tsx`:
   - On mount, call `POST /api/messages/{engagementId}/read`
   - Also call on focus/visibility change to handle background→foreground transitions
   - This updates the read cursor so unread counts drop
 
 ### Tests
 
-- [ ] API test: `POST /api/messages/[engagementId]/read` — happy path, unauthorized engagement (403), unauthenticated (401)
-- [ ] API test: `GET /api/messages` returns `unread_count` per conversation and `unread_total`
-- [ ] API test: `GET /api/notifications` — happy path, unread_only filter, unauthenticated (401)
-- [ ] API test: `POST /api/notifications/read` — mark specific IDs, mark all, unauthenticated (401)
-- [ ] API test: `GET /api/notifications/count` — returns correct combined unread count
-- [ ] Component test: BottomNav renders badge when unread count > 0, hidden when 0
-- [ ] Component test: notification bell shows count
+- [x] API test: `POST /api/messages/[engagementId]/read` — happy path, unauthorized engagement (403), unauthenticated (401)
+- [x] API test: `GET /api/messages` returns `unread_count` per conversation and `unread_total`
+- [x] API test: `GET /api/notifications` — happy path, unread_only filter, unauthenticated (401)
+- [x] API test: `POST /api/notifications/read` — mark specific IDs, mark all, unauthenticated (401)
+- [x] API test: `GET /api/notifications/count` — returns correct combined unread count
+- [x] Component test: BottomNav renders badge when unread count > 0, hidden when 0
+- [x] Component test: notification bell shows count
 
 ---
 

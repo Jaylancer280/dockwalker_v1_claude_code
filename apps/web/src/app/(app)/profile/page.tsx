@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
 import { AvatarUpload } from '@/components/avatar-upload';
+import { NotificationBell } from '@/components/notification-bell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -338,7 +339,10 @@ export default function ProfilePage() {
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
-          <h1 className="text-lg font-bold tracking-tight">Profile</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold tracking-tight">Profile</h1>
+            <NotificationBell />
+          </div>
           <div className="flex items-center gap-1">
             {!editing && (
               <Button variant="ghost" size="sm" onClick={enterEdit}>
