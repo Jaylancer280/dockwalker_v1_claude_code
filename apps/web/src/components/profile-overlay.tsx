@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar } from '@/components/avatar';
 
 interface CrewExperience {
   vessel_name: string | null;
@@ -24,6 +25,7 @@ interface CrewProfile {
   person_id: string;
   display_name: string;
   identity_type: 'crew';
+  avatar_url: string | null;
   bio: string | null;
   primary_role: { id: string; name: string; department: string } | null;
   certifications: { id: string; name: string }[];
@@ -37,6 +39,7 @@ interface EmployerProfile {
   person_id: string;
   display_name: string;
   identity_type: string;
+  avatar_url: string | null;
   agency_name: string | null;
   role_specializations: { id: string; name: string }[];
   location: { port: string; city: string; region: string } | null;
@@ -130,15 +133,12 @@ export function ProfileOverlay({
 
 function CrewProfileView({ profile }: { profile: CrewProfile }) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
-  const initial = profile.display_name.charAt(0).toUpperCase();
 
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-          {initial}
-        </div>
+        <Avatar src={profile.avatar_url} name={profile.display_name} size="md" />
         <div>
           <p className="font-semibold">{profile.display_name}</p>
           {profile.primary_role && (
@@ -277,15 +277,11 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
 }
 
 function EmployerProfileView({ profile }: { profile: EmployerProfile }) {
-  const initial = profile.display_name.charAt(0).toUpperCase();
-
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-          {initial}
-        </div>
+        <Avatar src={profile.avatar_url} name={profile.display_name} size="md" />
         <div>
           <p className="font-semibold">{profile.display_name}</p>
           {profile.agency_name && (

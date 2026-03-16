@@ -115,6 +115,7 @@ const baseDaywork = {
   role_id: 'role-deckhand',
   location_port_id: 'port-1',
   status: 'active',
+  positions_available: 1,
 };
 
 describe('GET /api/daywork/:id/available-crew', () => {
@@ -144,7 +145,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     expect(body.crew[0].person_id).toBe('c1');
     expect(body.crew[0].available_days).toBe(3);
     expect(body.invitation_count).toBe(0);
-    expect(body.invitation_limit).toBe(2);
+    expect(body.invitation_limit).toBe(3);
   });
 
   it('excludes crew who already applied', async () => {

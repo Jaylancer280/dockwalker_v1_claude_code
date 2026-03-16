@@ -32,6 +32,7 @@ export interface CrewProfile {
   languages: string[];
   available_to_start: 'immediate' | 'within_1_week' | 'within_2_weeks' | 'within_1_month' | null;
   onboarding_version: number;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,7 @@ export interface AgentProfile {
   agency_name: string;
   location_port_id: string | null;
   role_specialization_ids: string[];
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }

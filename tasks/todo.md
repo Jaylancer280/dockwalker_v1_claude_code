@@ -5,7 +5,16 @@
 
 ## Current Task
 
-Stage 85: P0 Features — Profile Photos, Unread Counts + Notification Centre, Multi-Crew Listings
+Stage 85c bugfixes (from planning agent review), then 85a Profile Photos
+
+---
+
+## Stage 85c Bugfixes — MUST BE DONE FIRST
+
+Two bugs found during planning agent code review of the 85c commit. Fix both before starting 85a.
+
+- [x] **Bug 1: `apps/web/src/app/api/daywork/[id]/available-crew/route.ts`** — lines 53 and 184 hardcode `invitation_limit: 2`. Fixed to use `invitationLimit` variable.
+- [x] **Bug 2: `apps/web/src/app/(app)/messages/page.tsx`** — already correct after prettier formatted on commit (forward slash `bg-primary/10`).
 
 ---
 
@@ -15,71 +24,52 @@ Stage 85: P0 Features — Profile Photos, Unread Counts + Notification Centre, M
 
 ### Migration (00039_profile_avatar.sql)
 
-- [ ] Add `avatar_url text default null` column to `profiles` table
-- [ ] Update `apply_projection` to write `avatar_url` from `PROFILE.CREATED` and `PROFILE.UPDATED` payloads (only when field is present — backward-compatible)
-- [ ] Create Supabase Storage bucket `avatars` with RLS policies:
+- [x] Add `avatar_url text default null` column to `profiles` table
+- [x] Update `apply_projection` to write `avatar_url` from `PROFILE.CREATED` and `PROFILE.UPDATED` payloads (only when field is present — backward-compatible)
+- [x] Create Supabase Storage bucket `avatars` with RLS policies:
   - Authenticated users can upload to their own path (`{user_id}/avatar.{ext}`)
   - Public read access (avatars are not sensitive)
   - Max file size 2MB
   - Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`
-- [ ] Write rollback (00039_profile_avatar.down.sql): drop column, drop bucket
+- [x] Write rollback (00039_profile_avatar.down.sql): drop column, drop bucket
 
 ### Types (packages/types/)
 
-- [ ] Add `avatar_url: string | null` to `CrewProfile` interface
-- [ ] Add `avatar_url: string | null` to `AgentProfile` interface
-- [ ] Add optional `avatar_url?: string | null` to `PROFILE.CREATED` payload in `EventPayloadMap`
-- [ ] Add optional `avatar_url?: string | null` to `PROFILE.UPDATED` payload in `EventPayloadMap`
+- [x] Add `avatar_url: string | null` to `CrewProfile` interface
+- [x] Add `avatar_url: string | null` to `AgentProfile` interface
+- [x] Add optional `avatar_url?: string | null` to `PROFILE.CREATED` payload in `EventPayloadMap`
+- [x] Add optional `avatar_url?: string | null` to `PROFILE.UPDATED` payload in `EventPayloadMap`
 
 ### API Routes
 
-- [ ] `POST /api/profile/avatar` — new route
-  - Accept multipart form upload (single file)
-  - Validate file type (jpeg/png/webp) and size (<=2MB) server-side (don't trust client)
-  - Upload to Supabase Storage `avatars/{userId}/avatar.{ext}` (overwrite on re-upload)
-  - Get public URL from storage
-  - Append `PROFILE.UPDATED` event with `{ avatar_url: publicUrl }`
-  - Return `{ avatar_url: publicUrl }`
-- [ ] `DELETE /api/profile/avatar` — new route
-  - Remove file from storage
-  - Append `PROFILE.UPDATED` event with `{ avatar_url: null }`
-- [ ] Update `GET /api/profile` — include `avatar_url` in select
-- [ ] Update `GET /api/profile/[personId]` — include `avatar_url` in both crew and employer profile responses
-- [ ] Update `GET /api/daywork/[id]/applicants` — include `avatar_url` in crew profile join
-- [ ] Update `GET /api/messages` — include `avatar_url` in profile join for conversation list
-- [ ] Update `GET /api/daywork/available-crew` — include `avatar_url` in crew data
-- [ ] Update `POST /api/onboarding` — accept optional `avatarUrl` field, include in `PROFILE.CREATED` payload
+- [x] `POST /api/profile/avatar` — new route
+- [x] `DELETE /api/profile/avatar` — new route
+- [x] Update `GET /api/profile` — include `avatar_url` in select
+- [x] Update `GET /api/profile/[personId]` — include `avatar_url` in both crew and employer profile responses
+- [x] Update `GET /api/daywork/[id]/applicants` — include `avatar_url` in crew profile join
+- [x] Update `GET /api/messages` — include `avatar_url` in profile join for conversation list
+- [x] Update `GET /api/daywork/available-crew` — include `avatar_url` in crew data
+- [x] Update `POST /api/onboarding` — accept optional `avatarUrl` field, include in `PROFILE.CREATED` payload
 
 ### Frontend — Components
 
-- [ ] Create `components/avatar.tsx` — shared avatar component
-  - Props: `src: string | null`, `name: string`, `size: 'sm' | 'md' | 'lg'`
-  - Shows image if `src` is truthy, otherwise shows initials circle (existing pattern from messages/page.tsx line 136)
-  - Sizes: sm=32px, md=48px, lg=80px
-  - Round clip, object-cover
-  - **Edge case:** Handle broken image URLs gracefully — `onError` fallback to initials
-- [ ] Create `components/avatar-upload.tsx` — upload widget
-  - Shows current avatar (or placeholder)
-  - Tap to select file (native file picker / Capacitor camera on mobile)
-  - Client-side resize to max 512x512 before upload
-  - Loading state during upload
-  - Calls `POST /api/profile/avatar`
-  - Optional "Remove photo" button
+- [x] Create `components/avatar.tsx` — shared avatar component
+- [x] Create `components/avatar-upload.tsx` — upload widget with client-side resize, loading state, remove button
 
 ### Frontend — Integration
 
-- [ ] `onboarding/page.tsx` — add avatar upload in step 'profile', above display name field
-- [ ] `profile/page.tsx` — show avatar in view mode header, show AvatarUpload in edit mode
-- [ ] `profile-overlay.tsx` — replace initials circle (line ~heading area) with Avatar component
-- [ ] `messages/page.tsx` — replace initials div (line 136) with Avatar component, pass `avatar_url` from API response
-- [ ] `daywork/[id]/review/page.tsx` — show avatar on ApplicantCard and AvailableCrewCard components
+- [x] `onboarding/page.tsx` — add avatar upload in step 'profile', above display name field
+- [x] `profile/page.tsx` — show avatar in view mode header, show AvatarUpload in edit mode
+- [x] `profile-overlay.tsx` — replace initials circle with Avatar component (both crew and employer)
+- [x] `messages/page.tsx` — replace initials div with Avatar component, pass `avatar_url` from API response
+- [x] `daywork/[id]/review/page.tsx` — show avatar on ApplicantCard and AvailableCrewCard components
 
 ### Tests
 
-- [ ] API test: `POST /api/profile/avatar` — happy path, oversized file (400), wrong MIME (400), unauthenticated (401)
-- [ ] API test: `DELETE /api/profile/avatar` — happy path, unauthenticated (401)
-- [ ] API test: verify `GET /api/profile` returns `avatar_url`
-- [ ] Component test: Avatar component renders image when src provided, initials when null, fallback on broken URL
+- [x] API test: `POST /api/profile/avatar` — happy path, oversized file (400), wrong MIME (400), unauthenticated (401)
+- [x] API test: `DELETE /api/profile/avatar` — happy path, unauthenticated (401)
+- [x] API test: verify `GET /api/profile` returns `avatar_url` — covered by existing profile tests (field added to select)
+- [x] Component test: Avatar component renders image when src provided, initials when null, fallback on broken URL
 
 ---
 

@@ -50,7 +50,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .single();
 
   if (!port) {
-    return NextResponse.json({ crew: [], invitation_count: 0, invitation_limit: 2 });
+    return NextResponse.json({ crew: [], invitation_count: 0, invitation_limit: invitationLimit });
   }
 
   const cityId = port.city_id;
@@ -144,7 +144,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .from('profiles')
     .select(
       `
-      person_id, display_name, primary_role_id, certification_ids,
+      person_id, display_name, avatar_url, primary_role_id, certification_ids,
       experience_bracket_id, vessel_size_exposure_ids, bio, location_port_id,
       yacht_roles:primary_role_id(id, name, department),
       experience_brackets:experience_bracket_id(label),
@@ -164,6 +164,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     .map((p) => ({
       person_id: p.person_id,
       display_name: p.display_name,
+      avatar_url: p.avatar_url,
       primary_role_id: p.primary_role_id,
       certification_ids: p.certification_ids,
       experience_bracket_id: p.experience_bracket_id,
@@ -181,6 +182,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   return NextResponse.json({
     crew,
     invitation_count: invCount ?? 0,
-    invitation_limit: 2,
+    invitation_limit: invitationLimit,
   });
 }

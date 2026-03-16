@@ -34,7 +34,7 @@ export async function GET(
     .from('profiles')
     .select(
       `
-      person_id, display_name, identity_type, bio,
+      person_id, display_name, identity_type, bio, avatar_url,
       primary_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id,
       agency_name, role_specialization_ids,

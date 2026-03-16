@@ -18,6 +18,8 @@ import {
   Compass,
   Briefcase,
 } from 'lucide-react';
+import { Avatar } from '@/components/avatar';
+import { AvatarUpload } from '@/components/avatar-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +58,7 @@ interface Profile {
   experience_bracket_id: string | null;
   vessel_size_exposure_ids: string[];
   location_port_id: string | null;
+  avatar_url: string | null;
   agency_name: string | null;
   role_specialization_ids: string[];
   yacht_roles: { id: string; name: string } | null;
@@ -329,7 +332,6 @@ export default function ProfilePage() {
 
   if (!person || !profile) return null;
 
-  const initial = profile.display_name.charAt(0).toUpperCase();
   const isCrewHat = person.current_hat === 'crew';
 
   return (
@@ -371,10 +373,17 @@ export default function ProfilePage() {
 
       <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
         {/* Avatar + Name */}
+        {editing && (
+          <AvatarUpload
+            currentUrl={profile.avatar_url}
+            name={profile.display_name}
+            onUploaded={(url) => {
+              setProfile((prev) => (prev ? { ...prev, avatar_url: url } : prev));
+            }}
+          />
+        )}
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
-            {initial}
-          </div>
+          {!editing && <Avatar src={profile.avatar_url} name={profile.display_name} size="lg" />}
           <div className="flex-1">
             {!editing ? (
               <>

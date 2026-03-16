@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
+import { AvatarUpload } from '@/components/avatar-upload';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -149,6 +150,7 @@ export default function OnboardingPage() {
 
   // Profile data — shared
   const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [locationPortId, setLocationPortId] = useState('');
   const [bio, setBio] = useState('');
   const [languages, setLanguages] = useState<string[]>([]);
@@ -273,6 +275,7 @@ export default function OnboardingPage() {
         bio: bio || undefined,
         languages,
         onboardingVersion: 2,
+        ...(avatarUrl ? { avatarUrl } : {}),
       };
 
       if (identityType === 'crew') {
@@ -552,6 +555,13 @@ export default function OnboardingPage() {
           )}
 
           <div className="flex flex-col gap-4">
+            {/* Avatar upload */}
+            <AvatarUpload
+              currentUrl={avatarUrl}
+              name={displayName || 'You'}
+              onUploaded={setAvatarUrl}
+            />
+
             {/* Display name — shared */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="displayName">Display name</Label>

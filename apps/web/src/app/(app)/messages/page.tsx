@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MessageSquare, MapPin, Calendar, Loader2, ClipboardCheck, Archive } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar } from '@/components/avatar';
 
 interface Conversation {
   id: string;
@@ -17,7 +18,7 @@ interface Conversation {
   has_rated: boolean;
   role: 'crew' | 'employer';
   dayworks: { yacht_roles: { name: string } | null; ports: { name: string } | null } | null;
-  profiles: { display_name: string } | null;
+  profiles: { display_name: string; avatar_url: string | null } | null;
   last_message: {
     content: string;
     created_at: string;
@@ -132,10 +133,12 @@ export default function MessagesPage() {
                 tab === 'history' ? 'opacity-75' : ''
               }`}
             >
-              {/* Avatar placeholder */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                {(conv.profiles?.display_name ?? '?')[0].toUpperCase()}
-              </div>
+              {/* Avatar */}
+              <Avatar
+                src={conv.profiles?.avatar_url ?? null}
+                name={conv.profiles?.display_name ?? '?'}
+                size="sm"
+              />
 
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 {/* Name + status */}

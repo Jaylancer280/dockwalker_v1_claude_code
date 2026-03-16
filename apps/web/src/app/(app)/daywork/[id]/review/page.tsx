@@ -24,6 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar } from '@/components/avatar';
 import {
   Select,
   SelectContent,
@@ -46,6 +47,7 @@ import { MY_JOBS_TAB_STORAGE_KEY } from '@/lib/my-jobs-tab';
 
 interface ApplicantProfile {
   display_name: string;
+  avatar_url: string | null;
   bio: string | null;
   yacht_roles: { name: string; department: string } | null;
   experience_brackets: { label: string } | null;
@@ -73,6 +75,7 @@ interface Applicant {
 interface AvailableCrew {
   person_id: string;
   display_name: string;
+  avatar_url: string | null;
   primary_role_id: string;
   certification_ids: string[];
   experience_bracket_id: string;
@@ -924,12 +927,15 @@ function AvailableCrewCard({ crew, isPreview }: { crew: AvailableCrew; isPreview
     >
       <div className="flex h-full flex-col p-5">
         {/* Name + role */}
-        <div className="mb-3">
-          <h3 className="text-lg font-bold">{crew.display_name ?? 'Unknown'}</h3>
-          <p className="text-sm text-muted-foreground">
-            {crew.yacht_roles?.name ?? 'No primary role'}
-            {crew.yacht_roles?.department && ` · ${crew.yacht_roles.department}`}
-          </p>
+        <div className="mb-3 flex items-center gap-3">
+          <Avatar src={crew.avatar_url ?? null} name={crew.display_name ?? '?'} size="md" />
+          <div>
+            <h3 className="text-lg font-bold">{crew.display_name ?? 'Unknown'}</h3>
+            <p className="text-sm text-muted-foreground">
+              {crew.yacht_roles?.name ?? 'No primary role'}
+              {crew.yacht_roles?.department && ` · ${crew.yacht_roles.department}`}
+            </p>
+          </div>
         </div>
 
         {/* Details */}
@@ -1003,28 +1009,31 @@ function ApplicantCard({
     >
       <div className="flex h-full flex-col p-5">
         {/* Name + role */}
-        <div className="mb-3">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-bold">{profile?.display_name ?? 'Unknown'}</h3>
-            {applicant.status === 'shortlisted' && (
-              <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
-            )}
-            {!isPreview && (
-              <button
-                className="ml-auto text-muted-foreground hover:text-primary"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewProfile?.(applicant.crew_person_id);
-                }}
-              >
-                <User className="h-4 w-4" />
-              </button>
-            )}
+        <div className="mb-3 flex items-center gap-3">
+          <Avatar src={profile?.avatar_url ?? null} name={profile?.display_name ?? '?'} size="md" />
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold">{profile?.display_name ?? 'Unknown'}</h3>
+              {applicant.status === 'shortlisted' && (
+                <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+              )}
+              {!isPreview && (
+                <button
+                  className="ml-auto text-muted-foreground hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewProfile?.(applicant.crew_person_id);
+                  }}
+                >
+                  <User className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {profile?.yacht_roles?.name ?? 'No primary role'}
+              {profile?.yacht_roles?.department && ` · ${profile.yacht_roles.department}`}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {profile?.yacht_roles?.name ?? 'No primary role'}
-            {profile?.yacht_roles?.department && ` · ${profile.yacht_roles.department}`}
-          </p>
         </div>
 
         {/* Details */}

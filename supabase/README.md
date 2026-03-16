@@ -64,6 +64,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Daywork extended                              | 00036     | `DAYWORK.EXTENDED` event handler via trigger: updates end_date, working_days, working_day_dates                                                                                                                                                                                                   |
 | Missing aggregate types                       | 00037     | Adds `invitation` and `experience` to `events_aggregate_type_check` CHECK constraint                                                                                                                                                                                                              |
 | Multi-crew positions                          | 00038     | `positions_available`/`positions_filled` on dayworks, `positions_available` on templates, full `apply_projection` rewrite with multi-crew fill logic, `DAYWORK.POSITIONS_UPDATED` handler, cascade cancel, no auto-revert                                                                         |
+| Profile avatar                                | 00039     | `avatar_url` on profiles, `apply_projection` PROFILE.CREATED/UPDATED with avatar_url, `avatars` storage bucket with RLS (public read, owner write, 2MB max, JPEG/PNG/WebP)                                                                                                                        |
 
 ## Daywork Status Lifecycle
 
