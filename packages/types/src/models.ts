@@ -4,6 +4,8 @@ import type {
   IdentityType,
   MealOption,
   RoleContext,
+  SubscriptionPlan,
+  SubscriptionStatus,
   VesselOperation,
   VesselType,
 } from './enums';
@@ -144,6 +146,20 @@ export interface CrewExperience {
   contract_type: ContractType | null;
   contract_details: string | null;
   description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Subscription — Stripe-owned state */
+export interface Subscription {
+  id: string;
+  person_id: string;
+  stripe_customer_id: string;
+  stripe_subscription_id: string | null;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  current_period_start: string | null;
+  current_period_end: string | null;
   created_at: string;
   updated_at: string;
 }

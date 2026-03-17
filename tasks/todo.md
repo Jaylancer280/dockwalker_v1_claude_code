@@ -5,11 +5,64 @@
 
 ## Current Task
 
-Stage 90b: Rate Limit Redis Caching Fix
+Stage 91b: Stripe Webhook person_id Fix
 
 ---
 
 ## Queue
+
+---
+
+### Stage 91b: Stripe Webhook person_id Fix
+
+**Goal:** Fix a bug where the `checkout.session.completed` webhook cannot resolve the person_id, causing the subscription upsert to fail.
+
+**Bug:** In `create-checkout/route.ts`, `person_id` metadata is set on the Stripe **customer** object (`stripe.customers.create({ metadata: { person_id } })`). But in `webhooks/stripe/route.ts`, the webhook reads `session.metadata?.person_id` — that's the **session** metadata, which was never set. Result: `person_id` is `undefined`, the upsert writes `person_id: ''`, and the FK constraint to `persons(id)` fails.
+
+**Fix:** Two changes needed — belt and suspenders.
+
+- [x] Edit `apps/web/src/app/api/billing/create-checkout/route.ts` — add `metadata: { person_id: user.id }` to the `stripe.checkout.sessions.create()` call so the session itself carries the person_id:
+
+  ```typescript
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    mode: 'subscription',
+    line_items: [{ price: priceId, quantity: 1 }],
+    success_url: `${origin}/billing?success=true`,
+    cancel_url: `${origin}/billing?cancelled=true`,
+    metadata: { person_id: user.id },
+  });
+  ```
+
+- [x] Edit `apps/web/src/app/api/webhooks/stripe/route.ts` — add a fallback chain in `checkout.session.completed` handler. Try session metadata first, then look up the customer to get person_id from customer metadata or from the DB:
+
+  ```typescript
+  case 'checkout.session.completed': {
+    const session = event.data.object;
+    const customerId = session.customer as string;
+    const subscriptionId = session.subscription as string;
+
+    // Resolve person_id: session metadata (primary), then DB lookup by stripe_customer_id (fallback)
+    let personId = session.metadata?.person_id;
+    if (!personId) {
+      const { data: existing } = await serviceClient
+        .from('subscriptions')
+        .select('person_id')
+        .eq('stripe_customer_id', customerId)
+        .single();
+      personId = existing?.person_id;
+    }
+
+    if (!personId || !subscriptionId) break;
+
+    // ... rest of handler uses personId instead of session.metadata?.person_id
+  ```
+
+  The DB fallback works because `create-checkout` upserts a subscription row with `stripe_customer_id` before creating the Checkout Session.
+
+- [x] Update `__tests__/api/webhooks-stripe.test.ts` — the `checkout.session.completed` test already passes `metadata: { person_id: 'u1' }` on the session object, so it tests the happy path. Add one more test: session metadata missing, fallback to DB lookup by `stripe_customer_id`. Mock `serviceClient.from('subscriptions').select().eq().single()` to return `{ person_id: 'u1' }`.
+
+- [x] No migration or documentation changes needed (bug fix within existing stage)
 
 ---
 
@@ -255,8 +308,8 @@ Rate limiting goes in `proxy.ts` BEFORE `updateSession()`:
 
 #### 1. Dependencies
 
-- [ ] Run `cd apps/web && npm install stripe` (server-side SDK only)
-- [ ] Add to `apps/web/.env.example` after the push notifications block:
+- [x] Run `cd apps/web && npm install stripe` (server-side SDK only)
+- [x] Add to `apps/web/.env.example` after the push notifications block:
   ```
   # Stripe — optional (subscriptions disabled when not configured)
   STRIPE_SECRET_KEY=
@@ -267,12 +320,12 @@ Rate limiting goes in `proxy.ts` BEFORE `updateSession()`:
 
 #### 2. Types — `packages/types/src/`
 
-- [ ] Add to `packages/types/src/enums.ts`:
+- [x] Add to `packages/types/src/enums.ts`:
   ```typescript
   export type SubscriptionPlan = 'free' | 'crew_pro' | 'crew_unlimited';
   export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing';
   ```
-- [ ] Add to `packages/types/src/models.ts` (import `SubscriptionPlan`, `SubscriptionStatus` from `./enums`):
+- [x] Add to `packages/types/src/models.ts` (import `SubscriptionPlan`, `SubscriptionStatus` from `./enums`):
   ```typescript
   export interface Subscription {
     id: string;
@@ -287,13 +340,13 @@ Rate limiting goes in `proxy.ts` BEFORE `updateSession()`:
     updated_at: string;
   }
   ```
-- [ ] Both are already re-exported via `index.ts` (barrel exports `./enums` and `./models`)
+- [x] Both are already re-exported via `index.ts` (barrel exports `./enums` and `./models`)
 
 #### 3. Migration — `supabase/migrations/00042_subscriptions.sql`
 
 NOT event-sourced — Stripe-owned state, same precedent as `user_preferences`, `device_tokens`, `daywork_templates`. No `apply_projection` changes needed.
 
-- [ ] Create migration file with this exact SQL:
+- [x] Create migration file with this exact SQL:
 
   ```sql
   -- =============================================================================
@@ -331,7 +384,7 @@ NOT event-sourced — Stripe-owned state, same precedent as `user_preferences`, 
     using (person_id = auth.uid());
   ```
 
-- [ ] Create rollback `supabase/rollbacks/00042_subscriptions.down.sql`:
+- [x] Create rollback `supabase/rollbacks/00042_subscriptions.down.sql`:
   ```sql
   -- =============================================================================
   -- Rollback 00042: Subscriptions
@@ -342,7 +395,7 @@ NOT event-sourced — Stripe-owned state, same precedent as `user_preferences`, 
 
 #### 4. Stripe Client — `apps/web/src/lib/stripe.ts`
 
-- [ ] Create new file. Pattern: direct `process.env` read, graceful no-op when unconfigured (same as push-delivery.ts pattern).
+- [x] Create new file. Pattern: direct `process.env` read, graceful no-op when unconfigured (same as push-delivery.ts pattern).
 
   ```typescript
   import Stripe from 'stripe';
@@ -369,7 +422,7 @@ All routes follow the existing pattern: import `requireDomainUser` from `@/lib/a
 
 **5a. `POST /api/billing/create-checkout`**
 
-- [ ] Create `apps/web/src/app/api/billing/create-checkout/route.ts`
+- [x] Create `apps/web/src/app/api/billing/create-checkout/route.ts`
 - Pattern: `requireDomainUser()` guard → validate `plan` from body (`crew_pro` or `crew_unlimited`) → map plan to price ID from env (`STRIPE_PRICE_CREW_PRO` / `STRIPE_PRICE_CREW_UNLIMITED`) → check existing subscription row for `stripe_customer_id` → if none, create Stripe customer via `stripe.customers.create({ email, metadata: { person_id } })` → upsert subscription row with `stripe_customer_id` using `serviceClient` → create Checkout Session via `stripe.checkout.sessions.create({ customer, mode: 'subscription', line_items: [{ price: priceId, quantity: 1 }], success_url, cancel_url })` → return `{ url: session.url }`
 - `success_url`: `${origin}/billing?success=true`
 - `cancel_url`: `${origin}/billing?cancelled=true`
@@ -378,18 +431,18 @@ All routes follow the existing pattern: import `requireDomainUser` from `@/lib/a
 
 **5b. `POST /api/billing/create-portal`**
 
-- [ ] Create `apps/web/src/app/api/billing/create-portal/route.ts`
+- [x] Create `apps/web/src/app/api/billing/create-portal/route.ts`
 - Pattern: `requireDomainUser()` guard → fetch subscription row from `supabase.from('subscriptions').select('stripe_customer_id').eq('person_id', user.id).single()` → 404 if no row → create portal session via `stripe.billingPortal.sessions.create({ customer: row.stripe_customer_id, return_url })` → return `{ url: session.url }`
 - `return_url`: `${origin}/billing`
 
 **5c. `GET /api/billing/status`**
 
-- [ ] Create `apps/web/src/app/api/billing/status/route.ts`
+- [x] Create `apps/web/src/app/api/billing/status/route.ts`
 - Pattern: `requireDomainUser()` guard → fetch subscription row: `supabase.from('subscriptions').select('plan, status, current_period_end').eq('person_id', user.id).single()` → if no row or error, return `{ plan: 'free', status: null }` → otherwise return `{ plan: row.plan, status: row.status, current_period_end: row.current_period_end }`
 
 **5d. `POST /api/webhooks/stripe`**
 
-- [ ] Create `apps/web/src/app/api/webhooks/stripe/route.ts`
+- [x] Create `apps/web/src/app/api/webhooks/stripe/route.ts`
 - **NO `requireDomainUser()` — this is a public endpoint like `/api/health`**. Stripe authenticates via signature.
 - Must read raw body for signature verification: `const body = await request.text()`
 - Verify: `stripe.webhooks.constructEvent(body, request.headers.get('stripe-signature')!, process.env.STRIPE_WEBHOOK_SECRET!)`
@@ -407,7 +460,7 @@ All routes follow the existing pattern: import `requireDomainUser` from `@/lib/a
 
 #### 6. Subscription Check Helper
 
-- [ ] Create `apps/web/src/lib/require-subscription.ts`
+- [x] Create `apps/web/src/lib/require-subscription.ts`
 - Pattern mirrors `requireDomainUser` — returns discriminated union:
 
   ```typescript
@@ -507,23 +560,23 @@ function guardOk(overrides = {}) {
 }
 ```
 
-- [ ] `__tests__/api/billing-checkout.test.ts` — 4 tests:
+- [x] `__tests__/api/billing-checkout.test.ts` — 4 tests:
   1. 401 unauth (guard returns `{ ok: false }`)
   2. 400 invalid plan (body `{ plan: 'invalid' }`)
   3. 201 happy path — new customer (no existing subscription row → creates customer → creates session → returns URL). Assert `mockStripe.customers.create` called, `mockStripe.checkout.sessions.create` called with correct price ID
   4. 201 happy path — existing customer (subscription row exists with `stripe_customer_id` → skips customer creation → creates session)
 
-- [ ] `__tests__/api/billing-portal.test.ts` — 3 tests:
+- [x] `__tests__/api/billing-portal.test.ts` — 3 tests:
   1. 401 unauth
   2. 404 no subscription row
   3. 200 happy path — returns portal URL
 
-- [ ] `__tests__/api/billing-status.test.ts` — 3 tests:
+- [x] `__tests__/api/billing-status.test.ts` — 3 tests:
   1. 401 unauth
   2. 200 returns `{ plan: 'free' }` when no subscription row
   3. 200 returns plan + status when subscribed
 
-- [ ] `__tests__/api/webhooks-stripe.test.ts` — 4 tests:
+- [x] `__tests__/api/webhooks-stripe.test.ts` — 4 tests:
   1. 400 invalid signature (`mockStripe.webhooks.constructEvent` throws)
   2. 200 handles `checkout.session.completed` — assert upsert to subscriptions table
   3. 200 handles `customer.subscription.updated` — assert update by `stripe_subscription_id`
@@ -538,14 +591,14 @@ function guardOk(overrides = {}) {
 
 #### 8. Documentation
 
-- [ ] Update `apps/web/README.md` — add Stripe env vars to the env table, add billing routes to the API routes section, add "Stripe Setup" section (create products in Stripe dashboard, copy price IDs to env, set webhook endpoint to `/api/webhooks/stripe`, select `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` events)
-- [ ] Update `packages/types/README.md` — add `Subscription`, `SubscriptionPlan`, `SubscriptionStatus` to the exports list
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `apps/web/README.md` — add Stripe env vars to the env table, add billing routes to the API routes section, add "Stripe Setup" section (create products in Stripe dashboard, copy price IDs to env, set webhook endpoint to `/api/webhooks/stripe`, select `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted` events)
+- [x] Update `packages/types/README.md` — add `Subscription`, `SubscriptionPlan`, `SubscriptionStatus` to the exports list
+- [x] Update `BUILD_STATE.md`:
   - Completed Stages: add `[Stage 91] Stripe subscription scaffolding — subscriptions table, checkout/portal/status/webhook routes, subscription check helper`
   - Schema version: bump to `v42 — subscriptions (42 migrations applied)`
   - Migration table: add `00042_subscriptions.sql` row
   - Deferred decisions: add `Stripe product/price creation and dashboard setup (required before subscriptions work in any environment)`
-- [ ] **Pre-commit will fail** if BUILD_STATE.md schema version doesn't match migration file count. The check script counts `supabase/migrations/*.sql` files and compares to the version number in BUILD_STATE.md. Update version BEFORE committing.
+- [x] **Pre-commit will fail** if BUILD_STATE.md schema version doesn't match migration file count. The check script counts `supabase/migrations/*.sql` files and compares to the version number in BUILD_STATE.md. Update version BEFORE committing.
 
 ---
 
@@ -1043,17 +1096,15 @@ Mock strategy:
 
 ```typescript
 vi.mock('@/lib/advisor/rag', () => ({
-  searchMcaDocs: vi
-    .fn()
-    .mockResolvedValue([
-      {
-        content: 'mock content',
-        source_document: 'MIN 599',
-        source_url: 'https://example.com',
-        section_title: 'Section 1',
-        similarity: 0.85,
-      },
-    ]),
+  searchMcaDocs: vi.fn().mockResolvedValue([
+    {
+      content: 'mock content',
+      source_document: 'MIN 599',
+      source_url: 'https://example.com',
+      section_title: 'Section 1',
+      similarity: 0.85,
+    },
+  ]),
 }));
 
 vi.mock('@/lib/advisor/llm', () => ({
@@ -1291,16 +1342,14 @@ Mock at the `rag.ts` and `llm.ts` level, not at the SDK level — this tests the
   - After successful LLM response (step 8), increment usage count (only for free tier):
     ```typescript
     if (!isPro) {
-      await serviceClient
-        .from('advisor_usage')
-        .upsert(
-          {
-            person_id: user.id,
-            month: currentMonth,
-            question_count: (usage?.question_count ?? 0) + 1,
-          },
-          { onConflict: 'person_id,month' },
-        );
+      await serviceClient.from('advisor_usage').upsert(
+        {
+          person_id: user.id,
+          month: currentMonth,
+          question_count: (usage?.question_count ?? 0) + 1,
+        },
+        { onConflict: 'person_id,month' },
+      );
     }
     ```
   - **Do NOT save user message before usage check** — don't consume the question slot if they hit the wall

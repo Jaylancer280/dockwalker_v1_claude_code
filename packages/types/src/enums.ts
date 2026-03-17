@@ -28,3 +28,9 @@ export type ContractType = 'permanent' | 'rotational' | 'seasonal' | 'crossing' 
 
 /** Meal options for daywork postings */
 export type MealOption = 'breakfast' | 'lunch' | 'dinner';
+
+/** Subscription plan tiers */
+export type SubscriptionPlan = 'free' | 'crew_pro' | 'crew_unlimited';
+
+/** Subscription status from Stripe */
+export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing';

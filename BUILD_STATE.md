@@ -129,10 +129,11 @@
 - [Stage 88b] Replace `confirm()` with Dialog in chat "Mark complete" action
 - [Stage 89] Security hardening — vessel lookup IMO removal, messages person_id stripping, try/catch on 20 routes (25 handlers), safe request.json() on 17 routes, health check endpoint, body size limit config, avatar magic byte validation
 - [Stage 90] Rate limiting — Upstash Redis via middleware, 100/60s global + 30/60s write limits, exempt health + webhooks
+- [Stage 91] Stripe subscription scaffolding — subscriptions table, checkout/portal/status/webhook routes, subscription check helper
 
 ## Current Schema Version
 
-v41 — permanent opportunity signal (41 migrations applied)
+v42 — subscriptions (42 migrations applied)
 
 ## Migrations Applied
 
@@ -179,6 +180,7 @@ v41 — permanent opportunity signal (41 migrations applied)
 | `00039_profile_avatar.sql`                   | Profile avatar: `avatar_url` column on profiles, `apply_projection` updated for PROFILE.CREATED/UPDATED with avatar_url, Supabase Storage `avatars` bucket with RLS (public read, owner write)                                                                                                 |
 | `00040_notifications_and_read_cursors.sql`   | `message_read_cursors` table (person_id + engagement_id PK), `notifications` table with type/title/body/deep_link/read, RLS on both, index for unread queries                                                                                                                                  |
 | `00041_permanent_opportunity.sql`            | `permanent_opportunity` boolean on dayworks/templates, `permanent_opportunity_accuracy` on engagement_ratings, updated `apply_projection` DAYWORK.POSTED and ENGAGEMENT.RATED_BY_CREW handlers                                                                                                 |
+| `00042_subscriptions.sql`                    | `subscriptions` table (person_id UNIQUE, stripe_customer_id UNIQUE, plan CHECK, status CHECK), RLS owner read-only. Not event-sourced — Stripe-owned state.                                                                                                                                    |
 
 ## Deferred Decisions
 
@@ -192,6 +194,7 @@ v41 — permanent opportunity signal (41 migrations applied)
 - "Verified against public records" badge on vessels
 - Size band discovery filter operates post-fetch (50-row DB limit applied before filtering) — may produce sparse results. Options: increase pre-filter limit when sizeBandId set, or denormalize size_band_id onto dayworks table
 - `GET /api/notifications/count` has N+1 query pattern: loops through each engagement and makes a separate Supabase count query per engagement to calculate unread messages. For a user with 20 engagements, that's 22 queries (1 notification count + 1 engagement list + 20 per-engagement message counts). Works at MVP scale but should be replaced with a single aggregate query or Postgres function before launch. Same pattern exists in `GET /api/messages` for per-conversation unread counts.
+- Stripe product/price creation and dashboard setup (required before subscriptions work in any environment)
 - Per-user rate limiting (requires keying on user ID from auth session — adds latency since auth check must run before rate limit)
 - **Realtime messaging** — chat is currently poll-based (`setInterval`). Supabase Realtime is plug-and-play: one migration (`alter publication supabase_realtime add table public.messages`), replace polling with `supabase.channel().on('postgres_changes', ...)` subscription in `messages/[engagementId]/page.tsx`. RLS already gates access. Defer to polishing stage.
 - **Admin dashboard** — deferred to closer to launch. Scope: user lookup + deactivation, dispute viewer (ENGAGEMENT.COMPLETION_DISPUTED resolution), event log browser (read-only, filterable), crew list viewer, ability to send messages as "DockWalker Admin" (new sender identity, not tied to a person record). Option 2 approach: built-in `/admin` routes in the existing Next.js app behind a role check, using service role client. Not a quick CRUD panel — intended to be domain-aware with smart tooling.
