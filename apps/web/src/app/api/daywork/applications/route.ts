@@ -27,6 +27,7 @@ interface ApplicationRow {
       cities: { name: string; regions: { name: string } } | null;
     } | null;
     experience_brackets: { label: string } | null;
+    permanent_opportunity: boolean;
   } | null;
 }
 
@@ -59,7 +60,7 @@ export async function GET() {
       id, daywork_id, status, message, created_at,
       dayworks(
         id, job_number, start_date, end_date, working_days,
-        day_rate, currency, meals, notes, status, vessel_id, poster_person_id, positions_available, positions_filled,
+        day_rate, currency, meals, notes, status, vessel_id, poster_person_id, positions_available, positions_filled, permanent_opportunity,
         yacht_roles(id, name),
         ports(id, name, cities(name, regions(name))),
         experience_brackets(label)
@@ -139,6 +140,7 @@ export async function GET() {
             vessel_name: vessel?.nda_flag ? 'NDA Vessel' : (vessel?.name ?? null),
             vessel_type: vessel?.vessel_type ?? null,
             vessel_size_label: vessel?.size_band_label ?? null,
+            permanent_opportunity: app.dayworks?.permanent_opportunity ?? false,
           }
         : null,
     };

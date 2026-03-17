@@ -48,6 +48,7 @@ interface Template {
   meals: string[];
   notes: string | null;
   positions_available: number | null;
+  permanent_opportunity: boolean;
 }
 
 type MealOption = 'breakfast' | 'lunch' | 'dinner';
@@ -74,6 +75,7 @@ export default function PostDayworkPage() {
   const [meals, setMeals] = useState<MealOption[]>([]);
   const [notes, setNotes] = useState('');
   const [positionsAvailable, setPositionsAvailable] = useState('1');
+  const [permanentOpportunity, setPermanentOpportunity] = useState(false);
 
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
@@ -100,6 +102,7 @@ export default function PostDayworkPage() {
     setMeals((t.meals as MealOption[]) ?? []);
     setNotes(t.notes ?? '');
     setPositionsAvailable(t.positions_available ? String(t.positions_available) : '1');
+    setPermanentOpportunity(t.permanent_opportunity ?? false);
   }
 
   useEffect(() => {
@@ -200,6 +203,7 @@ export default function PostDayworkPage() {
         meals,
         notes: notes || null,
         positionsAvailable: parseInt(positionsAvailable, 10) || 1,
+        permanentOpportunity: permanentOpportunity || undefined,
       }),
     });
 
@@ -246,6 +250,7 @@ export default function PostDayworkPage() {
         meals,
         notes: notes || undefined,
         positionsAvailable: parseInt(positionsAvailable, 10) || 1,
+        permanentOpportunity: permanentOpportunity || undefined,
       }),
     });
 
@@ -467,6 +472,20 @@ export default function PostDayworkPage() {
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+        </div>
+
+        {/* Permanent opportunity */}
+        <div className="flex flex-col gap-1">
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={permanentOpportunity}
+              onCheckedChange={(checked) => setPermanentOpportunity(checked === true)}
+            />
+            Could lead to permanent role
+          </label>
+          <p className="text-xs text-muted-foreground pl-6">
+            Signal to crew that this daywork could lead to a permanent position. No guarantees.
+          </p>
         </div>
 
         {error && <p className="text-sm text-destructive">{error}</p>}

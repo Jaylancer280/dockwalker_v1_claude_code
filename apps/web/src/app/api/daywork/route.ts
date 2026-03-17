@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     meals,
     notes,
     positionsAvailable,
+    permanentOpportunity,
   } = body;
 
   // Validate required fields
@@ -228,6 +229,7 @@ export async function POST(request: Request) {
         meals: meals ?? [],
         notes: notes ?? null,
         positions_available: resolvedPositions,
+        permanent_opportunity: permanentOpportunity === true,
       },
       personId: user.id,
     });

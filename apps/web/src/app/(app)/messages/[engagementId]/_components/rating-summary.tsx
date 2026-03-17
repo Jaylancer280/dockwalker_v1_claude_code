@@ -26,6 +26,12 @@ export function RatingSummary({ rating }: { rating: RatingData }) {
             label="Would work on vessel again"
             value={formatBoolean(rating.would_work_on_vessel_again)}
           />
+          {rating.permanent_opportunity_accuracy && (
+            <SummaryRow
+              label="Led to permanent opportunity"
+              value={formatPermOpAccuracy(rating.permanent_opportunity_accuracy)}
+            />
+          )}
         </>
       ) : (
         <>
@@ -74,6 +80,12 @@ function formatDaysOption(val: string | null): string {
 function formatCertOption(val: string | null): string {
   if (!val) return '\u2014';
   const map: Record<string, string> = { yes: 'Yes', no: 'No', not_checked: 'Not checked' };
+  return map[val] ?? val;
+}
+
+function formatPermOpAccuracy(val: string | null): string {
+  if (!val) return '\u2014';
+  const map: Record<string, string> = { yes: 'Yes', no: 'No', not_applicable: 'N/A' };
   return map[val] ?? val;
 }
 

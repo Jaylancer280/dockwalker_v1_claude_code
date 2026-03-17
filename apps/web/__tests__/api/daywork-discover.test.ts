@@ -423,4 +423,38 @@ describe('GET /api/daywork/discover', () => {
     expect(body.has_more).toBe(false);
     expect(body.next_cursor).toBeNull();
   });
+
+  it('returns permanent_opportunity field in response', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+
+    const daywork = {
+      id: 'd1', vessel_id: null, poster_person_id: 'other',
+      start_date: '2026-04-01', end_date: '2026-04-05',
+      permanent_opportunity: true,
+      positions_available: 1, positions_filled: 0,
+    };
+    const { chain } = makeDayworksChain([daywork]);
+    mockFromAuth.mockReturnValueOnce(chain);
+    mockFromAuth.mockReturnValueOnce(makeProfilesChain());
+
+    const res = await GET(makeRequest());
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.dayworks[0].permanent_opportunity).toBe(true);
+  });
+
+  it('does not accept permanentOpportunity as a filter param', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
+
+    const { chain, filterProxy } = makeDayworksChain([]);
+    mockFromAuth.mockReturnValueOnce(chain);
+
+    const res = await GET(makeRequest('?permanentOpportunity=true'));
+    expect(res.status).toBe(200);
+    // The eq filter should NOT have been called with permanent_opportunity
+    const eqCalls = filterProxy.eq.mock.calls.map((c: unknown[]) => c[0]);
+    expect(eqCalls).not.toContain('permanent_opportunity');
+  });
 });

@@ -129,6 +129,7 @@ export default function ReviewApplicantsPage() {
   const [invitationLimit, setInvitationLimit] = useState(2);
   const [positionsAvailable, setPositionsAvailable] = useState(1);
   const [positionsFilled, setPositionsFilled] = useState(0);
+  const [permanentOpportunity, setPermanentOpportunity] = useState(false);
   const [allRoles, setAllRoles] = useState(false);
   const [passedIds, setPassedIds] = useState<Set<string>>(new Set());
   const [inviteError, setInviteError] = useState<string | null>(null);
@@ -176,6 +177,8 @@ export default function ReviewApplicantsPage() {
       if (data.applicants) setAllApplicants(data.applicants);
       if (data.positions_available !== undefined) setPositionsAvailable(data.positions_available);
       if (data.positions_filled !== undefined) setPositionsFilled(data.positions_filled);
+      if (data.permanent_opportunity !== undefined)
+        setPermanentOpportunity(data.permanent_opportunity);
       setError(null);
     } catch {
       setError('Failed to load applicants. Please try again.');
@@ -346,6 +349,11 @@ export default function ReviewApplicantsPage() {
             {positionsAvailable > 1 && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
                 {positionsFilled}/{positionsAvailable} filled
+              </span>
+            )}
+            {permanentOpportunity && (
+              <span className="rounded-full border border-border px-2 py-0.5 text-xs font-medium">
+                Could go permanent
               </span>
             )}
           </div>

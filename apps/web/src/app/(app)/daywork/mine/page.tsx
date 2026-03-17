@@ -56,6 +56,7 @@ interface DayworkPosting {
   notes: string | null;
   positions_available: number;
   positions_filled: number;
+  permanent_opportunity: boolean;
   status: string;
   created_at: string;
   yacht_roles: { name: string } | null;
@@ -305,6 +306,11 @@ export default function MyPostingsPage() {
             {posting.positions_available > 1 && (
               <Badge variant="secondary" className="w-fit text-xs">
                 {posting.positions_filled}/{posting.positions_available} crew accepted
+              </Badge>
+            )}
+            {posting.permanent_opportunity && (
+              <Badge variant="outline" className="w-fit text-xs">
+                Could go permanent
               </Badge>
             )}
           </div>

@@ -23,7 +23,7 @@ export async function GET(
       postponement_status, proposed_start_date, proposed_end_date, proposed_working_days,
       work_started_status, work_started_at,
       dayworks(
-        job_number, working_days, day_rate, currency, meals, notes,
+        job_number, working_days, day_rate, currency, meals, notes, permanent_opportunity,
         yacht_roles(name),
         ports(name, cities(name)),
         vessels(name, vessel_type, loa_meters, imo_number, vessel_size_bands(label))
@@ -53,7 +53,7 @@ export async function GET(
       supabase
         .from('engagement_ratings')
         .select(
-          'id, rater_role, rating_context, notice_given, pay_accuracy, meals_accuracy, role_accuracy, working_days_accuracy, vessel_condition, would_work_on_vessel_again, skills_as_advertised, certifications_verified, punctuality, would_rehire, communication_accuracy, overall_match',
+          'id, rater_role, rating_context, notice_given, pay_accuracy, meals_accuracy, role_accuracy, working_days_accuracy, vessel_condition, would_work_on_vessel_again, permanent_opportunity_accuracy, skills_as_advertised, certifications_verified, punctuality, would_rehire, communication_accuracy, overall_match',
         )
         .eq('engagement_id', engagementId)
         .eq('rater_person_id', user.id)

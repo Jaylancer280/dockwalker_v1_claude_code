@@ -402,4 +402,40 @@ describe('POST /api/daywork', () => {
     const body = await res.json();
     expect(body.error).toContain('duplicates');
   });
+
+  it('includes permanent_opportunity true in payload when provided', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    setupFkMocks();
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(
+      makeRequest({ ...validBody, permanentOpportunity: true }),
+    );
+    expect(res.status).toBe(201);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_payload: expect.objectContaining({
+          permanent_opportunity: true,
+        }),
+      }),
+    );
+  });
+
+  it('defaults permanent_opportunity to false when not provided', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    setupFkMocks();
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(201);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_payload: expect.objectContaining({
+          permanent_opportunity: false,
+        }),
+      }),
+    );
+  });
 });

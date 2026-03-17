@@ -77,7 +77,7 @@ export async function GET(request: Request) {
     .select(
       `
       id, job_number, vessel_id, start_date, end_date, working_days, day_rate, currency, meals, notes, status, created_at,
-      poster_person_id, positions_available, positions_filled,
+      poster_person_id, positions_available, positions_filled, permanent_opportunity,
       yacht_roles(id, name, department),
       ports(id, name, cities(name, regions(name))),
       experience_brackets(label),

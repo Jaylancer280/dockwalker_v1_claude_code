@@ -16,6 +16,7 @@ export interface RatingData {
   working_days_accuracy: string | null;
   vessel_condition: number | null;
   would_work_on_vessel_again: boolean | null;
+  permanent_opportunity_accuracy: string | null;
   skills_as_advertised: string | null;
   certifications_verified: string | null;
   punctuality: string | null;
@@ -55,6 +56,7 @@ export interface EngagementContext {
     currency: string;
     meals: string[];
     notes: string | null;
+    permanent_opportunity: boolean;
     yacht_roles: { name: string } | null;
     ports: { name: string; cities: { name: string } | null } | null;
     vessels: {

@@ -150,6 +150,7 @@ export interface EventPayloadMap {
     meals: string[];
     notes: string | null;
     positions_available?: number;
+    permanent_opportunity?: boolean;
   };
   'DAYWORK.CANCELLED_BY_EMPLOYER': Record<string, never>;
   'DAYWORK.COMPLETED': { daywork_id: string };
@@ -266,6 +267,7 @@ export interface EventPayloadMap {
     would_work_on_vessel_again: boolean;
     communication_accuracy: boolean;
     overall_match: number;
+    permanent_opportunity_accuracy?: string;
   };
   'ENGAGEMENT.RATED_BY_EMPLOYER': {
     engagement_id: string;

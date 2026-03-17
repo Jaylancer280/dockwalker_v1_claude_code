@@ -78,6 +78,7 @@ interface DayworkCard {
   positions_available: number;
   positions_filled: number;
   positions_remaining: number;
+  permanent_opportunity: boolean;
 }
 
 interface LookupItem {
@@ -124,6 +125,7 @@ interface MyApplication {
     vessel_size_label: string | null;
     positions_available: number | null;
     positions_filled: number | null;
+    permanent_opportunity: boolean;
   } | null;
 }
 
@@ -1193,6 +1195,11 @@ function JobCard({
                 {meal}
               </Badge>
             ))}
+          {card.permanent_opportunity && (
+            <Badge variant="outline" className="text-xs">
+              Could go permanent
+            </Badge>
+          )}
         </div>
 
         {/* Notes */}
@@ -1306,12 +1313,19 @@ function ApplicationCard({
           </div>
         </div>
 
-        {/* Positions badge for multi-crew */}
-        {dw.positions_available && dw.positions_available > 1 && dw.positions_filled !== null && (
-          <span className="w-fit rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-            {dw.positions_available - dw.positions_filled}/{dw.positions_available} open
-          </span>
-        )}
+        {/* Badges */}
+        <div className="flex flex-wrap gap-1.5">
+          {dw.positions_available && dw.positions_available > 1 && dw.positions_filled !== null && (
+            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+              {dw.positions_available - dw.positions_filled}/{dw.positions_available} open
+            </span>
+          )}
+          {dw.permanent_opportunity && (
+            <Badge variant="outline" className="text-xs">
+              Could go permanent
+            </Badge>
+          )}
+        </div>
 
         {/* Application message preview */}
         {application.message && (

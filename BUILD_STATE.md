@@ -124,10 +124,11 @@
 - [Stage 85a] Profile photos — `avatar_url` on profiles, Supabase Storage `avatars` bucket, avatar upload/delete API, Avatar + AvatarUpload components, integrated across profile, onboarding, messages, review, profile-overlay
 - [Stage 85b] Unread counts + notification centre — `message_read_cursors` + `notifications` tables, read cursor API, notification CRUD API, combined unread count endpoint, push-triggers write to notifications, bottom-nav badge, notification bell, notifications page, read cursor on chat mount
 - [Stage 86] Cursor-based discovery pagination — `cursor` query param on discover API, `has_more`/`next_cursor` in response, auto-load when card stack <= 5, retry on empty post-filter batches
+- [Stage 87] Permanent opportunity signal — `permanent_opportunity` boolean on dayworks/templates, crew rating `permanent_opportunity_accuracy` on engagement_ratings, badge on discover/mine/applications/review pages, toggle on post form, conditional rating question in crew completed-context form
 
 ## Current Schema Version
 
-v40 — notifications and read cursors (40 migrations applied)
+v41 — permanent opportunity signal (41 migrations applied)
 
 ## Migrations Applied
 
@@ -173,6 +174,7 @@ v40 — notifications and read cursors (40 migrations applied)
 | `00038_multi_crew_positions.sql`             | Multi-crew positions: `positions_available`/`positions_filled` columns, full `apply_projection` rewrite with atomic fill logic, `DAYWORK.POSITIONS_UPDATED` handler, cascade cancel of active engagements, no auto-revert on cancellation                                                      |
 | `00039_profile_avatar.sql`                   | Profile avatar: `avatar_url` column on profiles, `apply_projection` updated for PROFILE.CREATED/UPDATED with avatar_url, Supabase Storage `avatars` bucket with RLS (public read, owner write)                                                                                                 |
 | `00040_notifications_and_read_cursors.sql`   | `message_read_cursors` table (person_id + engagement_id PK), `notifications` table with type/title/body/deep_link/read, RLS on both, index for unread queries                                                                                                                                  |
+| `00041_permanent_opportunity.sql`            | `permanent_opportunity` boolean on dayworks/templates, `permanent_opportunity_accuracy` on engagement_ratings, updated `apply_projection` DAYWORK.POSTED and ENGAGEMENT.RATED_BY_CREW handlers                                                                                                 |
 
 ## Deferred Decisions
 

@@ -219,6 +219,8 @@ export default function ChatPage() {
                 communication_accuracy: (ratingData.communication_accuracy as boolean) ?? null,
                 overall_match: (ratingData.overall_match as number) ?? null,
                 notice_given: (ratingData.notice_given as string) ?? null,
+                permanent_opportunity_accuracy:
+                  (ratingData.permanent_opportunity_accuracy as string) ?? null,
               },
             }
           : prev,
@@ -803,6 +805,7 @@ export default function ChatPage() {
         <RatingFormOverlay
           isCrew={isCrew ?? false}
           isCancelled={context.status === 'cancelled'}
+          hasPermanentOpportunity={context.dayworks?.permanent_opportunity ?? false}
           submitting={submittingRating}
           onSubmit={handleSubmitRating}
           onCancel={() => setShowRating(false)}

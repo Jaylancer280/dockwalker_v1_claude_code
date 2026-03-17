@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       `
       id, name, role_id, location_port_id,
       working_days, required_certification_ids, experience_bracket_id,
-      day_rate, currency, meals, notes, positions_available
+      day_rate, currency, meals, notes, positions_available, permanent_opportunity
     `,
     )
     .eq('id', id)

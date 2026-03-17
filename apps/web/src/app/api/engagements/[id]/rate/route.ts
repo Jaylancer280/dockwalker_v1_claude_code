@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: engagement } = await supabase
     .from('active_engagements')
-    .select('id, crew_person_id, employer_person_id, status, crew_completion_status')
+    .select('id, crew_person_id, employer_person_id, daywork_id, status, crew_completion_status')
     .eq('id', engagementId)
     .single();
 
@@ -156,6 +156,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           );
         }
 
+        // Check if the daywork had permanent_opportunity flag for accuracy rating
+        let permanentOpportunityAccuracy: string | undefined;
+        if (body.permanent_opportunity_accuracy) {
+          const validAccuracy = ['yes', 'no', 'not_applicable'];
+          if (!validAccuracy.includes(body.permanent_opportunity_accuracy)) {
+            return NextResponse.json(
+              { error: 'permanent_opportunity_accuracy must be yes, no, or not_applicable' },
+              { status: 400 },
+            );
+          }
+          // Verify the daywork actually had the flag
+          const { data: dayworkData } = await supabase
+            .from('dayworks')
+            .select('permanent_opportunity')
+            .eq('id', engagement.daywork_id)
+            .single();
+          if (dayworkData?.permanent_opportunity) {
+            permanentOpportunityAccuracy = body.permanent_opportunity_accuracy;
+          }
+        }
+
         await appendEvent(serviceClient, {
           eventType: 'ENGAGEMENT.RATED_BY_CREW',
           aggregateId: engagementId,
@@ -171,6 +192,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             would_work_on_vessel_again: body.would_work_on_vessel_again,
             communication_accuracy: body.communication_accuracy,
             overall_match: body.overall_match,
+            ...(permanentOpportunityAccuracy
+              ? { permanent_opportunity_accuracy: permanentOpportunityAccuracy }
+              : {}),
           },
           personId: user.id,
         });

@@ -236,4 +236,52 @@ describe('POST /api/engagements/:id/rate', () => {
     const res = await POST(makeRequest(employerRatingBody), makeParams('e1'));
     expect(res.status).toBe(200);
   });
+
+  it('includes permanent_opportunity_accuracy in RATED_BY_CREW when daywork had flag', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(
+        makeChain({
+          id: 'e1', crew_person_id: 'crew1', employer_person_id: 'emp1',
+          daywork_id: 'dw1', status: 'completed', crew_completion_status: 'confirmed',
+        }),
+      )
+      .mockReturnValueOnce(makeChain(null)) // no existing rating
+      .mockReturnValueOnce(makeChain({ permanent_opportunity: true })); // daywork lookup
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(
+      makeRequest({ ...crewRatingBody, permanent_opportunity_accuracy: 'yes' }),
+      makeParams('e1'),
+    );
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'ENGAGEMENT.RATED_BY_CREW',
+        p_payload: expect.objectContaining({
+          permanent_opportunity_accuracy: 'yes',
+        }),
+      }),
+    );
+  });
+
+  it('crew completed rating still passes without permanent_opportunity_accuracy', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(
+        makeChain({
+          id: 'e1', crew_person_id: 'crew1', employer_person_id: 'emp1',
+          daywork_id: 'dw1', status: 'completed', crew_completion_status: 'confirmed',
+        }),
+      )
+      .mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(makeRequest(crewRatingBody), makeParams('e1'));
+    expect(res.status).toBe(200);
+    // Payload should NOT contain the field
+    const payload = mockRpc.mock.calls[0][1].p_payload;
+    expect(payload).not.toHaveProperty('permanent_opportunity_accuracy');
+  });
 });

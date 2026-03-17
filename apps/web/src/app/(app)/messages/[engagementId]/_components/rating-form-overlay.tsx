@@ -17,12 +17,14 @@ const YES_NO_PARTIAL = [
 export function RatingFormOverlay({
   isCrew,
   isCancelled,
+  hasPermanentOpportunity,
   submitting,
   onSubmit,
   onCancel,
 }: {
   isCrew: boolean;
   isCancelled: boolean;
+  hasPermanentOpportunity?: boolean;
   submitting: boolean;
   onSubmit: (data: Record<string, unknown>) => void;
   onCancel: () => void;
@@ -44,6 +46,9 @@ export function RatingFormOverlay({
   const [punctuality, setPunctuality] = useState<TriOption | null>(null);
   const [wouldRehire, setWouldRehire] = useState<boolean | null>(null);
 
+  // Permanent opportunity accuracy (crew completed-context only, when daywork had the flag)
+  const [permOpAccuracy, setPermOpAccuracy] = useState<string | null>(null);
+
   // Symmetric fields
   const [commAccuracy, setCommAccuracy] = useState<boolean | null>(null);
   const [overallMatch, setOverallMatch] = useState(0);
@@ -59,7 +64,8 @@ export function RatingFormOverlay({
       roleAccuracy !== null &&
       workingDaysAccuracy !== null &&
       vesselCondition > 0 &&
-      wouldWorkAgain !== null;
+      wouldWorkAgain !== null &&
+      (!hasPermanentOpportunity || permOpAccuracy !== null);
   } else {
     isValid =
       isValid &&
@@ -94,6 +100,9 @@ export function RatingFormOverlay({
         would_work_on_vessel_again: wouldWorkAgain,
         communication_accuracy: commAccuracy,
         overall_match: overallMatch,
+        ...(hasPermanentOpportunity && permOpAccuracy
+          ? { permanent_opportunity_accuracy: permOpAccuracy }
+          : {}),
       });
     } else {
       onSubmit({
@@ -177,6 +186,18 @@ export function RatingFormOverlay({
                 value={wouldWorkAgain}
                 onChange={setWouldWorkAgain}
               />
+              {hasPermanentOpportunity && (
+                <OptionGroup
+                  label="Did the engagement lead to a permanent opportunity?"
+                  options={[
+                    { value: 'yes', label: 'Yes' },
+                    { value: 'no', label: 'No' },
+                    { value: 'not_applicable', label: 'N/A' },
+                  ]}
+                  value={permOpAccuracy}
+                  onChange={setPermOpAccuracy}
+                />
+              )}
             </>
           ) : (
             <>

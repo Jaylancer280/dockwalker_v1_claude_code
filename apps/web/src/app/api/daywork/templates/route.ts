@@ -16,7 +16,7 @@ export async function GET() {
       `
       id, name, role_id, location_port_id,
       working_days, required_certification_ids, experience_bracket_id,
-      day_rate, currency, meals, notes, positions_available, created_at,
+      day_rate, currency, meals, notes, positions_available, permanent_opportunity, created_at,
       yacht_roles(name),
       ports(name, cities(name, regions(name)))
     `,
@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       meals: body.meals || [],
       notes: body.notes || null,
       positions_available: body.positionsAvailable || 1,
+      permanent_opportunity: body.permanentOpportunity === true,
     })
     .select('id')
     .single();

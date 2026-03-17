@@ -82,6 +82,7 @@ export interface Daywork {
   notes: string | null;
   positions_available: number;
   positions_filled: number;
+  permanent_opportunity: boolean;
   status: 'active' | 'in_progress' | 'cancelled' | 'completed';
   created_at: string;
 }
@@ -160,6 +161,7 @@ export interface EngagementRating {
   working_days_accuracy: string | null;
   vessel_condition: number | null;
   would_work_on_vessel_again: boolean | null;
+  permanent_opportunity_accuracy: string | null;
   // Employer-specific
   skills_as_advertised: string | null;
   certifications_verified: string | null;
