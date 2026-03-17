@@ -125,6 +125,7 @@
 - [Stage 85b] Unread counts + notification centre — `message_read_cursors` + `notifications` tables, read cursor API, notification CRUD API, combined unread count endpoint, push-triggers write to notifications, bottom-nav badge, notification bell, notifications page, read cursor on chat mount
 - [Stage 86] Cursor-based discovery pagination — `cursor` query param on discover API, `has_more`/`next_cursor` in response, auto-load when card stack <= 5, retry on empty post-filter batches
 - [Stage 87] Permanent opportunity signal — `permanent_opportunity` boolean on dayworks/templates, crew rating `permanent_opportunity_accuracy` on engagement_ratings, badge on discover/mine/applications/review pages, toggle on post form, conditional rating question in crew completed-context form
+- [Stage 88] UX hardening — 6 missing update-positions tests, error states on messages/notifications pages, toast notification system replacing all `alert()` in chat, confirmation dialogs on experience delete and daywork post
 
 ## Current Schema Version
 

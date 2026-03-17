@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { MessageSquare, MapPin, Calendar, Loader2, ClipboardCheck, Archive } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { NotificationBell } from '@/components/notification-bell';
@@ -32,20 +33,27 @@ type TabView = 'active' | 'history';
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabView>('active');
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/messages');
-    const data = await res.json();
-    if (data.conversations) setConversations(data.conversations);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/messages');
+      const data = await res.json();
+      if (data.conversations) setConversations(data.conversations);
+      setError(null);
+    } catch {
+      setError('Failed to load messages. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     load();
   }, [load]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   // Active: active engagements + completed/cancelled that still need rating
   const active = conversations.filter(
@@ -97,6 +105,15 @@ export default function MessagesPage() {
       </div>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-2 px-4 py-4">
+        {error && (
+          <div className="mb-4 flex flex-col items-center gap-2 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={load}>
+              Retry
+            </Button>
+          </div>
+        )}
+
         {loading && (
           <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />

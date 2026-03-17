@@ -279,6 +279,152 @@ describe('POST /api/daywork/:id/update-positions', () => {
     expect(body.error).toContain('filled count');
   });
 
+  it('returns 404 when daywork ID does not exist', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSingleChain(null));
+
+    const req = new Request('http://localhost/api/daywork/dw1/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: 2 }),
+    });
+
+    const res = await UpdatePositionsPOST(req, { params });
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain('not found');
+  });
+
+  it('returns 400 when daywork status is not active', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({
+        id: 'dw1',
+        poster_person_id: 'u1',
+        status: 'cancelled',
+        positions_available: 4,
+        positions_filled: 0,
+      }),
+    );
+
+    const req = new Request('http://localhost/api/daywork/dw1/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: 2 }),
+    });
+
+    const res = await UpdatePositionsPOST(req, { params });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('active');
+  });
+
+  it('returns 400 when positionsAvailable is NaN', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({
+        id: 'dw1',
+        poster_person_id: 'u1',
+        status: 'active',
+        positions_available: 4,
+        positions_filled: 0,
+      }),
+    );
+
+    const req = new Request('http://localhost/api/daywork/dw1/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: 'abc' }),
+    });
+
+    const res = await UpdatePositionsPOST(req, { params });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('between 1 and 20');
+  });
+
+  it('returns 400 when positionsAvailable is 0', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({
+        id: 'dw1',
+        poster_person_id: 'u1',
+        status: 'active',
+        positions_available: 4,
+        positions_filled: 0,
+      }),
+    );
+
+    const req = new Request('http://localhost/api/daywork/dw1/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: 0 }),
+    });
+
+    const res = await UpdatePositionsPOST(req, { params });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('between 1 and 20');
+  });
+
+  it('returns 400 when positionsAvailable exceeds 20', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({
+        id: 'dw1',
+        poster_person_id: 'u1',
+        status: 'active',
+        positions_available: 4,
+        positions_filled: 0,
+      }),
+    );
+
+    const req = new Request('http://localhost/api/daywork/dw1/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: 21 }),
+    });
+
+    const res = await UpdatePositionsPOST(req, { params });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('between 1 and 20');
+  });
+
+  it('succeeds when increasing positions and verifies event payload', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({
+        id: 'dw1',
+        poster_person_id: 'u1',
+        status: 'active',
+        positions_available: 4,
+        positions_filled: 2,
+      }),
+    );
+
+    const req = new Request('http://localhost/api/daywork/dw1/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: 6 }),
+    });
+
+    const res = await UpdatePositionsPOST(req, { params });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.positions_available).toBe(6);
+    expect(body.positions_filled).toBe(2);
+
+    expect(mockAppendEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventType: 'DAYWORK.POSITIONS_UPDATED',
+        payload: { daywork_id: 'dw1', positions_available: 6 },
+      }),
+    );
+  });
+
   it('succeeds when reducing to filled count (triggers transition)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 

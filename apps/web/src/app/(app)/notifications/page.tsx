@@ -60,21 +60,28 @@ export default function NotificationsPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/notifications');
-    if (res.ok) {
-      const data = await res.json();
-      setNotifications(data.notifications ?? []);
+    try {
+      const res = await fetch('/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications ?? []);
+      }
+      setError(null);
+    } catch {
+      setError('Failed to load notifications. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     load();
   }, [load]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   async function markAllRead() {
     await fetch('/api/notifications/read', {
@@ -115,6 +122,15 @@ export default function NotificationsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
+        {error && (
+          <div className="mb-4 flex flex-col items-center gap-2 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={load}>
+              Retry
+            </Button>
+          </div>
+        )}
+
         {loading && (
           <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />

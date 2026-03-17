@@ -18,6 +18,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -81,6 +82,8 @@ export default function PostDayworkPage() {
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certs, setCerts] = useState<LookupItem[]>([]);
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
+
+  const [showPostConfirm, setShowPostConfirm] = useState(false);
 
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -222,7 +225,7 @@ export default function PostDayworkPage() {
     setSaveDialogOpen(true);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -231,6 +234,11 @@ export default function PostDayworkPage() {
       return;
     }
 
+    setShowPostConfirm(true);
+  }
+
+  async function handleConfirmedSubmit() {
+    setShowPostConfirm(false);
     setLoading(true);
 
     const res = await fetch('/api/daywork', {
@@ -500,6 +508,27 @@ export default function PostDayworkPage() {
           </Button>
         </div>
       </form>
+
+      {/* Post confirmation dialog */}
+      <Dialog open={showPostConfirm} onOpenChange={setShowPostConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Post daywork</DialogTitle>
+            <DialogDescription>
+              This will publish your daywork listing and make it visible to crew. You can cancel the
+              posting later if needed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPostConfirm(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmedSubmit} disabled={loading}>
+              {loading ? 'Posting...' : 'Post'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Save template dialog */}
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>

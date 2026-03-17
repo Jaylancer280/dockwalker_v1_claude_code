@@ -17,6 +17,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 import type { Message, EngagementContext } from './_components/types';
 import { POLL_INTERVAL } from './_components/types';
@@ -38,6 +39,7 @@ import {
 export default function ChatPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
   const router = useRouter();
+  const { showError } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -182,7 +184,7 @@ export default function ChatPage() {
       setContext((prev) => (prev ? { ...prev, crew_completion_status: data.status } : prev));
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to confirm');
+      showError(data.error ?? 'Failed to confirm');
     }
     setConfirming(false);
   }
@@ -228,7 +230,7 @@ export default function ChatPage() {
       setShowRating(false);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to submit rating');
+      showError(data.error ?? 'Failed to submit rating');
     }
     setSubmittingRating(false);
   }
@@ -250,7 +252,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to cancel');
+      showError(data.error ?? 'Failed to cancel');
     }
   }
 
@@ -268,7 +270,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to cancel');
+      showError(data.error ?? 'Failed to cancel');
     }
   }
 
@@ -288,7 +290,7 @@ export default function ChatPage() {
           router.push(`/daywork/post?fromDaywork=${context.daywork_id}`);
         } else {
           const data = await res.json().catch(() => ({}));
-          alert(data.error ?? 'Failed to cancel original posting');
+          showError(data.error ?? 'Failed to cancel original posting');
           setRespondingCrewCancel(false);
         }
         return;
@@ -305,7 +307,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to respond');
+      showError(data.error ?? 'Failed to respond');
     }
     setRespondingCrewCancel(false);
   }
@@ -319,7 +321,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to complete');
+      showError(data.error ?? 'Failed to complete');
     }
     setCompleting(false);
   }
@@ -355,7 +357,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to relist');
+      showError(data.error ?? 'Failed to relist');
     }
     setRelistingAfterRejection(false);
   }
@@ -371,7 +373,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to respond');
+      showError(data.error ?? 'Failed to respond');
     }
     setRespondingPostponement(false);
   }
@@ -387,7 +389,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to update');
+      showError(data.error ?? 'Failed to update');
     }
     setWorkStarting(false);
   }
@@ -403,7 +405,7 @@ export default function ChatPage() {
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to set checklist');
+      showError(data.error ?? 'Failed to set checklist');
     }
   }
 

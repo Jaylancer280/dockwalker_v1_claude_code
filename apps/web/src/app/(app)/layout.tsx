@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { BottomNav } from '@/components/bottom-nav';
+import { ToastWrapper } from '@/components/toast-wrapper';
 
 export default async function AppLayout({
   children,
@@ -24,9 +25,9 @@ export default async function AppLayout({
   if (!person) redirect('/onboarding');
 
   return (
-    <>
+    <ToastWrapper>
       <div className="pb-nav">{children}</div>
       <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
-    </>
+    </ToastWrapper>
   );
 }

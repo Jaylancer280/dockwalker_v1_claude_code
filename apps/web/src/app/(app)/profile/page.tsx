@@ -35,6 +35,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { HatSwitcher } from '@/components/hat-switcher';
 import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { LocationPicker } from '@/components/location-picker';
@@ -124,6 +132,7 @@ export default function ProfilePage() {
   const [experiences, setExperiences] = useState<ExperienceEntry[]>([]);
   const [expandedExpId, setExpandedExpId] = useState<string | null>(null);
   const [deletingExpId, setDeletingExpId] = useState<string | null>(null);
+  const [confirmDeleteExpId, setConfirmDeleteExpId] = useState<string | null>(null);
 
   // Availability state
   const [availWindows, setAvailWindows] = useState<AvailabilityWindow[]>([]);
@@ -694,7 +703,7 @@ export default function ProfilePage() {
                             disabled={deletingExpId === exp.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteExperience(exp.id);
+                              setConfirmDeleteExpId(exp.id);
                             }}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -892,6 +901,35 @@ export default function ProfilePage() {
           onCancel={() => setShowAvailOverlay(false)}
         />
       )}
+
+      <Dialog open={!!confirmDeleteExpId} onOpenChange={() => setConfirmDeleteExpId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete experience</DialogTitle>
+            <DialogDescription>
+              This will permanently remove this experience entry from your profile. This cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmDeleteExpId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!!deletingExpId}
+              onClick={async () => {
+                if (confirmDeleteExpId) {
+                  await handleDeleteExperience(confirmDeleteExpId);
+                  setConfirmDeleteExpId(null);
+                }
+              }}
+            >
+              {deletingExpId ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
