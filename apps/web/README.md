@@ -136,6 +136,7 @@ Integration tests (`npm run test:integration`) run against a real local Supabase
 - **Health check:** `GET /api/health` — public, no auth, no DB. Returns `{ status: 'ok', timestamp }`. Use for uptime monitoring and load balancer checks.
 - **Body size limit:** Server actions body size is set to 1MB in `next.config.ts` (`experimental.serverActions.bodySizeLimit`). Route handlers use the Next.js default (also 1MB).
 - **Avatar upload:** MIME type validation + magic byte validation (JPEG/PNG/WebP). Max 2MB. Spoofed Content-Type headers are rejected.
+- **Rate limiting:** Upstash Redis via Next.js middleware (`proxy.ts`). Global: 100 requests/60s per IP for all API routes. Write routes (POST/PATCH/DELETE): 30 requests/60s per IP. Exempt: `/api/health`, `/api/webhooks/*`. Graceful no-op when `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` are not configured (local dev). Set up: create an Upstash Redis store at [upstash.com](https://upstash.com) or via the Vercel integration, copy REST URL + token to env vars.
 
 ## Architectural Notes
 
