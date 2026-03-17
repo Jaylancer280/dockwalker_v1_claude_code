@@ -131,6 +131,12 @@ The API tests mock `@/lib/supabase/server` and call route handlers directly. Com
 
 Integration tests (`npm run test:integration`) run against a real local Supabase instance and verify that events emitted with the same payload shape as the API routes are correctly projected into materialised tables. They require `npx supabase start` and `npx supabase db reset` to be run first. These tests are excluded from the default `npm test` run.
 
+## Infrastructure
+
+- **Health check:** `GET /api/health` — public, no auth, no DB. Returns `{ status: 'ok', timestamp }`. Use for uptime monitoring and load balancer checks.
+- **Body size limit:** Server actions body size is set to 1MB in `next.config.ts` (`experimental.serverActions.bodySizeLimit`). Route handlers use the Next.js default (also 1MB).
+- **Avatar upload:** MIME type validation + magic byte validation (JPEG/PNG/WebP). Max 2MB. Spoofed Content-Type headers are rejected.
+
 ## Architectural Notes
 
 - Core domain state is event-sourced through `append_event`.

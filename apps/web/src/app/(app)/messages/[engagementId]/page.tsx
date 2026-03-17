@@ -17,6 +17,14 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 
 import type { Message, EngagementContext } from './_components/types';
@@ -56,6 +64,7 @@ export default function ChatPage() {
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [relistingAfterRejection, setRelistingAfterRejection] = useState(false);
   const [respondingCrewCancel, setRespondingCrewCancel] = useState(false);
   const [respondingPostponement, setRespondingPostponement] = useState(false);
@@ -314,7 +323,7 @@ export default function ChatPage() {
 
   async function handleComplete() {
     if (!context) return;
-    if (!confirm('Mark this daywork as completed? This cannot be undone.')) return;
+    setShowCompleteConfirm(false);
     setCompleting(true);
     const res = await fetch(`/api/daywork/${context.daywork_id}/complete`, { method: 'POST' });
     if (res.ok) {
@@ -539,7 +548,7 @@ export default function ChatPage() {
                         className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
                         onClick={() => {
                           setShowActionMenu(false);
-                          handleComplete();
+                          setShowCompleteConfirm(true);
                         }}
                         disabled={completing}
                       >
@@ -801,6 +810,26 @@ export default function ChatPage() {
           onCancel={() => setShowChecklistForm(false)}
         />
       )}
+
+      {/* Complete confirmation dialog */}
+      <Dialog open={showCompleteConfirm} onOpenChange={setShowCompleteConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark daywork as completed</DialogTitle>
+            <DialogDescription>
+              This will mark the daywork as completed for all engaged crew. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowCompleteConfirm(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleComplete} disabled={completing}>
+              {completing ? 'Completing...' : 'Mark complete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Rating form overlay */}
       {showRating && context && userId && (

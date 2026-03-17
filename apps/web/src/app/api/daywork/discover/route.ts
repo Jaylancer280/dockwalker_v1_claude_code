@@ -45,37 +45,39 @@ interface PublicVesselRow {
 export async function GET(request: Request) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, person, supabase } = guard.value;
 
-  if (person.current_hat !== 'crew') {
-    return NextResponse.json({ error: 'Only crew can discover jobs' }, { status: 403 });
-  }
+  try {
+    const { user, person, supabase } = guard.value;
 
-  const { searchParams } = new URL(request.url);
-  const filterRoleId = searchParams.get('roleId');
-  const filterPortId = searchParams.get('portId');
-  const filterStartDate = searchParams.get('startDate');
-  const filterEndDate = searchParams.get('endDate');
-  const filterCertificationId = searchParams.get('certificationId');
-  const filterExperienceBracketId = searchParams.get('experienceBracketId');
-  const filterSizeBandId = searchParams.get('sizeBandId');
-  const cursor = searchParams.get('cursor');
+    if (person.current_hat !== 'crew') {
+      return NextResponse.json({ error: 'Only crew can discover jobs' }, { status: 403 });
+    }
 
-  // Get IDs of dayworks this crew has already interacted with
-  const { data: existingApps } = await supabase
-    .from('applications')
-    .select('daywork_id')
-    .eq('crew_person_id', user.id)
-    .in('status', ['applied', 'viewed', 'shortlisted', 'accepted', 'superseded', 'withdrawn']);
+    const { searchParams } = new URL(request.url);
+    const filterRoleId = searchParams.get('roleId');
+    const filterPortId = searchParams.get('portId');
+    const filterStartDate = searchParams.get('startDate');
+    const filterEndDate = searchParams.get('endDate');
+    const filterCertificationId = searchParams.get('certificationId');
+    const filterExperienceBracketId = searchParams.get('experienceBracketId');
+    const filterSizeBandId = searchParams.get('sizeBandId');
+    const cursor = searchParams.get('cursor');
 
-  const excludedIds = (existingApps ?? []).map((a) => a.daywork_id);
+    // Get IDs of dayworks this crew has already interacted with
+    const { data: existingApps } = await supabase
+      .from('applications')
+      .select('daywork_id')
+      .eq('crew_person_id', user.id)
+      .in('status', ['applied', 'viewed', 'shortlisted', 'accepted', 'superseded', 'withdrawn']);
 
-  // Build query for active dayworks, ordered by recency.
-  // Exclusions are applied at the DB level so the limit operates on already-filtered rows.
-  let query = supabase
-    .from('dayworks')
-    .select(
-      `
+    const excludedIds = (existingApps ?? []).map((a) => a.daywork_id);
+
+    // Build query for active dayworks, ordered by recency.
+    // Exclusions are applied at the DB level so the limit operates on already-filtered rows.
+    let query = supabase
+      .from('dayworks')
+      .select(
+        `
       id, job_number, vessel_id, start_date, end_date, working_days, day_rate, currency, meals, notes, status, created_at,
       poster_person_id, positions_available, positions_filled, permanent_opportunity,
       yacht_roles(id, name, department),
@@ -83,114 +85,118 @@ export async function GET(request: Request) {
       experience_brackets(label),
       required_certification_ids
     `,
-    )
-    .eq('status', 'active')
-    .neq('poster_person_id', user.id);
+      )
+      .eq('status', 'active')
+      .neq('poster_person_id', user.id);
 
-  if (excludedIds.length > 0) {
-    query = query.not('id', 'in', `(${excludedIds.join(',')})`);
-  }
-
-  if (filterRoleId) {
-    query = query.eq('role_id', filterRoleId);
-  }
-  if (filterPortId) {
-    query = query.eq('location_port_id', filterPortId);
-  }
-  if (filterStartDate) {
-    query = query.gte('start_date', filterStartDate);
-  }
-  if (filterEndDate) {
-    query = query.lte('end_date', filterEndDate);
-  }
-  if (filterCertificationId) {
-    if (filterCertificationId === 'none') {
-      query = query.eq('required_certification_ids', '{}');
-    } else {
-      query = query.contains('required_certification_ids', [filterCertificationId]);
+    if (excludedIds.length > 0) {
+      query = query.not('id', 'in', `(${excludedIds.join(',')})`);
     }
-  }
-  if (filterExperienceBracketId) {
-    query = query.eq('experience_bracket_id', filterExperienceBracketId);
-  }
-  if (cursor) {
-    query = query.lt('created_at', cursor);
-  }
 
-  query = query.order('created_at', { ascending: false });
-
-  const { data: dayworks, error } = await query.limit(50);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  const filtered = (dayworks ?? []) as unknown as DiscoverDayworkRow[];
-
-  const vesselIds = [...new Set(filtered.map((dw) => dw.vessel_id).filter(Boolean))];
-  const vesselEntries: Array<[string, PublicVesselRow | null]> = await Promise.all(
-    vesselIds.map(async (vesselId): Promise<[string, PublicVesselRow | null]> => {
-      const { data, error } = await supabase.rpc('get_vessel_public', {
-        p_vessel_id: vesselId,
-      });
-
-      if (error) {
-        return [vesselId, null];
+    if (filterRoleId) {
+      query = query.eq('role_id', filterRoleId);
+    }
+    if (filterPortId) {
+      query = query.eq('location_port_id', filterPortId);
+    }
+    if (filterStartDate) {
+      query = query.gte('start_date', filterStartDate);
+    }
+    if (filterEndDate) {
+      query = query.lte('end_date', filterEndDate);
+    }
+    if (filterCertificationId) {
+      if (filterCertificationId === 'none') {
+        query = query.eq('required_certification_ids', '{}');
+      } else {
+        query = query.contains('required_certification_ids', [filterCertificationId]);
       }
-
-      const vessel = Array.isArray(data) ? data[0] : data;
-
-      return vessel ? [vesselId, vessel as PublicVesselRow] : [vesselId, null];
-    }),
-  );
-
-  const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
-
-  // Resolve poster display names
-  const posterIds = [...new Set(filtered.map((d) => d.poster_person_id))];
-  const posterNameMap = new Map<string, string>();
-  if (posterIds.length > 0) {
-    const { data: posterProfiles } = await supabase
-      .from('profiles')
-      .select('person_id, display_name')
-      .in('person_id', posterIds);
-    for (const p of posterProfiles ?? []) {
-      posterNameMap.set(p.person_id, p.display_name);
     }
+    if (filterExperienceBracketId) {
+      query = query.eq('experience_bracket_id', filterExperienceBracketId);
+    }
+    if (cursor) {
+      query = query.lt('created_at', cursor);
+    }
+
+    query = query.order('created_at', { ascending: false });
+
+    const { data: dayworks, error } = await query.limit(50);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const filtered = (dayworks ?? []) as unknown as DiscoverDayworkRow[];
+
+    const vesselIds = [...new Set(filtered.map((dw) => dw.vessel_id).filter(Boolean))];
+    const vesselEntries: Array<[string, PublicVesselRow | null]> = await Promise.all(
+      vesselIds.map(async (vesselId): Promise<[string, PublicVesselRow | null]> => {
+        const { data, error } = await supabase.rpc('get_vessel_public', {
+          p_vessel_id: vesselId,
+        });
+
+        if (error) {
+          return [vesselId, null];
+        }
+
+        const vessel = Array.isArray(data) ? data[0] : data;
+
+        return vessel ? [vesselId, vessel as PublicVesselRow] : [vesselId, null];
+      }),
+    );
+
+    const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
+
+    // Resolve poster display names
+    const posterIds = [...new Set(filtered.map((d) => d.poster_person_id))];
+    const posterNameMap = new Map<string, string>();
+    if (posterIds.length > 0) {
+      const { data: posterProfiles } = await supabase
+        .from('profiles')
+        .select('person_id, display_name')
+        .in('person_id', posterIds);
+      for (const p of posterProfiles ?? []) {
+        posterNameMap.set(p.person_id, p.display_name);
+      }
+    }
+
+    let hydrated = filtered.map((daywork) => {
+      const vessel = vesselMap.get(daywork.vessel_id);
+      const row = daywork as DiscoverDayworkRow & {
+        positions_available: number;
+        positions_filled: number;
+      };
+
+      return {
+        ...daywork,
+        positions_remaining: row.positions_available - row.positions_filled,
+        poster_name: posterNameMap.get(daywork.poster_person_id) ?? null,
+        vessels: vessel
+          ? {
+              name: vessel.name,
+              nda_flag: vessel.nda_flag,
+              vessel_type: vessel.vessel_type,
+              size_band_id: vessel.size_band_id,
+              vessel_size_bands: vessel.size_band_label ? { label: vessel.size_band_label } : null,
+            }
+          : null,
+      };
+    });
+
+    // Post-fetch filter: sizeBandId requires vessel data which comes from RPC
+    if (filterSizeBandId) {
+      hydrated = hydrated.filter((dw) => dw.vessels?.size_band_id === filterSizeBandId);
+    }
+
+    const BATCH_SIZE = 50;
+    const hasMore = filtered.length === BATCH_SIZE;
+    const nextCursor =
+      hasMore && hydrated.length > 0 ? hydrated[hydrated.length - 1].created_at : null;
+
+    return NextResponse.json({ dayworks: hydrated, has_more: hasMore, next_cursor: nextCursor });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  let hydrated = filtered.map((daywork) => {
-    const vessel = vesselMap.get(daywork.vessel_id);
-    const row = daywork as DiscoverDayworkRow & {
-      positions_available: number;
-      positions_filled: number;
-    };
-
-    return {
-      ...daywork,
-      positions_remaining: row.positions_available - row.positions_filled,
-      poster_name: posterNameMap.get(daywork.poster_person_id) ?? null,
-      vessels: vessel
-        ? {
-            name: vessel.name,
-            nda_flag: vessel.nda_flag,
-            vessel_type: vessel.vessel_type,
-            size_band_id: vessel.size_band_id,
-            vessel_size_bands: vessel.size_band_label ? { label: vessel.size_band_label } : null,
-          }
-        : null,
-    };
-  });
-
-  // Post-fetch filter: sizeBandId requires vessel data which comes from RPC
-  if (filterSizeBandId) {
-    hydrated = hydrated.filter((dw) => dw.vessels?.size_band_id === filterSizeBandId);
-  }
-
-  const BATCH_SIZE = 50;
-  const hasMore = filtered.length === BATCH_SIZE;
-  const nextCursor =
-    hasMore && hydrated.length > 0 ? hydrated[hydrated.length - 1].created_at : null;
-
-  return NextResponse.json({ dayworks: hydrated, has_more: hasMore, next_cursor: nextCursor });
 }

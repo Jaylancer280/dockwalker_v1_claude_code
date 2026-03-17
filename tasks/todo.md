@@ -11,8 +11,8 @@
 
 ## Queue
 
-(empty)
+Stage 90: Rate limiting (requires infra decision — Vercel edge middleware vs Redis-backed vs Upstash)
 
 ## Done
 
-(See git history for completed stages 51-88)
+(See git history for completed stages 51-89)

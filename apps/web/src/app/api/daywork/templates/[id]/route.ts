@@ -9,26 +9,32 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase } = guard.value;
 
-  const { data: template, error } = await supabase
-    .from('daywork_templates')
-    .select(
-      `
-      id, name, role_id, location_port_id,
-      working_days, required_certification_ids, experience_bracket_id,
-      day_rate, currency, meals, notes, positions_available, permanent_opportunity
-    `,
-    )
-    .eq('id', id)
-    .eq('person_id', user.id)
-    .single();
+  try {
+    const { user, supabase } = guard.value;
 
-  if (error || !template) {
-    return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+    const { data: template, error } = await supabase
+      .from('daywork_templates')
+      .select(
+        `
+        id, name, role_id, location_port_id,
+        working_days, required_certification_ids, experience_bracket_id,
+        day_rate, currency, meals, notes, positions_available, permanent_opportunity
+      `,
+      )
+      .eq('id', id)
+      .eq('person_id', user.id)
+      .single();
+
+    if (error || !template) {
+      return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ template });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return NextResponse.json({ template });
 }
 
 /**
@@ -39,17 +45,23 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
   const { id } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase } = guard.value;
 
-  const { error } = await supabase
-    .from('daywork_templates')
-    .delete()
-    .eq('id', id)
-    .eq('person_id', user.id);
+  try {
+    const { user, supabase } = guard.value;
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { error } = await supabase
+      .from('daywork_templates')
+      .delete()
+      .eq('id', id)
+      .eq('person_id', user.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return NextResponse.json({ success: true });
 }

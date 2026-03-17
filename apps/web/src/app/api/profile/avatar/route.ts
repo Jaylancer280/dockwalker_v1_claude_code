@@ -5,6 +5,30 @@ import { appendEvent } from '@dockwalker/db';
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
 
+/** Validate file content matches declared MIME type via magic bytes */
+function validateMagicBytes(bytes: Uint8Array, mimeType: string): boolean {
+  if (bytes.length < 12) return false;
+  switch (mimeType) {
+    case 'image/jpeg':
+      return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    case 'image/png':
+      return bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    case 'image/webp':
+      return (
+        bytes[0] === 0x52 &&
+        bytes[1] === 0x49 &&
+        bytes[2] === 0x46 &&
+        bytes[3] === 0x46 &&
+        bytes[8] === 0x57 &&
+        bytes[9] === 0x45 &&
+        bytes[10] === 0x42 &&
+        bytes[11] === 0x50
+      );
+    default:
+      return false;
+  }
+}
+
 /**
  * POST /api/profile/avatar
  * Upload a profile avatar. Accepts multipart form data with a single file.
@@ -41,6 +65,14 @@ export async function POST(request: Request) {
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
+
+  if (!validateMagicBytes(new Uint8Array(buffer), file.type)) {
+    return NextResponse.json(
+      { error: 'File content does not match declared type' },
+      { status: 400 },
+    );
+  }
+
   const { error: uploadError } = await supabase.storage
     .from('avatars')
     .upload(storagePath, buffer, {

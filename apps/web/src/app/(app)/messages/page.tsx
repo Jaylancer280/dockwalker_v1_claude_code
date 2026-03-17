@@ -11,8 +11,6 @@ import { NotificationBell } from '@/components/notification-bell';
 
 interface Conversation {
   id: string;
-  crew_person_id: string;
-  employer_person_id: string;
   daywork_id: string;
   start_date: string;
   end_date: string;
@@ -49,11 +47,9 @@ export default function MessagesPage() {
     }
   }, []);
 
-   
   useEffect(() => {
     load();
   }, [load]);
-   
 
   // Active: active engagements + completed/cancelled that still need rating
   const active = conversations.filter(

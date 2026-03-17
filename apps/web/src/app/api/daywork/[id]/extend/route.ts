@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Only active daywork can be extended' }, { status: 400 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { endDate, workingDays, workingDayDates } = body;
 
   if (!endDate) {

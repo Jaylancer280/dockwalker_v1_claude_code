@@ -29,34 +29,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { identityType, currentHat, profile } = body;
-
-  // Validate identity type
-  if (!['crew', 'agent'].includes(identityType)) {
-    return NextResponse.json({ error: 'Invalid identity type' }, { status: 400 });
-  }
-
-  // Validate hat
-  const validHats = identityType === 'crew' ? ['crew', 'employer'] : ['agent'];
-  if (!validHats.includes(currentHat)) {
-    return NextResponse.json({ error: 'Invalid hat selection' }, { status: 400 });
-  }
-
-  // Check not already onboarded
-  const { data: existingPerson } = await supabase
-    .from('persons')
-    .select('id')
-    .eq('id', user.id)
-    .single();
-
-  if (existingPerson) {
-    return NextResponse.json({ error: 'Already onboarded' }, { status: 409 });
-  }
-
-  const body_experiences: unknown[] = body.experiences || [];
-
   try {
+    const body = await request.json().catch(() => ({}));
+    const { identityType, currentHat, profile } = body;
+
+    // Validate identity type
+    if (!['crew', 'agent'].includes(identityType)) {
+      return NextResponse.json({ error: 'Invalid identity type' }, { status: 400 });
+    }
+
+    // Validate hat
+    const validHats = identityType === 'crew' ? ['crew', 'employer'] : ['agent'];
+    if (!validHats.includes(currentHat)) {
+      return NextResponse.json({ error: 'Invalid hat selection' }, { status: 400 });
+    }
+
+    // Check not already onboarded
+    const { data: existingPerson } = await supabase
+      .from('persons')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (existingPerson) {
+      return NextResponse.json({ error: 'Already onboarded' }, { status: 409 });
+    }
+
+    const body_experiences: unknown[] = body.experiences || [];
+
     const profilePayload: Record<string, unknown> = {
       display_name: profile.displayName,
       // Crew fields

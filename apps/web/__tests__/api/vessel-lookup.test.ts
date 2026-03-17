@@ -83,7 +83,6 @@ describe('GET /api/vessels/lookup', () => {
             maybeSingle: vi.fn().mockResolvedValue({
               data: {
                 id: 'v1',
-                imo_number: '9876543',
                 name: 'M/Y Test',
                 vessel_type: 'charter',
                 size_band_id: 'sb1',
@@ -104,5 +103,6 @@ describe('GET /api/vessels/lookup', () => {
     expect(body.vessel.name).toBe('M/Y Test');
     expect(body.vessel.loa_meters).toBe(45);
     expect(body.vessel.size_band_label).toBe('40-50m');
+    expect(body.vessel).not.toHaveProperty('imo_number');
   });
 });

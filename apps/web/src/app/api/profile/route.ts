@@ -44,7 +44,7 @@ export async function PATCH(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, person, serviceClient } = guard.value;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
 
   const payload: EventPayloadMap['PROFILE.UPDATED'] = {};
   if (body.displayName !== undefined) payload.display_name = body.displayName;

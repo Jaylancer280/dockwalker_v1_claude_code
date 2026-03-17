@@ -126,6 +126,8 @@
 - [Stage 86] Cursor-based discovery pagination — `cursor` query param on discover API, `has_more`/`next_cursor` in response, auto-load when card stack <= 5, retry on empty post-filter batches
 - [Stage 87] Permanent opportunity signal — `permanent_opportunity` boolean on dayworks/templates, crew rating `permanent_opportunity_accuracy` on engagement_ratings, badge on discover/mine/applications/review pages, toggle on post form, conditional rating question in crew completed-context form
 - [Stage 88] UX hardening — 6 missing update-positions tests, error states on messages/notifications pages, toast notification system replacing all `alert()` in chat, confirmation dialogs on experience delete and daywork post
+- [Stage 88b] Replace `confirm()` with Dialog in chat "Mark complete" action
+- [Stage 89] Security hardening — vessel lookup IMO removal, messages person_id stripping, try/catch on 20 routes (25 handlers), safe request.json() on 17 routes, health check endpoint, body size limit config, avatar magic byte validation
 
 ## Current Schema Version
 

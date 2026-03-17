@@ -12,28 +12,30 @@ export async function GET(
 ) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase } = guard.value;
 
-  const { personId } = await params;
+  try {
+    const { user, supabase } = guard.value;
 
-  if (personId === user.id) {
-    return NextResponse.json({ error: 'Use /api/profile for your own profile' }, { status: 400 });
-  }
+    const { personId } = await params;
 
-  // Context validation: requester must have a relationship with the target
-  const hasContext = await checkRelationshipContext(supabase, user.id, personId);
-  if (!hasContext) {
-    return NextResponse.json(
-      { error: "You don't have access to view this profile" },
-      { status: 403 },
-    );
-  }
+    if (personId === user.id) {
+      return NextResponse.json({ error: 'Use /api/profile for your own profile' }, { status: 400 });
+    }
 
-  // Fetch target profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select(
-      `
+    // Context validation: requester must have a relationship with the target
+    const hasContext = await checkRelationshipContext(supabase, user.id, personId);
+    if (!hasContext) {
+      return NextResponse.json(
+        { error: "You don't have access to view this profile" },
+        { status: 403 },
+      );
+    }
+
+    // Fetch target profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select(
+        `
       person_id, display_name, identity_type, bio, avatar_url,
       primary_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id,
@@ -42,19 +44,23 @@ export async function GET(
       experience_brackets(id, label),
       ports(name, cities(name, regions(name)))
     `,
-    )
-    .eq('person_id', personId)
-    .single();
+      )
+      .eq('person_id', personId)
+      .single();
 
-  if (!profile) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    if (profile.identity_type === 'crew') {
+      return NextResponse.json(await buildCrewProfile(supabase, profile, personId));
+    }
+
+    return NextResponse.json(await buildEmployerProfile(supabase, profile, personId));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  if (profile.identity_type === 'crew') {
-    return NextResponse.json(await buildCrewProfile(supabase, profile, personId));
-  }
-
-  return NextResponse.json(await buildEmployerProfile(supabase, profile, personId));
 }
 
 async function checkRelationshipContext(

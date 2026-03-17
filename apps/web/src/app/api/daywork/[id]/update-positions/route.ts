@@ -34,7 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const positionsAvailable = parseInt(body.positionsAvailable, 10);
 
   if (isNaN(positionsAvailable) || positionsAvailable < 1 || positionsAvailable > 20) {

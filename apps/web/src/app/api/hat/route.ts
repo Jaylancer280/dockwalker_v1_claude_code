@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, person, serviceClient } = guard.value;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { hat } = body;
 
   if (!hat || !['crew', 'employer'].includes(hat)) {

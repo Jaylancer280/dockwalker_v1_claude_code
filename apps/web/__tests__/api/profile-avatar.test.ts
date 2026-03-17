@@ -39,9 +39,26 @@ function guardOk() {
   };
 }
 
+const JPEG_HEADER = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
 function makeFile(type: string, sizeBytes: number): File {
-  const buffer = new ArrayBuffer(sizeBytes);
+  const buffer = new Uint8Array(Math.max(sizeBytes, 12));
+  // Write valid magic bytes for the declared type
+  if (type === 'image/jpeg') buffer.set(JPEG_HEADER);
+  else if (type === 'image/png') buffer.set(PNG_HEADER);
+  else if (type === 'image/webp') {
+    buffer.set([0x52, 0x49, 0x46, 0x46]); // RIFF
+    buffer.set([0x57, 0x45, 0x42, 0x50], 8); // WEBP
+  }
   return new File([buffer], 'avatar.jpg', { type });
+}
+
+function makeFileWithWrongContent(declaredType: string): File {
+  // File declares JPEG but has PNG magic bytes
+  const buffer = new Uint8Array(64);
+  buffer.set(PNG_HEADER);
+  return new File([buffer], 'avatar.jpg', { type: declaredType });
 }
 
 describe('POST /api/profile/avatar', () => {
@@ -116,6 +133,22 @@ describe('POST /api/profile/avatar', () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('2MB');
+  });
+
+  it('returns 400 when file content does not match declared MIME type', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const formData = new FormData();
+    formData.append('file', makeFileWithWrongContent('image/jpeg'));
+    const req = new Request('http://localhost/api/profile/avatar', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('does not match');
   });
 
   it('uploads successfully and returns avatar_url', async () => {

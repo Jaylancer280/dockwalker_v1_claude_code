@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Only crew can set availability' }, { status: 403 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { startDate, endDate, cityId, portId, notAvailable } = body;
 
   if (!cityId) {
@@ -270,7 +270,7 @@ export async function DELETE(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, serviceClient } = guard.value;
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { dates, clearAll } = body;
 
   // Clear all availability for this user

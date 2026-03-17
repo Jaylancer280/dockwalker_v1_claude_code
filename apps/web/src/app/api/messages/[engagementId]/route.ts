@@ -78,7 +78,7 @@ export async function POST(
     return NextResponse.json({ error: 'This engagement is no longer active' }, { status: 400 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { content } = body;
 
   if (!content || typeof content !== 'string' || content.trim().length === 0) {

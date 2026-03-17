@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Only crew can respond to invitations' }, { status: 403 });
   }
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const action = body.action as string | undefined;
 
   if (action !== 'accept' && action !== 'decline') {
