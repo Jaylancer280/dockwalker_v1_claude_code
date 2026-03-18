@@ -20,12 +20,43 @@ interface Message {
   created_at: string;
 }
 
-const SUGGESTION_CHIPS = [
+const STATIC_CHIPS = [
   'What certs do I need to become a Bosun?',
   'How do I get my STCW?',
   'What is the ENG1 medical?',
   'Deck officer career path',
 ];
+
+function buildDynamicChips(roleName?: string, cityName?: string): string[] {
+  if (!roleName && !cityName) return STATIC_CHIPS;
+  const chips = ['What should I work on next?', 'What certs am I missing?'];
+  if (roleName) chips.push(`How do I progress from ${roleName}?`);
+  if (cityName) chips.push(`Training centres near ${cityName}?`);
+  return chips;
+}
+
+function useProfileChips(): string[] {
+  const [chips, setChips] = useState<string[]>(STATIC_CHIPS);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/profile');
+        if (!res.ok) return;
+        const data = await res.json();
+        const p = data.profile;
+        const roleName = p?.yacht_roles?.name;
+        const cityName = p?.ports?.cities?.name ?? p?.ports?.name;
+        setChips(buildDynamicChips(roleName, cityName));
+      } catch {
+        // Keep static chips on failure
+      }
+    }
+    load();
+  }, []);
+
+  return chips;
+}
 
 function sanitiseHtml(html: string): string {
   return html
@@ -64,9 +95,11 @@ export default function DockyConversationPage() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { showError } = useToast();
 
+  const suggestionChips = useProfileChips();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [thinkingPhase, setThinkingPhase] = useState<'profile' | 'thinking' | null>(null);
   const [input, setInput] = useState('');
   const [title, setTitle] = useState('Docky');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -80,6 +113,17 @@ export default function DockyConversationPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, sending, scrollToBottom]);
+
+  // Staged thinking indicator: "reading profile" → "thinking"
+  useEffect(() => {
+    if (sending) {
+      setThinkingPhase('profile');
+      const timer = setTimeout(() => setThinkingPhase('thinking'), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setThinkingPhase(null);
+    }
+  }, [sending]);
 
   useEffect(() => {
     async function load() {
@@ -194,7 +238,7 @@ export default function DockyConversationPage() {
               Ask Docky about certifications, career paths, or training requirements.
             </p>
             <div className="grid w-full grid-cols-2 gap-2">
-              {SUGGESTION_CHIPS.map((chip) => (
+              {suggestionChips.map((chip) => (
                 <button
                   key={chip}
                   onClick={() => sendMessage(chip)}
@@ -242,7 +286,9 @@ export default function DockyConversationPage() {
               </div>
               <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
-                  Docky is thinking
+                  {thinkingPhase === 'profile'
+                    ? 'Docky is reading your profile'
+                    : 'Docky is thinking'}
                   <span className="inline-flex gap-0.5">
                     <span className="animate-bounce" style={{ animationDelay: '0ms' }}>
                       .

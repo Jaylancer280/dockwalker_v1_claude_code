@@ -132,6 +132,7 @@
 - [Stage 91] Stripe subscription scaffolding — subscriptions table, checkout/portal/status/webhook routes, subscription check helper
 - [Stage 92] Docky Phase 1 — pgvector + MCA chunks, advisor conversations/messages tables, RAG pipeline, Anthropic LLM, Docky tab + chat UI
 - [Stage 92b] Hat-scoped notification counts — separate notification/message counts per hat, alt-hat badge on hat switcher, role_context on notifications table
+- [Stage 93] Docky Phase 2 — crew context builder, cert gap analysis, personalised LLM prompts, dynamic suggestion chips
 
 ## Current Schema Version
 

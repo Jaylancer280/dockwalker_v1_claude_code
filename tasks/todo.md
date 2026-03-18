@@ -13,197 +13,6 @@
 
 ---
 
-### Stage 93: Docky Phase 2 — Personalised Advice
-
-**Goal:** Docky reads the crew member's profile, certs, experience history, and vessel exposure for personalised career advice.
-
-**Done condition:** A deckhand with STCW Basic + ENG1 + 8 months on 30-40m motor yachts asks "What should I do next?" and gets advice referencing THEIR specific certs, experience level, vessel size exposure, and location.
-
-**Will NOT touch:** Stripe, employer hat, discovery, existing messages.
-
-**Depends on:** Stage 92 complete.
-
-#### 1. Crew Context Builder — `apps/web/src/lib/advisor/crew-context.ts`
-
-- [ ] Create file. Exports `buildCrewContext(personId: string, supabase: SupabaseClient): Promise<string>`
-- Four queries (use `Promise.all` where independent):
-  1. Profile with joins — use **table names** (not FK hint syntax), matching established pattern in `api/profile/[personId]/route.ts`:
-     ```typescript
-     const { data: profile, error: profileError } = await supabase
-       .from('profiles')
-       .select(
-         `
-         display_name, bio, shore_experience, motivation, languages, available_to_start,
-         primary_role_id, yacht_roles(name),
-         certification_ids, experience_bracket_id, experience_brackets(label),
-         vessel_size_exposure_ids,
-         location_port_id, ports(name, city_id, cities(name, region_id, regions(name)))
-       `,
-       )
-       .eq('person_id', personId)
-       .single();
-     ```
-     **Important:** Table name is `yacht_roles`, NOT `roles`. No FK hint syntax needed — each FK points to a unique table.
-  2. Experiences with vessel + role joins — matching pattern from `api/profile/[personId]/route.ts` lines 137-143:
-     ```typescript
-     const { data: experiences, error: expError } = await supabase
-       .from('crew_experiences')
-       .select(
-         `
-         start_date, end_date, is_current, vessel_operation, flag_state,
-         contract_type, description,
-         vessels(name, vessel_type, loa_meters, vessel_size_bands(label)),
-         yacht_roles(name)
-       `,
-       )
-       .eq('person_id', personId)
-       .order('start_date', { ascending: false });
-     ```
-     **Important:** `yacht_roles(name)` NOT `roles(name)`. Vessels join uses `vessel_size_bands(label)` nested inside `vessels(...)` — do NOT select `size_band_id` separately.
-  3. Cert name resolution — profile has `certification_ids` (uuid[]). Resolve to names:
-     ```typescript
-     const { data: certs } = await supabase
-       .from('certifications')
-       .select('id, name, category')
-       .in('id', profile.certification_ids ?? []);
-     ```
-  4. Vessel size exposure labels — profile has `vessel_size_exposure_ids` (uuid[]). Resolve to labels:
-     ```typescript
-     const { data: sizeBands } = await supabase
-       .from('vessel_size_bands')
-       .select('id, label')
-       .in('id', profile.vessel_size_exposure_ids ?? []);
-     ```
-- Build markdown string (~500-1500 tokens). Format:
-
-  ```
-  ## Crew Profile
-  **Role:** Deckhand | **Experience:** 6-12 months
-  **Location:** Antibes, French Riviera, Western Mediterranean
-  **Available:** Immediate
-  **Certifications:** STCW Basic Safety, ENG1
-  **Vessel Size Exposure:** 30-40m, 40-50m
-  **Bio:** [if present]
-  **Shore Experience:** [if present]
-  **Motivation:** [if present]
-  **Languages:** [if present]
-
-  ## Work History
-  1. Deckhand on MY Example (45m motor, charter) — Jan 2025 to Mar 2025
-     Flag: Cayman Islands | Contract: Seasonal
-  2. ...
-
-  [No work history recorded — shore_experience shown above instead]
-  ```
-
-- Return empty string if profile query fails (graceful degradation — LLM works without context)
-- **NEVER include salary data** — `salary_amount`, `salary_currency`, `salary_period` are NOT selected from crew_experiences
-- **NEVER include engagement ratings or performance data**
-- Always destructure `{ data, error }` and handle errors (lesson: never discard Supabase errors)
-
-#### 2. Cert Gap Analysis — `apps/web/src/lib/advisor/cert-analysis.ts`
-
-- [ ] Create file. Exports `buildCertGapContext(currentCertNames: string[], currentRole: string, mcaChunks: MCAChunk[]): string`
-- Import `MCAChunk` type from `./rag` (already defined there)
-- Pure function — no DB calls. Scans MCA chunk content for cert name references, compares against crew's current certs.
-- Returns text block like: "Based on MCA guidance, a Deckhand seeking to progress typically needs: STCW Proficiency in Survival Craft (you have: no), Yacht Rating (you have: no). You currently hold: STCW Basic Safety, ENG1."
-- If no MCA chunks provided or no cert references found, return empty string (don't fabricate gaps)
-- This is injected into the LLM prompt as context — the LLM interprets it, it's not deterministic.
-
-#### 3. Wire into LLM + Message Route
-
-- [ ] Update `apps/web/src/lib/advisor/llm.ts` → `askDocky()`:
-  - The `crewContext?: string` param already exists and is already injected as a `[CREW PROFILE]` user message when provided. **Do not duplicate this logic.**
-  - ADD to the system prompt (append to existing `SYSTEM_PROMPT` constant) when `crewContext` is provided:
-
-    ```
-    You have access to this crew member's profile and work history. Use it to:
-    - Reference their specific certifications when identifying gaps
-    - Account for their experience level and vessel size exposure
-    - Consider their location when suggesting training centres
-    - Tailor career path advice to their current role and progression
-
-    Be encouraging but honest. Never reveal salary data. Never compare to specific other crew members. Never make promises about job outcomes.
-    ```
-
-  - Implementation: make the system prompt dynamic — base prompt + personalisation block when `crewContext` is truthy. Keep the base prompt as-is.
-
-- [ ] Update `POST /api/advisor/conversations/[id]/messages` route (`apps/web/src/app/api/advisor/conversations/[id]/messages/route.ts`):
-  - Import `buildCrewContext` from `@/lib/advisor/crew-context`
-  - Import `buildCertGapContext` from `@/lib/advisor/cert-analysis`
-  - After auth/ownership checks (current step 4), before fetching history (current step 5):
-    ```typescript
-    const crewContext = await buildCrewContext(user.id, supabase);
-    ```
-  - After RAG search returns `chunks` (current step 7), build cert gap context:
-    ```typescript
-    // Extract cert names and role name from crewContext (or re-query — but crewContext already has them)
-    const certGap = buildCertGapContext(certNames, roleName, chunks);
-    ```
-  - Combine crew context + cert gap into single string for `askDocky`:
-    ```typescript
-    const fullCrewContext = [crewContext, certGap].filter(Boolean).join('\n\n');
-    ```
-  - Pass to `askDocky()`:
-    ```typescript
-    const response = await askDocky(body.content, chunks, history, fullCrewContext || undefined);
-    ```
-  - **Design decision:** `buildCrewContext` should also return cert names and role name as structured data so `buildCertGapContext` doesn't need separate queries. Consider returning `{ markdown: string, certNames: string[], roleName: string }` instead of just a string. Update the function signature accordingly:
-    ```typescript
-    interface CrewContextResult {
-      markdown: string;
-      certNames: string[];
-      roleName: string;
-    }
-    export async function buildCrewContext(
-      personId: string,
-      supabase: SupabaseClient,
-    ): Promise<CrewContextResult>;
-    ```
-
-#### 4. UI Enhancements
-
-- [ ] Update Docky conversation detail page (`apps/web/src/app/(app)/docky/[conversationId]/page.tsx`):
-  - When `sending` is true, show staged thinking indicator:
-    - First 1 second: "Docky is reading your profile..."
-    - After 1 second: "Docky is thinking..." (existing animated dots)
-  - Use `setTimeout` with cleanup in `useEffect` or `useCallback` — clear timeout on unmount or when `sending` becomes false
-  - Keep existing LifeBuoy icon + bouncing dots animation
-
-- [ ] Update suggestion chips in **both** pages:
-  - `apps/web/src/app/(app)/docky/page.tsx` (list page empty state)
-  - `apps/web/src/app/(app)/docky/[conversationId]/page.tsx` (conversation empty state)
-  - On page mount, fetch profile data: `GET /api/profile` — extract `yacht_roles.name` and `ports.name` (or `cities.name`) from response
-  - Dynamic chips when profile data available:
-    - "What should I work on next?"
-    - "What certs am I missing?"
-    - "How do I progress from {roleName}?"
-    - "Training centres near {cityName}?"
-  - Fallback to current static chips if fetch fails or data missing
-  - Extract chip logic into a shared hook or utility to avoid duplicating between both pages
-
-#### 5. Tests
-
-- [ ] `__tests__/lib/crew-context.test.ts` — 4 tests:
-  1. Builds correct markdown from mock profile + 2 experiences (assert role name, cert names, vessel details, location present)
-  2. Handles zero experiences (green crew — `shore_experience` shown, no work history section)
-  3. Handles missing optional fields (no bio, no languages, no motivation — assert no crashes, graceful omission)
-  4. Never includes salary data (assert "salary" substring absent from output) — mock crew_experiences with salary fields, verify they don't leak
-  - Mock pattern: mock `supabase.from()` to return different builders per table (profiles, crew_experiences, certifications, vessel_size_bands). Use `multiTableFrom()` pattern from existing advisor tests.
-
-- [ ] `__tests__/api/advisor-personalised.test.ts` — 3 tests:
-  1. Send message: mock `buildCrewContext` to return known `CrewContextResult`, mock `askDocky`, verify `askDocky` was called with `crewContext` param containing the markdown
-  2. Employer hat returns 403 (existing pattern — but verify personalisation code doesn't run)
-  3. No salary data in any prompt content: mock `buildCrewContext` to return result, assert `askDocky` call args don't contain "salary"
-  - Mock pattern: `vi.mock('@/lib/advisor/crew-context')` and `vi.mock('@/lib/advisor/cert-analysis')` in addition to existing mocks
-
-#### 6. Documentation
-
-- [ ] Update `apps/web/README.md` — note Docky personalisation: crew context builder, cert gap analysis, dynamic suggestion chips
-- [ ] Update `BUILD_STATE.md` — stage entry: `[Stage 93] Docky Phase 2 — crew context builder, cert gap analysis, personalised LLM prompts, dynamic suggestion chips`
-
----
-
 ### Stage 94: Docky Monetisation Gating
 
 **Goal:** Free tier gets 3 questions/month, Crew Pro gets unlimited. Paywall with upgrade prompt.
@@ -294,16 +103,14 @@
   - Usage increment (after successful LLM response):
     ```typescript
     if (!isPro) {
-      await serviceClient
-        .from('advisor_usage')
-        .upsert(
-          {
-            person_id: user.id,
-            month: currentMonth,
-            question_count: (usage?.question_count ?? 0) + 1,
-          },
-          { onConflict: 'person_id,month' },
-        );
+      await serviceClient.from('advisor_usage').upsert(
+        {
+          person_id: user.id,
+          month: currentMonth,
+          question_count: (usage?.question_count ?? 0) + 1,
+        },
+        { onConflict: 'person_id,month' },
+      );
     }
     ```
   - **Scope `currentMonth` and `usage`:** declare outside the `if (!isPro)` blocks so both the check and the increment can access them. Or use a closure/wrapper.
@@ -406,4 +213,4 @@
 
 ## Done
 
-(See git history for completed stages 51-92)
+(See git history for completed stages 51-93)

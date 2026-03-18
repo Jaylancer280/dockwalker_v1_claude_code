@@ -15,6 +15,15 @@ vi.mock('@/lib/advisor/llm', () => ({
   askDocky: (...args: unknown[]) => mockAskDocky(...args),
 }));
 
+const mockBuildCrewContext = vi.fn();
+vi.mock('@/lib/advisor/crew-context', () => ({
+  buildCrewContext: (...args: unknown[]) => mockBuildCrewContext(...args),
+}));
+
+vi.mock('@/lib/advisor/cert-analysis', () => ({
+  buildCertGapContext: () => '',
+}));
+
 import {
   POST,
   GET,
@@ -85,6 +94,7 @@ describe('POST /api/advisor/conversations/[id]/messages', () => {
     vi.clearAllMocks();
     mockSearchMcaDocs.mockResolvedValue([]);
     mockAskDocky.mockResolvedValue(MOCK_LLM_RESPONSE);
+    mockBuildCrewContext.mockResolvedValue({ markdown: '', certNames: [], roleName: '' });
   });
 
   it('returns 200 with assistant message on happy path', async () => {

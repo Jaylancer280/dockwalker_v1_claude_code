@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { searchMcaDocs } from '@/lib/advisor/rag';
 import { askDocky } from '@/lib/advisor/llm';
+import { buildCrewContext } from '@/lib/advisor/crew-context';
+import { buildCertGapContext } from '@/lib/advisor/cert-analysis';
 
 /**
  * POST /api/advisor/conversations/[id]/messages
@@ -71,13 +73,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
-    // RAG search
-    const chunks = await searchMcaDocs(content, serviceClient);
+    // Crew context + RAG search in parallel
+    const [crewCtx, chunks] = await Promise.all([
+      buildCrewContext(user.id, supabase),
+      searchMcaDocs(content, serviceClient),
+    ]);
+
+    // Cert gap analysis
+    const certGap = buildCertGapContext(crewCtx.certNames, crewCtx.roleName, chunks);
+    const fullCrewContext = [crewCtx.markdown, certGap].filter(Boolean).join('\n\n');
 
     // LLM call
     let response;
     try {
-      response = await askDocky(content, chunks, history);
+      response = await askDocky(content, chunks, history, fullCrewContext || undefined);
     } catch {
       return NextResponse.json(
         { error: 'Docky is temporarily unavailable. Please try again.' },
