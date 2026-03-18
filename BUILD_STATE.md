@@ -136,10 +136,11 @@
 - [Stage 93b] Docky Phase 2 cleanup — extract shared chip hook, cert-analysis unit tests
 - [Stage 94] Docky monetisation gating — advisor_usage table, free tier 3/month limit, paywall card, billing page, subscription settings row
 - [Stage 94b] advisor_usage RLS hardening — add INSERT + UPDATE policies
+- [Stage 95] Codebase hardening — projection state guards on ACCEPTED/REJECTED, DAYWORK.EXTENDED moved into apply_projection, hat validation on update-positions, daywork_templates UPDATE policy, webhook env guard
 
 ## Current Schema Version
 
-v47 — advisor_usage write policies (47 migrations applied)
+v49 — daywork_templates UPDATE policy (49 migrations applied)
 
 ## Migrations Applied
 
@@ -192,6 +193,8 @@ v47 — advisor_usage write policies (47 migrations applied)
 | `00045_notification_role_context.sql`        | Adds `role_context` (crew/employer/agent) to `notifications` with CHECK constraint. Backfills existing rows by type. Replaces unread index to include role_context for filtered count queries.                                                                                                 |
 | `00046_advisor_usage.sql`                    | `advisor_usage` table (person_id + month UNIQUE, question_count int). Owner read-only RLS. Not event-sourced — usage counter utility data for free tier Docky limits.                                                                                                                          |
 | `00047_advisor_usage_write_policies.sql`     | Adds INSERT and UPDATE RLS policies to `advisor_usage` so owner can write own usage rows. Defensive hardening — current code uses serviceClient but policies prevent silent failures if regular client used accidentally.                                                                      |
+| `00048_projection_state_guards.sql`          | Adds `AND status IN ('applied','viewed','shortlisted')` WHERE guards to DAYWORK.ACCEPTED and DAYWORK.REJECTED in `apply_projection`; moves DAYWORK.EXTENDED handler into `apply_projection` and drops standalone trigger/function                                                              |
+| `00049_templates_update_policy.sql`          | Adds UPDATE RLS policy to `daywork_templates` (owner can update own templates)                                                                                                                                                                                                                 |
 
 ## Deferred Decisions
 

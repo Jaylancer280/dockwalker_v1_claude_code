@@ -40,6 +40,8 @@
 
 - **Never conflate independent counts into a single number:** The notification count endpoint returned one combined `unread_count` (notifications + messages), which was consumed by both the notification bell and the messages tab badge. Result: both showed 6 when the bell should have shown 0 (no actual notifications) and messages should have shown 6 (unread messages). Separate counts are separate response fields. Additionally, counts that are hat-specific (crew vs employer) must be scoped by role context — an unread message on a crew engagement should not appear in the employer hat badge.
 
+- **Projection handlers must enforce the same state preconditions as the API layer:** API validation prevents invalid events from being appended, but projection WHERE clauses prevent invalid transitions during ledger replay. Both layers must agree — if the API checks `status IN ('applied', 'viewed', 'shortlisted')` before accepting, the projection's UPDATE must have the same WHERE guard. Otherwise replay of old events against a re-seeded database can produce different state than live writes.
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)

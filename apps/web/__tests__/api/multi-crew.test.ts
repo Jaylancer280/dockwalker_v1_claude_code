@@ -231,6 +231,25 @@ describe('POST /api/daywork/:id/update-positions', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 403 when crew hat tries to update positions', async () => {
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({
+        person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      }),
+    );
+
+    const req = new Request('http://localhost/api/daywork/dw1/update-positions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ positionsAvailable: 2 }),
+    });
+
+    const res = await UpdatePositionsPOST(req, { params });
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('employers');
+  });
+
   it('returns 403 when non-owner', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
