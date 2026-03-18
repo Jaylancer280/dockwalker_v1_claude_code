@@ -38,6 +38,8 @@
 
 - **Cache all singleton instances at module level, not just the outer wrapper:** When a helper creates an expensive-ish object (like a Redis client) and passes it into a cached wrapper (like Ratelimit), both layers need caching. The Stage 90 rate limiter cached the `Ratelimit` instances but created a new `Redis` on every request — the cached `Ratelimit` already held the first Redis, so every subsequent `new Redis()` was immediately discarded. Pattern: if object A depends on object B and both are module-scoped singletons, cache B first, then cache A. Use `undefined` as the "not yet initialised" sentinel when `null` is a valid cached state (e.g. "env vars missing, don't retry").
 
+- **Never conflate independent counts into a single number:** The notification count endpoint returned one combined `unread_count` (notifications + messages), which was consumed by both the notification bell and the messages tab badge. Result: both showed 6 when the bell should have shown 0 (no actual notifications) and messages should have shown 6 (unread messages). Separate counts are separate response fields. Additionally, counts that are hat-specific (crew vs employer) must be scoped by role context — an unread message on a crew engagement should not appear in the employer hat badge.
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)

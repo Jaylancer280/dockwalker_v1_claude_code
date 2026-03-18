@@ -506,6 +506,15 @@ export default function SettingsPage() {
               Contact Support
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </a>
+
+            <Separator />
+
+            <div className="px-4 py-3">
+              <p className="text-xs text-muted-foreground">
+                Maritime guidance contains public sector information licensed under the Open
+                Government Licence v3.0
+              </p>
+            </div>
           </div>
         </section>
       </div>

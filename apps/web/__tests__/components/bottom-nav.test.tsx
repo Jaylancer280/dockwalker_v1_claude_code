@@ -19,11 +19,12 @@ describe('BottomNav', () => {
     cleanup();
   });
 
-  it('renders 3 items for crew hat', () => {
+  it('renders 4 items for crew hat', () => {
     render(<BottomNav currentHat="crew" identityType="crew" />);
 
     expect(screen.getByText('Discover')).toBeInTheDocument();
     expect(screen.getByText('Messages')).toBeInTheDocument();
+    expect(screen.getByText('Docky')).toBeInTheDocument();
     expect(screen.getByText('Profile')).toBeInTheDocument();
     expect(screen.queryByText('Post Job')).not.toBeInTheDocument();
     expect(screen.queryByText('My Jobs')).not.toBeInTheDocument();

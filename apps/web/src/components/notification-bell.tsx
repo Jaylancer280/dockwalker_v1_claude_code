@@ -12,7 +12,7 @@ export function NotificationBell() {
       const res = await fetch('/api/notifications/count');
       if (res.ok) {
         const data = await res.json();
-        setCount(data.unread_count ?? 0);
+        setCount(data.notification_count ?? 0);
       }
     } catch {
       // swallow

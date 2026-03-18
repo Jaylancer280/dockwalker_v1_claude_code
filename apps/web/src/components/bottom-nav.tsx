@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Compass, MessageSquare, User, PenSquare, Briefcase } from 'lucide-react';
+import { Compass, MessageSquare, User, PenSquare, Briefcase, LifeBuoy } from 'lucide-react';
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -15,6 +15,7 @@ interface NavItem {
 const crewNav: NavItem[] = [
   { icon: Compass, label: 'Discover', href: '/discover' },
   { icon: MessageSquare, label: 'Messages', href: '/messages', badgeKey: 'messages' },
+  { icon: LifeBuoy, label: 'Docky', href: '/docky' },
   { icon: User, label: 'Profile', href: '/profile' },
 ];
 
@@ -33,14 +34,14 @@ interface BottomNavProps {
 export function BottomNav({ currentHat }: BottomNavProps) {
   const pathname = usePathname();
   const items = currentHat === 'crew' ? crewNav : employerNav;
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [messageCount, setMessageCount] = useState(0);
 
   const fetchCount = useCallback(async () => {
     try {
       const res = await fetch('/api/notifications/count');
       if (res.ok) {
         const data = await res.json();
-        setUnreadCount(data.unread_count ?? 0);
+        setMessageCount(data.message_count ?? 0);
       }
     } catch {
       // swallow — badge is non-critical
@@ -64,7 +65,7 @@ export function BottomNav({ currentHat }: BottomNavProps) {
       <div className="mx-auto flex h-[var(--nav-height)] max-w-lg items-center justify-around">
         {items.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-          const showBadge = item.badgeKey === 'messages' && unreadCount > 0;
+          const showBadge = item.badgeKey === 'messages' && messageCount > 0;
           return (
             <Link
               key={item.href}
@@ -77,7 +78,7 @@ export function BottomNav({ currentHat }: BottomNavProps) {
                 <item.icon className="h-5 w-5" />
                 {showBadge && (
                   <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-bold text-destructive-foreground">
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                    {messageCount > 99 ? '99+' : messageCount}
                   </span>
                 )}
               </div>

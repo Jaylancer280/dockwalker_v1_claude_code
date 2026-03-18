@@ -4,6 +4,7 @@ import { sendPushToUser, type PushNotification } from './push-delivery';
 interface NotifyContext {
   recipientPersonId: string;
   notification: PushNotification;
+  roleContext: 'crew' | 'employer';
 }
 
 /**
@@ -39,6 +40,7 @@ export function notifyOnEvent(
               title: ctx.notification.title,
               body: ctx.notification.body,
               deep_link: deepLink,
+              role_context: ctx.roleContext,
             })
             .then(() => {});
         }
@@ -200,6 +202,7 @@ async function handleDayworkApplied(
   return [
     {
       recipientPersonId: posterId,
+      roleContext: 'employer',
       notification: {
         title: 'New Applicant',
         body: `New applicant for ${jobNumber}`,
@@ -220,6 +223,7 @@ async function handleDayworkAccepted(
   return [
     {
       recipientPersonId: crewId,
+      roleContext: 'crew',
       notification: {
         title: 'Application Accepted',
         body: `You've been accepted for ${jobNumber}!`,
@@ -239,6 +243,7 @@ async function handleDayworkRejected(
   return [
     {
       recipientPersonId: crewId,
+      roleContext: 'crew',
       notification: {
         title: 'Application Update',
         body: `Update on your application for ${jobNumber}`,
@@ -258,6 +263,7 @@ async function handleDayworkShortlisted(
   return [
     {
       recipientPersonId: crewId,
+      roleContext: 'crew',
       notification: {
         title: 'Shortlisted',
         body: `You've been shortlisted for ${jobNumber}`,
@@ -277,6 +283,7 @@ async function handleDayworkInvited(
   return [
     {
       recipientPersonId: crewId,
+      roleContext: 'crew',
       notification: {
         title: 'New Invitation',
         body: `You've been invited to ${jobNumber}`,
@@ -298,10 +305,9 @@ async function handleMessageSent(
   const engagement = await getEngagementParties(sc, engagementId);
   if (!engagement) return [];
 
-  const recipientId =
-    engagement.crew_person_id === actorPersonId
-      ? engagement.employer_person_id
-      : engagement.crew_person_id;
+  const isSenderCrew = engagement.crew_person_id === actorPersonId;
+  const recipientId = isSenderCrew ? engagement.employer_person_id : engagement.crew_person_id;
+  const recipientHat: 'crew' | 'employer' = isSenderCrew ? 'employer' : 'crew';
 
   const senderName = await getDisplayName(sc, actorPersonId);
   const preview = content.length > 80 ? content.slice(0, 77) + '...' : content;
@@ -309,6 +315,7 @@ async function handleMessageSent(
   return [
     {
       recipientPersonId: recipientId,
+      roleContext: recipientHat,
       notification: {
         title: senderName,
         body: preview,
@@ -328,10 +335,9 @@ async function handleWorkStarted(
   const engagement = await getEngagementParties(sc, engagementId);
   if (!engagement) return [];
 
-  const recipientId =
-    engagement.crew_person_id === actorPersonId
-      ? engagement.employer_person_id
-      : engagement.crew_person_id;
+  const isSenderCrew = engagement.crew_person_id === actorPersonId;
+  const recipientId = isSenderCrew ? engagement.employer_person_id : engagement.crew_person_id;
+  const recipientHat: 'crew' | 'employer' = isSenderCrew ? 'employer' : 'crew';
 
   const jobNumber = await getJobNumber(sc, engagement.daywork_id);
   const isConfirm = eventType === 'ENGAGEMENT.WORK_STARTED_CONFIRMED';
@@ -339,6 +345,7 @@ async function handleWorkStarted(
   return [
     {
       recipientPersonId: recipientId,
+      roleContext: recipientHat,
       notification: {
         title: isConfirm ? 'Work Started' : 'Confirmation Needed',
         body: isConfirm
@@ -363,6 +370,7 @@ async function handleCancelledByCrew(
   return [
     {
       recipientPersonId: engagement.employer_person_id,
+      roleContext: 'employer',
       notification: {
         title: 'Engagement Cancelled',
         body: `Crew cancelled engagement for ${jobNumber}`,
@@ -383,6 +391,7 @@ async function handleCancelledByEmployer(
   return [
     {
       recipientPersonId: crewId,
+      roleContext: 'crew',
       notification: {
         title: 'Engagement Cancelled',
         body: `Engagement cancelled for ${jobNumber}`,
@@ -410,6 +419,7 @@ async function handleDayworkCompleted(
 
   return engagements.map((engagement) => ({
     recipientPersonId: engagement.crew_person_id,
+    roleContext: 'crew' as const,
     notification: {
       title: 'Job Completed',
       body: `${jobNumber} marked complete — please confirm`,
@@ -429,6 +439,7 @@ async function handlePostponement(
   return [
     {
       recipientPersonId: crewId,
+      roleContext: 'crew',
       notification: {
         title: 'Date Change Proposed',
         body: `Date change proposed for ${jobNumber}`,
@@ -450,6 +461,7 @@ async function handleChecklist(
   return [
     {
       recipientPersonId: engagement.crew_person_id,
+      roleContext: 'crew',
       notification: {
         title: 'Checklist Updated',
         body: `Pre-arrival checklist updated for ${jobNumber}`,
