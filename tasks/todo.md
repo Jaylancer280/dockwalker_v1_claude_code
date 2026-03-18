@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 101: Email Notification Fallback
+Stage 102: Availability Expiry Reminder
 
 ---
 
@@ -563,7 +563,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 1. Cron API route — `apps/web/src/app/api/cron/availability-expiry/route.ts`
 
-- [ ] Create route handler (GET, since Vercel Cron uses GET):
+- [x] Create route handler (GET, since Vercel Cron uses GET):
   - **Auth:** Verify `Authorization: Bearer ${CRON_SECRET}` header matches `process.env.CRON_SECRET` (prevents public access)
   - **Query:** Find all `availability_windows` where `expires_at` is between `now()` and `now() + interval '24 hours'`, grouped by `person_id`:
     ```sql
@@ -583,7 +583,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
   - **Use service client** for all DB operations (this is a server-to-server cron, no user session)
   - **Return:** `{ notified: number }` with count of crew notified
 
-- [ ] Add duplicate prevention:
+- [x] Add duplicate prevention:
   - Before notifying, check if a `availability_expiring` notification was already created for this person in the last 24 hours:
     ```sql
     select 1 from notifications
@@ -596,7 +596,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 2. Vercel Cron config — `vercel.json`
 
-- [ ] Add cron schedule to existing `vercel.json`:
+- [x] Add cron schedule to existing `vercel.json`:
 
   ```json
   {
@@ -616,7 +616,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 3. Environment variables
 
-- [ ] Update `apps/web/.env.example`:
+- [x] Update `apps/web/.env.example`:
   ```
   # ─── Vercel Cron ───
   # CRON_SECRET=your-secret-here  (set in Vercel dashboard, used to authenticate cron requests)
@@ -626,7 +626,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 4. Tests
 
-- [ ] Create `__tests__/api/cron-availability-expiry.test.ts`:
+- [x] Create `__tests__/api/cron-availability-expiry.test.ts`:
   - Test: returns 401 without valid CRON_SECRET
   - Test: returns 200 with count of notified crew
   - Test: skips crew already notified in last 24h
@@ -637,10 +637,10 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 5. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 102] Availability expiry reminder — Vercel Cron daily at 08:00 UTC, in-app + push notification 24h before availability expires, duplicate prevention`
-- [ ] Mark P1 #7 (Availability expiry reminder) as `[x]` in `tasks/launch-readiness.md`
-- [ ] Update `apps/web/README.md`:
+- [x] Mark P1 #7 (Availability expiry reminder) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `apps/web/README.md`:
   - Add "Cron Jobs" section: availability expiry check, CRON_SECRET env var, schedule
 
 ---

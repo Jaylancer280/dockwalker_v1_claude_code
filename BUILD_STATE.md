@@ -143,6 +143,7 @@
 - [Stage 99] Email templates + forgot password flow — branded confirmation/recovery/email-change templates, forgot-password and reset-password pages, email confirmations enabled, middleware updated for auth flow routes
 - [Stage 100] Error tracking — @sentry/nextjs integration, server + client + edge init, error boundary capture, global error boundary, DSN-gated (no-ops without env var)
 - [Stage 101] Email notification fallback — Resend integration, transactional email templates for acceptance/apply/message, fire-and-forget delivery alongside push + in-app, message email rate limiting (5min cooldown per conversation)
+- [Stage 102] Availability expiry reminder — Vercel Cron daily at 08:00 UTC, in-app + push notification 24h before availability expires, duplicate prevention, CRON_SECRET auth
 
 ## Current Schema Version
 
