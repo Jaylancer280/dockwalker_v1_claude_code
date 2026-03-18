@@ -141,6 +141,7 @@
 - [Stage 97] Offline resilience — network status hook, offline banner, safeFetch wrapper with timeout, success toast variant, unified error feedback on all 9 silent-failure fetch calls across discover/review/messages/profile
 - [Stage 98] Landing page — product hero, value props, how-it-works, and CTAs replacing design system preview; middleware updated to allow unauthenticated access to root path
 - [Stage 99] Email templates + forgot password flow — branded confirmation/recovery/email-change templates, forgot-password and reset-password pages, email confirmations enabled, middleware updated for auth flow routes
+- [Stage 100] Error tracking — @sentry/nextjs integration, server + client + edge init, error boundary capture, global error boundary, DSN-gated (no-ops without env var)
 
 ## Current Schema Version
 

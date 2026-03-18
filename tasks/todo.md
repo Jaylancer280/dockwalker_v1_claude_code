@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 99: Email Templates + Forgot Password + SMTP Config
+Stage 100: Error Tracking (Sentry)
 
 ---
 
@@ -239,14 +239,14 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 1. Install Sentry — `apps/web/`
 
-- [ ] Run `npm install @sentry/nextjs` in `apps/web/`
-- [ ] **Do NOT run the Sentry wizard** (`npx @sentry/wizard`) — it generates too much boilerplate. Manual setup is cleaner.
+- [x] Run `npm install @sentry/nextjs` in `apps/web/`
+- [x] **Do NOT run the Sentry wizard** (`npx @sentry/wizard`) — it generates too much boilerplate. Manual setup is cleaner.
 
 ---
 
 #### 2. Sentry server config — `apps/web/sentry.server.config.ts`
 
-- [ ] Create file:
+- [x] Create file:
 
   ```typescript
   import * as Sentry from '@sentry/nextjs';
@@ -267,7 +267,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 3. Sentry client config — `apps/web/sentry.client.config.ts`
 
-- [ ] Create file:
+- [x] Create file:
 
   ```typescript
   import * as Sentry from '@sentry/nextjs';
@@ -289,7 +289,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 4. Sentry edge config — `apps/web/sentry.edge.config.ts`
 
-- [ ] Create file (same as server config — needed for middleware/edge routes):
+- [x] Create file (same as server config — needed for middleware/edge routes):
 
   ```typescript
   import * as Sentry from '@sentry/nextjs';
@@ -307,7 +307,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 5. Instrumentation file — `apps/web/src/instrumentation.ts`
 
-- [ ] Create file to register Sentry for server-side:
+- [x] Create file to register Sentry for server-side:
   ```typescript
   export async function register() {
     if (process.env.NEXT_RUNTIME === 'nodejs') {
@@ -323,7 +323,8 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 6. Next.js config — `apps/web/next.config.ts`
 
-- [ ] Wrap the existing config with `withSentryConfig`:
+- [x] Wrap the existing config with `withSentryConfig`:
+
   ```typescript
   import { withSentryConfig } from '@sentry/nextjs';
   ```
@@ -349,7 +350,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 7. Enhance error boundary — `apps/web/src/app/(app)/error.tsx`
 
-- [ ] Replace `console.error(error)` with Sentry capture:
+- [x] Replace `console.error(error)` with Sentry capture:
 
   ```typescript
   import * as Sentry from '@sentry/nextjs';
@@ -366,7 +367,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 8. Global error boundary — `apps/web/src/app/global-error.tsx`
 
-- [ ] Create file for root-level errors (outside the `(app)` layout):
+- [x] Create file for root-level errors (outside the `(app)` layout):
 
   ```typescript
   'use client';
@@ -390,7 +391,8 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 9. Environment variables
 
-- [ ] Update `apps/web/.env.example`:
+- [x] Update `apps/web/.env.example`:
+
   ```
   # ─── Error Tracking (Sentry) ───
   # NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
@@ -405,18 +407,18 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 10. Tests
 
-- [ ] No new tests needed — Sentry is infrastructure, not business logic
-- [ ] Verify existing tests still pass (Sentry imports should be tree-shaken in test env since no DSN)
-- [ ] If Sentry import causes issues in vitest, add to `vi.mock('@sentry/nextjs')` in test setup
+- [x] No new tests needed — Sentry is infrastructure, not business logic
+- [x] Verify existing tests still pass (Sentry imports should be tree-shaken in test env since no DSN)
+- [x] If Sentry import causes issues in vitest, add to `vi.mock('@sentry/nextjs')` in test setup
 
 ---
 
 #### 11. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 100] Error tracking — @sentry/nextjs integration, server + client + edge init, error boundary capture, global error boundary, DSN-gated (no-ops without env var)`
-- [ ] Mark P1 #9 (Error tracking) as `[x]` in `tasks/launch-readiness.md`
-- [ ] Update `apps/web/README.md`:
+- [x] Mark P1 #9 (Error tracking) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `apps/web/README.md`:
   - Add "Error Tracking" section: Sentry is optional, set `NEXT_PUBLIC_SENTRY_DSN` to enable
 
 ---
@@ -595,6 +597,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 #### 2. Vercel Cron config — `vercel.json`
 
 - [ ] Add cron schedule to existing `vercel.json`:
+
   ```json
   {
     "crons": [
@@ -814,6 +817,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 #### 1. Supabase Realtime config — `supabase/config.toml`
 
 - [ ] Verify Realtime is enabled in config.toml (it should be by default):
+
   ```toml
   [realtime]
   enabled = true
@@ -987,6 +991,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 #### 2. Android Asset Links — `apps/web/public/.well-known/assetlinks.json`
 
 - [ ] Create file:
+
   ```json
   [
     {
@@ -1018,6 +1023,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 #### 4. Android config — `apps/web/android/app/src/main/AndroidManifest.xml`
 
 - [ ] Add intent filter to the main activity for deep link handling:
+
   ```xml
   <intent-filter android:autoVerify="true">
     <action android:name="android.intent.action.VIEW" />
@@ -1068,9 +1074,11 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 #### 2. Add Analytics component — `apps/web/src/app/layout.tsx`
 
 - [ ] Import and add the Analytics component inside the root layout `<body>`:
+
   ```typescript
   import { Analytics } from '@vercel/analytics/react';
   ```
+
   ```tsx
   <body>
     {children}
@@ -1089,9 +1097,11 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 - [ ] Run `npm install @vercel/speed-insights` in `apps/web/`
 - [ ] Add to root layout alongside Analytics:
+
   ```typescript
   import { SpeedInsights } from '@vercel/speed-insights/next';
   ```
+
   ```tsx
   <body>
     {children}
