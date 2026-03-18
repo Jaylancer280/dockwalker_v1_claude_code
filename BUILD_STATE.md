@@ -134,10 +134,11 @@
 - [Stage 92b] Hat-scoped notification counts — separate notification/message counts per hat, alt-hat badge on hat switcher, role_context on notifications table
 - [Stage 93] Docky Phase 2 — crew context builder, cert gap analysis, personalised LLM prompts, dynamic suggestion chips
 - [Stage 93b] Docky Phase 2 cleanup — extract shared chip hook, cert-analysis unit tests
+- [Stage 94] Docky monetisation gating — advisor_usage table, free tier 3/month limit, paywall card, billing page, subscription settings row
 
 ## Current Schema Version
 
-v45 — notification role context (45 migrations applied)
+v46 — advisor usage tracking (46 migrations applied)
 
 ## Migrations Applied
 
@@ -188,6 +189,7 @@ v45 — notification role context (45 migrations applied)
 | `00043_pgvector_and_mca_chunks.sql`          | pgvector extension, `mca_document_chunks` table with HNSW index, `match_mca_documents` RPC for cosine similarity search, RLS read-only for authenticated users                                                                                                                                 |
 | `00044_advisor_conversations.sql`            | `advisor_conversations` + `advisor_messages` tables, cascade delete, indexes on person+updated_at and conversation+created_at, owner-only RLS. Not event-sourced — AI chat utility data.                                                                                                       |
 | `00045_notification_role_context.sql`        | Adds `role_context` (crew/employer/agent) to `notifications` with CHECK constraint. Backfills existing rows by type. Replaces unread index to include role_context for filtered count queries.                                                                                                 |
+| `00046_advisor_usage.sql`                    | `advisor_usage` table (person_id + month UNIQUE, question_count int). Owner read-only RLS. Not event-sourced — usage counter utility data for free tier Docky limits.                                                                                                                          |
 
 ## Deferred Decisions
 

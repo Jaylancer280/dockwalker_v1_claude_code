@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ChevronRight,
+  CreditCard,
   LogOut,
   Download,
   Trash2,
@@ -329,6 +330,20 @@ export default function SettingsPage() {
                 </div>
               </div>
             )}
+
+            <Separator />
+
+            {/* Subscription */}
+            <button
+              onClick={() => router.push('/billing')}
+              className="flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-accent"
+            >
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Subscription</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
 
             <Separator />
 

@@ -25,6 +25,10 @@ vi.mock('@/lib/advisor/cert-analysis', () => ({
   buildCertGapContext: (...args: unknown[]) => mockBuildCertGapContext(...args),
 }));
 
+vi.mock('@/lib/require-subscription', () => ({
+  requireSubscription: () => Promise.resolve({ ok: true, plan: 'crew_pro' }),
+}));
+
 import { POST } from '@/app/api/advisor/conversations/[id]/messages/route';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

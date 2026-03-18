@@ -71,6 +71,7 @@ The app depends on these Postgres functions in the `public` schema:
 | pgvector + MCA chunks                         | 00043     | pgvector extension, `mca_document_chunks` table with HNSW index + 1536-dim embeddings, `match_mca_documents` RPC for cosine similarity search, RLS read-only for authenticated users. Table deployed empty — MCA corpus ingestion deferred.                                                       |
 | Advisor conversations + messages              | 00044     | `advisor_conversations` (person_id, title, timestamps) + `advisor_messages` (conversation FK, role user/assistant, content, sources JSONB, token counts). Cascade delete. Owner-only RLS. Not event-sourced — AI chat utility data.                                                               |
 | Notification role context                     | 00045     | Adds `role_context` (crew/employer/agent CHECK) to `notifications`. Backfills by type. Replaces unread index to include role_context for hat-scoped badge queries.                                                                                                                                |
+| Advisor usage tracking                        | 00046     | `advisor_usage` table (person_id + month UNIQUE, question_count). Owner read-only RLS. Tracks free tier Docky question limits (3/month). Not event-sourced — usage counter utility data.                                                                                                          |
 
 ## Daywork Status Lifecycle
 

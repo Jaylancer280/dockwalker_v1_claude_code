@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ChevronLeft, SendHorizontal, LifeBuoy, Loader2, ChevronDown } from 'lucide-react';
+import { ChevronLeft, SendHorizontal, LifeBuoy, Loader2, ChevronDown, Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
 
@@ -64,6 +65,7 @@ export default function DockyConversationPage() {
   const [sending, setSending] = useState(false);
   const [thinkingPhase, setThinkingPhase] = useState<'profile' | 'thinking' | null>(null);
   const [input, setInput] = useState('');
+  const [limitReached, setLimitReached] = useState(false);
   const [title, setTitle] = useState('Docky');
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -105,30 +107,41 @@ export default function DockyConversationPage() {
   }, [conversationId, showError]);
 
   async function sendMessage(content: string) {
-    if (!content.trim() || sending) return;
+    if (!content.trim() || sending || limitReached) return;
 
-    const userMsg: Message = {
-      id: `temp-${Date.now()}`,
-      role: 'user',
-      content: content.trim(),
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
+    const trimmed = content.trim();
     setInput('');
     setSending(true);
 
     // Set title from first message
     if (messages.length === 0) {
-      setTitle(content.trim().slice(0, 40));
+      setTitle(trimmed.slice(0, 40));
     }
 
     try {
       const res = await fetch(`/api/advisor/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: content.trim() }),
+        body: JSON.stringify({ content: trimmed }),
       });
+
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+
+      if (res.status === 402 && data.error === 'limit_reached') {
+        // Don't add user message — it wasn't saved server-side
+        setLimitReached(true);
+        return;
+      }
+
+      // User message was saved — add it to local state
+      const userMsg: Message = {
+        id: `temp-${Date.now()}`,
+        role: 'user',
+        content: trimmed,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
 
       if (res.status === 503) {
         setMessages((prev) => [
@@ -146,7 +159,6 @@ export default function DockyConversationPage() {
 
       if (!res.ok) throw new Error('Failed to send');
 
-      const data = await res.json();
       setMessages((prev) => [
         ...prev,
         {
@@ -267,6 +279,30 @@ export default function DockyConversationPage() {
               </div>
             </div>
           )}
+
+          {limitReached && (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-card px-6 py-6 text-center">
+              <div className="relative">
+                <LifeBuoy className="h-10 w-10 text-muted-foreground" />
+                <Lock className="absolute -bottom-1 -right-1 h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium">
+                You&apos;ve used your 3 free questions this month
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Upgrade to Crew Pro for unlimited access to Docky
+              </p>
+              <Button onClick={() => router.push('/billing')} className="w-full">
+                Upgrade
+              </Button>
+              <button
+                onClick={() => router.push('/billing')}
+                className="text-xs text-muted-foreground underline"
+              >
+                View plans
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -278,14 +314,14 @@ export default function DockyConversationPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask Docky..."
+            placeholder={limitReached ? 'Upgrade to continue...' : 'Ask Docky...'}
             maxLength={500}
-            disabled={sending}
+            disabled={sending || limitReached}
             className="flex-1 rounded-full border border-border bg-muted px-4 py-2.5 text-sm outline-none focus:border-primary disabled:opacity-50"
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || sending}
+            disabled={!input.trim() || sending || limitReached}
             className="rounded-full bg-primary p-2.5 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             <SendHorizontal className="h-4 w-4" />

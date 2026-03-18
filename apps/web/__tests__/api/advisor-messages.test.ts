@@ -24,6 +24,10 @@ vi.mock('@/lib/advisor/cert-analysis', () => ({
   buildCertGapContext: () => '',
 }));
 
+vi.mock('@/lib/require-subscription', () => ({
+  requireSubscription: () => Promise.resolve({ ok: true, plan: 'crew_pro' }),
+}));
+
 import {
   POST,
   GET,

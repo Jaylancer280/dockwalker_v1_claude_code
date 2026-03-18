@@ -42,6 +42,7 @@ export default function DockyPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const suggestionChips = useProfileChips();
+  const [usagePill, setUsagePill] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -58,6 +59,24 @@ export default function DockyPage() {
 
   useEffect(() => {
     load();
+
+    // Fetch usage pill data
+    async function loadUsage() {
+      try {
+        const res = await fetch('/api/advisor/usage');
+        if (!res.ok) return;
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+        if (data.plan) {
+          setUsagePill('Pro');
+        } else if (data.limit != null) {
+          setUsagePill(`${data.used ?? 0} of ${data.limit}`);
+        }
+      } catch {
+        // No pill on failure
+      }
+    }
+    loadUsage();
   }, [load]);
 
   async function createConversation() {
@@ -124,7 +143,20 @@ export default function DockyPage() {
     <main className="mx-auto min-h-screen max-w-lg pb-[var(--nav-height)]">
       {/* Header */}
       <div className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background px-4 py-3">
-        <h1 className="text-lg font-semibold">Docky</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold">Docky</h1>
+          {usagePill && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                usagePill === 'Pro'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {usagePill}
+            </span>
+          )}
+        </div>
         <button
           onClick={createConversation}
           disabled={creating}
