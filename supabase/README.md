@@ -72,6 +72,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Advisor conversations + messages              | 00044     | `advisor_conversations` (person_id, title, timestamps) + `advisor_messages` (conversation FK, role user/assistant, content, sources JSONB, token counts). Cascade delete. Owner-only RLS. Not event-sourced — AI chat utility data.                                                               |
 | Notification role context                     | 00045     | Adds `role_context` (crew/employer/agent CHECK) to `notifications`. Backfills by type. Replaces unread index to include role_context for hat-scoped badge queries.                                                                                                                                |
 | Advisor usage tracking                        | 00046     | `advisor_usage` table (person_id + month UNIQUE, question_count). Owner read-only RLS. Tracks free tier Docky question limits (3/month). Not event-sourced — usage counter utility data.                                                                                                          |
+| Advisor usage write policies                  | 00047     | Adds INSERT and UPDATE RLS policies to `advisor_usage`. Defensive hardening — owner can write own rows if regular client used accidentally.                                                                                                                                                       |
 
 ## Daywork Status Lifecycle
 
