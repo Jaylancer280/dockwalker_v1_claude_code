@@ -142,6 +142,7 @@
 - [Stage 98] Landing page — product hero, value props, how-it-works, and CTAs replacing design system preview; middleware updated to allow unauthenticated access to root path
 - [Stage 99] Email templates + forgot password flow — branded confirmation/recovery/email-change templates, forgot-password and reset-password pages, email confirmations enabled, middleware updated for auth flow routes
 - [Stage 100] Error tracking — @sentry/nextjs integration, server + client + edge init, error boundary capture, global error boundary, DSN-gated (no-ops without env var)
+- [Stage 101] Email notification fallback — Resend integration, transactional email templates for acceptance/apply/message, fire-and-forget delivery alongside push + in-app, message email rate limiting (5min cooldown per conversation)
 
 ## Current Schema Version
 

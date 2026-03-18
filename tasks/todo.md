@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 100: Error Tracking (Sentry)
+Stage 101: Email Notification Fallback
 
 ---
 
@@ -437,7 +437,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 1. Install Resend — `apps/web/`
 
-- [ ] Run `npm install resend` in `apps/web/`
+- [x] Run `npm install resend` in `apps/web/`
   - Resend is chosen over raw SMTP because: simple SDK, good deliverability, generous free tier (100 emails/day), TypeScript-native
   - **Note:** Supabase auth emails use Supabase's own SMTP (configured in Dashboard). Transactional app emails use Resend directly — these are separate systems.
 
@@ -445,7 +445,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 2. Email service helper — `apps/web/src/lib/email/send.ts`
 
-- [ ] Create helper:
+- [x] Create helper:
 
   ```typescript
   import { Resend } from 'resend';
@@ -481,7 +481,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 3. Email templates — `apps/web/src/lib/email/templates.ts`
 
-- [ ] Create template functions that return `{ subject: string; html: string }`:
+- [x] Create template functions that return `{ subject: string; html: string }`:
   - `applicationAcceptedEmail(params: { crewName: string; jobTitle: string; vesselType: string; startDate: string; deepLink: string })` — "You've been accepted for [role] on [vessel]"
   - `newMessageEmail(params: { recipientName: string; senderName: string; preview: string; deepLink: string })` — "[Sender] sent you a message"
   - `engagementReminderEmail(params: { crewName: string; jobTitle: string; startDate: string; deepLink: string })` — "Your engagement starts tomorrow"
@@ -493,7 +493,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 4. Integrate into notification flow — `apps/web/src/lib/push-triggers.ts`
 
-- [ ] Add email sending as a third channel in the notification delivery path:
+- [x] Add email sending as a third channel in the notification delivery path:
   - After push + in-app notification, look up the recipient's email from `auth.users` (via service client)
   - Call `sendEmail()` with the appropriate template
   - Fire-and-forget: wrap in `.catch(() => {})` like push delivery
@@ -503,13 +503,13 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
     - `MESSAGE.SENT` → `newMessageEmail` to recipient (rate-limited: max 1 email per conversation per 5 minutes to prevent spam during active chat)
   - **Do NOT email for:** rejections (too negative), shortlists (low urgency), system messages, checklist updates
 
-- [ ] Add email rate limiting for messages:
+- [x] Add email rate limiting for messages:
   - Use a simple in-memory Map: `Map<engagementId, lastEmailTimestamp>`
   - Skip email if last email for this conversation was <5 minutes ago
   - This prevents 20 emails during an active chat exchange
   - Map resets on server restart — acceptable for this use case
 
-- [ ] Look up recipient email:
+- [x] Look up recipient email:
   - Service client can query `auth.users` table: `serviceClient.auth.admin.getUserById(recipientPersonId)`
   - Extract `user.email` from the response
   - Cache in-memory for the request lifetime (not across requests — emails can change)
@@ -518,7 +518,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 5. Environment variables
 
-- [ ] Update `apps/web/.env.example`:
+- [x] Update `apps/web/.env.example`:
   ```
   # ─── Transactional Email (Resend) ───
   # RESEND_API_KEY=re_xxx
@@ -529,12 +529,12 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 6. Tests
 
-- [ ] Create `__tests__/lib/email-send.test.ts`:
+- [x] Create `__tests__/lib/email-send.test.ts`:
   - Test: no-ops when RESEND_API_KEY is missing
   - Test: calls Resend SDK with correct params when key is set
   - Mock the Resend constructor and `.emails.send()`
 
-- [ ] Create `__tests__/lib/email-templates.test.ts`:
+- [x] Create `__tests__/lib/email-templates.test.ts`:
   - Test: each template returns non-empty subject and HTML
   - Test: HTML contains the expected deep link
   - Test: HTML contains the expected recipient name
@@ -543,10 +543,10 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 7. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 101] Email notification fallback — Resend integration, transactional email templates for acceptance/apply/message, fire-and-forget delivery alongside push + in-app, message email rate limiting`
-- [ ] Mark P1 #6 (Email notification fallback) as `[x]` in `tasks/launch-readiness.md`
-- [ ] Update `apps/web/README.md`:
+- [x] Mark P1 #6 (Email notification fallback) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `apps/web/README.md`:
   - Add "Transactional Email" section: Resend SDK, env vars, which events trigger emails
 
 ---
