@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
+import { useToast } from '@/hooks/use-toast';
 import {
   MapPin,
   Calendar,
@@ -168,6 +169,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 const SWIPE_THRESHOLD = 100;
 
 export default function DiscoverPage() {
+  const { showError } = useToast();
   const prefs = usePreferences();
   const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>('browse');
   const [cards, setCards] = useState<DayworkCard[]>([]);
@@ -357,6 +359,9 @@ export default function DiscoverPage() {
       setCards((prev) => prev.filter((c) => c.id !== dayworkId));
       // Refresh application count for the badge
       loadApplications();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to apply');
     }
     setComposingMessage(false);
     setMessageText('');
@@ -403,6 +408,9 @@ export default function DiscoverPage() {
     const res = await fetch(`/api/daywork/${dayworkId}/withdraw`, { method: 'POST' });
     if (res.ok) {
       setApplications((prev) => prev.filter((a) => a.daywork_id !== dayworkId));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to withdraw');
     }
     setWithdrawingId(null);
   }

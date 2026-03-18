@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 96: Security Headers + Multi-Event Transactionality
+Stage 97: Offline Resilience + Unified Error Feedback
 
 ---
 
@@ -251,7 +251,7 @@ Stage 96: Security Headers + Multi-Event Transactionality
 
 #### 1. Network status hook — `apps/web/src/hooks/use-network-status.ts`
 
-- [ ] Create hook that:
+- [x] Create hook that:
   - Tracks `navigator.onLine` state
   - Listens to `online`/`offline` window events
   - Returns `{ isOnline: boolean }`
@@ -261,19 +261,19 @@ Stage 96: Security Headers + Multi-Event Transactionality
 
 #### 2. Offline banner component — `apps/web/src/components/offline-banner.tsx`
 
-- [ ] Create a fixed-top banner (below status bar, above content):
+- [x] Create a fixed-top banner (below status bar, above content):
   - Shows "You're offline — actions will fail until connection returns" in warning style
   - Only visible when `isOnline === false`
   - Dismisses automatically when connection restores
   - Uses `use-network-status` hook
 
-- [ ] Add `<OfflineBanner />` to `apps/web/src/app/(app)/layout.tsx` inside the authenticated layout, above the main content area
+- [x] Add `<OfflineBanner />` to `apps/web/src/app/(app)/layout.tsx` inside the authenticated layout, above the main content area
 
 ---
 
 #### 3. Fetch wrapper — `apps/web/src/lib/safe-fetch.ts`
 
-- [ ] Create a thin wrapper around `fetch` that:
+- [x] Create a thin wrapper around `fetch` that:
   - Adds a 15-second `AbortController` timeout (configurable)
   - On network error or timeout, returns `{ ok: false, error: 'Network error — check your connection' }`
   - On HTTP error (4xx/5xx), parses `res.json()` safely (with the `text → JSON.parse` guard from lessons.md) and returns `{ ok: false, error: data.error ?? 'Something went wrong' }`
@@ -285,11 +285,11 @@ Stage 96: Security Headers + Multi-Event Transactionality
 
 #### 4. Add `showSuccess` to toast hook
 
-- [ ] Update `apps/web/src/hooks/use-toast.ts`:
+- [x] Update `apps/web/src/hooks/use-toast.ts`:
   - Add `showSuccess(message: string)` alongside existing `showError`
   - Success toast uses `bg-success text-white` styling (green) instead of `bg-destructive`
   - Same auto-dismiss (5s), same max-3 limit
-- [ ] Update `apps/web/src/components/toast-container.tsx`:
+- [x] Update `apps/web/src/components/toast-container.tsx`:
   - Support a `variant` field on Toast type (`'error' | 'success'`)
   - Apply conditional styling based on variant
 
@@ -299,9 +299,9 @@ Stage 96: Security Headers + Multi-Event Transactionality
 
 File: `apps/web/src/app/(app)/discover/page.tsx`
 
-- [ ] **Apply action** (`handleApply`): Add toast on failure — `showError(data.error ?? 'Failed to apply')`. Use `safeFetch` or add inline error handling after the `if (res.ok)` check.
-- [ ] **Withdraw action** (`handleWithdraw`): Same — add `showError` on failure.
-- [ ] Verify apply/withdraw buttons are already disabled during request (they are per audit — `disabled={applying}`). No change needed.
+- [x] **Apply action** (`handleApply`): Add toast on failure — `showError(data.error ?? 'Failed to apply')`. Use `safeFetch` or add inline error handling after the `if (res.ok)` check.
+- [x] **Withdraw action** (`handleWithdraw`): Same — add `showError` on failure.
+- [x] Verify apply/withdraw buttons are already disabled during request (they are per audit — `disabled={applying}`). No change needed.
 
 ---
 
@@ -309,10 +309,10 @@ File: `apps/web/src/app/(app)/discover/page.tsx`
 
 File: `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`
 
-- [ ] **Accept action** (`handleAccept`): Add `showError(data.error ?? 'Failed to accept')` in else branch after `if (res.ok)`.
-- [ ] **Reject action** (`handleReject`): Add `showError(data.error ?? 'Failed to reject')` in else branch.
-- [ ] **Shortlist action** (`handleShortlist`): Add `showError(data.error ?? 'Failed to shortlist')` in else branch.
-- [ ] Verify the page uses `useToast()` — if not, add the import and hook call.
+- [x] **Accept action** (`handleAccept`): Add `showError(data.error ?? 'Failed to accept')` in else branch after `if (res.ok)`.
+- [x] **Reject action** (`handleReject`): Add `showError(data.error ?? 'Failed to reject')` in else branch.
+- [x] **Shortlist action** (`handleShortlist`): Add `showError(data.error ?? 'Failed to shortlist')` in else branch.
+- [x] Verify the page uses `useToast()` — if not, add the import and hook call.
 
 ---
 
@@ -320,8 +320,8 @@ File: `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`
 
 File: `apps/web/src/app/(app)/messages/[engagementId]/page.tsx`
 
-- [ ] **Send message** (`handleSend`): Add `showError('Failed to send message')` in else branch after `if (res.ok)`. Do NOT clear the input on failure so the user can retry.
-- [ ] **Checklist toggle** (`handleChecklistToggle`): Add `showError` on failure. This is a non-critical action — error feedback is still valuable.
+- [x] **Send message** (`handleSend`): Add `showError('Failed to send message')` in else branch after `if (res.ok)`. Do NOT clear the input on failure so the user can retry.
+- [x] **Checklist toggle** (`handleChecklistToggle`): Add `showError` on failure. This is a non-critical action — error feedback is still valuable.
 
 ---
 
@@ -329,20 +329,20 @@ File: `apps/web/src/app/(app)/messages/[engagementId]/page.tsx`
 
 File: `apps/web/src/app/(app)/profile/page.tsx`
 
-- [ ] **Profile save** (`handleSave`): Add `showError(data.error ?? 'Failed to save profile')` on failure. Add `showSuccess('Profile updated')` on success.
-- [ ] **Delete experience** (`handleDeleteExperience`): Add `showError(data.error ?? 'Failed to delete experience')` on failure.
+- [x] **Profile save** (`handleSave`): Add `showError(data.error ?? 'Failed to save profile')` on failure. Add `showSuccess('Profile updated')` on success.
+- [x] **Delete experience** (`handleDeleteExperience`): Add `showError(data.error ?? 'Failed to delete experience')` on failure.
 
 ---
 
 #### 9. Tests
 
-- [ ] Create `__tests__/lib/safe-fetch.test.ts`:
+- [x] Create `__tests__/lib/safe-fetch.test.ts`:
   - Test: successful fetch returns `{ ok: true, data }`
   - Test: HTTP 400 returns `{ ok: false, error: '...' }`
   - Test: network error returns `{ ok: false, error: 'Network error...' }`
   - Test: timeout returns `{ ok: false, error: 'Network error...' }`
 
-- [ ] Create `__tests__/hooks/use-network-status.test.ts`:
+- [x] Create `__tests__/hooks/use-network-status.test.ts`:
   - Test: returns `isOnline: true` when `navigator.onLine` is true
   - Test: updates when offline event fires
 
@@ -350,9 +350,9 @@ File: `apps/web/src/app/(app)/profile/page.tsx`
 
 #### 10. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 97] Offline resilience — network status hook, offline banner, safeFetch wrapper with timeout, unified toast error feedback on all 9 silent-failure fetch calls`
-- [ ] Mark P0 #2 (offline handling) and P0 #3 (error feedback) as `[x]` in `tasks/launch-readiness.md`
+- [x] Mark P0 #2 (offline handling) and P0 #3 (error feedback) as `[x]` in `tasks/launch-readiness.md`
 
 ---
 

@@ -9,6 +9,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => mockUseRouter(),
 }));
 
+// Mock useToast
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), toasts: [], dismiss: vi.fn() }),
+}));
+
 // Mock next/link
 vi.mock('next/link', () => ({
   default: ({

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import {
   ChevronLeft,
@@ -98,6 +99,7 @@ const SWIPE_THRESHOLD = 100;
 export default function ReviewApplicantsPage() {
   const { id: dayworkId } = useParams<{ id: string }>();
   const router = useRouter();
+  const { showError } = useToast();
   const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -253,7 +255,7 @@ export default function ReviewApplicantsPage() {
       );
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to shortlist');
+      showError(data.error ?? 'Failed to shortlist');
     }
     setActing(false);
   }
@@ -290,7 +292,7 @@ export default function ReviewApplicantsPage() {
       }
     } else {
       const data = await res.json().catch(() => ({}));
-      alert(data.error ?? 'Failed to accept');
+      showError(data.error ?? 'Failed to accept');
     }
     setActing(false);
   }
@@ -302,6 +304,9 @@ export default function ReviewApplicantsPage() {
     });
     if (res.ok) {
       setAllApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to reject');
     }
     setActing(false);
   }

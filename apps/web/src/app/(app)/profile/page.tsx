@@ -21,6 +21,7 @@ import {
 import { Avatar } from '@/components/avatar';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { NotificationBell } from '@/components/notification-bell';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,6 +123,7 @@ interface ExperienceEntry {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -314,6 +316,10 @@ export default function ProfilePage() {
     if (res.ok) {
       setEditing(false);
       await loadProfile();
+      showSuccess('Profile updated');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to save profile');
     }
     setSaving(false);
   }
@@ -324,6 +330,9 @@ export default function ProfilePage() {
     if (res.ok) {
       setExperiences((prev) => prev.filter((e) => e.id !== expId));
       if (expandedExpId === expId) setExpandedExpId(null);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to delete experience');
     }
     setDeletingExpId(null);
   }

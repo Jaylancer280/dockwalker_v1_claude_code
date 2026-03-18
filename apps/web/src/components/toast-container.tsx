@@ -13,7 +13,11 @@ export function ToastContainer() {
         <button
           key={toast.id}
           onClick={() => dismiss(toast.id)}
-          className="animate-in fade-in slide-in-from-bottom-2 rounded-lg bg-destructive px-4 py-3 text-sm text-destructive-foreground shadow-lg"
+          className={`animate-in fade-in slide-in-from-bottom-2 rounded-lg px-4 py-3 text-sm shadow-lg ${
+            toast.variant === 'success'
+              ? 'bg-emerald-600 text-white'
+              : 'bg-destructive text-destructive-foreground'
+          }`}
         >
           {toast.message}
         </button>

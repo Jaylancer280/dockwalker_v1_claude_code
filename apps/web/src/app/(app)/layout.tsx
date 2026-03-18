@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { BottomNav } from '@/components/bottom-nav';
 import { ToastWrapper } from '@/components/toast-wrapper';
+import { OfflineBanner } from '@/components/offline-banner';
 
 export default async function AppLayout({
   children,
@@ -26,6 +27,7 @@ export default async function AppLayout({
 
   return (
     <ToastWrapper>
+      <OfflineBanner />
       <div className="pb-nav">{children}</div>
       <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
     </ToastWrapper>

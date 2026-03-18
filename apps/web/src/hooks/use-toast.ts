@@ -6,11 +6,13 @@ import { createElement, type ReactNode } from 'react';
 interface Toast {
   id: string;
   message: string;
+  variant: 'error' | 'success';
 }
 
 interface ToastContextValue {
   toasts: Toast[];
   showError: (message: string) => void;
+  showSuccess: (message: string) => void;
   dismiss: (id: string) => void;
 }
 
@@ -31,11 +33,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const showError = useCallback(
-    (message: string) => {
+  const addToast = useCallback(
+    (message: string, variant: 'error' | 'success') => {
       const id = `toast-${++nextId}`;
       setToasts((prev) => {
-        const updated = [...prev, { id, message }];
+        const updated = [...prev, { id, message, variant }];
         // Max 3 visible (FIFO)
         return updated.length > 3 ? updated.slice(-3) : updated;
       });
@@ -45,6 +47,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
 
+  const showError = useCallback((message: string) => addToast(message, 'error'), [addToast]);
+  const showSuccess = useCallback((message: string) => addToast(message, 'success'), [addToast]);
+
   // Cleanup timers on unmount
   useEffect(() => {
     const current = timers.current;
@@ -53,7 +58,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return createElement(ToastContext.Provider, { value: { toasts, showError, dismiss } }, children);
+  return createElement(
+    ToastContext.Provider,
+    { value: { toasts, showError, showSuccess, dismiss } },
+    children,
+  );
 }
 
 export function useToast(): ToastContextValue {

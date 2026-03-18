@@ -176,6 +176,8 @@ export default function ChatPage() {
     if (res.ok) {
       setInput('');
       await loadMessages();
+    } else {
+      showError('Failed to send message');
     }
     setSending(false);
   }
@@ -432,6 +434,8 @@ export default function ChatPage() {
           : prev.checklist.acknowledged_item_ids.filter((id) => id !== itemId);
         return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: newAcked } };
       });
+    } else {
+      showError('Failed to update checklist');
     }
   }
 

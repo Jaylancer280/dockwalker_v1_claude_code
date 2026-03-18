@@ -179,6 +179,10 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), toasts: [], dismiss: vi.fn() }),
+}));
+
 vi.mock('@/lib/haptics', () => ({
   hapticLight: vi.fn(),
   hapticMedium: vi.fn(),
