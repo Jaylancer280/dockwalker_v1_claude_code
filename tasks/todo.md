@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 97: Offline Resilience + Unified Error Feedback
+Stage 98: Landing Page
 
 ---
 
@@ -368,7 +368,7 @@ File: `apps/web/src/app/(app)/profile/page.tsx`
 
 #### 1. Landing page — `apps/web/src/app/page.tsx`
 
-- [ ] Replace the design system preview with a product landing page:
+- [x] Replace the design system preview with a product landing page:
   - **Hero section:**
     - DockWalker logo (existing `/images/brand/dw_app_icon_cropped.png`)
     - Headline: concise value prop (e.g. "Superyacht daywork, simplified")
@@ -384,14 +384,14 @@ File: `apps/web/src/app/(app)/profile/page.tsx`
     - 3. Connect and confirm
   - **Footer:** App name, tagline from manifest ("Superyacht daywork hiring — find crew or find work"), link to login
 
-- [ ] Design constraints:
+- [x] Design constraints:
   - Mobile-first (max-w-lg mx-auto, matching app layout)
   - Use existing design tokens only (`bg-navy`, `text-sea`, `bg-teal`, etc.)
   - No external images or heavy assets — text + icons + existing brand image
   - No JavaScript interactivity needed (static content)
   - Semantic HTML for SEO (h1, h2, section, footer)
 
-- [ ] Verify middleware behavior:
+- [x] Verify middleware behavior:
   - Authenticated users hitting `/` should still redirect to `/discover` or `/daywork/mine` based on hat
   - Only unauthenticated users see the landing page
   - Confirm this is handled by the `(app)/layout.tsx` auth check or the proxy middleware — read the redirect logic to be sure
@@ -400,16 +400,16 @@ File: `apps/web/src/app/(app)/profile/page.tsx`
 
 #### 2. Tests
 
-- [ ] No component tests needed for a static landing page — it has no interactive logic
-- [ ] Verify existing tests still pass (no regressions from replacing page.tsx)
+- [x] No component tests needed for a static landing page — it has no interactive logic
+- [x] Verify existing tests still pass (no regressions from replacing page.tsx)
 
 ---
 
 #### 3. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 98] Landing page — product hero, value props, and CTAs replacing design system preview`
-- [ ] Mark P0 #4 (landing page) as `[x]` in `tasks/launch-readiness.md`
+- [x] Mark P0 #4 (landing page) as `[x]` in `tasks/launch-readiness.md`
 
 ---
 

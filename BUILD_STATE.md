@@ -139,6 +139,7 @@
 - [Stage 95] Codebase hardening — projection state guards on ACCEPTED/REJECTED, DAYWORK.EXTENDED moved into apply_projection, hat validation on update-positions, daywork_templates UPDATE policy, webhook env guard
 - [Stage 96] Security headers (vercel.json) + onboarding event batching for atomicity
 - [Stage 97] Offline resilience — network status hook, offline banner, safeFetch wrapper with timeout, success toast variant, unified error feedback on all 9 silent-failure fetch calls across discover/review/messages/profile
+- [Stage 98] Landing page — product hero, value props, how-it-works, and CTAs replacing design system preview; middleware updated to allow unauthenticated access to root path
 
 ## Current Schema Version
 
