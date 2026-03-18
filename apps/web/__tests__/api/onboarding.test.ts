@@ -18,8 +18,10 @@ vi.mock('@/lib/supabase/server', () => ({
 }));
 
 const mockAppendEvent = vi.fn().mockResolvedValue('evt-1');
+const mockAppendEvents = vi.fn().mockResolvedValue(['evt-1', 'evt-2']);
 vi.mock('@dockwalker/db', () => ({
   appendEvent: (...args: unknown[]) => mockAppendEvent(...args),
+  appendEvents: (...args: unknown[]) => mockAppendEvents(...args),
 }));
 
 function makeRequest(body: unknown): Request {
@@ -209,10 +211,12 @@ describe('POST /api/onboarding', () => {
     }));
     expect(res.status).toBe(200);
 
-    // Should have called appendEvent twice: once for VESSEL.CREATED, once for EXPERIENCE.ADDED
-    expect(mockAppendEvent).toHaveBeenCalledTimes(2);
-    expect(mockAppendEvent.mock.calls[0][1].eventType).toBe('VESSEL.CREATED');
-    expect(mockAppendEvent.mock.calls[1][1].eventType).toBe('EXPERIENCE.ADDED');
+    // Should have called appendEvents once with batch of 2 events: VESSEL.CREATED + EXPERIENCE.ADDED
+    expect(mockAppendEvents).toHaveBeenCalledTimes(1);
+    const batchEvents = mockAppendEvents.mock.calls[0][1];
+    expect(batchEvents).toHaveLength(2);
+    expect(batchEvents[0].eventType).toBe('VESSEL.CREATED');
+    expect(batchEvents[1].eventType).toBe('EXPERIENCE.ADDED');
   });
 
   it('reuses existing vessel during onboarding if IMO matches', async () => {
@@ -260,10 +264,12 @@ describe('POST /api/onboarding', () => {
     }));
     expect(res.status).toBe(200);
 
-    // Only EXPERIENCE.ADDED, no VESSEL.CREATED
-    expect(mockAppendEvent).toHaveBeenCalledTimes(1);
-    expect(mockAppendEvent.mock.calls[0][1].eventType).toBe('EXPERIENCE.ADDED');
-    expect(mockAppendEvent.mock.calls[0][1].payload.vessel_id).toBe('existing-v1');
+    // Only EXPERIENCE.ADDED, no VESSEL.CREATED — single event still uses appendEvents batch
+    expect(mockAppendEvents).toHaveBeenCalledTimes(1);
+    const batchEvents = mockAppendEvents.mock.calls[0][1];
+    expect(batchEvents).toHaveLength(1);
+    expect(batchEvents[0].eventType).toBe('EXPERIENCE.ADDED');
+    expect(batchEvents[0].payload.vessel_id).toBe('existing-v1');
   });
 
   it('returns 409 when batch experiences overlap with existing crew_experiences', async () => {

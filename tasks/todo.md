@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 95: Codebase Hardening — Audit Fixes
+Stage 96: Security Headers + Multi-Event Transactionality
 
 ---
 
@@ -181,7 +181,7 @@ Stage 95: Codebase Hardening — Audit Fixes
 
 #### 1. Security headers — `vercel.json`
 
-- [ ] Create `apps/web/vercel.json` with production security headers:
+- [x] Create `vercel.json` (repo root) with production security headers:
 
   ```json
   {
@@ -210,14 +210,14 @@ Stage 95: Codebase Hardening — Audit Fixes
 
 #### 2. Onboarding route — batch vessel+experience events
 
-- [ ] Update `apps/web/src/app/api/onboarding/route.ts`:
+- [x] Update `apps/web/src/app/api/onboarding/route.ts`:
   - Currently lines ~196-216: a `for...of` loop calls `appendEvent` sequentially for each `VESSEL.CREATED` + `EXPERIENCE.ADDED` pair
   - Refactor: collect all events into an array during the loop, then call `appendEvents(serviceClient, allEvents)` once after the loop
   - This makes the entire vessel+experience batch atomic — if any event fails, none are committed
   - Preserve the vessel lookup logic (check existing vessel before creating) — the lookup stays sequential, only the event appending becomes batched
   - Import `appendEvents` from `@dockwalker/db` (already exported alongside `appendEvent`)
 
-- [ ] Verify `/api/availability/route.ts` is safe:
+- [x] Verify `/api/availability/route.ts` is safe:
   - Has 3 `appendEvent` calls but they're in mutually exclusive conditional branches (clear vs not-available vs date-ranges)
   - No fix needed — confirm by reading the file
 
@@ -225,7 +225,7 @@ Stage 95: Codebase Hardening — Audit Fixes
 
 #### 3. Tests
 
-- [ ] Update onboarding test (`__tests__/api/onboarding.test.ts` or similar):
+- [x] Update onboarding test (`__tests__/api/onboarding.test.ts` or similar):
   - Verify existing test for experienced crew onboarding still passes after batch refactor
   - Mock should now expect a single `appendEvents` call with array of events instead of multiple `appendEvent` calls
 
@@ -233,9 +233,9 @@ Stage 95: Codebase Hardening — Audit Fixes
 
 #### 4. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 96] Security headers (vercel.json) + onboarding event batching for atomicity`
-- [ ] Mark P0 #5 (security headers) and P2 #15 (multi-event transactionality) as `[x]` in `tasks/launch-readiness.md`
+- [x] Mark P0 #5 (security headers) and P2 #15 (multi-event transactionality) as `[x]` in `tasks/launch-readiness.md`
 
 ---
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
-import { appendEvent } from '@dockwalker/db';
+import { appendEvents } from '@dockwalker/db';
+import type { AppendEventParams } from '@dockwalker/db';
+import type { EventPayloadMap } from '@dockwalker/types';
 import { randomUUID } from 'crypto';
 
 /**
@@ -140,6 +142,9 @@ export async function POST(request: Request) {
         );
       }
 
+      // Collect all vessel + experience events, then batch-append atomically
+      const batchEvents: AppendEventParams<keyof EventPayloadMap>[] = [];
+
       for (const entry of body_experiences) {
         const { vessel, experience } = entry as {
           vessel: {
@@ -193,7 +198,7 @@ export async function POST(request: Request) {
           if (!sizeBand) continue;
 
           vesselId = randomUUID();
-          await appendEvent(serviceClient, {
+          batchEvents.push({
             eventType: 'VESSEL.CREATED',
             aggregateId: vesselId,
             aggregateType: 'vessel',
@@ -213,7 +218,7 @@ export async function POST(request: Request) {
 
         // Create experience entry
         const experienceId = randomUUID();
-        await appendEvent(serviceClient, {
+        batchEvents.push({
           eventType: 'EXPERIENCE.ADDED',
           aggregateId: experienceId,
           aggregateType: 'experience',
@@ -243,6 +248,11 @@ export async function POST(request: Request) {
           },
           personId: user.id,
         });
+      }
+
+      // Batch-append all vessel + experience events atomically
+      if (batchEvents.length > 0) {
+        await appendEvents(serviceClient, batchEvents);
       }
     }
 

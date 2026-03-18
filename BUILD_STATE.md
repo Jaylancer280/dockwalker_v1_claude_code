@@ -137,6 +137,7 @@
 - [Stage 94] Docky monetisation gating — advisor_usage table, free tier 3/month limit, paywall card, billing page, subscription settings row
 - [Stage 94b] advisor_usage RLS hardening — add INSERT + UPDATE policies
 - [Stage 95] Codebase hardening — projection state guards on ACCEPTED/REJECTED, DAYWORK.EXTENDED moved into apply_projection, hat validation on update-positions, daywork_templates UPDATE policy, webhook env guard
+- [Stage 96] Security headers (vercel.json) + onboarding event batching for atomicity
 
 ## Current Schema Version
 
