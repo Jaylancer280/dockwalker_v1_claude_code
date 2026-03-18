@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 98: Landing Page
+Stage 99: Email Templates + Forgot Password + SMTP Config
 
 ---
 
@@ -13,406 +13,1127 @@ Stage 98: Landing Page
 
 ---
 
-### Stage 95: Codebase Hardening — Audit Fixes
+### Stage 99: Email Templates + Forgot Password + SMTP Config
 
-**Goal:** Fix 5 issues identified in the full codebase audit: projection state guards, hat validation, RLS completeness, architectural consistency, env var safety.
+**Goal:** Replace Supabase's default auth emails with branded HTML templates, add a self-service password reset flow (forgot-password → email link → reset-password page), enable email confirmations, and document production SMTP setup.
 
-**Will NOT touch:** UI pages, Docky advisor, billing flows, test files (except new tests for new migration logic).
+**Will NOT touch:** API routes (except callback), database/migrations, RLS, billing, Docky, components outside auth pages.
 
-**Done condition:** Ledger replay produces identical projection state as live writes. All event handlers are in `apply_projection`. All CRUD tables have complete RLS. All routes validate hat before recording roleContext.
-
----
-
-#### 1. Migration — `supabase/migrations/00048_projection_state_guards.sql`
-
-**Fixes E1/E2:** Add WHERE clauses to ACCEPTED and REJECTED handlers in `apply_projection`. Also moves DAYWORK.EXTENDED into `apply_projection` (fix E3) and drops the standalone trigger.
-
-- [x] Create migration with `CREATE OR REPLACE FUNCTION public.apply_projection(...)`:
-  - **CRITICAL: Diff against migration 00041** (the current version). The new function body must include ALL existing handlers unchanged, plus these modifications:
-    - `DAYWORK.ACCEPTED` (line 237 in 00041): Add `AND status IN ('applied', 'viewed', 'shortlisted')` to the UPDATE on applications. This matches the API-layer validation in the accept route (lines 57-61).
-      ```sql
-      -- Was:
-      update public.applications set status = 'accepted', updated_at = now()
-        where crew_person_id = ... and daywork_id = ...;
-      -- Becomes:
-      update public.applications set status = 'accepted', updated_at = now()
-        where crew_person_id = ... and daywork_id = ...
-        and status in ('applied', 'viewed', 'shortlisted');
-      ```
-    - `DAYWORK.REJECTED` (line 255 in 00041): Same fix.
-      ```sql
-      -- Was:
-      update public.applications set status = 'rejected', updated_at = now()
-        where crew_person_id = ... and daywork_id = ...;
-      -- Becomes:
-      update public.applications set status = 'rejected', updated_at = now()
-        where crew_person_id = ... and daywork_id = ...
-        and status in ('applied', 'viewed', 'shortlisted');
-      ```
-    - **Add `DAYWORK.EXTENDED` handler** to the CASE statement (currently handled by standalone trigger in 00036). Copy the logic from `apply_daywork_extended()`:
-      ```sql
-      when 'DAYWORK.EXTENDED' then
-        update public.dayworks set
-          end_date = coalesce((p_payload->>'end_date')::date, end_date),
-          working_days = coalesce((p_payload->>'working_days')::int, working_days),
-          working_day_dates = case
-            when p_payload ? 'working_day_dates' then (
-              select array_agg(d::date)
-              from jsonb_array_elements_text(p_payload->'working_day_dates') d
-            )
-            else working_day_dates
-          end
-        where id = (p_payload->>'daywork_id')::uuid;
-      ```
-      **Note:** The standalone trigger uses `new.payload` (trigger row reference). Inside `apply_projection`, use the function parameter `p_payload` instead.
-  - **Drop the standalone trigger and function:**
-    ```sql
-    drop trigger if exists trg_apply_daywork_extended on public.events;
-    drop function if exists public.apply_daywork_extended();
-    ```
-
-- [x] Create rollback `supabase/rollbacks/00048_projection_state_guards.down.sql`:
-  - Restore `apply_projection` to the 00041 version (copy the FULL function body from 00041)
-  - Recreate the standalone `apply_daywork_extended()` function and trigger (copy from 00036)
-  - **Rollback must be self-contained** — include the full function bodies, not comments saying "restore from migration X"
-
-**Verification:** After `npx supabase db reset`, manually test:
-
-- Accept an applied application → status becomes 'accepted'
-- Try to accept an already-rejected application via raw SQL `appendEvent` → status should NOT change (WHERE clause prevents it)
-- Extend a daywork via the API → end_date updates (EXTENDED handler works in apply_projection)
+**Done condition:** Local dev sends branded confirmation/reset/email-change emails to Inbucket. Forgot-password flow works end-to-end. Production SMTP setup is documented with env var references. Email confirmations are enabled.
 
 ---
 
-#### 2. Route fix — Hat validation on `update-positions`
+#### 1. Email templates — `supabase/templates/`
 
-**Fixes S2.**
+Create 3 branded HTML email templates using Supabase's Go template variables (`{{ .ConfirmationURL }}`, `{{ .SiteURL }}`, `{{ .Email }}`).
 
-- [x] Update `apps/web/src/app/api/daywork/[id]/update-positions/route.ts`:
-  - After the `requireDomainUser()` guard (line 12), add hat validation before the ownership check:
-    ```typescript
-    if (!['employer', 'agent'].includes(person.current_hat)) {
-      return NextResponse.json({ error: 'Only employers can update positions' }, { status: 403 });
-    }
-    ```
-  - Change the destructuring to include `person`:
-    ```typescript
-    const { user, person, supabase, serviceClient } = guard.value;
-    ```
-  - Replace the hardcoded `roleContext: 'employer'` with `roleContext: person.current_hat as 'employer' | 'agent'` so the event records the actual hat worn.
+- [x] Create `supabase/templates/confirmation.html` — signup email confirmation
+  - Subject line (configured in config.toml): "Confirm your DockWalker account"
+  - Body: DockWalker branding (text-only, no images — emails need to work in plain clients), greeting, "Click the link below to confirm your email and start using DockWalker", CTA link using `{{ .ConfirmationURL }}`, footer with "If you didn't create this account, you can ignore this email"
+  - Inline CSS only (no external stylesheets — email clients strip `<link>` tags)
+  - Use navy/teal brand colours inline: `#0f172a` (navy), `#0d9488` (teal)
+  - Mobile-friendly: max-width 480px centered, minimum 14px font
+
+- [x] Create `supabase/templates/recovery.html` — password reset
+  - Subject: "Reset your DockWalker password"
+  - Body: "You requested a password reset for your DockWalker account", CTA link using `{{ .ConfirmationURL }}`, "This link expires in 1 hour", footer with "If you didn't request this, you can ignore this email"
+  - Same styling conventions as confirmation
+
+- [x] Create `supabase/templates/email_change.html` — email change confirmation
+  - Subject: "Confirm your new email address"
+  - Body: "You requested to change the email address on your DockWalker account", CTA link using `{{ .ConfirmationURL }}`, footer with "If you didn't request this change, please secure your account immediately"
+  - Same styling conventions
+
+**Template structure** (shared across all 3):
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+  </head>
+  <body style="margin:0;padding:0;background:#f8fafc;font-family:sans-serif;">
+    <div
+      style="max-width:480px;margin:40px auto;background:#ffffff;border-radius:8px;overflow:hidden;"
+    >
+      <div style="background:#0f172a;padding:24px;text-align:center;">
+        <h1 style="color:#ffffff;font-size:20px;margin:0;">DockWalker</h1>
+      </div>
+      <div style="padding:32px 24px;">
+        <!-- Content varies per template -->
+      </div>
+      <div style="padding:16px 24px;text-align:center;color:#94a3b8;font-size:12px;">
+        <!-- Footer -->
+      </div>
+    </div>
+  </body>
+</html>
+```
 
 ---
 
-#### 3. Migration — `supabase/migrations/00049_templates_update_policy.sql`
+#### 2. Supabase config — `supabase/config.toml`
 
-**Fixes R1.**
+- [x] Enable email confirmations:
 
-- [x] Create migration:
-
-  ```sql
-  -- =============================================================================
-  -- Migration 00049: daywork_templates UPDATE policy
-  -- =============================================================================
-
-  create policy "Owner can update own templates"
-    on public.daywork_templates for update
-    to authenticated
-    using (person_id = auth.uid())
-    with check (person_id = auth.uid());
+  ```toml
+  enable_confirmations = true
   ```
 
-- [x] Create rollback `supabase/rollbacks/00049_templates_update_policy.down.sql`:
-  ```sql
-  drop policy if exists "Owner can update own templates" on public.daywork_templates;
+  **Impact:** Users must click confirmation link before first sign-in. Local dev emails go to Inbucket (port 54324). This makes local dev match production behavior.
+
+- [x] Add custom template references:
+
+  ```toml
+  [auth.email.template.confirmation]
+  subject = "Confirm your DockWalker account"
+  content_path = "./supabase/templates/confirmation.html"
+
+  [auth.email.template.recovery]
+  subject = "Reset your DockWalker password"
+  content_path = "./supabase/templates/recovery.html"
+
+  [auth.email.template.email_change]
+  subject = "Confirm your new email address"
+  content_path = "./supabase/templates/email_change.html"
   ```
+
+- [x] **Do NOT uncomment the SMTP section** in config.toml — local dev uses Inbucket. Production SMTP is configured in Supabase Dashboard, not config.toml.
 
 ---
 
-#### 4. Route fix — Stripe webhook env var guard
+#### 3. Forgot password page — `apps/web/src/app/auth/forgot-password/page.tsx`
 
-**Fixes S3.**
+- [x] Create page with:
+  - Email input field
+  - Submit calls `supabase.auth.resetPasswordForEmail(email, { redirectTo: '${origin}/auth/callback?next=/auth/reset-password' })`
+  - On success: show "Check your email" message (same pattern as signup success state)
+  - On error: show error message
+  - Loading state on submit button
+  - "Back to sign in" link
+  - Same layout/styling as login and signup pages (centered card, logo, max-w-sm)
 
-- [x] Update `apps/web/src/app/api/webhooks/stripe/route.ts`:
-  - Before the `stripe.webhooks.constructEvent()` call, add explicit check:
+---
+
+#### 4. Reset password page — `apps/web/src/app/auth/reset-password/page.tsx`
+
+- [x] Create page with:
+  - New password + confirm password fields
+  - Client-side validation: passwords match, minimum 8 chars (same rules as signup)
+  - Submit calls `supabase.auth.updateUser({ password: newPassword })`
+  - On success: show success message + "Sign in" link (or auto-redirect to login after 3s)
+  - On error: show error message
+  - Loading state on submit button
+  - Same layout/styling as other auth pages
+  - **Note:** User arrives here already authenticated (callback exchanged code for session). If user navigates here directly without a session, show a message like "This link has expired or is invalid" with a link to request a new one.
+
+---
+
+#### 5. Update callback route — `apps/web/src/app/auth/callback/route.ts`
+
+- [x] The existing callback already handles the `next` query param correctly:
+  ```typescript
+  const next = searchParams.get('next') ?? '/onboarding';
+  ```
+  Password reset emails will use `?next=/auth/reset-password`, which will redirect correctly after code exchange.
+  - **Verify this works** — read the file and confirm no changes needed. If the callback clears query params during redirect, fix it.
+
+---
+
+#### 6. Update middleware — `apps/web/src/lib/supabase/middleware.ts`
+
+- [x] Add `/auth/forgot-password` and `/auth/reset-password` to the routing logic:
+  - Both must be accessible without authentication (they're part of the auth flow)
+  - BUT `/auth/reset-password` should NOT redirect authenticated users to onboarding (the user has a session from the callback and needs to set their new password)
+  - **Approach:** Split the public routes into two groups:
     ```typescript
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    if (!webhookSecret) {
-      return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
-    }
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    // Routes that redirect authenticated users to the app
+    const authEntryRoutes = ['/auth/login', '/auth/signup'];
+    // All public routes (no auth required)
+    const publicRoutes = [
+      ...authEntryRoutes,
+      '/auth/callback',
+      '/auth/forgot-password',
+      '/auth/reset-password',
+    ];
+    const isPublicRoute = publicRoutes.some((route) => path.startsWith(route));
+    const isAuthEntryRoute = authEntryRoutes.some((route) => path.startsWith(route));
     ```
-  - This removes the `!` non-null assertion.
+  - Update line 43: keep `if (!user && !isPublicRoute && !isLandingPage)` (no change — forgot-password and reset-password are now public)
+  - Update line 50: change from `if (user && isPublicRoute)` to `if (user && isAuthEntryRoute)` — this prevents authenticated users on `/auth/reset-password` from being bounced to onboarding
 
 ---
 
-#### 5. Tests
+#### 7. Login page update — `apps/web/src/app/auth/login/page.tsx`
 
-- [x] Update existing accept route test (`__tests__/api/daywork-accept.test.ts` or similar):
-  - Verified: test already covers `status: 'rejected'` → returns 400. No changes needed.
-
-- [x] Update existing reject route test:
-  - Verified: test already covers `status: 'accepted'` → returns 400. No changes needed.
-
-- [x] Add test for update-positions hat validation:
-  - Added crew hat → 403 test to multi-crew.test.ts.
-
----
-
-#### 6. Documentation
-
-- [x] Update `BUILD_STATE.md`:
-  - Stage entry: `[Stage 95] Codebase hardening — projection state guards on ACCEPTED/REJECTED, DAYWORK.EXTENDED moved into apply_projection, hat validation on update-positions, daywork_templates UPDATE policy, webhook env guard`
-  - Schema version bump to v49
-  - Migration table entries for 00048 and 00049
-- [x] Update `supabase/README.md` — migration 00048 and 00049 entries
-- [x] Update `tasks/lessons.md` — append: "Projection handlers must enforce the same state preconditions as the API layer. API validation prevents invalid events from being appended, but projection WHERE clauses prevent invalid transitions during ledger replay. Both layers must agree."
-
----
-
-### Stage 96: Security Headers + Multi-Event Transactionality
-
-**Goal:** Add production security headers via `vercel.json`. Audit and fix the one route (`/api/onboarding`) that uses sequential `appendEvent` calls in a loop instead of `appendEvents` batch.
-
-**Will NOT touch:** UI pages, components, styles, migrations, RLS.
-
-**Done condition:** `vercel.json` exists with HSTS, X-Frame-Options, X-Content-Type-Options, CSP headers. Onboarding route uses `appendEvents()` for vessel+experience batch. All other multi-event routes already use batch or are conditional branches (confirmed safe).
-
----
-
-#### 1. Security headers — `vercel.json`
-
-- [x] Create `vercel.json` (repo root) with production security headers:
-
-  ```json
-  {
-    "headers": [
-      {
-        "source": "/(.*)",
-        "headers": [
-          {
-            "key": "Strict-Transport-Security",
-            "value": "max-age=63072000; includeSubDomains; preload"
-          },
-          { "key": "X-Content-Type-Options", "value": "nosniff" },
-          { "key": "X-Frame-Options", "value": "DENY" },
-          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-          { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
-        ]
-      }
-    ]
-  }
+- [x] Add "Forgot password?" link below the password field (inside the form, after the password input div, before the error message):
+  ```tsx
+  <div className="flex justify-end">
+    <Link
+      href="/auth/forgot-password"
+      className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+    >
+      Forgot password?
+    </Link>
+  </div>
   ```
 
-  - **Note:** CSP omitted intentionally — Next.js inline scripts and Supabase/Stripe external calls make a restrictive CSP fragile. Can be added later with `nonce`-based approach.
-  - **Note:** Check if `vercel.json` should live at repo root or `apps/web/` (monorepo — likely repo root since Vercel deploys from root).
-
 ---
 
-#### 2. Onboarding route — batch vessel+experience events
+#### 8. Environment variables documentation
 
-- [x] Update `apps/web/src/app/api/onboarding/route.ts`:
-  - Currently lines ~196-216: a `for...of` loop calls `appendEvent` sequentially for each `VESSEL.CREATED` + `EXPERIENCE.ADDED` pair
-  - Refactor: collect all events into an array during the loop, then call `appendEvents(serviceClient, allEvents)` once after the loop
-  - This makes the entire vessel+experience batch atomic — if any event fails, none are committed
-  - Preserve the vessel lookup logic (check existing vessel before creating) — the lookup stays sequential, only the event appending becomes batched
-  - Import `appendEvents` from `@dockwalker/db` (already exported alongside `appendEvent`)
-
-- [x] Verify `/api/availability/route.ts` is safe:
-  - Has 3 `appendEvent` calls but they're in mutually exclusive conditional branches (clear vs not-available vs date-ranges)
-  - No fix needed — confirm by reading the file
-
----
-
-#### 3. Tests
-
-- [x] Update onboarding test (`__tests__/api/onboarding.test.ts` or similar):
-  - Verify existing test for experienced crew onboarding still passes after batch refactor
-  - Mock should now expect a single `appendEvents` call with array of events instead of multiple `appendEvent` calls
-
----
-
-#### 4. Documentation
-
-- [x] Update `BUILD_STATE.md`:
-  - Stage entry: `[Stage 96] Security headers (vercel.json) + onboarding event batching for atomicity`
-- [x] Mark P0 #5 (security headers) and P2 #15 (multi-event transactionality) as `[x]` in `tasks/launch-readiness.md`
-
----
-
-### Stage 97: Offline Resilience + Unified Error Feedback
-
-**Goal:** Add network status detection, a fetch wrapper with timeout and retry, and fix all 9 silent-failure fetch calls across discover, review, messages, and profile pages.
-
-**Will NOT touch:** API routes, migrations, database, Capacitor native code.
-
-**Done condition:** Every user-facing fetch call shows a toast on failure. Network-down state shows a persistent banner. Fetch calls have a 15s timeout. Submit buttons are disabled during all async actions.
-
----
-
-#### 1. Network status hook — `apps/web/src/hooks/use-network-status.ts`
-
-- [x] Create hook that:
-  - Tracks `navigator.onLine` state
-  - Listens to `online`/`offline` window events
-  - Returns `{ isOnline: boolean }`
-  - Cleans up listeners on unmount
-
----
-
-#### 2. Offline banner component — `apps/web/src/components/offline-banner.tsx`
-
-- [x] Create a fixed-top banner (below status bar, above content):
-  - Shows "You're offline — actions will fail until connection returns" in warning style
-  - Only visible when `isOnline === false`
-  - Dismisses automatically when connection restores
-  - Uses `use-network-status` hook
-
-- [x] Add `<OfflineBanner />` to `apps/web/src/app/(app)/layout.tsx` inside the authenticated layout, above the main content area
-
----
-
-#### 3. Fetch wrapper — `apps/web/src/lib/safe-fetch.ts`
-
-- [x] Create a thin wrapper around `fetch` that:
-  - Adds a 15-second `AbortController` timeout (configurable)
-  - On network error or timeout, returns `{ ok: false, error: 'Network error — check your connection' }`
-  - On HTTP error (4xx/5xx), parses `res.json()` safely (with the `text → JSON.parse` guard from lessons.md) and returns `{ ok: false, error: data.error ?? 'Something went wrong' }`
-  - On success, returns `{ ok: true, data }`
-  - Signature: `safeFetch(url: string, init?: RequestInit): Promise<{ ok: true; data: T } | { ok: false; error: string }>`
-  - Does NOT retry — keep it simple. Retry adds complexity and can cause duplicate events on non-idempotent routes.
-
----
-
-#### 4. Add `showSuccess` to toast hook
-
-- [x] Update `apps/web/src/hooks/use-toast.ts`:
-  - Add `showSuccess(message: string)` alongside existing `showError`
-  - Success toast uses `bg-success text-white` styling (green) instead of `bg-destructive`
-  - Same auto-dismiss (5s), same max-3 limit
-- [x] Update `apps/web/src/components/toast-container.tsx`:
-  - Support a `variant` field on Toast type (`'error' | 'success'`)
-  - Apply conditional styling based on variant
-
----
-
-#### 5. Fix silent failures — Discover page
-
-File: `apps/web/src/app/(app)/discover/page.tsx`
-
-- [x] **Apply action** (`handleApply`): Add toast on failure — `showError(data.error ?? 'Failed to apply')`. Use `safeFetch` or add inline error handling after the `if (res.ok)` check.
-- [x] **Withdraw action** (`handleWithdraw`): Same — add `showError` on failure.
-- [x] Verify apply/withdraw buttons are already disabled during request (they are per audit — `disabled={applying}`). No change needed.
-
----
-
-#### 6. Fix silent failures — Review page
-
-File: `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`
-
-- [x] **Accept action** (`handleAccept`): Add `showError(data.error ?? 'Failed to accept')` in else branch after `if (res.ok)`.
-- [x] **Reject action** (`handleReject`): Add `showError(data.error ?? 'Failed to reject')` in else branch.
-- [x] **Shortlist action** (`handleShortlist`): Add `showError(data.error ?? 'Failed to shortlist')` in else branch.
-- [x] Verify the page uses `useToast()` — if not, add the import and hook call.
-
----
-
-#### 7. Fix silent failures — Messages page
-
-File: `apps/web/src/app/(app)/messages/[engagementId]/page.tsx`
-
-- [x] **Send message** (`handleSend`): Add `showError('Failed to send message')` in else branch after `if (res.ok)`. Do NOT clear the input on failure so the user can retry.
-- [x] **Checklist toggle** (`handleChecklistToggle`): Add `showError` on failure. This is a non-critical action — error feedback is still valuable.
-
----
-
-#### 8. Fix silent failures — Profile page
-
-File: `apps/web/src/app/(app)/profile/page.tsx`
-
-- [x] **Profile save** (`handleSave`): Add `showError(data.error ?? 'Failed to save profile')` on failure. Add `showSuccess('Profile updated')` on success.
-- [x] **Delete experience** (`handleDeleteExperience`): Add `showError(data.error ?? 'Failed to delete experience')` on failure.
+- [x] Update `apps/web/.env.example` — add comment block documenting production SMTP setup:
+  ```
+  # ─── Production SMTP (configured in Supabase Dashboard, not here) ───
+  # Supabase Dashboard → Project Settings → Auth → SMTP Settings
+  # Recommended provider: Resend (resend.com) — simple, good deliverability
+  # Required DNS records: SPF, DKIM (provider-specific), DMARC
+  # After configuring SMTP, copy email templates from supabase/templates/ into
+  # Supabase Dashboard → Auth → Email Templates
+  ```
 
 ---
 
 #### 9. Tests
 
-- [x] Create `__tests__/lib/safe-fetch.test.ts`:
-  - Test: successful fetch returns `{ ok: true, data }`
-  - Test: HTTP 400 returns `{ ok: false, error: '...' }`
-  - Test: network error returns `{ ok: false, error: 'Network error...' }`
-  - Test: timeout returns `{ ok: false, error: 'Network error...' }`
+- [x] Create `__tests__/auth/forgot-password.test.tsx`:
+  - Renders form with email input and submit button
+  - Submit calls `supabase.auth.resetPasswordForEmail` with correct email and redirectTo
+  - Shows success message after submission
+  - Shows error on failure
 
-- [x] Create `__tests__/hooks/use-network-status.test.ts`:
-  - Test: returns `isOnline: true` when `navigator.onLine` is true
-  - Test: updates when offline event fires
+- [x] Create `__tests__/auth/reset-password.test.tsx`:
+  - Renders password + confirm password fields
+  - Validates passwords match
+  - Validates minimum length
+  - Submit calls `supabase.auth.updateUser` with new password
+  - Shows success message after update
 
 ---
 
 #### 10. Documentation
 
 - [x] Update `BUILD_STATE.md`:
-  - Stage entry: `[Stage 97] Offline resilience — network status hook, offline banner, safeFetch wrapper with timeout, unified toast error feedback on all 9 silent-failure fetch calls`
-- [x] Mark P0 #2 (offline handling) and P0 #3 (error feedback) as `[x]` in `tasks/launch-readiness.md`
+  - Stage entry: `[Stage 99] Email templates + forgot password flow — branded confirmation/recovery/email-change templates, forgot-password and reset-password pages, email confirmations enabled, middleware updated for auth flow routes`
+- [x] Mark P0 #1 (Email templates + SMTP provider) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `apps/web/README.md`:
+  - Add "Auth email templates" section noting `supabase/templates/` location
+  - Document the forgot-password flow
+  - Note that production SMTP is configured in Supabase Dashboard
+- [x] Update `supabase/README.md`:
+  - Add entry for `supabase/templates/` directory and its 3 template files
+  - Note `enable_confirmations = true` change
 
 ---
 
-### Stage 98: Landing Page
+### Stage 100: Error Tracking (Sentry)
 
-**Goal:** Replace the design system preview at `/` with a proper product landing page for unauthenticated visitors. Authenticated users are already redirected by middleware — this page is only seen by new visitors.
+**Goal:** Integrate `@sentry/nextjs` for production error tracking. Capture server-side errors (API routes, server components), client-side errors (UI crashes), and unhandled promise rejections.
 
-**Will NOT touch:** Auth pages, protected app pages, API routes, database.
+**Will NOT touch:** Database, migrations, RLS, API route logic, UI components (except error boundary enhancement).
 
-**Done condition:** Unauthenticated visitor sees a branded page explaining what DockWalker is, with clear CTAs to sign up or log in. Page is mobile-first, uses existing design tokens, and loads fast (no heavy assets).
-
----
-
-#### 1. Landing page — `apps/web/src/app/page.tsx`
-
-- [x] Replace the design system preview with a product landing page:
-  - **Hero section:**
-    - DockWalker logo (existing `/images/brand/dw_app_icon_cropped.png`)
-    - Headline: concise value prop (e.g. "Superyacht daywork, simplified")
-    - Subtitle: one line explaining the two-sided marketplace
-    - Two CTAs: "Sign up" (primary, links to `/auth/signup`) and "Log in" (secondary/outline, links to `/auth/login`)
-  - **Value props section** (3 cards or icon+text blocks):
-    - For crew: "Find daywork fast — browse and apply in seconds"
-    - For employers: "Fill roles today — post a job, review applicants, hire"
-    - For both: "Structured, fair, no hidden algorithms"
-  - **How it works** (3 steps, simple):
-    - 1. Create your profile
-    - 2. Browse or post daywork
-    - 3. Connect and confirm
-  - **Footer:** App name, tagline from manifest ("Superyacht daywork hiring — find crew or find work"), link to login
-
-- [x] Design constraints:
-  - Mobile-first (max-w-lg mx-auto, matching app layout)
-  - Use existing design tokens only (`bg-navy`, `text-sea`, `bg-teal`, etc.)
-  - No external images or heavy assets — text + icons + existing brand image
-  - No JavaScript interactivity needed (static content)
-  - Semantic HTML for SEO (h1, h2, section, footer)
-
-- [x] Verify middleware behavior:
-  - Authenticated users hitting `/` should still redirect to `/discover` or `/daywork/mine` based on hat
-  - Only unauthenticated users see the landing page
-  - Confirm this is handled by the `(app)/layout.tsx` auth check or the proxy middleware — read the redirect logic to be sure
+**Done condition:** Sentry SDK initialised on both server and client. Error boundary reports to Sentry. API route errors captured automatically. DSN configurable via env var (no-ops when missing).
 
 ---
 
-#### 2. Tests
+#### 1. Install Sentry — `apps/web/`
 
-- [x] No component tests needed for a static landing page — it has no interactive logic
-- [x] Verify existing tests still pass (no regressions from replacing page.tsx)
+- [ ] Run `npm install @sentry/nextjs` in `apps/web/`
+- [ ] **Do NOT run the Sentry wizard** (`npx @sentry/wizard`) — it generates too much boilerplate. Manual setup is cleaner.
 
 ---
 
-#### 3. Documentation
+#### 2. Sentry server config — `apps/web/sentry.server.config.ts`
 
-- [x] Update `BUILD_STATE.md`:
-  - Stage entry: `[Stage 98] Landing page — product hero, value props, and CTAs replacing design system preview`
-- [x] Mark P0 #4 (landing page) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Create file:
+
+  ```typescript
+  import * as Sentry from '@sentry/nextjs';
+
+  if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    Sentry.init({
+      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+      tracesSampleRate: 0.1,
+      environment: process.env.NODE_ENV,
+    });
+  }
+  ```
+
+  - Guard with DSN check — local dev without DSN should not initialise Sentry
+  - Low trace sample rate (0.1 = 10%) to avoid quota burn at launch
+
+---
+
+#### 3. Sentry client config — `apps/web/sentry.client.config.ts`
+
+- [ ] Create file:
+
+  ```typescript
+  import * as Sentry from '@sentry/nextjs';
+
+  if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    Sentry.init({
+      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+      tracesSampleRate: 0.1,
+      environment: process.env.NODE_ENV,
+      replaysSessionSampleRate: 0,
+      replaysOnErrorSampleRate: 0.5,
+    });
+  }
+  ```
+
+  - Session replays off by default, 50% on errors (useful for debugging UI crashes)
+
+---
+
+#### 4. Sentry edge config — `apps/web/sentry.edge.config.ts`
+
+- [ ] Create file (same as server config — needed for middleware/edge routes):
+
+  ```typescript
+  import * as Sentry from '@sentry/nextjs';
+
+  if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+    Sentry.init({
+      dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+      tracesSampleRate: 0.1,
+      environment: process.env.NODE_ENV,
+    });
+  }
+  ```
+
+---
+
+#### 5. Instrumentation file — `apps/web/src/instrumentation.ts`
+
+- [ ] Create file to register Sentry for server-side:
+  ```typescript
+  export async function register() {
+    if (process.env.NEXT_RUNTIME === 'nodejs') {
+      await import('../sentry.server.config');
+    }
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      await import('../sentry.edge.config');
+    }
+  }
+  ```
+
+---
+
+#### 6. Next.js config — `apps/web/next.config.ts`
+
+- [ ] Wrap the existing config with `withSentryConfig`:
+  ```typescript
+  import { withSentryConfig } from '@sentry/nextjs';
+  ```
+
+  - Only wrap when `NEXT_PUBLIC_SENTRY_DSN` is set (conditional):
+    ```typescript
+    const nextConfig = {
+      /* existing config */
+    };
+    export default process.env.NEXT_PUBLIC_SENTRY_DSN
+      ? withSentryConfig(nextConfig, {
+          silent: true,
+          org: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+        })
+      : nextConfig;
+    ```
+  - `silent: true` prevents noisy build logs
+  - Source map upload is optional — only works if `SENTRY_AUTH_TOKEN` is set. Omit for now.
+  - **Preserve the existing Capacitor build conditional** (`output: 'export'` when `CAPACITOR_BUILD=1`)
+
+---
+
+#### 7. Enhance error boundary — `apps/web/src/app/(app)/error.tsx`
+
+- [ ] Replace `console.error(error)` with Sentry capture:
+
+  ```typescript
+  import * as Sentry from '@sentry/nextjs';
+
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+  ```
+
+  - Keep the existing UI unchanged (error message + retry button)
+  - Sentry import is tree-shaken when DSN is not set — no bundle impact
+
+---
+
+#### 8. Global error boundary — `apps/web/src/app/global-error.tsx`
+
+- [ ] Create file for root-level errors (outside the `(app)` layout):
+
+  ```typescript
+  'use client';
+  import * as Sentry from '@sentry/nextjs';
+  import { useEffect } from 'react';
+
+  export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+    useEffect(() => { Sentry.captureException(error); }, [error]);
+    return (
+      <html><body>
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <h2>Something went wrong</h2>
+          <button onClick={reset}>Try again</button>
+        </div>
+      </body></html>
+    );
+  }
+  ```
+
+---
+
+#### 9. Environment variables
+
+- [ ] Update `apps/web/.env.example`:
+  ```
+  # ─── Error Tracking (Sentry) ───
+  # NEXT_PUBLIC_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
+  # SENTRY_ORG=your-org
+  # SENTRY_PROJECT=dockwalker
+  # SENTRY_AUTH_TOKEN=sntrys_xxx  (optional, for source map upload)
+  ```
+
+  - All commented out — Sentry is opt-in. App works without it.
+
+---
+
+#### 10. Tests
+
+- [ ] No new tests needed — Sentry is infrastructure, not business logic
+- [ ] Verify existing tests still pass (Sentry imports should be tree-shaken in test env since no DSN)
+- [ ] If Sentry import causes issues in vitest, add to `vi.mock('@sentry/nextjs')` in test setup
+
+---
+
+#### 11. Documentation
+
+- [ ] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 100] Error tracking — @sentry/nextjs integration, server + client + edge init, error boundary capture, global error boundary, DSN-gated (no-ops without env var)`
+- [ ] Mark P1 #9 (Error tracking) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Update `apps/web/README.md`:
+  - Add "Error Tracking" section: Sentry is optional, set `NEXT_PUBLIC_SENTRY_DSN` to enable
+
+---
+
+### Stage 101: Email Notification Fallback
+
+**Goal:** Add transactional email as a third notification channel alongside push and in-app. When a domain event triggers a notification, also send an email to the recipient. Users who denied push or are web-only will still receive critical notifications.
+
+**Will NOT touch:** Push delivery, in-app notifications, notification UI, database schema, RLS.
+
+**Depends on:** Stage 99 (SMTP provider configured for production).
+
+**Done condition:** Acceptance, new message, and engagement start notifications send a branded email to the recipient. Email sending is fire-and-forget (same as push). Works in local dev via Inbucket. No-ops when Resend API key is missing.
+
+---
+
+#### 1. Install Resend — `apps/web/`
+
+- [ ] Run `npm install resend` in `apps/web/`
+  - Resend is chosen over raw SMTP because: simple SDK, good deliverability, generous free tier (100 emails/day), TypeScript-native
+  - **Note:** Supabase auth emails use Supabase's own SMTP (configured in Dashboard). Transactional app emails use Resend directly — these are separate systems.
+
+---
+
+#### 2. Email service helper — `apps/web/src/lib/email/send.ts`
+
+- [ ] Create helper:
+
+  ```typescript
+  import { Resend } from 'resend';
+
+  let resendClient: Resend | null | undefined;
+
+  function getClient(): Resend | null {
+    if (resendClient !== undefined) return resendClient;
+    const key = process.env.RESEND_API_KEY;
+    resendClient = key ? new Resend(key) : null;
+    return resendClient;
+  }
+
+  export async function sendEmail(params: {
+    to: string;
+    subject: string;
+    html: string;
+  }): Promise<void> {
+    const client = getClient();
+    if (!client) return; // No-op without API key
+    await client.emails.send({
+      from: process.env.RESEND_FROM_EMAIL ?? 'DockWalker <noreply@dockwalker.com>',
+      ...params,
+    });
+  }
+  ```
+
+  - Singleton pattern (cached at module level per lessons.md)
+  - No-ops gracefully when `RESEND_API_KEY` is not set
+  - `RESEND_FROM_EMAIL` configurable for different environments
+
+---
+
+#### 3. Email templates — `apps/web/src/lib/email/templates.ts`
+
+- [ ] Create template functions that return `{ subject: string; html: string }`:
+  - `applicationAcceptedEmail(params: { crewName: string; jobTitle: string; vesselType: string; startDate: string; deepLink: string })` — "You've been accepted for [role] on [vessel]"
+  - `newMessageEmail(params: { recipientName: string; senderName: string; preview: string; deepLink: string })` — "[Sender] sent you a message"
+  - `engagementReminderEmail(params: { crewName: string; jobTitle: string; startDate: string; deepLink: string })` — "Your engagement starts tomorrow"
+  - `applicationReceivedEmail(params: { employerName: string; crewName: string; jobTitle: string; deepLink: string })` — "[Crew] applied to your [role] posting"
+  - Use the same HTML structure/branding as the auth email templates from Stage 99 (navy header, white card, teal CTA button)
+  - Each template is a pure function returning HTML string — no file I/O, no external dependencies
+
+---
+
+#### 4. Integrate into notification flow — `apps/web/src/lib/push-triggers.ts`
+
+- [ ] Add email sending as a third channel in the notification delivery path:
+  - After push + in-app notification, look up the recipient's email from `auth.users` (via service client)
+  - Call `sendEmail()` with the appropriate template
+  - Fire-and-forget: wrap in `.catch(() => {})` like push delivery
+  - **Only send emails for high-value events** (not every notification type):
+    - `DAYWORK.ACCEPTED` → `applicationAcceptedEmail` to crew
+    - `DAYWORK.APPLIED` → `applicationReceivedEmail` to employer
+    - `MESSAGE.SENT` → `newMessageEmail` to recipient (rate-limited: max 1 email per conversation per 5 minutes to prevent spam during active chat)
+  - **Do NOT email for:** rejections (too negative), shortlists (low urgency), system messages, checklist updates
+
+- [ ] Add email rate limiting for messages:
+  - Use a simple in-memory Map: `Map<engagementId, lastEmailTimestamp>`
+  - Skip email if last email for this conversation was <5 minutes ago
+  - This prevents 20 emails during an active chat exchange
+  - Map resets on server restart — acceptable for this use case
+
+- [ ] Look up recipient email:
+  - Service client can query `auth.users` table: `serviceClient.auth.admin.getUserById(recipientPersonId)`
+  - Extract `user.email` from the response
+  - Cache in-memory for the request lifetime (not across requests — emails can change)
+
+---
+
+#### 5. Environment variables
+
+- [ ] Update `apps/web/.env.example`:
+  ```
+  # ─── Transactional Email (Resend) ───
+  # RESEND_API_KEY=re_xxx
+  # RESEND_FROM_EMAIL=DockWalker <noreply@dockwalker.com>
+  ```
+
+---
+
+#### 6. Tests
+
+- [ ] Create `__tests__/lib/email-send.test.ts`:
+  - Test: no-ops when RESEND_API_KEY is missing
+  - Test: calls Resend SDK with correct params when key is set
+  - Mock the Resend constructor and `.emails.send()`
+
+- [ ] Create `__tests__/lib/email-templates.test.ts`:
+  - Test: each template returns non-empty subject and HTML
+  - Test: HTML contains the expected deep link
+  - Test: HTML contains the expected recipient name
+
+---
+
+#### 7. Documentation
+
+- [ ] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 101] Email notification fallback — Resend integration, transactional email templates for acceptance/apply/message, fire-and-forget delivery alongside push + in-app, message email rate limiting`
+- [ ] Mark P1 #6 (Email notification fallback) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Update `apps/web/README.md`:
+  - Add "Transactional Email" section: Resend SDK, env vars, which events trigger emails
+
+---
+
+### Stage 102: Availability Expiry Reminder
+
+**Goal:** Send a push/in-app notification to crew 24 hours before their availability expires. Uses Vercel Cron to run a daily check.
+
+**Will NOT touch:** Availability API logic, discover filtering, UI components, push delivery code.
+
+**Done condition:** Cron route runs daily, finds crew whose availability expires within 24h, creates an in-app notification + sends push. Vercel Cron configured in `vercel.json`.
+
+---
+
+#### 1. Cron API route — `apps/web/src/app/api/cron/availability-expiry/route.ts`
+
+- [ ] Create route handler (GET, since Vercel Cron uses GET):
+  - **Auth:** Verify `Authorization: Bearer ${CRON_SECRET}` header matches `process.env.CRON_SECRET` (prevents public access)
+  - **Query:** Find all `availability_windows` where `expires_at` is between `now()` and `now() + interval '24 hours'`, grouped by `person_id`:
+    ```sql
+    select distinct person_id
+    from availability_windows
+    where expires_at > now()
+      and expires_at <= now() + interval '24 hours'
+      and not_available = false
+    ```
+  - **Deduplicate:** Only notify each person once per cron run (use DISTINCT on person_id)
+  - **For each person:** Create an in-app notification + trigger push:
+    - Title: "Your availability expires soon"
+    - Body: "Your availability window expires in less than 24 hours. Update it to stay visible to employers."
+    - Deep link: `/availability`
+    - Role context: `'crew'`
+    - Notification type: `'availability_expiring'`
+  - **Use service client** for all DB operations (this is a server-to-server cron, no user session)
+  - **Return:** `{ notified: number }` with count of crew notified
+
+- [ ] Add duplicate prevention:
+  - Before notifying, check if a `availability_expiring` notification was already created for this person in the last 24 hours:
+    ```sql
+    select 1 from notifications
+    where person_id = $1 and type = 'availability_expiring'
+      and created_at > now() - interval '24 hours'
+    ```
+  - Skip if already notified — prevents double-notifications if cron runs more than once
+
+---
+
+#### 2. Vercel Cron config — `vercel.json`
+
+- [ ] Add cron schedule to existing `vercel.json`:
+  ```json
+  {
+    "crons": [
+      {
+        "path": "/api/cron/availability-expiry",
+        "schedule": "0 8 * * *"
+      }
+    ]
+  }
+  ```
+
+  - Runs daily at 08:00 UTC (morning in Med/Caribbean/Florida time zones)
+  - Merge into existing `vercel.json` (which already has security headers)
+
+---
+
+#### 3. Environment variables
+
+- [ ] Update `apps/web/.env.example`:
+  ```
+  # ─── Vercel Cron ───
+  # CRON_SECRET=your-secret-here  (set in Vercel dashboard, used to authenticate cron requests)
+  ```
+
+---
+
+#### 4. Tests
+
+- [ ] Create `__tests__/api/cron-availability-expiry.test.ts`:
+  - Test: returns 401 without valid CRON_SECRET
+  - Test: returns 200 with count of notified crew
+  - Test: skips crew already notified in last 24h
+  - Test: skips `not_available = true` rows
+  - Mock `from('availability_windows')` and `from('notifications')` queries
+
+---
+
+#### 5. Documentation
+
+- [ ] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 102] Availability expiry reminder — Vercel Cron daily at 08:00 UTC, in-app + push notification 24h before availability expires, duplicate prevention`
+- [ ] Mark P1 #7 (Availability expiry reminder) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Update `apps/web/README.md`:
+  - Add "Cron Jobs" section: availability expiry check, CRON_SECRET env var, schedule
+
+---
+
+### Stage 103: Admin Tooling
+
+**Goal:** Add an admin role concept, admin-only API routes for user lookup, engagement override, and canonical data management. No admin UI in this stage — admin operations are API-only (callable via curl/Postman or a future admin dashboard).
+
+**Will NOT touch:** User-facing UI, user-facing API routes, push notifications, billing, Docky.
+
+**Done condition:** Admin users (identified by `is_admin` flag on persons) can: look up any user, list stuck engagements, force-complete engagements, add/edit canonical data (ports, certs, roles). All admin actions append `ADMIN.*` events to the ledger for audit.
+
+---
+
+#### 1. Migration — `supabase/migrations/00050_admin_role.sql`
+
+- [ ] Add `is_admin` boolean column to `persons`:
+
+  ```sql
+  alter table public.persons add column is_admin boolean not null default false;
+  ```
+
+  - Default false — no existing users become admin
+  - No CHECK constraint on aggregate_type needed (admin actions use existing types)
+
+- [ ] Add `ADMIN` aggregate type to the events CHECK constraint:
+  - Read the current CHECK constraint from the latest migration that modified it
+  - Add `'admin'` to the allowed values
+
+- [ ] Add admin event types to `event_type` CHECK (if one exists) or document in types:
+  - `ADMIN.ENGAGEMENT_COMPLETED` — force-complete a stuck engagement
+  - `ADMIN.CANONICAL_ADDED` — added a port/cert/role
+  - `ADMIN.CANONICAL_UPDATED` — updated canonical data
+  - `ADMIN.USER_DEACTIVATED` — admin-initiated account deactivation
+
+---
+
+#### 2. Rollback — `supabase/rollbacks/00050_admin_role.down.sql`
+
+- [ ] Drop `is_admin` column
+- [ ] Restore previous CHECK constraint (without `'admin'`)
+
+---
+
+#### 3. Admin middleware — `apps/web/src/lib/admin-guard.ts`
+
+- [ ] Create guard function:
+
+  ```typescript
+  export async function requireAdmin(request: Request) {
+    const guard = await requireDomainUser(request);
+    if ('error' in guard) return guard;
+    const { person } = guard.value;
+    if (!person.is_admin) {
+      return { error: NextResponse.json({ error: 'Admin access required' }, { status: 403 }) };
+    }
+    return guard;
+  }
+  ```
+
+  - Reuses existing `requireDomainUser` for auth + domain check
+  - Adds admin flag check on top
+  - Returns same shape as `requireDomainUser` for ergonomic destructuring
+
+- [ ] Update `requireDomainUser` return type to include `is_admin` in the person object (read it from the persons query)
+
+---
+
+#### 4. Admin API routes
+
+**User lookup — `apps/web/src/app/api/admin/users/route.ts`**
+
+- [ ] `GET /api/admin/users?search=<name>&port_id=<id>&page=<n>`:
+  - Uses `requireAdmin` guard
+  - Queries `profiles` joined with `persons` (including deactivated — bypasses normal RLS via service client)
+  - Supports search by `display_name` (ilike), filter by `location_port_id`
+  - Returns paginated results (20 per page): person_id, display_name, identity_type, current_hat, primary_role, port, created_at, deactivated_at, is_admin
+  - Service client for RLS bypass
+
+**User detail — `apps/web/src/app/api/admin/users/[personId]/route.ts`**
+
+- [ ] `GET /api/admin/users/:personId`:
+  - Full profile + person + subscription status + event count + last activity
+  - Includes `deactivated_at` for GDPR status
+
+**Stuck engagements — `apps/web/src/app/api/admin/engagements/route.ts`**
+
+- [ ] `GET /api/admin/engagements?status=active&older_than=<days>`:
+  - Lists engagements in `active` status older than N days (default 14)
+  - Returns: engagement_id, daywork_id, crew name, employer name, start_date, end_date, days_active
+  - Useful for finding engagements where employer forgot to mark complete
+
+**Force complete — `apps/web/src/app/api/admin/engagements/[id]/complete/route.ts`**
+
+- [ ] `POST /api/admin/engagements/:id/complete`:
+  - Body: `{ reason: string }` (required — admin must document why)
+  - Appends `ADMIN.ENGAGEMENT_COMPLETED` event with `{ engagement_id, reason, admin_person_id }` in payload
+  - Triggers same projection updates as `DAYWORK.COMPLETED`: daywork status → completed, engagement status → completed, applications status → completed
+  - **Add `ADMIN.ENGAGEMENT_COMPLETED` handler to `apply_projection`** (same logic as DAYWORK.COMPLETED but with admin audit fields in payload)
+
+- [ ] Create migration `supabase/migrations/00051_admin_projection.sql`:
+  - `CREATE OR REPLACE FUNCTION apply_projection(...)` adding the `ADMIN.ENGAGEMENT_COMPLETED` handler
+  - **CRITICAL:** Diff against migration 00048 (current version). Include ALL existing handlers unchanged.
+
+- [ ] Create rollback `supabase/rollbacks/00051_admin_projection.down.sql`:
+  - Restore apply_projection to 00048 version
+
+**Canonical data — `apps/web/src/app/api/admin/canonical/[table]/route.ts`**
+
+- [ ] `GET /api/admin/canonical/:table`:
+  - Returns all rows from the specified canonical table
+  - Allowed tables: `regions`, `cities`, `ports`, `yacht_roles`, `certifications`, `experience_brackets`, `vessel_size_bands`
+  - Validates table name against allowlist (prevents SQL injection)
+
+- [ ] `POST /api/admin/canonical/:table`:
+  - Body varies by table (e.g., `{ name, city_id, sort_order }` for ports)
+  - Inserts via service client
+  - Appends `ADMIN.CANONICAL_ADDED` event for audit
+  - Returns the new record
+
+- [ ] `PATCH /api/admin/canonical/:table/:id`:
+  - Updates name, sort_order, or parent FK
+  - Appends `ADMIN.CANONICAL_UPDATED` event
+  - Returns updated record
+
+---
+
+#### 5. Tests
+
+- [ ] Create `__tests__/api/admin-users.test.ts`:
+  - 401 unauthenticated
+  - 403 non-admin user
+  - 200 with results for admin user
+  - Search filter works
+
+- [ ] Create `__tests__/api/admin-engagements.test.ts`:
+  - 403 for non-admin
+  - Lists stuck engagements filtered by days
+  - Force-complete appends event and returns 200
+
+- [ ] Create `__tests__/api/admin-canonical.test.ts`:
+  - 403 for non-admin
+  - Rejects invalid table names
+  - GET returns all rows
+  - POST creates and returns new record
+
+---
+
+#### 6. Documentation
+
+- [ ] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 103] Admin tooling — is_admin flag, admin guard, user lookup/search, stuck engagement detection + force-complete, canonical data CRUD, ADMIN.* audit events`
+  - Schema version bump to v51
+  - Migration table entries for 00050 and 00051
+- [ ] Mark P1 #8 (Admin tooling) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Update `apps/web/README.md`:
+  - Add "Admin API" section documenting all admin routes
+- [ ] Update `supabase/README.md`:
+  - Migration entries for 00050 and 00051
+- [ ] Update `packages/types/README.md` if admin event types are added to shared types
+
+---
+
+### Stage 104: Realtime Messages
+
+**Goal:** Replace the 5-second polling on the chat page with Supabase Realtime subscriptions. Messages appear instantly. Conversations list page remains static (polling not worth the complexity there).
+
+**Will NOT touch:** Messages API routes, message sending logic, push notifications, database schema, RLS.
+
+**Done condition:** New messages appear in chat without polling. Polling interval removed from chat page. Realtime subscription cleaned up on unmount. Falls back to polling if Realtime fails to connect.
+
+---
+
+#### 1. Supabase Realtime config — `supabase/config.toml`
+
+- [ ] Verify Realtime is enabled in config.toml (it should be by default):
+  ```toml
+  [realtime]
+  enabled = true
+  ```
+
+  - If not present, add it. Supabase local dev includes Realtime by default.
+
+---
+
+#### 2. Enable Realtime on messages table — migration `supabase/migrations/00052_messages_realtime.sql`
+
+- [ ] Enable Realtime replication for the `messages` table:
+
+  ```sql
+  alter publication supabase_realtime add table public.messages;
+  ```
+
+  - Supabase Realtime requires tables to be added to the `supabase_realtime` publication
+  - RLS policies are automatically enforced on Realtime subscriptions — only engagement participants receive messages
+
+- [ ] Create rollback `supabase/rollbacks/00052_messages_realtime.down.sql`:
+  ```sql
+  alter publication supabase_realtime drop table public.messages;
+  ```
+
+---
+
+#### 3. Realtime hook — `apps/web/src/hooks/use-realtime-messages.ts`
+
+- [ ] Create hook:
+
+  ```typescript
+  export function useRealtimeMessages(
+    engagementId: string,
+    onNewMessage: (message: Message) => void,
+  ) {
+    // ...
+  }
+  ```
+
+  - Creates a Supabase Realtime channel subscribed to `messages` table INSERTs filtered by `engagement_id`
+  - On new row: calls `onNewMessage(payload.new)` to append to local state
+  - Returns `{ isConnected: boolean }` for UI status
+  - Cleanup: unsubscribes channel on unmount
+  - Uses the browser Supabase client (from `createClient()`) — auth token is automatically included for RLS
+
+  **Subscription filter:**
+
+  ```typescript
+  supabase
+    .channel(`messages:${engagementId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `engagement_id=eq.${engagementId}`,
+      },
+      (payload) => {
+        onNewMessage(payload.new as Message);
+      },
+    )
+    .subscribe((status) => {
+      setIsConnected(status === 'SUBSCRIBED');
+    });
+  ```
+
+---
+
+#### 4. Update chat page — `apps/web/src/app/(app)/messages/[engagementId]/page.tsx`
+
+- [ ] Replace message polling with Realtime subscription:
+  - Remove the `setInterval` for `loadMessages()` (currently every 5 seconds)
+  - Keep the initial `loadMessages()` call on mount (still need to load history)
+  - Add `useRealtimeMessages(engagementId, handleNewMessage)` hook
+  - `handleNewMessage`: append the new message to local state, auto-scroll to bottom, mark as read
+  - **Keep context polling** (`loadContext()` every 5 seconds) — engagement context changes (status, checklist, postponement) are infrequent and don't benefit from Realtime
+
+- [ ] Add fallback:
+  - If `isConnected` is false after 5 seconds, fall back to message polling (original 5s interval)
+  - Show a subtle indicator if using fallback mode (optional — can skip for v1)
+  - Log Realtime connection failures to console for debugging
+
+- [ ] Handle duplicate messages:
+  - Realtime INSERT + immediate `loadMessages()` after send could produce duplicates
+  - Deduplicate by message `id`: before appending from Realtime, check if `id` already exists in local state
+
+---
+
+#### 5. Tests
+
+- [ ] Create `__tests__/hooks/use-realtime-messages.test.ts`:
+  - Test: subscribes to correct channel with engagement_id filter
+  - Test: calls onNewMessage when INSERT payload received
+  - Test: unsubscribes on unmount
+  - Mock `supabase.channel()` and `.on()` and `.subscribe()`
+
+---
+
+#### 6. Documentation
+
+- [ ] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 104] Realtime messages — Supabase Realtime subscription on messages table, replaces 5s polling on chat page, fallback to polling on connection failure, context polling retained`
+  - Schema version bump to v52
+  - Migration table entry for 00052
+- [ ] Mark P1 #10 (Message polling lag) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Update `supabase/README.md`:
+  - Migration entry for 00052
+  - Note: Realtime enabled on messages table
+- [ ] Update `apps/web/README.md`:
+  - Note Realtime dependency for chat page
+
+---
+
+### Stage 105: Deep Links (Universal Links + App Links)
+
+**Goal:** Add iOS Universal Links and Android App Links verification files so push notification taps open the native app instead of the browser.
+
+**Will NOT touch:** API routes, database, push notification code, Capacitor plugin config.
+
+**Done condition:** `/.well-known/apple-app-site-association` and `/.well-known/assetlinks.json` are served from the web app. iOS Info.plist and Android AndroidManifest.xml declare the associated domain. Deep link paths match existing push notification routes.
+
+---
+
+#### 1. Apple App Site Association — `apps/web/public/.well-known/apple-app-site-association`
+
+- [ ] Create file (no `.json` extension — Apple requires this):
+
+  ```json
+  {
+    "applinks": {
+      "apps": [],
+      "details": [
+        {
+          "appID": "TEAM_ID.com.dockwalker.app",
+          "paths": [
+            "/discover",
+            "/daywork/*",
+            "/messages/*",
+            "/availability",
+            "/profile",
+            "/notifications"
+          ]
+        }
+      ]
+    }
+  }
+  ```
+
+  - `TEAM_ID` is a placeholder — must be replaced with actual Apple Developer Team ID
+  - Paths match the deep link routes used in push notifications (`push-triggers.ts`)
+  - `apps: []` is required (empty array)
+
+- [ ] Ensure the file is served with `Content-Type: application/json`:
+  - Next.js serves files from `public/` as-is
+  - Add a rewrite in `vercel.json` if needed to set the correct content type:
+    ```json
+    {
+      "headers": [
+        {
+          "source": "/.well-known/apple-app-site-association",
+          "headers": [{ "key": "Content-Type", "value": "application/json" }]
+        }
+      ]
+    }
+    ```
+
+---
+
+#### 2. Android Asset Links — `apps/web/public/.well-known/assetlinks.json`
+
+- [ ] Create file:
+  ```json
+  [
+    {
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.dockwalker.app",
+        "sha256_cert_fingerprints": ["PLACEHOLDER_SHA256_FINGERPRINT"]
+      }
+    }
+  ]
+  ```
+
+  - `sha256_cert_fingerprints` is a placeholder — must be replaced with actual signing key fingerprint
+  - Package name matches `capacitor.config.ts` appId
+
+---
+
+#### 3. iOS config — `apps/web/ios/App/App/Info.plist`
+
+- [ ] Add Associated Domains entitlement (if not already present):
+  - This is typically done via Xcode, but the entitlement file can be edited:
+  - Check if `apps/web/ios/App/App/App.entitlements` exists
+  - Add `com.apple.developer.associated-domains` with value `applinks:PRODUCTION_DOMAIN`
+  - **Note:** Exact domain must be filled in when production URL is known
+
+---
+
+#### 4. Android config — `apps/web/android/app/src/main/AndroidManifest.xml`
+
+- [ ] Add intent filter to the main activity for deep link handling:
+  ```xml
+  <intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="https" android:host="PRODUCTION_DOMAIN" />
+  </intent-filter>
+  ```
+
+  - `android:autoVerify="true"` triggers Android's automatic assetlinks.json verification
+  - `PRODUCTION_DOMAIN` is a placeholder
+
+---
+
+#### 5. Tests
+
+- [ ] No automated tests needed — deep link files are static JSON
+- [ ] Manual verification: after deployment, use Apple's validator (`https://app-site-association.cdn-apple.com/a/v1/DOMAIN`) and Google's validator (`https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://DOMAIN`)
+
+---
+
+#### 6. Documentation
+
+- [ ] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 105] Deep links — apple-app-site-association + assetlinks.json, iOS entitlements, Android intent filters (domain placeholders for production)`
+- [ ] Mark P2 #11 (Deep links) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Update `apps/web/README.md`:
+  - Add "Deep Links" section: file locations, placeholder values that need production config
+
+---
+
+### Stage 106: Analytics (Vercel Analytics)
+
+**Goal:** Add Vercel Analytics for basic page view and web vital tracking. Minimal setup, no custom event tracking in this stage.
+
+**Will NOT touch:** API routes, database, components, business logic.
+
+**Done condition:** Vercel Analytics script loads on all pages. Page views and web vitals are tracked. No-ops in local dev.
+
+---
+
+#### 1. Install — `apps/web/`
+
+- [ ] Run `npm install @vercel/analytics` in `apps/web/`
+
+---
+
+#### 2. Add Analytics component — `apps/web/src/app/layout.tsx`
+
+- [ ] Import and add the Analytics component inside the root layout `<body>`:
+  ```typescript
+  import { Analytics } from '@vercel/analytics/react';
+  ```
+  ```tsx
+  <body>
+    {children}
+    <Analytics />
+  </body>
+  ```
+
+  - Vercel Analytics auto-detects the Vercel deployment and self-configures
+  - No API key needed — Vercel injects the project ID at build time
+  - No-ops in local dev automatically (only active on Vercel deployments)
+  - No custom events in this stage — just page views and web vitals
+
+---
+
+#### 3. Speed Insights (optional but free)
+
+- [ ] Run `npm install @vercel/speed-insights` in `apps/web/`
+- [ ] Add to root layout alongside Analytics:
+  ```typescript
+  import { SpeedInsights } from '@vercel/speed-insights/next';
+  ```
+  ```tsx
+  <body>
+    {children}
+    <Analytics />
+    <SpeedInsights />
+  </body>
+  ```
+
+  - Tracks Core Web Vitals (LCP, FID, CLS) per route
+  - Free tier included with Vercel
+
+---
+
+#### 4. Tests
+
+- [ ] No tests needed — analytics is a third-party script injection with no business logic
+- [ ] Verify existing tests still pass (Analytics component should render null in test env)
+
+---
+
+#### 5. Documentation
+
+- [ ] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 106] Analytics — @vercel/analytics + @vercel/speed-insights, page views and web vitals tracking`
+- [ ] Mark P2 #12 (Analytics) as `[x]` in `tasks/launch-readiness.md`
+- [ ] Update `apps/web/README.md`:
+  - Add "Analytics" section: Vercel Analytics (auto-configured on Vercel deployments, no env vars needed)
+
+---
+
+### Stage 107: Avatar Storage Bucket (Production Verification)
+
+**Status: ALREADY IMPLEMENTED — verification only.**
+
+Research confirms avatar storage is fully built (migration 00039, upload route with MIME + magic byte validation, RLS policies, client-side resizing, comprehensive tests). The launch readiness item's concern about "production needs configured bucket" is handled automatically — Supabase migrations create the bucket and policies in any environment.
+
+- [ ] **Verify:** Run `npx supabase db reset` and confirm the `avatars` bucket exists with correct policies
+- [ ] **Mark P2 #14 as done** in `tasks/launch-readiness.md` with note: "Already implemented in Stage 39 (migration 00039). Bucket + RLS + upload route + tests all exist. Production bucket is created automatically via migrations."
+- [ ] **No stage number needed** — this is a verification task, not a code change
 
 ---
 
 ## Done
 
-(See git history for completed stages 51-94b)
+(See git history for completed stages 51-98)

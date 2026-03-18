@@ -9,6 +9,7 @@ config.toml        Supabase local dev configuration (project_id: dockwalker_only
 migrations/        Forward migrations (numbered sequentially)
 rollbacks/         Corresponding rollback for every migration (*.down.sql)
 seed/              Canonical lookup data (roles, certs, locations, etc.)
+templates/         Branded HTML email templates (confirmation, recovery, email_change)
 ```
 
 ## Migration Conventions

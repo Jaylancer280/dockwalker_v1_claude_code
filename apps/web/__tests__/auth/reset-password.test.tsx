@@ -1,0 +1,107 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
+const mockUpdateUser = vi.fn();
+const mockGetSession = vi.fn();
+
+vi.mock('@/lib/supabase/client', () => ({
+  createClient: () => ({
+    auth: {
+      getSession: mockGetSession,
+      updateUser: mockUpdateUser,
+    },
+  }),
+}));
+
+vi.mock('next/image', () => ({
+  default: (props: { alt: string }) => <img alt={props.alt} />,
+}));
+
+vi.mock('next/link', () => ({
+  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
+
+import ResetPasswordPage from '@/app/auth/reset-password/page';
+
+describe('Reset Password page', () => {
+  afterEach(cleanup);
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+  });
+
+  it('renders password and confirm password fields', async () => {
+    render(<ResetPasswordPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId('new-password')).toBeDefined();
+    });
+    expect(screen.getByTestId('confirm-password')).toBeDefined();
+  });
+
+  it('validates passwords match', async () => {
+    render(<ResetPasswordPage />);
+    await waitFor(() => screen.getByTestId('new-password'));
+
+    fireEvent.change(screen.getByTestId('new-password'), {
+      target: { value: 'password123' },
+    });
+    fireEvent.change(screen.getByTestId('confirm-password'), {
+      target: { value: 'different456' },
+    });
+    fireEvent.submit(screen.getByRole('button', { name: 'Update password' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Passwords do not match')).toBeDefined();
+    });
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
+  it('validates minimum length', async () => {
+    render(<ResetPasswordPage />);
+    await waitFor(() => screen.getByTestId('new-password'));
+
+    fireEvent.change(screen.getByTestId('new-password'), {
+      target: { value: 'short' },
+    });
+    fireEvent.change(screen.getByTestId('confirm-password'), {
+      target: { value: 'short' },
+    });
+    fireEvent.submit(screen.getByRole('button', { name: 'Update password' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Password must be at least 8 characters')).toBeDefined();
+    });
+    expect(mockUpdateUser).not.toHaveBeenCalled();
+  });
+
+  it('calls updateUser with new password on success', async () => {
+    mockUpdateUser.mockResolvedValue({ error: null });
+    render(<ResetPasswordPage />);
+    await waitFor(() => screen.getByTestId('new-password'));
+
+    fireEvent.change(screen.getByTestId('new-password'), {
+      target: { value: 'newpassword123' },
+    });
+    fireEvent.change(screen.getByTestId('confirm-password'), {
+      target: { value: 'newpassword123' },
+    });
+    fireEvent.submit(screen.getByRole('button', { name: 'Update password' }));
+
+    await waitFor(() => {
+      expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' });
+      expect(screen.getByText(/sign in with your new password/i)).toBeDefined();
+    });
+  });
+
+  it('shows expired link message when no session', async () => {
+    mockGetSession.mockResolvedValue({ data: { session: null } });
+    render(<ResetPasswordPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Link expired')).toBeDefined();
+      expect(screen.getByText('Request a new reset link')).toBeDefined();
+    });
+  });
+});

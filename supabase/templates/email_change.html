@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:sans-serif;">
+  <div style="max-width:480px;margin:40px auto;background:#ffffff;border-radius:8px;overflow:hidden;">
+    <div style="background:#0f172a;padding:24px;text-align:center;">
+      <h1 style="color:#ffffff;font-size:20px;margin:0;">DockWalker</h1>
+    </div>
+    <div style="padding:32px 24px;">
+      <p style="color:#1e293b;font-size:16px;margin:0 0 16px;">Confirm your new email</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px;">
+        You requested to change the email address on your DockWalker account. Click the link below to confirm.
+      </p>
+      <div style="text-align:center;margin:0 0 24px;">
+        <a href="{{ .ConfirmationURL }}"
+           style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;">
+          Confirm new email
+        </a>
+      </div>
+      <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0;">
+        If the button doesn't work, copy and paste this link into your browser:<br>
+        <a href="{{ .ConfirmationURL }}" style="color:#0d9488;word-break:break-all;">{{ .ConfirmationURL }}</a>
+      </p>
+    </div>
+    <div style="padding:16px 24px;text-align:center;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;">
+      If you didn't request this change, please secure your account immediately.
+    </div>
+  </div>
+</body>
+</html>

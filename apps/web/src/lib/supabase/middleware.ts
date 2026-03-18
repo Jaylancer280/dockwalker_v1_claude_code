@@ -34,9 +34,17 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  // Public routes that don't require auth
-  const publicRoutes = ['/auth/login', '/auth/signup', '/auth/callback'];
+  // Routes that redirect authenticated users to the app
+  const authEntryRoutes = ['/auth/login', '/auth/signup'];
+  // All public routes (no auth required)
+  const publicRoutes = [
+    ...authEntryRoutes,
+    '/auth/callback',
+    '/auth/forgot-password',
+    '/auth/reset-password',
+  ];
   const isPublicRoute = publicRoutes.some((route) => path.startsWith(route));
+  const isAuthEntryRoute = authEntryRoutes.some((route) => path.startsWith(route));
   const isLandingPage = path === '/';
 
   // Not authenticated → redirect to login (unless on public route or landing page)
@@ -46,8 +54,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated on public route → redirect to app
-  if (user && isPublicRoute) {
+  // Authenticated on login/signup → redirect to app (but NOT on reset-password or forgot-password)
+  if (user && isAuthEntryRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/onboarding';
     return NextResponse.redirect(url);
