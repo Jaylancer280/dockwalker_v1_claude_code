@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 104: Realtime Messages
+Stage 105-107: Deep Links + Analytics + Avatar Verification
 
 ---
 
@@ -945,7 +945,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 1. Apple App Site Association — `apps/web/public/.well-known/apple-app-site-association`
 
-- [ ] Create file (no `.json` extension — Apple requires this):
+- [x] Create file (no `.json` extension — Apple requires this):
 
   ```json
   {
@@ -972,7 +972,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
   - Paths match the deep link routes used in push notifications (`push-triggers.ts`)
   - `apps: []` is required (empty array)
 
-- [ ] Ensure the file is served with `Content-Type: application/json`:
+- [x] Ensure the file is served with `Content-Type: application/json`:
   - Next.js serves files from `public/` as-is
   - Add a rewrite in `vercel.json` if needed to set the correct content type:
     ```json
@@ -990,7 +990,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 2. Android Asset Links — `apps/web/public/.well-known/assetlinks.json`
 
-- [ ] Create file:
+- [x] Create file:
 
   ```json
   [
@@ -1012,7 +1012,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 3. iOS config — `apps/web/ios/App/App/Info.plist`
 
-- [ ] Add Associated Domains entitlement (if not already present):
+- [x] Add Associated Domains entitlement (if not already present):
   - This is typically done via Xcode, but the entitlement file can be edited:
   - Check if `apps/web/ios/App/App/App.entitlements` exists
   - Add `com.apple.developer.associated-domains` with value `applinks:PRODUCTION_DOMAIN`
@@ -1022,7 +1022,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 4. Android config — `apps/web/android/app/src/main/AndroidManifest.xml`
 
-- [ ] Add intent filter to the main activity for deep link handling:
+- [x] Add intent filter to the main activity for deep link handling:
 
   ```xml
   <intent-filter android:autoVerify="true">
@@ -1040,17 +1040,17 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 5. Tests
 
-- [ ] No automated tests needed — deep link files are static JSON
-- [ ] Manual verification: after deployment, use Apple's validator (`https://app-site-association.cdn-apple.com/a/v1/DOMAIN`) and Google's validator (`https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://DOMAIN`)
+- [x] No automated tests needed — deep link files are static JSON
+- [x] Manual verification: after deployment, use Apple's validator (`https://app-site-association.cdn-apple.com/a/v1/DOMAIN`) and Google's validator (`https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://DOMAIN`)
 
 ---
 
 #### 6. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 105] Deep links — apple-app-site-association + assetlinks.json, iOS entitlements, Android intent filters (domain placeholders for production)`
-- [ ] Mark P2 #11 (Deep links) as `[x]` in `tasks/launch-readiness.md`
-- [ ] Update `apps/web/README.md`:
+- [x] Mark P2 #11 (Deep links) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `apps/web/README.md`:
   - Add "Deep Links" section: file locations, placeholder values that need production config
 
 ---
@@ -1067,13 +1067,13 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 1. Install — `apps/web/`
 
-- [ ] Run `npm install @vercel/analytics` in `apps/web/`
+- [x] Run `npm install @vercel/analytics` in `apps/web/`
 
 ---
 
 #### 2. Add Analytics component — `apps/web/src/app/layout.tsx`
 
-- [ ] Import and add the Analytics component inside the root layout `<body>`:
+- [x] Import and add the Analytics component inside the root layout `<body>`:
 
   ```typescript
   import { Analytics } from '@vercel/analytics/react';
@@ -1095,8 +1095,8 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 3. Speed Insights (optional but free)
 
-- [ ] Run `npm install @vercel/speed-insights` in `apps/web/`
-- [ ] Add to root layout alongside Analytics:
+- [x] Run `npm install @vercel/speed-insights` in `apps/web/`
+- [x] Add to root layout alongside Analytics:
 
   ```typescript
   import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -1117,17 +1117,17 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 4. Tests
 
-- [ ] No tests needed — analytics is a third-party script injection with no business logic
-- [ ] Verify existing tests still pass (Analytics component should render null in test env)
+- [x] No tests needed — analytics is a third-party script injection with no business logic
+- [x] Verify existing tests still pass (Analytics component should render null in test env)
 
 ---
 
 #### 5. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 106] Analytics — @vercel/analytics + @vercel/speed-insights, page views and web vitals tracking`
-- [ ] Mark P2 #12 (Analytics) as `[x]` in `tasks/launch-readiness.md`
-- [ ] Update `apps/web/README.md`:
+- [x] Mark P2 #12 (Analytics) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `apps/web/README.md`:
   - Add "Analytics" section: Vercel Analytics (auto-configured on Vercel deployments, no env vars needed)
 
 ---
@@ -1138,9 +1138,9 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 Research confirms avatar storage is fully built (migration 00039, upload route with MIME + magic byte validation, RLS policies, client-side resizing, comprehensive tests). The launch readiness item's concern about "production needs configured bucket" is handled automatically — Supabase migrations create the bucket and policies in any environment.
 
-- [ ] **Verify:** Run `npx supabase db reset` and confirm the `avatars` bucket exists with correct policies
-- [ ] **Mark P2 #14 as done** in `tasks/launch-readiness.md` with note: "Already implemented in Stage 39 (migration 00039). Bucket + RLS + upload route + tests all exist. Production bucket is created automatically via migrations."
-- [ ] **No stage number needed** — this is a verification task, not a code change
+- [x] **Verify:** Run `npx supabase db reset` and confirm the `avatars` bucket exists with correct policies
+- [x] **Mark P2 #14 as done** in `tasks/launch-readiness.md` with note: "Already implemented in Stage 39 (migration 00039). Bucket + RLS + upload route + tests all exist. Production bucket is created automatically via migrations."
+- [x] **No stage number needed** — this is a verification task, not a code change
 
 ---
 

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { NativeInit } from '@/components/native-init';
 import { PushToast } from '@/components/push-toast';
 import './globals.css';
@@ -50,6 +52,8 @@ export default function RootLayout({
         <NativeInit />
         <PushToast />
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

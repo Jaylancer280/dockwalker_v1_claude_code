@@ -146,6 +146,9 @@
 - [Stage 102] Availability expiry reminder — Vercel Cron daily at 08:00 UTC, in-app + push notification 24h before availability expires, duplicate prevention, CRON_SECRET auth
 - [Stage 103] Admin tooling — is_admin flag, admin guard, user lookup/search, stuck engagement detection + force-complete, canonical data CRUD, ADMIN.\* audit events
 - [Stage 104] Realtime messages — Supabase Realtime subscription on messages table, replaces 5s polling on chat page, fallback to polling on connection failure, context polling retained
+- [Stage 105] Deep links — apple-app-site-association + assetlinks.json, iOS entitlements, Android intent filters (domain placeholders for production)
+- [Stage 106] Analytics — @vercel/analytics + @vercel/speed-insights, page views and web vitals tracking
+- [Stage 107] Avatar storage verification — confirmed migration 00039 creates bucket + RLS + policies in all environments (no code change)
 
 ## Current Schema Version
 
