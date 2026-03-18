@@ -78,6 +78,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Templates UPDATE policy                       | 00049     | Adds UPDATE RLS policy to `daywork_templates` — owner can update own templates                                                                                                                                                                                                                    |
 | Admin role                                    | 00050     | Adds `is_admin` boolean to `persons` (default false), adds `'admin'` to `events_aggregate_type_check` CHECK constraint                                                                                                                                                                            |
 | Admin projection                              | 00051     | Adds `ADMIN.ENGAGEMENT_COMPLETED` handler to `apply_projection` — same completion logic as `DAYWORK.COMPLETED` but reads daywork_id from payload                                                                                                                                                  |
+| Messages Realtime                             | 00052     | Adds `messages` table to `supabase_realtime` publication. Enables Realtime subscriptions for instant message delivery on chat page.                                                                                                                                                               |
 
 ## Daywork Status Lifecycle
 

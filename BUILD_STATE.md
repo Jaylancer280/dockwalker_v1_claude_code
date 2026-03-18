@@ -145,10 +145,11 @@
 - [Stage 101] Email notification fallback — Resend integration, transactional email templates for acceptance/apply/message, fire-and-forget delivery alongside push + in-app, message email rate limiting (5min cooldown per conversation)
 - [Stage 102] Availability expiry reminder — Vercel Cron daily at 08:00 UTC, in-app + push notification 24h before availability expires, duplicate prevention, CRON_SECRET auth
 - [Stage 103] Admin tooling — is_admin flag, admin guard, user lookup/search, stuck engagement detection + force-complete, canonical data CRUD, ADMIN.\* audit events
+- [Stage 104] Realtime messages — Supabase Realtime subscription on messages table, replaces 5s polling on chat page, fallback to polling on connection failure, context polling retained
 
 ## Current Schema Version
 
-v51 — admin projection handler (51 migrations applied)
+v52 — messages Realtime publication (52 migrations applied)
 
 ## Migrations Applied
 
@@ -205,6 +206,7 @@ v51 — admin projection handler (51 migrations applied)
 | `00049_templates_update_policy.sql`          | Adds UPDATE RLS policy to `daywork_templates` (owner can update own templates)                                                                                                                                                                                                                 |
 | `00050_admin_role.sql`                       | Adds `is_admin` boolean to `persons` (default false), adds `'admin'` to `events_aggregate_type_check` CHECK constraint                                                                                                                                                                         |
 | `00051_admin_projection.sql`                 | Adds `ADMIN.ENGAGEMENT_COMPLETED` handler to `apply_projection` — same completion logic as `DAYWORK.COMPLETED` but reads daywork_id from payload                                                                                                                                               |
+| `00052_messages_realtime.sql`                | Adds `messages` table to `supabase_realtime` publication for Supabase Realtime subscriptions                                                                                                                                                                                                   |
 
 ## Deferred Decisions
 

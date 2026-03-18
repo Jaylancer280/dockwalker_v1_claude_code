@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 103: Admin Tooling
+Stage 104: Realtime Messages
 
 ---
 
@@ -816,7 +816,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 1. Supabase Realtime config — `supabase/config.toml`
 
-- [ ] Verify Realtime is enabled in config.toml (it should be by default):
+- [x] Verify Realtime is enabled in config.toml (it should be by default):
 
   ```toml
   [realtime]
@@ -829,7 +829,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 2. Enable Realtime on messages table — migration `supabase/migrations/00052_messages_realtime.sql`
 
-- [ ] Enable Realtime replication for the `messages` table:
+- [x] Enable Realtime replication for the `messages` table:
 
   ```sql
   alter publication supabase_realtime add table public.messages;
@@ -838,7 +838,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
   - Supabase Realtime requires tables to be added to the `supabase_realtime` publication
   - RLS policies are automatically enforced on Realtime subscriptions — only engagement participants receive messages
 
-- [ ] Create rollback `supabase/rollbacks/00052_messages_realtime.down.sql`:
+- [x] Create rollback `supabase/rollbacks/00052_messages_realtime.down.sql`:
   ```sql
   alter publication supabase_realtime drop table public.messages;
   ```
@@ -847,7 +847,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 3. Realtime hook — `apps/web/src/hooks/use-realtime-messages.ts`
 
-- [ ] Create hook:
+- [x] Create hook:
 
   ```typescript
   export function useRealtimeMessages(
@@ -890,19 +890,19 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 4. Update chat page — `apps/web/src/app/(app)/messages/[engagementId]/page.tsx`
 
-- [ ] Replace message polling with Realtime subscription:
+- [x] Replace message polling with Realtime subscription:
   - Remove the `setInterval` for `loadMessages()` (currently every 5 seconds)
   - Keep the initial `loadMessages()` call on mount (still need to load history)
   - Add `useRealtimeMessages(engagementId, handleNewMessage)` hook
   - `handleNewMessage`: append the new message to local state, auto-scroll to bottom, mark as read
   - **Keep context polling** (`loadContext()` every 5 seconds) — engagement context changes (status, checklist, postponement) are infrequent and don't benefit from Realtime
 
-- [ ] Add fallback:
+- [x] Add fallback:
   - If `isConnected` is false after 5 seconds, fall back to message polling (original 5s interval)
   - Show a subtle indicator if using fallback mode (optional — can skip for v1)
   - Log Realtime connection failures to console for debugging
 
-- [ ] Handle duplicate messages:
+- [x] Handle duplicate messages:
   - Realtime INSERT + immediate `loadMessages()` after send could produce duplicates
   - Deduplicate by message `id`: before appending from Realtime, check if `id` already exists in local state
 
@@ -910,7 +910,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 5. Tests
 
-- [ ] Create `__tests__/hooks/use-realtime-messages.test.ts`:
+- [x] Create `__tests__/hooks/use-realtime-messages.test.ts`:
   - Test: subscribes to correct channel with engagement_id filter
   - Test: calls onNewMessage when INSERT payload received
   - Test: unsubscribes on unmount
@@ -920,15 +920,15 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 6. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 104] Realtime messages — Supabase Realtime subscription on messages table, replaces 5s polling on chat page, fallback to polling on connection failure, context polling retained`
   - Schema version bump to v52
   - Migration table entry for 00052
-- [ ] Mark P1 #10 (Message polling lag) as `[x]` in `tasks/launch-readiness.md`
-- [ ] Update `supabase/README.md`:
+- [x] Mark P1 #10 (Message polling lag) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `supabase/README.md`:
   - Migration entry for 00052
   - Note: Realtime enabled on messages table
-- [ ] Update `apps/web/README.md`:
+- [x] Update `apps/web/README.md`:
   - Note Realtime dependency for chat page
 
 ---

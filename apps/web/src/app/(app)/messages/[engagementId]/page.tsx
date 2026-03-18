@@ -26,6 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 
 import type { Message, EngagementContext } from './_components/types';
 import { POLL_INTERVAL } from './_components/types';
@@ -88,8 +89,18 @@ export default function ChatPage() {
     setLoading(false);
   }, [engagementId]);
 
+  // Realtime subscription for messages — falls back to polling if not connected after 5s
+  const { isConnected: realtimeConnected } = useRealtimeMessages(engagementId, (newMsg) => {
+    setMessages((prev) => {
+      // Deduplicate: skip if message already in state
+      if (prev.some((m) => m.id === newMsg.id)) return prev;
+      return [...prev, newMsg as Message];
+    });
+  });
+
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
+    let contextInterval: ReturnType<typeof setInterval>;
+    let messageFallbackInterval: ReturnType<typeof setInterval> | undefined;
 
     function markRead() {
       fetch(`/api/messages/${engagementId}/read`, { method: 'POST' }).catch(() => {});
@@ -105,11 +116,16 @@ export default function ChatPage() {
 
       markRead();
 
-      interval = setInterval(
-        () => void Promise.all([loadContext(), loadMessages()]),
-        POLL_INTERVAL,
-      );
-      pollRef.current = interval;
+      // Context polling (engagement state changes are infrequent — keep polling)
+      contextInterval = setInterval(() => void loadContext(), POLL_INTERVAL);
+
+      // Message fallback: if Realtime isn't connected after 5s, poll messages too
+      setTimeout(() => {
+        if (!realtimeConnected) {
+          messageFallbackInterval = setInterval(() => void loadMessages(), POLL_INTERVAL);
+          pollRef.current = messageFallbackInterval;
+        }
+      }, POLL_INTERVAL);
     }
 
     const handleVisibility = () => {
@@ -119,10 +135,11 @@ export default function ChatPage() {
 
     void init();
     return () => {
-      clearInterval(interval);
+      clearInterval(contextInterval);
+      if (messageFallbackInterval) clearInterval(messageFallbackInterval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [engagementId, loadContext, loadMessages]);
+  }, [engagementId, loadContext, loadMessages, realtimeConnected]);
 
   useEffect(() => {
     const count = messages.length;
