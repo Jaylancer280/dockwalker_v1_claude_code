@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Stage 102: Availability Expiry Reminder
+Stage 103: Admin Tooling
 
 ---
 
@@ -657,7 +657,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 1. Migration — `supabase/migrations/00050_admin_role.sql`
 
-- [ ] Add `is_admin` boolean column to `persons`:
+- [x] Add `is_admin` boolean column to `persons`:
 
   ```sql
   alter table public.persons add column is_admin boolean not null default false;
@@ -666,11 +666,11 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
   - Default false — no existing users become admin
   - No CHECK constraint on aggregate_type needed (admin actions use existing types)
 
-- [ ] Add `ADMIN` aggregate type to the events CHECK constraint:
+- [x] Add `ADMIN` aggregate type to the events CHECK constraint:
   - Read the current CHECK constraint from the latest migration that modified it
   - Add `'admin'` to the allowed values
 
-- [ ] Add admin event types to `event_type` CHECK (if one exists) or document in types:
+- [x] Add admin event types to `event_type` CHECK (if one exists) or document in types:
   - `ADMIN.ENGAGEMENT_COMPLETED` — force-complete a stuck engagement
   - `ADMIN.CANONICAL_ADDED` — added a port/cert/role
   - `ADMIN.CANONICAL_UPDATED` — updated canonical data
@@ -680,14 +680,14 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 2. Rollback — `supabase/rollbacks/00050_admin_role.down.sql`
 
-- [ ] Drop `is_admin` column
-- [ ] Restore previous CHECK constraint (without `'admin'`)
+- [x] Drop `is_admin` column
+- [x] Restore previous CHECK constraint (without `'admin'`)
 
 ---
 
 #### 3. Admin middleware — `apps/web/src/lib/admin-guard.ts`
 
-- [ ] Create guard function:
+- [x] Create guard function:
 
   ```typescript
   export async function requireAdmin(request: Request) {
@@ -705,7 +705,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
   - Adds admin flag check on top
   - Returns same shape as `requireDomainUser` for ergonomic destructuring
 
-- [ ] Update `requireDomainUser` return type to include `is_admin` in the person object (read it from the persons query)
+- [x] Update `requireDomainUser` return type to include `is_admin` in the person object (read it from the persons query)
 
 ---
 
@@ -713,7 +713,7 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 **User lookup — `apps/web/src/app/api/admin/users/route.ts`**
 
-- [ ] `GET /api/admin/users?search=<name>&port_id=<id>&page=<n>`:
+- [x] `GET /api/admin/users?search=<name>&port_id=<id>&page=<n>`:
   - Uses `requireAdmin` guard
   - Queries `profiles` joined with `persons` (including deactivated — bypasses normal RLS via service client)
   - Supports search by `display_name` (ilike), filter by `location_port_id`
@@ -722,46 +722,46 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 **User detail — `apps/web/src/app/api/admin/users/[personId]/route.ts`**
 
-- [ ] `GET /api/admin/users/:personId`:
+- [x] `GET /api/admin/users/:personId`:
   - Full profile + person + subscription status + event count + last activity
   - Includes `deactivated_at` for GDPR status
 
 **Stuck engagements — `apps/web/src/app/api/admin/engagements/route.ts`**
 
-- [ ] `GET /api/admin/engagements?status=active&older_than=<days>`:
+- [x] `GET /api/admin/engagements?status=active&older_than=<days>`:
   - Lists engagements in `active` status older than N days (default 14)
   - Returns: engagement_id, daywork_id, crew name, employer name, start_date, end_date, days_active
   - Useful for finding engagements where employer forgot to mark complete
 
 **Force complete — `apps/web/src/app/api/admin/engagements/[id]/complete/route.ts`**
 
-- [ ] `POST /api/admin/engagements/:id/complete`:
+- [x] `POST /api/admin/engagements/:id/complete`:
   - Body: `{ reason: string }` (required — admin must document why)
   - Appends `ADMIN.ENGAGEMENT_COMPLETED` event with `{ engagement_id, reason, admin_person_id }` in payload
   - Triggers same projection updates as `DAYWORK.COMPLETED`: daywork status → completed, engagement status → completed, applications status → completed
   - **Add `ADMIN.ENGAGEMENT_COMPLETED` handler to `apply_projection`** (same logic as DAYWORK.COMPLETED but with admin audit fields in payload)
 
-- [ ] Create migration `supabase/migrations/00051_admin_projection.sql`:
+- [x] Create migration `supabase/migrations/00051_admin_projection.sql`:
   - `CREATE OR REPLACE FUNCTION apply_projection(...)` adding the `ADMIN.ENGAGEMENT_COMPLETED` handler
   - **CRITICAL:** Diff against migration 00048 (current version). Include ALL existing handlers unchanged.
 
-- [ ] Create rollback `supabase/rollbacks/00051_admin_projection.down.sql`:
+- [x] Create rollback `supabase/rollbacks/00051_admin_projection.down.sql`:
   - Restore apply_projection to 00048 version
 
 **Canonical data — `apps/web/src/app/api/admin/canonical/[table]/route.ts`**
 
-- [ ] `GET /api/admin/canonical/:table`:
+- [x] `GET /api/admin/canonical/:table`:
   - Returns all rows from the specified canonical table
   - Allowed tables: `regions`, `cities`, `ports`, `yacht_roles`, `certifications`, `experience_brackets`, `vessel_size_bands`
   - Validates table name against allowlist (prevents SQL injection)
 
-- [ ] `POST /api/admin/canonical/:table`:
+- [x] `POST /api/admin/canonical/:table`:
   - Body varies by table (e.g., `{ name, city_id, sort_order }` for ports)
   - Inserts via service client
   - Appends `ADMIN.CANONICAL_ADDED` event for audit
   - Returns the new record
 
-- [ ] `PATCH /api/admin/canonical/:table/:id`:
+- [x] `PATCH /api/admin/canonical/:table/:id`:
   - Updates name, sort_order, or parent FK
   - Appends `ADMIN.CANONICAL_UPDATED` event
   - Returns updated record
@@ -770,18 +770,18 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 5. Tests
 
-- [ ] Create `__tests__/api/admin-users.test.ts`:
+- [x] Create `__tests__/api/admin-users.test.ts`:
   - 401 unauthenticated
   - 403 non-admin user
   - 200 with results for admin user
   - Search filter works
 
-- [ ] Create `__tests__/api/admin-engagements.test.ts`:
+- [x] Create `__tests__/api/admin-engagements.test.ts`:
   - 403 for non-admin
   - Lists stuck engagements filtered by days
   - Force-complete appends event and returns 200
 
-- [ ] Create `__tests__/api/admin-canonical.test.ts`:
+- [x] Create `__tests__/api/admin-canonical.test.ts`:
   - 403 for non-admin
   - Rejects invalid table names
   - GET returns all rows
@@ -791,16 +791,16 @@ Create 3 branded HTML email templates using Supabase's Go template variables (`{
 
 #### 6. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 103] Admin tooling — is_admin flag, admin guard, user lookup/search, stuck engagement detection + force-complete, canonical data CRUD, ADMIN.* audit events`
   - Schema version bump to v51
   - Migration table entries for 00050 and 00051
-- [ ] Mark P1 #8 (Admin tooling) as `[x]` in `tasks/launch-readiness.md`
-- [ ] Update `apps/web/README.md`:
+- [x] Mark P1 #8 (Admin tooling) as `[x]` in `tasks/launch-readiness.md`
+- [x] Update `apps/web/README.md`:
   - Add "Admin API" section documenting all admin routes
-- [ ] Update `supabase/README.md`:
+- [x] Update `supabase/README.md`:
   - Migration entries for 00050 and 00051
-- [ ] Update `packages/types/README.md` if admin event types are added to shared types
+- [x] Update `packages/types/README.md` if admin event types are added to shared types
 
 ---
 

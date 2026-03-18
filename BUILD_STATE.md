@@ -144,10 +144,11 @@
 - [Stage 100] Error tracking — @sentry/nextjs integration, server + client + edge init, error boundary capture, global error boundary, DSN-gated (no-ops without env var)
 - [Stage 101] Email notification fallback — Resend integration, transactional email templates for acceptance/apply/message, fire-and-forget delivery alongside push + in-app, message email rate limiting (5min cooldown per conversation)
 - [Stage 102] Availability expiry reminder — Vercel Cron daily at 08:00 UTC, in-app + push notification 24h before availability expires, duplicate prevention, CRON_SECRET auth
+- [Stage 103] Admin tooling — is_admin flag, admin guard, user lookup/search, stuck engagement detection + force-complete, canonical data CRUD, ADMIN.\* audit events
 
 ## Current Schema Version
 
-v49 — daywork_templates UPDATE policy (49 migrations applied)
+v51 — admin projection handler (51 migrations applied)
 
 ## Migrations Applied
 
@@ -202,6 +203,8 @@ v49 — daywork_templates UPDATE policy (49 migrations applied)
 | `00047_advisor_usage_write_policies.sql`     | Adds INSERT and UPDATE RLS policies to `advisor_usage` so owner can write own usage rows. Defensive hardening — current code uses serviceClient but policies prevent silent failures if regular client used accidentally.                                                                      |
 | `00048_projection_state_guards.sql`          | Adds `AND status IN ('applied','viewed','shortlisted')` WHERE guards to DAYWORK.ACCEPTED and DAYWORK.REJECTED in `apply_projection`; moves DAYWORK.EXTENDED handler into `apply_projection` and drops standalone trigger/function                                                              |
 | `00049_templates_update_policy.sql`          | Adds UPDATE RLS policy to `daywork_templates` (owner can update own templates)                                                                                                                                                                                                                 |
+| `00050_admin_role.sql`                       | Adds `is_admin` boolean to `persons` (default false), adds `'admin'` to `events_aggregate_type_check` CHECK constraint                                                                                                                                                                         |
+| `00051_admin_projection.sql`                 | Adds `ADMIN.ENGAGEMENT_COMPLETED` handler to `apply_projection` — same completion logic as `DAYWORK.COMPLETED` but reads daywork_id from payload                                                                                                                                               |
 
 ## Deferred Decisions
 

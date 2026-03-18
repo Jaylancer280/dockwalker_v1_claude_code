@@ -60,7 +60,7 @@ export type EventType =
   | 'MESSAGE.SENT';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation';
+export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -343,6 +343,23 @@ export interface EventPayloadMap {
     sender_person_id?: string;
     content: string;
     is_system?: boolean;
+  };
+  'ADMIN.ENGAGEMENT_COMPLETED': {
+    engagement_id: string;
+    daywork_id: string;
+    reason: string;
+    admin_person_id: string;
+  };
+  'ADMIN.CANONICAL_ADDED': {
+    table: string;
+    record_id: string;
+    admin_person_id: string;
+  };
+  'ADMIN.CANONICAL_UPDATED': {
+    table: string;
+    record_id: string;
+    fields: Record<string, unknown>;
+    admin_person_id: string;
   };
 }
 

@@ -5,7 +5,7 @@ import type { RoleContext } from '@dockwalker/types';
 
 export interface DomainUser {
   user: { id: string };
-  person: { id: string; identity_type: string; current_hat: RoleContext };
+  person: { id: string; identity_type: string; current_hat: RoleContext; is_admin: boolean };
   profile: { person_id: string };
   supabase: SupabaseClient;
   serviceClient: SupabaseClient;
@@ -28,7 +28,7 @@ export async function requireDomainUser(): Promise<GuardResult> {
 
   const { data: personRow } = await supabase
     .from('persons')
-    .select('id, identity_type, current_hat')
+    .select('id, identity_type, current_hat, is_admin')
     .eq('id', user.id)
     .single();
 
