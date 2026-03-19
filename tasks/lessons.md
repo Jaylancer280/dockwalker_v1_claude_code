@@ -42,6 +42,8 @@
 
 - **Projection handlers must enforce the same state preconditions as the API layer:** API validation prevents invalid events from being appended, but projection WHERE clauses prevent invalid transitions during ledger replay. Both layers must agree — if the API checks `status IN ('applied', 'viewed', 'shortlisted')` before accepting, the projection's UPDATE must have the same WHERE guard. Otherwise replay of old events against a re-seeded database can produce different state than live writes.
 
+- **Mark todo items `[x]` during implementation, don't skip to deletion:** The protocol requires marking each checklist item `[x]` as it's completed during the Implement step. Only remove the completed stage block at the Close step. Skipping directly to deletion removes in-progress visibility — the user cannot see which items are done vs pending if the whole block disappears at once.
+
 - **Every write route must validate current_hat and use it as roleContext:** Ownership checks alone are insufficient — a user can own a resource from a previous hat context. Pattern: destructure `person` from guard, check hat (`['employer', 'agent'].includes(person.current_hat)` or `person.current_hat === 'crew'`), use `person.current_hat as 'employer' | 'agent'` as roleContext. Never hardcode roleContext strings.
 
 ## Procedures
