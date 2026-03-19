@@ -167,9 +167,14 @@ export async function POST(request: Request) {
     if (existingExps) {
       const newStart = startDate;
       const newEnd = endDate ?? null;
+      const todayStr = new Date().toISOString().split('T')[0];
       const hasOverlap = existingExps.some((exp) => {
         const expStart = exp.start_date;
         const expEnd = exp.end_date;
+        // Open-ended existing role (no end date): only overlaps if new experience starts on or before today
+        // A future-dated experience (start > today) alongside an open-ended current role is allowed
+        if (!expEnd && newStart > todayStr) return false;
+        if (!newEnd && expStart > todayStr) return false;
         // Two ranges overlap if each starts before the other ends
         const newEndsAfterExpStarts = !newEnd || newEnd >= expStart;
         const expEndsAfterNewStarts = !expEnd || expEnd >= newStart;

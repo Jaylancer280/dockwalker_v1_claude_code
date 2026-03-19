@@ -268,23 +268,49 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, serviceClient } = guard.value;
+  const { user, person, serviceClient } = guard.value;
 
   const body = await request.json().catch(() => ({}));
   const { dates, clearAll } = body;
 
-  // Clear all availability for this user
+  // Clear all availability — treated as "not available" through the ledger
   if (clearAll) {
-    const { error } = await serviceClient
+    // Get the user's last known city for the not-available marker
+    const { data: lastWindow } = await serviceClient
       .from('availability_windows')
-      .delete()
-      .eq('person_id', user.id);
+      .select('city_id')
+      .eq('person_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const cityId = lastWindow?.city_id ?? null;
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    try {
+      await appendEvent(serviceClient, {
+        eventType: 'AVAILABILITY.SET',
+        aggregateId: user.id,
+        aggregateType: 'person',
+        roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
+        payload: {
+          start_date: todayStr,
+          end_date: todayStr,
+          expires_at: expiresAt.toISOString(),
+          city_id: cityId,
+          not_available: true,
+        },
+        personId: user.id,
+      });
+
+      return NextResponse.json({ success: true, cleared: 'all' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to clear availability';
+      return NextResponse.json({ error: message }, { status: 500 });
     }
-
-    return NextResponse.json({ success: true, cleared: 'all' });
   }
 
   if (!dates || !Array.isArray(dates) || dates.length === 0) {

@@ -220,6 +220,49 @@ describe('POST /api/experiences', () => {
     expect(body.error).toContain('overlap');
   });
 
+  it('allows future experience alongside open-ended current role', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // No is_current check needed (isCurrent not set)
+    // Existing: open-ended from 2024-01-01 (no end date)
+    mockServiceExperiences([
+      { id: 'exp-current', start_date: '2024-01-01', end_date: null },
+    ]);
+
+    // Future experience: starts next month
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const futureStart = nextMonth.toISOString().split('T')[0];
+    const futureEnd = new Date(nextMonth.getTime() + 30 * 86400000).toISOString().split('T')[0];
+
+    const res = await POST(jsonRequest({
+      vesselId: 'v1',
+      roleId: 'r1',
+      startDate: futureStart,
+      endDate: futureEnd,
+      vesselOperation: 'charter',
+    }));
+    expect(res.status).toBe(201);
+  });
+
+  it('blocks overlapping experience when open-ended role exists and start is in past', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // Existing: open-ended from 2024-01-01 (no end date)
+    mockServiceExperiences([
+      { id: 'exp-current', start_date: '2024-01-01', end_date: null },
+    ]);
+
+    const res = await POST(jsonRequest({
+      vesselId: 'v1',
+      roleId: 'r1',
+      startDate: '2024-06-01',
+      endDate: '2024-12-01',
+      vesselOperation: 'charter',
+    }));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toContain('overlap');
+  });
+
   it('returns 409 when is_current and another current exists', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     // is_current check returns existing current

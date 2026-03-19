@@ -130,9 +130,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           .neq('id', id);
 
         if (otherExps) {
+          const todayStr = new Date().toISOString().split('T')[0];
           const hasOverlap = otherExps.some((exp) => {
             const expStart = exp.start_date;
             const expEnd = exp.end_date;
+            // Open-ended role: future-dated experience alongside open-ended current role is allowed
+            if (!expEnd && effectiveStart > todayStr) return false;
+            if (!effectiveEnd && expStart > todayStr) return false;
             const newEndsAfterExpStarts = !effectiveEnd || effectiveEnd >= expStart;
             const expEndsAfterNewStarts = !expEnd || expEnd >= effectiveStart;
             return newEndsAfterExpStarts && expEndsAfterNewStarts;

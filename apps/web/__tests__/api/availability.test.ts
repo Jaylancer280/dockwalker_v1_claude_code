@@ -527,18 +527,35 @@ describe('DELETE /api/availability', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 200 on clearAll — deletes all availability for user', async () => {
+  it('returns 200 on clearAll — appends AVAILABILITY.SET event via ledger', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    const mockDelete = vi.fn().mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: null }),
+    // Mock the last-city lookup
+    mockFromService.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockReturnValue({
+            limit: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: { city_id: 'city1' } }),
+            }),
+          }),
+        }),
+      }),
     });
-    mockFromService.mockReturnValueOnce({ delete: mockDelete });
+    // Mock appendEvent (via serviceClient.rpc)
+    mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await DELETE(makeDeleteRequest({ clearAll: true }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.cleared).toBe('all');
-    expect(mockFromService).toHaveBeenCalledWith('availability_windows');
+    // Verify it went through the ledger, not direct delete
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'AVAILABILITY.SET',
+        p_payload: expect.objectContaining({ not_available: true }),
+      }),
+    );
   });
 
   it('returns 400 when dates not provided', async () => {

@@ -21,6 +21,7 @@ export type EventType =
   | 'DAYWORK.COMPLETED'
   | 'DAYWORK.RELISTED'
   | 'DAYWORK.POSITIONS_UPDATED'
+  | 'DAYWORK.EXTENDED'
   // Invitation (daywork aggregate)
   | 'DAYWORK.INVITED'
   | 'DAYWORK.INVITATION_ACCEPTED'
@@ -57,7 +58,11 @@ export type EventType =
   // Availability (person aggregate)
   | 'AVAILABILITY.SET'
   // Message aggregate
-  | 'MESSAGE.SENT';
+  | 'MESSAGE.SENT'
+  // Admin aggregate
+  | 'ADMIN.ENGAGEMENT_COMPLETED'
+  | 'ADMIN.CANONICAL_ADDED'
+  | 'ADMIN.CANONICAL_UPDATED';
 
 /** Aggregate types that events reference */
 export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin';

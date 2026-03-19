@@ -152,10 +152,11 @@
 - [Stage 108] Bug fixes — DAYWORK.APPLIED email payload (person_id → crew_person_id), MESSAGE.SENT explicit is_system flag, INVITATION_ACCEPTED notification + deep link, WORK_STARTED_CONFIRMED deep link, invitation tab deep link routing, chat page polling cleanup leak (timeout + pollRef cleared on unmount, realtimeConnected moved to ref)
 - [Stage 109] Hat validation hardening — hat check + dynamic roleContext on accept, reject, shortlist, view, cancel-employer, cancel daywork, complete, checklist/toggle, avatar upload routes; update-positions test coverage (10 tests)
 - [Stage 110] API validation hardening — accept race guard in apply_projection (positions-full pre-check), extend route full validation (backward extension, workingDays bounds, workingDayDates range/duplicates/length), relist status check (in_progress only), template currency validation, onboarding avatar URL validation (HTTPS only)
+- [Stage 111] GDPR export completeness (experiences, applications, invitations, ratings, device tokens, advisor conversations), EventType union fix (DAYWORK.EXTENDED, ADMIN.\*), admin canonical projection no-op handlers, clearAll availability via ledger (not direct DELETE), experience open-ended overlap fix (future-dated alongside current allowed)
 
 ## Current Schema Version
 
-v53 — accept race guard (53 migrations applied)
+v54 — admin canonical projection handlers (54 migrations applied)
 
 ## Migrations Applied
 
@@ -214,6 +215,7 @@ v53 — accept race guard (53 migrations applied)
 | `00051_admin_projection.sql`                 | Adds `ADMIN.ENGAGEMENT_COMPLETED` handler to `apply_projection` — same completion logic as `DAYWORK.COMPLETED` but reads daywork_id from payload                                                                                                                                               |
 | `00052_messages_realtime.sql`                | Adds `messages` table to `supabase_realtime` publication for Supabase Realtime subscriptions                                                                                                                                                                                                   |
 | `00053_accept_race_guard.sql`                | Adds positions-full pre-check to DAYWORK.ACCEPTED handler in `apply_projection` — concurrent accepts on a fully-filled daywork no-op instead of creating phantom fills                                                                                                                         |
+| `00054_admin_canonical_projection.sql`       | Adds audit-only no-op handlers for `ADMIN.CANONICAL_ADDED` and `ADMIN.CANONICAL_UPDATED` in `apply_projection` (RAISE NOTICE instead of falling through to unknown event warning)                                                                                                              |
 
 ## Deferred Decisions
 
