@@ -50,6 +50,11 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
 
+    const VALID_CURRENCIES = ['EUR', 'USD', 'GBP', 'AED'];
+    if (body.currency && !VALID_CURRENCIES.includes(body.currency)) {
+      return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
+    }
+
     const { data, error } = await supabase
       .from('daywork_templates')
       .insert({

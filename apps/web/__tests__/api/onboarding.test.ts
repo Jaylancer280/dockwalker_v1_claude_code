@@ -84,6 +84,35 @@ describe('POST /api/onboarding', () => {
     expect(body.error).toBe('Invalid hat selection');
   });
 
+  it('returns 400 for javascript: avatar URL', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFromAuth.mockReturnValueOnce(makeChain(null));
+
+    const res = await POST(
+      makeRequest({
+        ...validBody,
+        profile: { displayName: 'Test', avatarUrl: 'javascript:alert(1)' },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('avatar URL');
+  });
+
+  it('accepts valid HTTPS avatar URL', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFromAuth.mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(
+      makeRequest({
+        ...validBody,
+        profile: { displayName: 'Test', avatarUrl: 'https://example.com/avatar.jpg' },
+      }),
+    );
+    expect(res.status).toBe(200);
+  });
+
   it('returns 409 when already onboarded', async () => {
     mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
     mockFromAuth.mockReturnValueOnce(makeChain({ id: 'u1' }));

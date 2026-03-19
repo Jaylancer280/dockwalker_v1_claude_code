@@ -104,6 +104,49 @@ describe('POST /api/daywork/:id/extend', () => {
     expect(body.error).toContain('past');
   });
 
+  it('returns 400 when extending backwards (new end < current end)', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({ id: 'd1', status: 'active', start_date: futureDate(1), end_date: futureDate(10) }),
+    );
+
+    const res = await POST(makeRequest({ endDate: futureDate(5) }), makeParams('d1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('current end date');
+  });
+
+  it('returns 400 when workingDayDates are outside range', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({ id: 'd1', status: 'active', start_date: futureDate(1), end_date: futureDate(5) }),
+    );
+
+    const res = await POST(
+      makeRequest({ endDate: futureDate(10), workingDayDates: ['2020-01-01'] }),
+      makeParams('d1'),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('date range');
+  });
+
+  it('returns 400 when workingDayDates have duplicates', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const startDate = futureDate(1);
+    mockFromAuth.mockReturnValueOnce(
+      makeSingleChain({ id: 'd1', status: 'active', start_date: startDate, end_date: futureDate(5) }),
+    );
+
+    const res = await POST(
+      makeRequest({ endDate: futureDate(10), workingDayDates: [startDate, startDate] }),
+      makeParams('d1'),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('duplicates');
+  });
+
   it('returns 200 on successful extension', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(

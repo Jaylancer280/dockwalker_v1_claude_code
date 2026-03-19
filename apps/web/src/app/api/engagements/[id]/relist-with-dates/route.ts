@@ -47,8 +47,8 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     .eq('id', engagement.daywork_id)
     .single();
 
-  if (daywork?.status === 'active') {
-    return NextResponse.json({ error: 'This job has already been relisted' }, { status: 400 });
+  if (!daywork || daywork.status !== 'in_progress') {
+    return NextResponse.json({ error: 'Daywork is not available for relisting' }, { status: 400 });
   }
 
   try {

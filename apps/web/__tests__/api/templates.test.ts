@@ -81,6 +81,14 @@ describe('POST /api/daywork/templates', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 400 for invalid currency', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const res = await POST(makeRequest({ name: 'Test', currency: 'BTC' }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('currency');
+  });
+
   it('returns 201 on successful creation', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce({

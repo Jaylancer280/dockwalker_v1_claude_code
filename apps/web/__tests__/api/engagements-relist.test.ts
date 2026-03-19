@@ -101,11 +101,29 @@ describe('POST /api/engagements/:id/relist-with-dates', () => {
     expect(res.status).toBe(400);
   });
 
-  it('successfully relists with proposed dates', async () => {
+  it('returns 400 when daywork is completed', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(makeChain(cancelledEngagement))
+      .mockReturnValueOnce(makeChain({ id: 'd1', status: 'completed' }));
+    const res = await relistWithDates(makeRequest(), makeParams('e1'));
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when daywork is cancelled', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth
       .mockReturnValueOnce(makeChain(cancelledEngagement))
       .mockReturnValueOnce(makeChain({ id: 'd1', status: 'cancelled' }));
+    const res = await relistWithDates(makeRequest(), makeParams('e1'));
+    expect(res.status).toBe(400);
+  });
+
+  it('successfully relists with proposed dates', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(makeChain(cancelledEngagement))
+      .mockReturnValueOnce(makeChain({ id: 'd1', status: 'in_progress' }));
     mockRpc.mockResolvedValueOnce({ data: ['ev1', 'ev2'], error: null }); // batch (relist + msg)
 
     const res = await relistWithDates(makeRequest(), makeParams('e1'));

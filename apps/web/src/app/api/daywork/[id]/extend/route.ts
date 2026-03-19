@@ -66,16 +66,74 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'End date cannot be before start date' }, { status: 400 });
   }
 
+  // Cannot "extend" backwards — new end date must be >= current end date
+  if (endDate < daywork.end_date) {
+    return NextResponse.json(
+      { error: 'New end date cannot be before current end date' },
+      { status: 400 },
+    );
+  }
+
   const payload: Record<string, unknown> = {
     daywork_id: dayworkId,
     end_date: endDate,
   };
 
   if (workingDays !== undefined) {
-    payload.working_days = workingDays;
+    const wd = parseInt(workingDays, 10);
+    if (isNaN(wd) || wd < 1) {
+      return NextResponse.json(
+        { error: 'workingDays must be a positive integer' },
+        { status: 400 },
+      );
+    }
+    // workingDays cannot exceed the date span
+    const startMs = new Date(daywork.start_date).getTime();
+    const endMs = new Date(endDate).getTime();
+    const spanDays = Math.floor((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
+    if (wd > spanDays) {
+      return NextResponse.json(
+        { error: 'workingDays cannot exceed the date span' },
+        { status: 400 },
+      );
+    }
+    payload.working_days = wd;
   }
 
   if (workingDayDates && Array.isArray(workingDayDates) && workingDayDates.length > 0) {
+    // Validate all dates are valid YYYY-MM-DD and within range
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    for (const d of workingDayDates) {
+      if (typeof d !== 'string' || !dateRegex.test(d) || isNaN(new Date(d).getTime())) {
+        return NextResponse.json(
+          { error: 'All workingDayDates must be valid YYYY-MM-DD dates' },
+          { status: 400 },
+        );
+      }
+      if (d < daywork.start_date || d > endDate) {
+        return NextResponse.json(
+          { error: 'All workingDayDates must be within the daywork date range' },
+          { status: 400 },
+        );
+      }
+    }
+    // No duplicates
+    if (new Set(workingDayDates).size !== workingDayDates.length) {
+      return NextResponse.json(
+        { error: 'workingDayDates must not contain duplicates' },
+        { status: 400 },
+      );
+    }
+    // Length must match workingDays if both provided
+    if (workingDays !== undefined) {
+      const wd = parseInt(workingDays, 10);
+      if (!isNaN(wd) && workingDayDates.length !== wd) {
+        return NextResponse.json(
+          { error: 'workingDayDates length must match workingDays' },
+          { status: 400 },
+        );
+      }
+    }
     payload.working_day_dates = workingDayDates;
     payload.working_days = workingDayDates.length;
   }

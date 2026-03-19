@@ -59,6 +59,17 @@ export async function POST(request: Request) {
 
     const body_experiences: unknown[] = body.experiences || [];
 
+    if (profile.avatarUrl) {
+      try {
+        const url = new URL(profile.avatarUrl);
+        if (url.protocol !== 'https:') {
+          return NextResponse.json({ error: 'Invalid avatar URL' }, { status: 400 });
+        }
+      } catch {
+        return NextResponse.json({ error: 'Invalid avatar URL' }, { status: 400 });
+      }
+    }
+
     const profilePayload: Record<string, unknown> = {
       display_name: profile.displayName,
       // Crew fields
