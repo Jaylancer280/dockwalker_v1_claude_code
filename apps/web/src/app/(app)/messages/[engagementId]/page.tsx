@@ -98,9 +98,15 @@ export default function ChatPage() {
     });
   });
 
+  const realtimeConnectedRef = useRef(realtimeConnected);
+  useEffect(() => {
+    realtimeConnectedRef.current = realtimeConnected;
+  }, [realtimeConnected]);
+
   useEffect(() => {
     let contextInterval: ReturnType<typeof setInterval>;
     let messageFallbackInterval: ReturnType<typeof setInterval> | undefined;
+    let fallbackTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     function markRead() {
       fetch(`/api/messages/${engagementId}/read`, { method: 'POST' }).catch(() => {});
@@ -120,8 +126,8 @@ export default function ChatPage() {
       contextInterval = setInterval(() => void loadContext(), POLL_INTERVAL);
 
       // Message fallback: if Realtime isn't connected after 5s, poll messages too
-      setTimeout(() => {
-        if (!realtimeConnected) {
+      fallbackTimeoutId = setTimeout(() => {
+        if (!realtimeConnectedRef.current) {
           messageFallbackInterval = setInterval(() => void loadMessages(), POLL_INTERVAL);
           pollRef.current = messageFallbackInterval;
         }
@@ -136,10 +142,12 @@ export default function ChatPage() {
     void init();
     return () => {
       clearInterval(contextInterval);
+      if (fallbackTimeoutId) clearTimeout(fallbackTimeoutId);
       if (messageFallbackInterval) clearInterval(messageFallbackInterval);
+      if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [engagementId, loadContext, loadMessages, realtimeConnected]);
+  }, [engagementId, loadContext, loadMessages]);
 
   useEffect(() => {
     const count = messages.length;

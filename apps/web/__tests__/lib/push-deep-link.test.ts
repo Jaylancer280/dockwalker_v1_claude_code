@@ -19,6 +19,10 @@ describe('resolveDeepLinkUrl', () => {
     expect(resolveDeepLinkUrl({ screen: 'discover' })).toBe('/discover');
   });
 
+  it('maps screen:discover with type:invitation to /discover?tab=invitations', () => {
+    expect(resolveDeepLinkUrl({ screen: 'discover', type: 'invitation' })).toBe('/discover?tab=invitations');
+  });
+
   it('maps screen:review + dayworkId to /daywork/:id/review', () => {
     expect(resolveDeepLinkUrl({ screen: 'review', dayworkId: 'dw-1' })).toBe('/daywork/dw-1/review');
   });

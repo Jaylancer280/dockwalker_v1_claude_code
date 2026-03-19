@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent, appendEvents } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 
 /**
  * POST /api/daywork/invitations/:id/respond
@@ -149,6 +150,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const msg = err instanceof Error ? err.message : 'Failed to accept invitation';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+
+  notifyOnEvent(
+    serviceClient,
+    'DAYWORK.INVITATION_ACCEPTED',
+    { daywork_id: invitation.daywork_id, crew_person_id: user.id },
+    user.id,
+  );
 
   return NextResponse.json({ application: { id: applicationId, status: 'applied' } });
 }

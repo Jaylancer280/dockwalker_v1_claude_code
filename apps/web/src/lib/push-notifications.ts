@@ -112,7 +112,7 @@ export function resolveDeepLinkUrl(data: Record<string, string>): string | undef
     case 'chat':
       return data.engagementId ? `/messages/${data.engagementId}` : '/messages';
     case 'discover':
-      return '/discover';
+      return data.type === 'invitation' ? '/discover?tab=invitations' : '/discover';
     case 'review':
       return data.dayworkId ? `/daywork/${data.dayworkId}/review` : undefined;
     default:

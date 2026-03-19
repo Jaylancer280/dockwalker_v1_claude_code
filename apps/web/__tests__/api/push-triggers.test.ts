@@ -320,6 +320,63 @@ describe('notifyOnEvent', () => {
     );
   });
 
+  it('DAYWORK.INVITATION_ACCEPTED notifies employer with role name', async () => {
+    const sc = {
+      from: vi.fn().mockImplementation((table: string) => {
+        if (table === 'dayworks') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockImplementation(() => {
+                  // First call: getJobNumber (job_number), second: getDayworkPoster (poster_person_id), third: role_id
+                  return Promise.resolve({ data: { job_number: 20, poster_person_id: 'emp1', role_id: 'role1' }, error: null });
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === 'yacht_roles') {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({
+                  data: { name: 'Deckhand' },
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          }),
+        };
+      }),
+    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    notifyOnEvent(
+      sc,
+      'DAYWORK.INVITATION_ACCEPTED',
+      { daywork_id: 'dw1', crew_person_id: 'crew1' },
+      'crew1',
+    );
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(mockSendPushToUser).toHaveBeenCalledWith(
+      sc,
+      'emp1',
+      expect.objectContaining({
+        title: 'Invitation Accepted',
+        body: expect.stringContaining('Deckhand'),
+        data: expect.objectContaining({ screen: 'review', dayworkId: 'dw1' }),
+      }),
+    );
+  });
+
   it('CHECKLIST.SET notifies crew', async () => {
     const sc = {
       from: vi.fn().mockImplementation((table: string) => {

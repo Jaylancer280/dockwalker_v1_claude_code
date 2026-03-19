@@ -67,6 +67,7 @@ function mapEventToNotificationType(eventType: string): string | null {
     'DAYWORK.REJECTED': 'application_rejected',
     'DAYWORK.INVITED': 'invitation_received',
     'DAYWORK.SHORTLISTED': 'application_shortlisted',
+    'DAYWORK.INVITATION_ACCEPTED': 'invitation_accepted',
     'DAYWORK.POSTED': 'new_job_posted',
     'MESSAGE.SENT': 'message_received',
     'DAYWORK.COMPLETED': 'job_completed',
@@ -88,6 +89,8 @@ function resolveDeepLink(eventType: string, payload: Record<string, unknown>): s
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'DAYWORK.INVITED':
       return '/daywork/invitations';
+    case 'DAYWORK.INVITATION_ACCEPTED':
+      return payload.daywork_id ? `/daywork/${payload.daywork_id}/review` : null;
     case 'MESSAGE.SENT':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'DAYWORK.POSTED':
@@ -100,6 +103,8 @@ function resolveDeepLink(eventType: string, payload: Record<string, unknown>): s
     case 'ENGAGEMENT.POSTPONEMENT_PROPOSED':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'CHECKLIST.SET':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'ENGAGEMENT.WORK_STARTED_CONFIRMED':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     default:
       return null;
@@ -131,6 +136,9 @@ async function resolveNotification(
 
     case 'DAYWORK.INVITED':
       return handleDayworkInvited(sc, payload);
+
+    case 'DAYWORK.INVITATION_ACCEPTED':
+      return handleInvitationAccepted(sc, payload);
 
     case 'MESSAGE.SENT':
       return handleMessageSent(sc, payload, actorPersonId);
@@ -297,6 +305,41 @@ async function handleDayworkInvited(
         title: 'New Invitation',
         body: `You've been invited to ${jobNumber}`,
         data: { screen: 'discover', type: 'invitation' },
+      },
+    },
+  ];
+}
+
+async function handleInvitationAccepted(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const dayworkId = payload.daywork_id as string;
+  const [jobNumber, posterId] = await Promise.all([
+    getJobNumber(sc, dayworkId),
+    getDayworkPoster(sc, dayworkId),
+  ]);
+  if (!posterId) return [];
+
+  const { data: dw } = await sc.from('dayworks').select('role_id').eq('id', dayworkId).single();
+  let roleName = 'daywork';
+  if (dw?.role_id) {
+    const { data: role } = await sc
+      .from('yacht_roles')
+      .select('name')
+      .eq('id', dw.role_id)
+      .single();
+    if (role?.name) roleName = role.name;
+  }
+
+  return [
+    {
+      recipientPersonId: posterId,
+      roleContext: 'employer',
+      notification: {
+        title: 'Invitation Accepted',
+        body: `Invitation accepted for ${roleName} — ${jobNumber}`,
+        data: { screen: 'review', dayworkId },
       },
     },
   ];
@@ -515,7 +558,7 @@ async function sendEmailForEvent(
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const dayworkId = payload.daywork_id as string;
     const jobNumber = await getJobNumber(sc, dayworkId);
-    const crewName = await getDisplayName(sc, (payload.person_id as string) ?? '');
+    const crewName = await getDisplayName(sc, (payload.crew_person_id as string) ?? '');
     const deepLink = `${siteUrl}/daywork/${dayworkId}/review`;
     const tpl = applicationReceivedEmail({
       employerName: recipientName,

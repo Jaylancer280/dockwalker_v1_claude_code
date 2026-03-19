@@ -113,7 +113,12 @@ export async function POST(
     notifyOnEvent(
       serviceClient,
       'MESSAGE.SENT',
-      { engagement_id: engagementId, sender_person_id: user.id, content: trimmed },
+      {
+        engagement_id: engagementId,
+        sender_person_id: user.id,
+        content: trimmed,
+        is_system: false,
+      },
       user.id,
     );
 

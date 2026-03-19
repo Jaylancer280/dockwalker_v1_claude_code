@@ -149,6 +149,7 @@
 - [Stage 105] Deep links — apple-app-site-association + assetlinks.json, iOS entitlements, Android intent filters (domain placeholders for production)
 - [Stage 106] Analytics — @vercel/analytics + @vercel/speed-insights, page views and web vitals tracking
 - [Stage 107] Avatar storage verification — confirmed migration 00039 creates bucket + RLS + policies in all environments (no code change)
+- [Stage 108] Bug fixes — DAYWORK.APPLIED email payload (person_id → crew_person_id), MESSAGE.SENT explicit is_system flag, INVITATION_ACCEPTED notification + deep link, WORK_STARTED_CONFIRMED deep link, invitation tab deep link routing, chat page polling cleanup leak (timeout + pollRef cleared on unmount, realtimeConnected moved to ref)
 
 ## Current Schema Version
 
