@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 import {
   Select,
   SelectContent,
@@ -944,9 +945,15 @@ function AvailableCrewCard({ crew, isPreview }: { crew: AvailableCrew; isPreview
           <Avatar src={crew.avatar_url ?? null} name={crew.display_name ?? '?'} size="md" />
           <div>
             <h3 className="text-lg font-bold">{crew.display_name ?? 'Unknown'}</h3>
-            <p className="text-sm text-muted-foreground">
-              {crew.yacht_roles?.name ?? 'No primary role'}
-              {crew.yacht_roles?.department && ` · ${crew.yacht_roles.department}`}
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <span>{crew.yacht_roles?.name ?? 'No primary role'}</span>
+              {crew.yacht_roles?.name && (
+                <EpauletteBadge
+                  roleName={crew.yacht_roles.name}
+                  department={crew.yacht_roles.department}
+                  size="sm"
+                />
+              )}
             </p>
           </div>
         </div>
@@ -1042,9 +1049,15 @@ function ApplicantCard({
                 </button>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              {profile?.yacht_roles?.name ?? 'No primary role'}
-              {profile?.yacht_roles?.department && ` · ${profile.yacht_roles.department}`}
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <span>{profile?.yacht_roles?.name ?? 'No primary role'}</span>
+              {profile?.yacht_roles?.name && (
+                <EpauletteBadge
+                  roleName={profile.yacht_roles.name}
+                  department={profile.yacht_roles.department}
+                  size="sm"
+                />
+              )}
             </p>
           </div>
         </div>

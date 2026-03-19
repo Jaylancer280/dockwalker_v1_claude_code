@@ -167,7 +167,10 @@ insert into public.yacht_roles (id, name, department, sort_order) values
   ('d0000000-0000-0000-0000-000000000017', 'Crew Chef', 'galley', 17),
   ('d0000000-0000-0000-0000-000000000018', 'Purser', 'interior', 18),
   ('d0000000-0000-0000-0000-000000000019', 'Mate', 'deck', 19),
-  ('d0000000-0000-0000-0000-000000000020', 'Day Worker (General)', 'deck', 20);
+  ('d0000000-0000-0000-0000-000000000020', 'Day Worker (General)', 'deck', 20),
+  ('d0000000-0000-0000-0000-000000000021', 'Deck/Engineer', 'deck_engineering', 21),
+  ('d0000000-0000-0000-0000-000000000022', 'Deck/Stew', 'deck_interior', 22),
+  ('d0000000-0000-0000-0000-000000000023', 'Cook/Stew', 'galley_interior', 23);
 
 -- ========================= CERTIFICATIONS =========================
 

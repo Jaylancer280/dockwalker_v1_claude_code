@@ -153,10 +153,11 @@
 - [Stage 109] Hat validation hardening — hat check + dynamic roleContext on accept, reject, shortlist, view, cancel-employer, cancel daywork, complete, checklist/toggle, avatar upload routes; update-positions test coverage (10 tests)
 - [Stage 110] API validation hardening — accept race guard in apply_projection (positions-full pre-check), extend route full validation (backward extension, workingDays bounds, workingDayDates range/duplicates/length), relist status check (in_progress only), template currency validation, onboarding avatar URL validation (HTTPS only)
 - [Stage 111] GDPR export completeness (experiences, applications, invitations, ratings, device tokens, advisor conversations), EventType union fix (DAYWORK.EXTENDED, ADMIN.\*), admin canonical projection no-op handlers, clearAll availability via ledger (not direct DELETE), experience open-ended overlap fix (future-dated alongside current allowed)
+- [Stage 113] Epaulette badges — auto-derived rank insignia (department symbol + seniority stripes) on profile experience cards, discover job cards, review applicant cards, profile overlay; 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew) with split-symbol badges; migration 00055 for hybrid role data + department CHECK; RolePicker lists hybrids under both parent departments; gold (deck/bridge/engineering) and silver (interior/galley) color coding
 
 ## Current Schema Version
 
-v54 — admin canonical projection handlers (54 migrations applied)
+v55 — hybrid roles (55 migrations applied)
 
 ## Migrations Applied
 
@@ -216,6 +217,7 @@ v54 — admin canonical projection handlers (54 migrations applied)
 | `00052_messages_realtime.sql`                | Adds `messages` table to `supabase_realtime` publication for Supabase Realtime subscriptions                                                                                                                                                                                                   |
 | `00053_accept_race_guard.sql`                | Adds positions-full pre-check to DAYWORK.ACCEPTED handler in `apply_projection` — concurrent accepts on a fully-filled daywork no-op instead of creating phantom fills                                                                                                                         |
 | `00054_admin_canonical_projection.sql`       | Adds audit-only no-op handlers for `ADMIN.CANONICAL_ADDED` and `ADMIN.CANONICAL_UPDATED` in `apply_projection` (RAISE NOTICE instead of falling through to unknown event warning)                                                                                                              |
+| `00055_hybrid_roles.sql`                     | Expands department CHECK constraint to include `deck_engineering`, `deck_interior`, `galley_interior`; inserts 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew)                                                                                                                            |
 
 ## Deferred Decisions
 

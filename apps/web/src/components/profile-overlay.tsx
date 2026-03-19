@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/avatar';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 
 interface CrewExperience {
   vessel_name: string | null;
@@ -142,8 +143,13 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
         <div>
           <p className="font-semibold">{profile.display_name}</p>
           {profile.primary_role && (
-            <p className="text-sm text-muted-foreground">
-              {profile.primary_role.name} · {profile.primary_role.department}
+            <p className="text-sm text-muted-foreground flex items-center gap-1">
+              <span>{profile.primary_role.name}</span>
+              <EpauletteBadge
+                roleName={profile.primary_role.name}
+                department={profile.primary_role.department}
+                size="sm"
+              />
             </p>
           )}
         </div>
@@ -221,8 +227,10 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
                     <p className="truncate text-sm font-medium">
                       {prefix} {exp.vessel_name ?? 'Unknown vessel'}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {exp.role ?? 'Unknown role'} · {dateRange}
+                    <p className="truncate text-xs text-muted-foreground flex items-center gap-1">
+                      <span>{exp.role ?? 'Unknown role'}</span>
+                      {exp.role && <EpauletteBadge roleName={exp.role} size="sm" />}
+                      <span>· {dateRange}</span>
                     </p>
                   </div>
                   {isExpanded ? (

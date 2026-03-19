@@ -43,9 +43,19 @@ export function RolePicker({
     const deptMap = new Map<string, RoleItem[]>();
     for (const role of roles) {
       const dept = role.department || 'Other';
-      const list = deptMap.get(dept) ?? [];
-      list.push(role);
-      deptMap.set(dept, list);
+      // Hybrid roles (e.g. deck_engineering) appear under both parent departments
+      if (dept.includes('_')) {
+        const parts = dept.split('_');
+        for (const part of parts) {
+          const list = deptMap.get(part) ?? [];
+          list.push(role);
+          deptMap.set(part, list);
+        }
+      } else {
+        const list = deptMap.get(dept) ?? [];
+        list.push(role);
+        deptMap.set(dept, list);
+      }
     }
     const groups: DepartmentGroup[] = [];
     for (const [department, deptRoles] of deptMap) {

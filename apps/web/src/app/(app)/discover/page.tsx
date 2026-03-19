@@ -21,6 +21,7 @@ import {
   Mail,
   User,
 } from 'lucide-react';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1117,7 +1118,12 @@ function JobCard({
         {/* Role + vessel */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="flex-1 text-lg font-bold">{card.yacht_roles?.name ?? 'Unknown role'}</h3>
+            <h3 className="flex-1 text-lg font-bold flex items-center gap-1.5">
+              {card.yacht_roles?.name ?? 'Unknown role'}
+              {card.yacht_roles?.name && (
+                <EpauletteBadge roleName={card.yacht_roles.name} size="sm" />
+              )}
+            </h3>
             {!isPreview && (
               <button
                 className="text-muted-foreground hover:text-primary"
@@ -1273,7 +1279,10 @@ function ApplicationCard({
         {/* Header: role + status */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
+            <h3 className="font-semibold leading-tight flex items-center gap-1.5">
+              {dw.role_name ?? 'Unknown role'}
+              {dw.role_name && <EpauletteBadge roleName={dw.role_name} size="sm" />}
+            </h3>
             <p className="text-sm text-muted-foreground">
               {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
               {dw.vessel_name ?? 'Unknown vessel'}
@@ -1440,7 +1449,10 @@ function InvitationCard({
         {/* Role + vessel */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold leading-tight">{dw.role_name ?? 'Unknown role'}</h3>
+            <h3 className="font-semibold leading-tight flex items-center gap-1.5">
+              {dw.role_name ?? 'Unknown role'}
+              {dw.role_name && <EpauletteBadge roleName={dw.role_name} size="sm" />}
+            </h3>
             <p className="text-sm text-muted-foreground">
               {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
               {dw.vessel_name ?? 'Unknown vessel'}

@@ -19,6 +19,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { NotificationBell } from '@/components/notification-bell';
 import { useToast } from '@/hooks/use-toast';
@@ -645,9 +646,19 @@ export default function ProfilePage() {
                             {exp.vessel_operation}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {exp.yacht_roles?.name ?? 'Unknown role'} · {dateRange}
-                          {sizeBandLabel && ` · ${sizeBandLabel}`}
+                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                          <span>{exp.yacht_roles?.name ?? 'Unknown role'}</span>
+                          {exp.yacht_roles?.name && (
+                            <EpauletteBadge
+                              roleName={exp.yacht_roles.name}
+                              department={exp.yacht_roles?.department}
+                              size="sm"
+                            />
+                          )}
+                          <span>
+                            · {dateRange}
+                            {sizeBandLabel && ` · ${sizeBandLabel}`}
+                          </span>
                         </p>
                       </div>
                       {idx !== 0 &&
