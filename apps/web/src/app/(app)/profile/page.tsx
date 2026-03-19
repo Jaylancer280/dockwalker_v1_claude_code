@@ -628,7 +628,16 @@ export default function ProfilePage() {
                 const dateRange = formatDateRange(exp.start_date, exp.end_date, exp.is_current);
 
                 return (
-                  <div key={exp.id} className="rounded-lg border border-border bg-card">
+                  <div key={exp.id} className="relative rounded-lg border border-border bg-card">
+                    {exp.yacht_roles?.name && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <EpauletteBadge
+                          roleName={exp.yacht_roles.name}
+                          department={exp.yacht_roles?.department}
+                          size="md"
+                        />
+                      </div>
+                    )}
                     <button
                       onClick={() => setExpandedExpId(isExpanded && idx !== 0 ? null : exp.id)}
                       className="flex w-full items-center gap-3 p-3 text-left"
@@ -636,7 +645,7 @@ export default function ProfilePage() {
                       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                         <Ship className="h-4 w-4" />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 pr-14">
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-medium truncate">
                             {exp.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'}{' '}
@@ -646,19 +655,9 @@ export default function ProfilePage() {
                             {exp.vessel_operation}
                           </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                          <span>{exp.yacht_roles?.name ?? 'Unknown role'}</span>
-                          {exp.yacht_roles?.name && (
-                            <EpauletteBadge
-                              roleName={exp.yacht_roles.name}
-                              department={exp.yacht_roles?.department}
-                              size="sm"
-                            />
-                          )}
-                          <span>
-                            · {dateRange}
-                            {sizeBandLabel && ` · ${sizeBandLabel}`}
-                          </span>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {exp.yacht_roles?.name ?? 'Unknown role'} · {dateRange}
+                          {sizeBandLabel && ` · ${sizeBandLabel}`}
                         </p>
                       </div>
                       {idx !== 0 &&

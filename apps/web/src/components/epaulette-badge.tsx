@@ -7,79 +7,50 @@ function colorHex(c: 'gold' | 'silver'): string {
   return c === 'gold' ? GOLD : SILVER;
 }
 
-/** Anchor icon — deck + bridge */
+/** Anchor icon — deck + bridge. Filled silhouette for clarity at 12px. */
 function AnchorIcon({ color, size }: { color: string; size: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="8" cy="3.5" r="2" stroke={color} strokeWidth="1.5" fill="none" />
-      <line x1="8" y1="5.5" x2="8" y2="14" stroke={color} strokeWidth="1.5" />
-      <line x1="4" y1="10" x2="12" y2="10" stroke={color} strokeWidth="1.5" />
+    <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M4 13 C4 11 8 9 8 14 C8 9 12 11 12 13"
-        stroke={color}
-        strokeWidth="1.2"
-        fill="none"
+        d="M8 1.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-.75 5.4V13c-2.2-.3-3.75-1.7-4-3.5h1.5a.75.75 0 0 0 0-1.5H3.1A5.5 5.5 0 0 1 7.25 4.6v2.3zm1.5 0V4.6a5.5 5.5 0 0 1 4.15 3.4h-1.65a.75.75 0 0 0 0 1.5h1.5c-.25 1.8-1.8 3.2-4 3.5V6.9z"
+        fill={color}
       />
     </svg>
   );
 }
 
-/** Propeller icon — engineering */
+/** Propeller icon — engineering. Filled 3-blade propeller. */
 function PropellerIcon({ color, size }: { color: string; size: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="8" cy="8" r="1.5" fill={color} />
-      <path d="M8 6.5 C6 2 4 3 5.5 5.5" stroke={color} strokeWidth="1.3" fill="none" />
-      <path d="M9.3 8.8 C12.5 10.5 13 8 10.5 7.5" stroke={color} strokeWidth="1.3" fill="none" />
-      <path d="M6.7 8.8 C3.5 10.5 3 8 5.5 7.5" stroke={color} strokeWidth="1.3" fill="none" />
+    <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="1.8" fill={color} />
+      <path
+        d="M8 6.2C7.2 4.5 6 2 7 1.5c1-.5 2 1.5 2.2 3.2.1.8-.4 1.5-1.2 1.5zM9.6 9C11.2 9.8 13.5 11 13.5 10c0-1-2-2-3.7-2.2-.8-.1-1.3.5-1 1.2zM6.4 9C4.8 9.8 2.5 11 2.5 10c0-1 2-2 3.7-2.2.8-.1 1.3.5 1 1.2z"
+        fill={color}
+      />
     </svg>
   );
 }
 
-/** Crescent moon icon — interior */
+/** Crescent moon icon — interior. Bold filled crescent. */
 function CrescentIcon({ color, size }: { color: string; size: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M10 3 A5 5 0 1 0 10 13 A3.5 3.5 0 1 1 10 3Z" fill={color} />
+    <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M9.5 2C6 2 3.5 4.5 3.5 8s2.5 6 6 6c1.5 0 2.8-.5 3.8-1.3C12 13.5 10.5 14 9 14 5.7 14 3 11.3 3 8s2.7-6 6-6c1.5 0 2.8.5 3.8 1.3C11.8 2.5 10.7 2 9.5 2z"
+        fill={color}
+      />
     </svg>
   );
 }
 
-/** Knife icon — galley */
+/** Knife icon — galley. Filled chef's knife silhouette. */
 function KnifeIcon({ color, size }: { color: string; size: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M4 14 L8 2 L9 2 L6 10 L12 10"
-        stroke={color}
-        strokeWidth="1.3"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d="M11.5 1.5L5 9.5h3l-1 5 6.5-8h-3z"
+        fill={color}
       />
     </svg>
   );

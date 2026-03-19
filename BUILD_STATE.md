@@ -156,6 +156,7 @@
 - [Stage 113] Epaulette badges — auto-derived rank insignia (department symbol + seniority stripes) on profile experience cards, discover job cards, review applicant cards, profile overlay; 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew) with split-symbol badges; migration 00055 for hybrid role data + department CHECK; RolePicker lists hybrids under both parent departments; gold (deck/bridge/engineering) and silver (interior/galley) color coding
 
 - [Stage 112] UI state freshness — post form double-submit guard (ref-based), checklist toggle optimistic update with rollback on error, availability re-check before apply (5-min cache), mine page + review page counts already correct (array-derived)
+- [Stage 114] Epaulette polish — experience card top-right positioning (profile + overlay), all 4 SVG icons replaced with filled silhouettes, view-profile icon on AvailableCrewCard, ApplicantCard tap target fix, supabase/README.md migration entries 00053-00055
 
 ## Current Schema Version
 

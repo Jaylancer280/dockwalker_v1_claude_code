@@ -596,6 +596,7 @@ export default function ReviewApplicantsPage() {
                   onInvite={() => requestInvite(topCard as AvailableCrew)}
                   onPass={() => handlePass((topCard as AvailableCrew).person_id)}
                   disabled={acting || inviteLimitReached}
+                  onViewProfile={setViewProfileId}
                 />
               )}
             </div>
@@ -874,11 +875,13 @@ function SwipeableAvailableCrew({
   onInvite,
   onPass,
   disabled,
+  onViewProfile,
 }: {
   crew: AvailableCrew;
   onInvite: () => void;
   onPass: () => void;
   disabled: boolean;
+  onViewProfile?: (id: string) => void;
 }) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
@@ -927,12 +930,20 @@ function SwipeableAvailableCrew({
         PASS
       </motion.div>
 
-      <AvailableCrewCard crew={crew} />
+      <AvailableCrewCard crew={crew} onViewProfile={onViewProfile} />
     </motion.div>
   );
 }
 
-function AvailableCrewCard({ crew, isPreview }: { crew: AvailableCrew; isPreview?: boolean }) {
+function AvailableCrewCard({
+  crew,
+  isPreview,
+  onViewProfile,
+}: {
+  crew: AvailableCrew;
+  isPreview?: boolean;
+  onViewProfile?: (id: string) => void;
+}) {
   return (
     <div
       className={`h-full w-full rounded-2xl border border-border bg-background shadow-lg ${
@@ -943,8 +954,21 @@ function AvailableCrewCard({ crew, isPreview }: { crew: AvailableCrew; isPreview
         {/* Name + role */}
         <div className="mb-3 flex items-center gap-3">
           <Avatar src={crew.avatar_url ?? null} name={crew.display_name ?? '?'} size="md" />
-          <div>
-            <h3 className="text-lg font-bold">{crew.display_name ?? 'Unknown'}</h3>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold">{crew.display_name ?? 'Unknown'}</h3>
+              {!isPreview && onViewProfile && (
+                <button
+                  className="ml-auto p-2 -m-2 text-muted-foreground hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewProfile(crew.person_id);
+                  }}
+                >
+                  <User className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               <span>{crew.yacht_roles?.name ?? 'No primary role'}</span>
               {crew.yacht_roles?.name && (
@@ -1039,7 +1063,7 @@ function ApplicantCard({
               )}
               {!isPreview && (
                 <button
-                  className="ml-auto text-muted-foreground hover:text-primary"
+                  className="ml-auto p-2 -m-2 text-muted-foreground hover:text-primary"
                   onClick={(e) => {
                     e.stopPropagation();
                     onViewProfile?.(applicant.crew_person_id);
