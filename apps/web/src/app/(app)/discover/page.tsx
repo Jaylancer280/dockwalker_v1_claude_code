@@ -218,12 +218,14 @@ export default function DiscoverPage() {
   const [experienceBrackets, setExperienceBrackets] = useState<ExperienceBracketItem[]>([]);
   const [sizeBands, setSizeBands] = useState<SizeBandItem[]>([]);
 
-  // Check crew availability on mount — only 'available' status allows applying
+  // Check crew availability — only 'available' status allows applying
+  const lastAvailCheckRef = useRef<number>(0);
   const checkAvailability = useCallback(async () => {
     const res = await fetch('/api/availability');
     if (res.ok) {
       const data = await res.json();
       setHasAvailability(data.status === 'available');
+      lastAvailCheckRef.current = Date.now();
     }
   }, []);
 
@@ -249,11 +251,11 @@ export default function DiscoverPage() {
     loadLookups();
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     checkAvailability();
   }, [checkAvailability]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   const buildFilterParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -327,21 +329,23 @@ export default function DiscoverPage() {
   }, [nextCursor, hasMore, loadingMore, buildFilterParams]);
 
   // Auto-load more when card stack runs low
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     if (cards.length <= 5 && hasMore && !loadingMore && !loading) {
       loadMore();
     }
   }, [cards.length, hasMore, loadingMore, loading, loadMore]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     loadCards();
   }, [loadCards]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   /** Gate apply actions behind availability check */
+  const AVAIL_RECHECK_MS = 5 * 60 * 1000;
+
   function requireAvailability(): boolean {
     if (hasAvailability) return true;
     setShowAvailDialog(true);
@@ -349,6 +353,12 @@ export default function DiscoverPage() {
   }
 
   async function handleApply(dayworkId: string, message?: string) {
+    // Re-check availability if last check was more than 5 minutes ago
+    // eslint-disable-next-line react-hooks/purity -- event handler, not render
+    const elapsed = Date.now() - lastAvailCheckRef.current;
+    if (elapsed > AVAIL_RECHECK_MS) {
+      await checkAvailability();
+    }
     setApplying(true);
     const opts: RequestInit = { method: 'POST' };
     if (message) {
@@ -427,11 +437,11 @@ export default function DiscoverPage() {
   }, []);
 
   // Load invitations on mount (for badge count) and when switching tabs
-  /* eslint-disable react-hooks/set-state-in-effect */
+   
   useEffect(() => {
     loadInvitations();
   }, [activeTab, loadInvitations]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+   
 
   async function handleAcceptInvitation(inv: Invitation) {
     setRespondingId(inv.id);

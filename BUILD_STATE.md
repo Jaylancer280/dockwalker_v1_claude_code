@@ -155,6 +155,8 @@
 - [Stage 111] GDPR export completeness (experiences, applications, invitations, ratings, device tokens, advisor conversations), EventType union fix (DAYWORK.EXTENDED, ADMIN.\*), admin canonical projection no-op handlers, clearAll availability via ledger (not direct DELETE), experience open-ended overlap fix (future-dated alongside current allowed)
 - [Stage 113] Epaulette badges — auto-derived rank insignia (department symbol + seniority stripes) on profile experience cards, discover job cards, review applicant cards, profile overlay; 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew) with split-symbol badges; migration 00055 for hybrid role data + department CHECK; RolePicker lists hybrids under both parent departments; gold (deck/bridge/engineering) and silver (interior/galley) color coding
 
+- [Stage 112] UI state freshness — post form double-submit guard (ref-based), checklist toggle optimistic update with rollback on error, availability re-check before apply (5-min cache), mine page + review page counts already correct (array-derived)
+
 ## Current Schema Version
 
 v55 — hybrid roles (55 migrations applied)

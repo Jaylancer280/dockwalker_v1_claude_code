@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Save } from 'lucide-react';
 import Link from 'next/link';
@@ -237,7 +237,11 @@ export default function PostDayworkPage() {
     setShowPostConfirm(true);
   }
 
+  const submittingRef = useRef(false);
+
   async function handleConfirmedSubmit() {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setShowPostConfirm(false);
     setLoading(true);
 
@@ -267,6 +271,7 @@ export default function PostDayworkPage() {
     if (!res.ok) {
       setError(data.error);
       setLoading(false);
+      submittingRef.current = false;
       return;
     }
 

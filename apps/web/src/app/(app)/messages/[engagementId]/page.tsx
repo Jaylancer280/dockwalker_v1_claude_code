@@ -446,20 +446,27 @@ export default function ChatPage() {
   }
 
   async function handleChecklistToggle(itemId: string, checked: boolean) {
+    // Optimistic update
+    const previousAcked = context?.checklist?.acknowledged_item_ids ?? [];
+    setContext((prev) => {
+      if (!prev?.checklist) return prev;
+      const newAcked = checked
+        ? [...prev.checklist.acknowledged_item_ids.filter((id) => id !== itemId), itemId]
+        : prev.checklist.acknowledged_item_ids.filter((id) => id !== itemId);
+      return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: newAcked } };
+    });
+
     const res = await fetch(`/api/engagements/${engagementId}/checklist/toggle`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ item_id: itemId, checked }),
     });
-    if (res.ok) {
+    if (!res.ok) {
+      // Rollback
       setContext((prev) => {
         if (!prev?.checklist) return prev;
-        const newAcked = checked
-          ? [...prev.checklist.acknowledged_item_ids.filter((id) => id !== itemId), itemId]
-          : prev.checklist.acknowledged_item_ids.filter((id) => id !== itemId);
-        return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: newAcked } };
+        return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: previousAcked } };
       });
-    } else {
       showError('Failed to update checklist');
     }
   }
