@@ -150,6 +150,7 @@
 - [Stage 106] Analytics — @vercel/analytics + @vercel/speed-insights, page views and web vitals tracking
 - [Stage 107] Avatar storage verification — confirmed migration 00039 creates bucket + RLS + policies in all environments (no code change)
 - [Stage 108] Bug fixes — DAYWORK.APPLIED email payload (person_id → crew_person_id), MESSAGE.SENT explicit is_system flag, INVITATION_ACCEPTED notification + deep link, WORK_STARTED_CONFIRMED deep link, invitation tab deep link routing, chat page polling cleanup leak (timeout + pollRef cleared on unmount, realtimeConnected moved to ref)
+- [Stage 109] Hat validation hardening — hat check + dynamic roleContext on accept, reject, shortlist, view, cancel-employer, cancel daywork, complete, checklist/toggle, avatar upload routes; update-positions test coverage (10 tests)
 
 ## Current Schema Version
 

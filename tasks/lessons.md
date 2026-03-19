@@ -42,6 +42,8 @@
 
 - **Projection handlers must enforce the same state preconditions as the API layer:** API validation prevents invalid events from being appended, but projection WHERE clauses prevent invalid transitions during ledger replay. Both layers must agree — if the API checks `status IN ('applied', 'viewed', 'shortlisted')` before accepting, the projection's UPDATE must have the same WHERE guard. Otherwise replay of old events against a re-seeded database can produce different state than live writes.
 
+- **Every write route must validate current_hat and use it as roleContext:** Ownership checks alone are insufficient — a user can own a resource from a previous hat context. Pattern: destructure `person` from guard, check hat (`['employer', 'agent'].includes(person.current_hat)` or `person.current_hat === 'crew'`), use `person.current_hat as 'employer' | 'agent'` as roleContext. Never hardcode roleContext strings.
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)

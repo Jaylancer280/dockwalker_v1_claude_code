@@ -13,118 +13,6 @@
 
 ---
 
-### Stage 109: Hat Validation + update-positions Tests
-
-**Goal:** Add hat validation to all write routes that currently rely only on ownership checks. Also add missing tests for the update-positions route (shipped in Stage 95 without test coverage).
-
-**Will NOT touch:** RLS policies, database, migrations, UI components, discover/apply routes.
-
-**Done condition:** All employer-action routes verify `current_hat in ('employer', 'agent')` before proceeding. All event roleContext values use `person.current_hat` instead of hardcoded strings. Checklist toggle verifies crew hat. Avatar upload uses dynamic roleContext. update-positions has full test coverage.
-
----
-
-#### 1. Accept route — `apps/web/src/app/api/daywork/[id]/applicants/[crewId]/accept/route.ts`
-
-- [ ] Add `person` to the guard destructuring
-- [ ] Add hat validation after guard, before ownership check:
-  ```typescript
-  if (!['employer', 'agent'].includes(person.current_hat)) {
-    return NextResponse.json({ error: 'Only employers can accept applicants' }, { status: 403 });
-  }
-  ```
-- [ ] Replace hardcoded `roleContext: 'employer'` with `roleContext: person.current_hat as 'employer' | 'agent'`
-
----
-
-#### 2. Reject route — `apps/web/src/app/api/daywork/[id]/applicants/[crewId]/reject/route.ts`
-
-- [ ] Same pattern: add `person` to destructuring, add hat check, replace hardcoded roleContext
-
----
-
-#### 3. Shortlist route — `apps/web/src/app/api/daywork/[id]/applicants/[crewId]/shortlist/route.ts`
-
-- [ ] Same pattern: add `person` to destructuring, add hat check, replace hardcoded roleContext
-
----
-
-#### 4. View route — `apps/web/src/app/api/daywork/[id]/applicants/[crewId]/view/route.ts`
-
-- [ ] Same pattern: add `person` to destructuring, add hat check, replace hardcoded roleContext
-
----
-
-#### 5. Cancel-employer route — `apps/web/src/app/api/engagements/[id]/cancel-employer/route.ts`
-
-- [ ] Same pattern: add `person` to destructuring, add hat check
-- [ ] Replace ALL hardcoded `roleContext: 'employer'` occurrences in this file (there are multiple appendEvent calls — check each one)
-
----
-
-#### 6. Checklist toggle route — `apps/web/src/app/api/engagements/[id]/checklist/toggle/route.ts`
-
-- [ ] Add `person` to destructuring, add hat check (`person.current_hat !== 'crew'` → 403)
-- [ ] Replace hardcoded `roleContext: 'crew'` with `roleContext: person.current_hat`
-
----
-
-#### 7. Cancel daywork route — `apps/web/src/app/api/daywork/[id]/cancel/route.ts`
-
-- [ ] Add `person` to guard destructuring
-- [ ] Add hat check: `if (!['employer', 'agent'].includes(person.current_hat))` → 403
-- [ ] Replace any hardcoded roleContext with `person.current_hat`
-
----
-
-#### 8. Complete route — `apps/web/src/app/api/daywork/[id]/complete/route.ts`
-
-- [ ] Add `person` to guard destructuring
-- [ ] Add hat check: `if (!['employer', 'agent'].includes(person.current_hat))` → 403
-- [ ] Replace any hardcoded roleContext with `person.current_hat`
-
----
-
-#### 9. Avatar upload — `apps/web/src/app/api/profile/avatar/route.ts`
-
-- [ ] In both POST and DELETE handlers, replace hardcoded `roleContext: 'crew'` with `roleContext: person.current_hat`
-- [ ] Add `person` to guard destructuring if not already present
-
----
-
-#### 10. Tests — hat validation
-
-- [ ] Update existing accept test: add test case for crew hat → 403
-- [ ] Update existing reject test: add test case for crew hat → 403
-- [ ] Add test case for shortlist with crew hat → 403
-- [ ] Add test case for cancel-employer with crew hat → 403
-- [ ] Add test case for checklist toggle with employer hat → 403
-- [ ] Add test case for cancel daywork with crew hat → 403
-- [ ] Add test case for complete with crew hat → 403
-
----
-
-#### 11. Tests — update-positions (missing coverage from Stage 95)
-
-- [ ] Create `apps/web/__tests__/api/update-positions.test.ts`
-- [ ] Test: happy path — increase positions_available → 200
-- [ ] Test: happy path — decrease positions_available (above filled) → 200
-- [ ] Test: decrease below positions_filled → 400
-- [ ] Test: invalid positions_available (0, negative, > 20, non-integer) → 400
-- [ ] Test: crew hat → 403
-- [ ] Test: non-owner → 403
-- [ ] Test: non-active daywork → 400
-
----
-
-#### 12. Documentation
-
-- [ ] Update `BUILD_STATE.md`:
-  - Stage entry: `[Stage 109] Hat validation hardening — hat check + dynamic roleContext on accept, reject, shortlist, view, cancel-employer, cancel daywork, complete, checklist/toggle, avatar upload routes; update-positions test coverage`
-- [ ] Mark P1 #11 as `[x]` in `tasks/launch-readiness.md`
-- [ ] Append to `tasks/lessons.md`: "Every write route that records a roleContext in the event ledger must validate current_hat first. Ownership checks alone are insufficient — a user can own a resource from a previous hat context. The pattern: destructure person from guard, check hat, use person.current_hat as roleContext."
-
----
-
 ### Stage 110: API Validation Hardening
 
 **Goal:** Fix validation gaps discovered in the daywork audit. Accept race condition, extend route, relist status check, template currency, onboarding avatar URL.
@@ -452,14 +340,14 @@ Create a new file with the role → epaulette mapping and helper functions.
 
 ---
 
-#### 6. Wire into profile overlay — `apps/web/src/components/profile-overlay.tsx`
+#### 8. Wire into profile overlay — `apps/web/src/components/profile-overlay.tsx`
 
 - [ ] If the profile overlay shows experience cards, add `EpauletteBadge` in the same position as the profile page (top-right corner)
 - [ ] If the overlay shows the crew's primary role in the header, add inline epaulette there too
 
 ---
 
-#### 7. Tests
+#### 9. Tests
 
 - [ ] Create `apps/web/__tests__/components/epaulette-badge.test.tsx`
 - [ ] Test: Captain → 4 gold stripes, anchor icon
@@ -467,16 +355,23 @@ Create a new file with the role → epaulette mapping and helper functions.
 - [ ] Test: Chief Stewardess → 3 silver stripes, crescent icon
 - [ ] Test: Head Chef → 3 silver stripes, knife icon
 - [ ] Test: Deckhand → 1 gold stripe (minimum), anchor icon
+- [ ] Test: Deck/Engineer → split symbol (anchor + propeller), 1 stripe
+- [ ] Test: Deck/Stew → split symbol (anchor + crescent), 1 stripe
+- [ ] Test: Cook/Stew → split symbol (knife + crescent), 1 stripe
 - [ ] Test: unknown role → returns null (no render)
-- [ ] Test: `getEpaulette` utility returns correct mapping for all 20 roles
+- [ ] Test: `getEpaulette` utility returns correct mapping for all 23 roles
 
 ---
 
-#### 8. Documentation
+#### 10. Documentation
 
 - [ ] Update `BUILD_STATE.md`:
-  - Stage entry: `[Stage 113] Epaulette badges — auto-derived rank insignia (department symbol + seniority stripes) on profile experience cards, discover job cards, review applicant cards, profile overlay; static role→epaulette mapping; gold (deck/bridge/engineering) and silver (interior/galley) color coding`
-- [ ] No migration, no types change, no API change — only `BUILD_STATE.md` update needed
+  - Stage entry: `[Stage 113] Epaulette badges — auto-derived rank insignia (department symbol + seniority stripes) on profile experience cards, discover job cards, review applicant cards, profile overlay; 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew) with split-symbol badges; migration 00053 for hybrid role data + department CHECK; gold (deck/bridge/engineering) and silver (interior/galley) color coding`
+  - Update schema version to v53
+  - Add migration 00053 to migration table
+- [ ] Update seed data docs if applicable
+- [ ] Update `supabase/README.md` — new migration
+- [ ] Update `packages/types/README.md` if type changes needed for hybrid departments
 
 ---
 

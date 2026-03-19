@@ -12,7 +12,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id: dayworkId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
+
+  if (!['employer', 'agent'].includes(person.current_hat)) {
+    return NextResponse.json({ error: 'Only employers can complete postings' }, { status: 403 });
+  }
 
   const { data: daywork } = await supabase
     .from('dayworks')
@@ -40,7 +44,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       eventType: 'DAYWORK.COMPLETED',
       aggregateId: dayworkId,
       aggregateType: 'daywork',
-      roleContext: 'employer',
+      roleContext: person.current_hat as 'employer' | 'agent',
       payload: { daywork_id: dayworkId },
       personId: user.id,
     });

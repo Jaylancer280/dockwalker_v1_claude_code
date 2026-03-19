@@ -11,7 +11,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id: engagementId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
+
+  if (person.current_hat !== 'crew') {
+    return NextResponse.json({ error: 'Only crew can toggle checklist items' }, { status: 403 });
+  }
 
   const { data: engagement } = await supabase
     .from('active_engagements')
@@ -66,7 +70,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       eventType: 'CHECKLIST.ITEM_TOGGLED',
       aggregateId: engagementId,
       aggregateType: 'checklist',
-      roleContext: 'crew',
+      roleContext: person.current_hat as 'crew',
       payload: {
         engagement_id: engagementId,
         item_id,

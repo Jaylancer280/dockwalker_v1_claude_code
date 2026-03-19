@@ -248,6 +248,15 @@ describe('POST /api/engagements/:id/cancel-employer', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 403 when user has crew hat', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew'));
+
+    const res = await cancelEmployer(new Request('http://localhost'), makeParams('e1'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('Only employers');
+  });
+
   it('returns 404 when engagement not found', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk('employer'));
     mockFromAuth.mockReturnValueOnce(makeChain(null));

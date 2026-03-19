@@ -36,7 +36,7 @@ function validateMagicBytes(bytes: Uint8Array, mimeType: string): boolean {
 export async function POST(request: Request) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
 
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     eventType: 'PROFILE.UPDATED',
     aggregateId: user.id,
     aggregateType: 'person',
-    roleContext: 'crew',
+    roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
     payload: { avatar_url: avatarUrl },
     personId: user.id,
   });
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
 export async function DELETE() {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
 
   // Remove all avatar files for this user
   const { data: existing } = await supabase.storage.from('avatars').list(user.id);
@@ -120,7 +120,7 @@ export async function DELETE() {
     eventType: 'PROFILE.UPDATED',
     aggregateId: user.id,
     aggregateType: 'person',
-    roleContext: 'crew',
+    roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
     payload: { avatar_url: null },
     personId: user.id,
   });

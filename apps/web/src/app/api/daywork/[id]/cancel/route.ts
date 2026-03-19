@@ -10,7 +10,11 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
   const { id: dayworkId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
+
+  if (!['employer', 'agent'].includes(person.current_hat)) {
+    return NextResponse.json({ error: 'Only employers can cancel postings' }, { status: 403 });
+  }
 
   // Verify the posting exists and belongs to this user
   const { data: daywork } = await supabase
@@ -39,7 +43,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       eventType: 'DAYWORK.CANCELLED_BY_EMPLOYER',
       aggregateId: dayworkId,
       aggregateType: 'daywork',
-      roleContext: 'employer',
+      roleContext: person.current_hat as 'employer' | 'agent',
       payload: {},
       personId: user.id,
     });

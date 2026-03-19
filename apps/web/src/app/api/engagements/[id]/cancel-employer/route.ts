@@ -28,7 +28,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id: engagementId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
+
+  if (!['employer', 'agent'].includes(person.current_hat)) {
+    return NextResponse.json({ error: 'Only employers can cancel engagements' }, { status: 403 });
+  }
 
   const { data: engagement } = await supabase
     .from('active_engagements')
@@ -139,7 +143,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         eventType: 'ENGAGEMENT.CANCELLED_BY_EMPLOYER',
         aggregateId: `${engagement.crew_person_id}:${engagement.daywork_id}`,
         aggregateType: 'application',
-        roleContext: 'employer',
+        roleContext: person.current_hat as 'employer' | 'agent',
         payload: {
           engagement_id: engagementId,
           daywork_id: engagement.daywork_id,
@@ -163,7 +167,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         eventType: 'MESSAGE.SENT',
         aggregateId: engagementId,
         aggregateType: 'message',
-        roleContext: 'employer',
+        roleContext: person.current_hat as 'employer' | 'agent',
         payload: {
           id: randomUUID(),
           engagement_id: engagementId,
@@ -201,7 +205,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           eventType: 'DAYWORK.RELISTED',
           aggregateId: engagement.daywork_id,
           aggregateType: 'daywork',
-          roleContext: 'employer',
+          roleContext: person.current_hat as 'employer' | 'agent',
           payload: { daywork_id: engagement.daywork_id },
           personId: user.id,
         });
@@ -212,7 +216,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         eventType: 'DAYWORK.CANCELLED_BY_EMPLOYER',
         aggregateId: engagement.daywork_id,
         aggregateType: 'daywork',
-        roleContext: 'employer',
+        roleContext: person.current_hat as 'employer' | 'agent',
         payload: {},
         personId: user.id,
       });

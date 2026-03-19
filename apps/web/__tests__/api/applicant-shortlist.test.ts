@@ -45,6 +45,21 @@ describe('POST /api/daywork/:id/applicants/:crewId/shortlist', () => {
     vi.clearAllMocks();
   });
 
+  it('returns 403 when user has crew hat', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: true,
+      value: {
+        ...guardOk().value,
+        person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      },
+    });
+
+    const res = await POST(new Request('http://localhost'), makeParams('d1', 'c1'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('Only employers');
+  });
+
   it('returns 401 when unauthenticated', async () => {
     mockRequireDomainUser.mockResolvedValue({
       ok: false,

@@ -14,7 +14,11 @@ export async function POST(
   const { id: dayworkId, crewId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
+
+  if (!['employer', 'agent'].includes(person.current_hat)) {
+    return NextResponse.json({ error: 'Only employers can view applicants' }, { status: 403 });
+  }
 
   // Verify ownership
   const { data: daywork } = await supabase
@@ -49,7 +53,7 @@ export async function POST(
       eventType: 'DAYWORK.VIEWED',
       aggregateId: `${crewId}:${dayworkId}`,
       aggregateType: 'application',
-      roleContext: 'employer',
+      roleContext: person.current_hat as 'employer' | 'agent',
       payload: {
         daywork_id: dayworkId,
         crew_person_id: crewId,

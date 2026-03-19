@@ -50,6 +50,21 @@ describe('POST /api/daywork/:id/cancel', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 403 when user has crew hat', async () => {
+    mockRequireDomainUser.mockResolvedValue({
+      ok: true,
+      value: {
+        ...guardOk().value,
+        person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
+      },
+    });
+
+    const res = await POST(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('Only employers');
+  });
+
   it('returns 404 when daywork not found', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeChain(null));

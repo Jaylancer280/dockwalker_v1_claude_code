@@ -25,12 +25,12 @@ function makeChain(data: unknown) {
   };
 }
 
-function guardOk(userId = 'emp1') {
+function guardOk(userId = 'emp1', hat: 'employer' | 'crew' = 'employer') {
   return {
     ok: true,
     value: {
       user: { id: userId },
-      person: { id: userId, identity_type: 'crew', current_hat: 'employer' },
+      person: { id: userId, identity_type: 'crew', current_hat: hat },
       profile: { person_id: userId },
       supabase: { from: mockFromAuth },
       serviceClient: { rpc: mockRpc },
@@ -204,8 +204,19 @@ describe('POST /api/engagements/:id/checklist/toggle', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 403 when user has employer hat', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew1'));
+    const res = await toggleItem(
+      makeRequest({ item_id: 'arrival_time', checked: true }),
+      makeParams('e1'),
+    );
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('Only crew');
+  });
+
   it('returns 403 when user is not the crew member', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk('emp1'));
+    mockRequireDomainUser.mockResolvedValue(guardOk('emp1', 'crew'));
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
     const res = await toggleItem(
       makeRequest({ item_id: 'arrival_time', checked: true }),
@@ -215,7 +226,7 @@ describe('POST /api/engagements/:id/checklist/toggle', () => {
   });
 
   it('returns 400 when engagement is not active', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk('crew1'));
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew1', 'crew'));
     mockFromAuth.mockReturnValueOnce(makeChain({ ...activeEngagement, status: 'completed' }));
     const res = await toggleItem(
       makeRequest({ item_id: 'arrival_time', checked: true }),
@@ -225,14 +236,14 @@ describe('POST /api/engagements/:id/checklist/toggle', () => {
   });
 
   it('returns 400 when item_id is missing', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk('crew1'));
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew1', 'crew'));
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
     const res = await toggleItem(makeRequest({ checked: true }), makeParams('e1'));
     expect(res.status).toBe(400);
   });
 
   it('returns 400 when checked is not a boolean', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk('crew1'));
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew1', 'crew'));
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
     const res = await toggleItem(
       makeRequest({ item_id: 'arrival_time', checked: 'yes' }),
@@ -242,7 +253,7 @@ describe('POST /api/engagements/:id/checklist/toggle', () => {
   });
 
   it('returns 404 when no checklist exists', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk('crew1'));
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew1', 'crew'));
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
     mockFromAuth.mockReturnValueOnce(makeChain(null));
     const res = await toggleItem(
@@ -253,7 +264,7 @@ describe('POST /api/engagements/:id/checklist/toggle', () => {
   });
 
   it('returns 400 when item not found in checklist', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk('crew1'));
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew1', 'crew'));
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
     mockFromAuth.mockReturnValueOnce(makeChain({ items: validItems }));
     const res = await toggleItem(
@@ -264,7 +275,7 @@ describe('POST /api/engagements/:id/checklist/toggle', () => {
   });
 
   it('toggles item successfully', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk('crew1'));
+    mockRequireDomainUser.mockResolvedValue(guardOk('crew1', 'crew'));
     mockFromAuth.mockReturnValueOnce(makeChain(activeEngagement));
     mockFromAuth.mockReturnValueOnce(makeChain({ items: validItems }));
     mockRpc.mockResolvedValueOnce({ data: 'ev1', error: null });
