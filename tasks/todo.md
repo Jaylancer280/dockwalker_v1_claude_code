@@ -679,14 +679,14 @@ Desired order: `[My Vessels button] [Edit button] [Settings gear]`
 
 Route: `POST /api/engagements/[id]/propose-postponement`
 
-- [ ] Test: happy path — employer proposes new dates → 200
-- [ ] Test: crew hat → 403 (only employer can propose)
-- [ ] Test: non-owner employer → 403
-- [ ] Test: engagement not active → 400
-- [ ] Test: work already started → 400
-- [ ] Test: postponement already proposed (once-only) → 400
-- [ ] Test: proposed dates have overlap conflict, no `confirmConflict` → 200 with `conflict: true`
-- [ ] Test: proposed dates have overlap conflict, `confirmConflict: true` → 200 (cancels + relists)
+- [x] Test: happy path — employer proposes new dates → 200
+- [x] Test: crew hat → 403 (only employer can propose)
+- [x] Test: non-owner employer → 403
+- [x] Test: engagement not active → 400
+- [x] Test: work already started → 400
+- [x] Test: postponement already proposed (once-only) → 400
+- [x] Test: proposed dates have overlap conflict, no `confirmConflict` → 200 with `conflict: true`
+- [x] Test: proposed dates have overlap conflict, `confirmConflict: true` → 200 (cancels + relists)
 
 ---
 
@@ -694,11 +694,11 @@ Route: `POST /api/engagements/[id]/propose-postponement`
 
 Route: `POST /api/engagements/[id]/respond-postponement`
 
-- [ ] Test: crew approves → 200, dates updated
-- [ ] Test: crew rejects → 200, engagement cancelled
-- [ ] Test: employer hat → 403 (only crew can respond)
-- [ ] Test: no pending postponement → 400
-- [ ] Test: engagement not active → 400
+- [x] Test: crew approves → 200, dates updated
+- [x] Test: crew rejects → 200, engagement cancelled
+- [x] Test: employer hat → 403 (only crew can respond)
+- [x] Test: no pending postponement → 400
+- [x] Test: engagement not active → 400
 
 ---
 
@@ -706,11 +706,11 @@ Route: `POST /api/engagements/[id]/respond-postponement`
 
 Route: `POST /api/engagements/[id]/respond-crew-cancel`
 
-- [ ] Test: employer chooses `relist` → 200, daywork relisted
-- [ ] Test: employer chooses `cancel` → 200, daywork cancelled
-- [ ] Test: crew hat → 403
-- [ ] Test: no crew cancellation pending → 400
-- [ ] Test: daywork already completed → 400
+- [x] Test: employer chooses `relist` → 200, daywork relisted
+- [x] Test: employer chooses `cancel` → 200, daywork cancelled
+- [x] Test: crew hat → 403
+- [x] Test: no crew cancellation pending → 400
+- [x] Test: daywork already completed → 400
 
 ---
 
@@ -718,11 +718,11 @@ Route: `POST /api/engagements/[id]/respond-crew-cancel`
 
 Route: `GET /api/notifications/count`
 
-- [ ] Test: returns `message_count` and `notification_count` for current hat
-- [ ] Test: returns `alt_message_count` and `alt_notification_count` for other hat
-- [ ] Test: message count reflects threads-with-unread (after Stage 116 fix), not total messages
-- [ ] Test: unread count respects read cursor (messages after cursor are unread)
-- [ ] Test: unauthenticated → 401
+- [x] Test: returns `message_count` and `notification_count` for current hat
+- [x] Test: returns `alt_message_count` and `alt_notification_count` for other hat
+- [x] Test: message count reflects threads-with-unread (after Stage 116 fix), not total messages
+- [x] Test: unread count respects read cursor (messages after cursor are unread)
+- [x] Test: unauthenticated → 401
 
 ---
 
@@ -730,13 +730,13 @@ Route: `GET /api/notifications/count`
 
 Route: `POST /api/daywork/[id]/invite`
 
-- [ ] Test: happy path — employer invites crew → 200
-- [ ] Test: crew hat → 403
-- [ ] Test: non-owner → 403
-- [ ] Test: crew already applied → 400
-- [ ] Test: crew already invited → 400
-- [ ] Test: invitation limit reached (2 per position) → 400
-- [ ] Test: daywork not active → 400
+- [x] Test: happy path — employer invites crew → 200
+- [x] Test: crew hat → 403
+- [x] Test: non-owner → 403
+- [x] Test: crew already applied → 400
+- [x] Test: crew already invited → 400
+- [x] Test: invitation limit reached (2 per position) → 400
+- [x] Test: daywork not active → 400
 
 ---
 
@@ -744,10 +744,10 @@ Route: `POST /api/daywork/[id]/invite`
 
 Route already has a test file from Stage 110 — verify coverage is complete.
 
-- [ ] Verify: backward extension → 400
-- [ ] Verify: invalid workingDayDates → 400
-- [ ] Add if missing: happy path → 200
-- [ ] Add if missing: non-owner → 403
+- [x] Verify: backward extension → 400
+- [x] Verify: invalid workingDayDates → 400
+- [x] Add if missing: happy path → 200
+- [x] Add if missing: non-owner → 403
 
 ---
 
@@ -755,17 +755,17 @@ Route already has a test file from Stage 110 — verify coverage is complete.
 
 Route already has a partial test file — verify and expand.
 
-- [ ] Verify: relist on completed daywork → 400
-- [ ] Verify: relist on cancelled daywork → 400
-- [ ] Add if missing: happy path → 200
-- [ ] Add if missing: crew hat → 403
-- [ ] Add if missing: non-owner → 403
+- [x] Verify: relist on completed daywork → 400
+- [x] Verify: relist on cancelled daywork → 400
+- [x] Add if missing: happy path → 200
+- [x] Add if missing: crew hat → 403
+- [x] Add if missing: non-owner → 403
 
 ---
 
 #### 8. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 121] Test gap coverage — propose-postponement (8 tests), respond-postponement (5 tests), respond-crew-cancel (5 tests), notifications/count (5 tests), daywork/invite (7 tests), extend/relist verification`
 
 ---
@@ -784,11 +784,11 @@ Route already has a partial test file — verify and expand.
 
 Route: `POST /api/engagements/[id]/checklist`
 
-- [ ] Test: happy path — employer sets checklist items → 200
-- [ ] Test: crew hat → 403 (only employer can set checklist)
-- [ ] Test: non-participant → 403
-- [ ] Test: engagement not active → 400
-- [ ] Test: empty items array → 400
+- [x] Test: happy path — employer sets checklist items → 200
+- [x] Test: crew hat → 403 (only employer can set checklist)
+- [x] Test: non-participant → 403
+- [x] Test: engagement not active → 400
+- [x] Test: empty items array → 400
 
 ---
 
@@ -796,10 +796,10 @@ Route: `POST /api/engagements/[id]/checklist`
 
 Route: `POST /api/engagements/[id]/checklist/toggle`
 
-- [ ] Test: happy path — crew toggles item on → 200
-- [ ] Test: employer hat → 403 (only crew can toggle)
-- [ ] Test: non-participant → 403
-- [ ] Test: invalid item_id → 400
+- [x] Test: happy path — crew toggles item on → 200
+- [x] Test: employer hat → 403 (only crew can toggle)
+- [x] Test: non-participant → 403
+- [x] Test: invalid item_id → 400
 
 ---
 
@@ -807,10 +807,10 @@ Route: `POST /api/engagements/[id]/checklist/toggle`
 
 Route: `POST /api/messages/[engagementId]/read`
 
-- [ ] Test: happy path — participant marks read → 200
-- [ ] Test: non-participant → 403
-- [ ] Test: invalid engagement ID → 404
-- [ ] Test: unauthenticated → 401
+- [x] Test: happy path — participant marks read → 200
+- [x] Test: non-participant → 403
+- [x] Test: invalid engagement ID → 404
+- [x] Test: unauthenticated → 401
 
 ---
 
@@ -818,10 +818,10 @@ Route: `POST /api/messages/[engagementId]/read`
 
 Route: `POST /api/notifications/read`
 
-- [ ] Test: happy path — mark all read (`all: true`) → 200
-- [ ] Test: happy path — mark specific IDs read → 200
-- [ ] Test: empty body / no IDs → 400
-- [ ] Test: unauthenticated → 401
+- [x] Test: happy path — mark all read (`all: true`) → 200
+- [x] Test: happy path — mark specific IDs read → 200
+- [x] Test: empty body / no IDs → 400
+- [x] Test: unauthenticated → 401
 
 ---
 
@@ -829,11 +829,11 @@ Route: `POST /api/notifications/read`
 
 Route: `POST /api/push-tokens` + `DELETE /api/push-tokens`
 
-- [ ] Test: POST happy path — register token → 200
-- [ ] Test: POST invalid platform (not apns/fcm/web) → 400
-- [ ] Test: POST missing token → 400
-- [ ] Test: DELETE happy path — remove token → 200
-- [ ] Test: unauthenticated → 401
+- [x] Test: POST happy path — register token → 200
+- [x] Test: POST invalid platform (not apns/fcm/web) → 400
+- [x] Test: POST missing token → 400
+- [x] Test: DELETE happy path — remove token → 200
+- [x] Test: unauthenticated → 401
 
 ---
 
@@ -841,11 +841,11 @@ Route: `POST /api/push-tokens` + `DELETE /api/push-tokens`
 
 Route: `GET /api/profile/[personId]`
 
-- [ ] Test: happy path — viewer has engagement with target → 200, returns profile
-- [ ] Test: no relationship (no engagement, application, or invitation) → 403
-- [ ] Test: crew profile returns expected fields (bio, role, certs, experience bracket, experiences without salary)
-- [ ] Test: employer profile returns expected fields (agency, role specializations, vessels, posting count)
-- [ ] Test: unauthenticated → 401
+- [x] Test: happy path — viewer has engagement with target → 200, returns profile
+- [x] Test: no relationship (no engagement, application, or invitation) → 403
+- [x] Test: crew profile returns expected fields (bio, role, certs, experience bracket, experiences without salary)
+- [x] Test: employer profile returns expected fields (agency, role specializations, vessels, posting count)
+- [x] Test: unauthenticated → 401
 
 ---
 
@@ -853,16 +853,16 @@ Route: `GET /api/profile/[personId]`
 
 Route: `GET /api/experiences/[id]`
 
-- [ ] Test: happy path — owner fetches own experience → 200
-- [ ] Test: non-owner → 403 (or 404 depending on RLS)
-- [ ] Test: invalid ID → 404
-- [ ] Test: unauthenticated → 401
+- [x] Test: happy path — owner fetches own experience → 200
+- [x] Test: non-owner → 403 (or 404 depending on RLS)
+- [x] Test: invalid ID → 404
+- [x] Test: unauthenticated → 401
 
 ---
 
 #### 8. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 122] 100% API route test coverage — checklist set/toggle (9 tests), message read cursor (4 tests), notification read (4 tests), push tokens (5 tests), view profile (5 tests), get experience (4 tests); total ~31 new tests; all 69 API routes now covered`
 
 ---

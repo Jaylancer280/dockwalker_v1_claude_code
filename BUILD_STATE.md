@@ -163,6 +163,8 @@
 - [Stage 118] Invitation accept improvements — auto-shortlist invited crew (source column on applications, conditional status in apply_projection), "Invited" badge on review page, stale invitation filtering (non-active dayworks excluded from crew view), source field on applicants API
 - [Stage 119] Chat header cleanup (stripped to name + actions, job details in summary card only), vessel edit page (/vessels/[id]/edit with PATCH API), "My Vessels" Ship icon button on employer profile header
 - [Stage 120] Toast consistency — success/error toasts on all mutations across discover (apply/withdraw/invite), mine (cancel/positions/templates), post (submit/save template), review (accept/reject/shortlist/invite), chat (completion/rating/work-started/checklist/postponement/cancel/relist), vessels (add)
+- [Stage 121] Test gap coverage — propose-postponement (8 tests), respond-postponement (5 tests), respond-crew-cancel (5 tests), notifications/count (5 tests); invite/extend/relist already covered; 701 tests total
+- [Stage 122] Test coverage completion — messages-read (4 tests), notifications-read (4 tests); checklist set/toggle, push-tokens, profile-view, experiences already covered by existing tests; 709 tests total
 
 ## Current Schema Version
 
