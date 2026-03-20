@@ -109,6 +109,94 @@ describe('GET /api/daywork/invitations', () => {
     expect(res.status).toBe(403);
   });
 
+  it('filters out invitations for fully-filled daywork positions', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // invitations query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: [
+                { id: 'inv-1', daywork_id: 'dw-1', employer_person_id: 'emp-1', status: 'pending', created_at: '2026-03-10' },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+    // dayworks query — positions full
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'dw-1', job_number: 1, start_date: '2027-06-01', end_date: '2027-06-05',
+              working_days: 5, day_rate: 300, currency: 'EUR', meals: [], notes: null,
+              status: 'active', vessel_id: null,
+              positions_available: 2, positions_filled: 2,
+              yacht_roles: null, ports: null, experience_brackets: null,
+            },
+          ],
+        }),
+      }),
+    });
+    // employers query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [] }) }),
+    });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.invitations).toHaveLength(0);
+  });
+
+  it('keeps invitations for partially-filled daywork positions', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // invitations query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({
+              data: [
+                { id: 'inv-1', daywork_id: 'dw-1', employer_person_id: 'emp-1', status: 'pending', created_at: '2026-03-10' },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+    // dayworks query — partially filled
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: 'dw-1', job_number: 1, start_date: '2027-06-01', end_date: '2027-06-05',
+              working_days: 5, day_rate: 300, currency: 'EUR', meals: [], notes: null,
+              status: 'active', vessel_id: null,
+              positions_available: 2, positions_filled: 1,
+              yacht_roles: null, ports: null, experience_brackets: null,
+            },
+          ],
+        }),
+      }),
+    });
+    // employers query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({ in: vi.fn().mockResolvedValue({ data: [] }) }),
+    });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.invitations).toHaveLength(1);
+  });
+
   it('returns empty array when no pending invitations', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce({

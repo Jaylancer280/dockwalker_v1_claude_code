@@ -166,6 +166,10 @@ export default function OnboardingPage() {
   const [motivation, setMotivation] = useState('');
   const [availableToStart, setAvailableToStart] = useState('');
 
+  // Nationality & visas
+  const [nationalityId, setNationalityId] = useState('');
+  const [visaIds, setVisaIds] = useState<string[]>([]);
+
   // Agent fields
   const [agencyName, setAgencyName] = useState('');
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
@@ -185,6 +189,10 @@ export default function OnboardingPage() {
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
+  const [nationalities, setNationalities] = useState<
+    { id: string; name: string; flag_emoji: string }[]
+  >([]);
+  const [visaTypes, setVisaTypes] = useState<{ id: string; name: string }[]>([]);
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
 
   const needsLookups = step === 'profile' || step === 'vessel-experience';
@@ -192,18 +200,23 @@ export default function OnboardingPage() {
     if (!needsLookups || lookupsLoaded) return;
     async function loadLookups() {
       const supabase = createClient();
-      const [rolesRes, certsRes, bracketsRes, sizesRes, flagsRes] = await Promise.all([
-        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-        supabase.from('certifications').select('id, name, category').order('sort_order'),
-        supabase.from('experience_brackets').select('id, label').order('sort_order'),
-        supabase.from('vessel_size_bands').select('id, label').order('sort_order'),
-        supabase.from('flag_states').select('id, name').order('sort_order'),
-      ]);
+      const [rolesRes, certsRes, bracketsRes, sizesRes, flagsRes, nationalitiesRes, visaTypesRes] =
+        await Promise.all([
+          supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+          supabase.from('certifications').select('id, name, category').order('sort_order'),
+          supabase.from('experience_brackets').select('id, label').order('sort_order'),
+          supabase.from('vessel_size_bands').select('id, label').order('sort_order'),
+          supabase.from('flag_states').select('id, name').order('sort_order'),
+          supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
+          supabase.from('visa_types').select('id, name').order('sort_order'),
+        ]);
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
       if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
       if (sizesRes.data) setSizeBands(sizesRes.data.map((s) => ({ ...s, name: s.label })));
       if (flagsRes.data) setFlagStates(flagsRes.data);
+      if (nationalitiesRes.data) setNationalities(nationalitiesRes.data);
+      if (visaTypesRes.data) setVisaTypes(visaTypesRes.data);
       setLookupsLoaded(true);
     }
     loadLookups();
@@ -281,6 +294,8 @@ export default function OnboardingPage() {
       if (identityType === 'crew') {
         profileData.primaryRoleId = primaryRoleId || undefined;
         profileData.certificationIds = certificationIds;
+        profileData.nationalityId = nationalityId || null;
+        profileData.visaIds = visaIds;
 
         if (isGreen) {
           profileData.experienceBracketId = experienceBracketId || undefined;
@@ -716,6 +731,49 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Nationality */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>
+                    Nationality <span className="text-destructive">*</span>
+                  </Label>
+                  <Select value={nationalityId} onValueChange={setNationalityId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select nationality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nationalities.map((n) => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {n.flag_emoji} {n.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Visas */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>
+                    Visas <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+                    {visaTypes.map((v) => (
+                      <label key={v.id} className="flex items-center gap-2 py-1.5 text-sm">
+                        <Checkbox
+                          checked={visaIds.includes(v.id)}
+                          onCheckedChange={() => {
+                            setVisaIds((prev) =>
+                              prev.includes(v.id)
+                                ? prev.filter((id) => id !== v.id)
+                                : [...prev, v.id],
+                            );
+                          }}
+                        />
+                        {v.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </>
             )}
 
@@ -771,6 +829,10 @@ export default function OnboardingPage() {
             onClick={() => {
               if (!displayName.trim()) {
                 setError('Display name is required');
+                return;
+              }
+              if (identityType === 'crew' && !nationalityId) {
+                setError('Nationality is required');
                 return;
               }
               setError(null);

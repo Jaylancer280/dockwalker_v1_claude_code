@@ -166,6 +166,9 @@
 - [Stage 121] Test gap coverage — propose-postponement (8 tests), respond-postponement (5 tests), respond-crew-cancel (5 tests), notifications/count (5 tests); invite/extend/relist already covered; 701 tests total
 - [Stage 122] Test coverage completion — messages-read (4 tests), notifications-read (4 tests); checklist set/toggle, push-tokens, profile-view, experiences already covered by existing tests; 709 tests total
 - [Stage 123] Crew nationality + visas — `nationalities` (40 entries) and `visa_types` (10 entries) canonical lookups, `nationality_id` and `visa_ids` on profiles, updated `apply_projection`, onboarding + profile edit + profile PATCH accept nationality/visas, flag emoji display on profile page + overlay + review cards (ApplicantCard + AvailableCrewCard), view-only profile API returns nationality + visas
+- [Fix 118a] Invitations GET filters out fully-filled daywork positions (positions_filled >= positions_available); 2 new tests
+- [Fix 123a] Rollback 00057 completed — full apply_projection body from 00056 restored (self-contained per CLAUDE.md rule 4)
+- [Fix 123b] Onboarding UI — nationality dropdown (required for crew) and visa checkboxes added to profile step; wired into submit payload with validation
 
 ## Current Schema Version
 
