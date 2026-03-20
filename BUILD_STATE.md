@@ -173,6 +173,7 @@
 - [Stage 125] Notification count N+1 fix — `get_unread_counts` Postgres function (migration 00058) replaces per-engagement COUNT loops in `/api/notifications/count` and `/api/messages`; fixed query count regardless of engagement volume; tests updated to mock RPC
 
 - [Stage 126] Pre-launch lint cleanup — ESLint warnings fixed (unused vars, unused imports, next/image), cron error handling
+- [Stage 126b] Daywork engagement route hardening — daywork_id IS NOT NULL guard on 11 engagement routes, prevents permanent engagement IDs from triggering daywork events
 
 ## Current Schema Version
 

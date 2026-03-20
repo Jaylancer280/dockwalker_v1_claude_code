@@ -20,6 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .from('active_engagements')
     .select('id, employer_person_id, daywork_id, status, cancelled_by')
     .eq('id', engagementId)
+    .not('daywork_id', 'is', null)
     .single();
 
   if (!engagement) {

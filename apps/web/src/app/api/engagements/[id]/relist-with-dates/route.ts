@@ -22,6 +22,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
       'id, employer_person_id, daywork_id, status, postponement_status, proposed_start_date, proposed_end_date, proposed_working_days',
     )
     .eq('id', engagementId)
+    .not('daywork_id', 'is', null)
     .single();
 
   if (!engagement) {

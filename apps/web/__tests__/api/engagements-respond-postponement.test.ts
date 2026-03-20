@@ -16,11 +16,11 @@ vi.mock('@dockwalker/db', () => ({
 const mockFromAuth = vi.fn();
 
 function makeChain(data: unknown) {
+  const inner = { not: vi.fn(), single: vi.fn().mockResolvedValue({ data }) };
+  inner.not.mockReturnValue(inner);
   return {
     select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({ data }),
-      }),
+      eq: vi.fn().mockReturnValue(inner),
     }),
   };
 }

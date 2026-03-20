@@ -11,14 +11,17 @@ const mockFromAuth = vi.fn();
 const mockRpc = vi.fn();
 
 function makeChain(data: unknown) {
+  const inner = {
+    not: vi.fn(),
+    eq: vi.fn().mockReturnValue({
+      single: vi.fn().mockResolvedValue({ data }),
+    }),
+    single: vi.fn().mockResolvedValue({ data }),
+  };
+  inner.not.mockReturnValue(inner);
   return {
     select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data }),
-        }),
-        single: vi.fn().mockResolvedValue({ data }),
-      }),
+      eq: vi.fn().mockReturnValue(inner),
     }),
   };
 }

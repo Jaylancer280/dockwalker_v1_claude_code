@@ -4,9 +4,9 @@
 
 ## Project Overview
 
-DockWalker is a two-sided, real-time daywork hiring app for the superyacht industry. Crew seeking short-term work (1-14 day engagements) are matched with employers who need immediate cover via a Tinder-like swipe mechanic.
+DockWalker is a two-sided hiring app for the superyacht industry covering daywork (1-14 day engagements via swipe mechanic) and permanent positions (structured hiring with shortlisting and negotiation). Daywork brings users in. Permanent makes them stay.
 
-**Out of scope:** full-time hiring marketplace, reputation scoring, social network, vessel management, gamified career app, AI recommendation feeds.
+**Out of scope:** generic cross-industry job board, reputation scoring, social network, vessel management, gamified career app, AI recommendation feeds.
 
 ## Stack — Locked In, Non-Negotiable
 
@@ -33,7 +33,7 @@ No `UPDATE` or `DELETE` on the events table. State changes are new rows, not mut
 
 ### 2. IMO Number as Truth Anchor
 
-Every vessel is anchored to its IMO number. IMO is immutable once written. Required on every daywork posting.
+Every vessel is anchored to its IMO number. IMO is immutable once written. Required on every daywork and permanent posting.
 
 ### 3. RLS on Every Table
 
@@ -63,15 +63,15 @@ Single profile per person. Every event carries `role_context` (`crew` | `employe
 
 ## Vessel Entity
 
-First-class entity with IMO as immutable identity anchor. Employers/agents save vessels and reuse across postings.
+First-class entity with IMO as immutable identity anchor. Employers/agents save vessels and reuse across postings. Crew create vessels for experience entries. Vessel creation is shared between daywork and permanent post forms.
 
-**NDA vessels:** IMO stored server-side but only visible to posting employer and admins. Crew see metadata (size band, type) but never IMO. NDA access requests deferred to long-term contract integration.
+**NDA vessels:** IMO stored server-side but only visible to posting employer and admins. Crew see metadata (size band, type) but never IMO. NDA IMO is revealed to crew after acceptance (daywork) or selection (permanent) via `get_vessel_public` RPC. NDA access requests deferred.
 
 ## Event-Sourced Architecture
 
-All domain state is derived from the append-only event log. Events are namespaced for future extension (e.g. `CONTRACT.*`).
+All domain state is derived from the append-only event log. Events are namespaced by domain. Daywork uses `DAYWORK.*`, permanent hiring uses `PERMANENT.*`. Each namespace has its own handlers in `apply_projection` with zero cross-contamination.
 
-**Documented exception:** `daywork_templates` is plain CRUD utility data for faster repeat posting. It is owner-scoped via RLS, reversible via migration rollback, and intentionally not part of the event ledger.
+**Documented exceptions:** `daywork_templates` and `permanent_templates` are plain CRUD utility data for faster repeat posting. They are owner-scoped via RLS, reversible via migration rollback, and intentionally not part of the event ledger.
 
 ### Core Events
 
@@ -87,12 +87,26 @@ APPLICATION.WITHDRAWN / APPLICATION.SUPERSEDED
 DAYWORK.CANCELLED_BY_EMPLOYER
 ENGAGEMENT.CANCELLED_BY_CREW / ENGAGEMENT.CANCELLED_BY_EMPLOYER
 MESSAGE.SENT
+PERMANENT.POSTED / PERMANENT.APPLIED / PERMANENT.APPLICATION_BLOCKED
+PERMANENT.SHORTLISTED / PERMANENT.REJECTED / PERMANENT.SELECTED
+PERMANENT.PLACEMENT_CONFIRMED / PERMANENT.SELECTION_REVERTED
+PERMANENT.WITHDRAWN / PERMANENT.CANCELLED_BY_EMPLOYER
+PERMANENT.ENGAGEMENT_CLOSED
 ```
 
 ### Application State Machine
 
 ```
 Applied -> Viewed -> Accepted | Rejected | Withdrawn | Superseded -> Completed | Cancelled
+```
+
+### Permanent Application State Machine
+
+```
+Applied -> Shortlisted -> Selected -> (Placement confirmed or Reverted)
+Applied -> Rejected | Withdrawn | Not Selected
+Shortlisted -> Selected | Rejected | Withdrawn | Not Selected
+Selected -> Not Selected (reverted) | Withdrawn
 ```
 
 ### Cancellation Semantics
@@ -102,6 +116,9 @@ Applied -> Viewed -> Accepted | Rejected | Withdrawn | Superseded -> Completed |
 - `DAYWORK.CANCELLED_BY_EMPLOYER` — employer cancels posting
 - `ENGAGEMENT.CANCELLED_BY_CREW` — crew backs out post-acceptance
 - `ENGAGEMENT.CANCELLED_BY_EMPLOYER` — employer rescinds post-acceptance
+- `PERMANENT.WITHDRAWN` — crew withdraws permanent application (also reverts selection if selected)
+- `PERMANENT.CANCELLED_BY_EMPLOYER` — employer cancels permanent posting (also closes engagement if in negotiation)
+- `PERMANENT.ENGAGEMENT_CLOSED` — either party closes permanent engagement conversation
 
 ## Date Overlap Resolution
 
@@ -111,13 +128,17 @@ Crew can apply to overlapping jobs. Resolved at acceptance time:
 2. Pending overlapping applications auto-superseded (`APPLICATION.SUPERSEDED`)
 3. `check_no_overlap()` prevents double-booking at command layer
 
+Permanent postings have no date overlap resolution. Crew can apply to unlimited permanent jobs simultaneously — there are no date-based conflicts to resolve. This is by design: permanent hiring cycles are longer and crew legitimately interview with multiple employers.
+
 ## Messaging
 
-Opens ONLY after `DAYWORK.ACCEPTED`. Messages are append-only and retained server-side. Content is never deleted.
+Opens after `DAYWORK.ACCEPTED` (daywork) or `PERMANENT.SELECTED` (permanent). Messages are append-only and retained server-side. Content is never deleted.
 
 ## Availability Model
 
 Daily calendar with graceful auto-expiry. `AVAILABILITY.SET` carries expiry timestamp (default 7 days). Clearing dates is implemented as immediately expiring availability through the ledger, not direct deletion. System cross-references with accepted engagements.
+
+Permanent availability is profile-level, not date-based: `immediate`, `after_notice` (with `notice_period_days`), or `not_looking`. It is informational for employers, not an enforcement gate — except `not_looking` which excludes from the permanent discovery feed.
 
 ## Geographic Location
 
@@ -136,11 +157,16 @@ Deterministic, transparent, no learned weights. Context-dependent defaults with 
 1. Crew applies to a job in <5 seconds
 2. Employer posts a job in <60 seconds
 3. Employer accepts a candidate in 1-3 actions
-4. Messaging opens only after acceptance
-5. All domain states are event-derived, except `daywork_templates`
+4. Messaging opens only after acceptance or selection
+5. All domain states are event-derived, except `daywork_templates` and `permanent_templates`
 6. No scoring, ranking, or hidden algorithmic biasing
 7. All filters are explicit and visible
-8. Events namespaced; `CONTRACT.*` uses separate types sharing backbone
+8. Events namespaced; `PERMANENT.*` uses separate types sharing the event ledger backbone
+9. Employer posts a permanent role in <90 seconds
+10. Crew applies to a permanent role in <10 seconds
+11. Cert hard-gate blocks unqualified permanent applications server-side
+12. Shortlist cap is enforced at projection layer
+13. Permanent events use `PERMANENT.*` namespace — zero daywork handler modification
 
 ---
 

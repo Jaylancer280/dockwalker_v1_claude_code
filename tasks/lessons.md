@@ -50,6 +50,12 @@
 
 - **Implementation must match the wireframe positioning, not just "somewhere on the page":** The epaulette wireframe clearly showed badges in the top-right corner of experience cards. The implementation placed them inline with text — a fundamentally different visual hierarchy. When a wireframe specifies positioning (top-right, bottom-left, etc.), that's a design requirement, not a suggestion. If the implementation deviates, it should be flagged and justified, not silently changed.
 
+- **New features sharing existing tables need a full query audit first:** Before adding a nullable FK column to an existing table (e.g., `permanent_posting_id` on `applications`), grep every `.from('that_table')` call in the codebase and classify each query: does it filter by the existing FK? Does it join through the existing FK? Does it assume the existing FK is always non-null? This audit found 13 application queries and 26 engagement queries — 5 of which would break silently with null join results. The audit takes 30 minutes; the bugs it prevents take days to diagnose.
+
+- **Existing routes that operate on shared entities need type guards when a new entity type is added:** When `active_engagements` gains a second posting type (`permanent_posting_id` alongside `daywork_id`), every existing route that takes an engagement ID must guard against the wrong type. Without a `daywork_id IS NOT NULL` check, a permanent engagement ID passed to a daywork-only route (cancel, postpone, rate, etc.) silently fires daywork events on a permanent engagement. Add type guards as a pre-implementation hardening step, before the new feature code exists.
+
+- **"Zero contamination" must be verified against actual queries, not just table schemas:** The separate-table architecture looked clean on paper, but shared tables (`applications`, `active_engagements`) have dozens of queries that join through `daywork_id`. A LEFT JOIN to `dayworks(...)` returns null for permanent engagements — not an error, just silent null propagation that breaks UI rendering. Every shared-table join must be audited and dual-join support added where permanent engagements flow through.
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)
