@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RolePicker } from '@/components/role-picker';
 import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2, Search } from 'lucide-react';
 
 interface RoleItem {
@@ -41,6 +42,7 @@ const CONTRACT_TYPES = [
 
 export default function AddExperiencePage() {
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,11 +82,9 @@ export default function AddExperiencePage() {
     setLoading(false);
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadLookups();
   }, [loadLookups]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleImoLookup() {
     if (imoNumber.length !== 7) return;
@@ -112,56 +112,67 @@ export default function AddExperiencePage() {
 
   async function handleSubmit() {
     if (!roleId || !startDate || !expVesselOperation || !imoNumber) return;
-    setSubmitting(true);
+    try {
+      setSubmitting(true);
 
-    let vesselId = existingVesselId;
+      let vesselId = existingVesselId;
 
-    // Create vessel if not using existing
-    if (!useExisting) {
-      if (!vesselName || !loaMeters) {
-        setSubmitting(false);
-        return;
+      // Create vessel if not using existing
+      if (!useExisting) {
+        if (!vesselName || !loaMeters) {
+          setSubmitting(false);
+          return;
+        }
+        const vesselRes = await fetch('/api/vessels', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imoNumber,
+            name: vesselName,
+            vesselType,
+            loaMeters: Number(loaMeters),
+            ndaFlag: false,
+          }),
+        });
+        if (!vesselRes.ok) {
+          const data = await vesselRes.json().catch(() => ({}));
+          showError(data.error ?? 'Failed to create vessel');
+          return;
+        }
+        const vesselData = await vesselRes.json();
+        vesselId = vesselData.id;
       }
-      const vesselRes = await fetch('/api/vessels', {
+
+      const res = await fetch('/api/experiences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imoNumber,
-          name: vesselName,
-          vesselType,
-          loaMeters: Number(loaMeters),
-          ndaFlag: false,
+          vesselId,
+          roleId,
+          startDate,
+          endDate: endDate || null,
+          isCurrent,
+          vesselOperation: expVesselOperation,
+          flagState: flagState || null,
+          contractType: contractType || null,
+          contractDetails: contractDetails || null,
+          description: description || null,
         }),
       });
-      if (!vesselRes.ok) {
-        setSubmitting(false);
-        return;
+
+      if (res.ok) {
+        showSuccess('Experience added');
+        router.push('/profile');
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to add experience');
       }
-      const vesselData = await vesselRes.json();
-      vesselId = vesselData.id;
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setSubmitting(false);
     }
-
-    const res = await fetch('/api/experiences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        vesselId,
-        roleId,
-        startDate,
-        endDate: endDate || null,
-        isCurrent,
-        vesselOperation: expVesselOperation,
-        flagState: flagState || null,
-        contractType: contractType || null,
-        contractDetails: contractDetails || null,
-        description: description || null,
-      }),
-    });
-
-    if (res.ok) {
-      router.push('/profile');
-    }
-    setSubmitting(false);
   }
 
   if (loading) {

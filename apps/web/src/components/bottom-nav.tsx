@@ -77,7 +77,7 @@ export function BottomNav({ currentHat }: BottomNavProps) {
               <div className="relative">
                 <item.icon className="h-5 w-5" />
                 {showBadge && (
-                  <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-bold text-destructive-foreground">
+                  <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground">
                     {messageCount > 99 ? '99+' : messageCount}
                   </span>
                 )}

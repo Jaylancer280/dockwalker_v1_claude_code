@@ -217,18 +217,13 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
             const prefix = exp.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
             const dateRange = formatDateRange(exp.start_date, exp.end_date, exp.is_current);
             return (
-              <div key={idx} className="relative rounded-lg border border-border">
-                {exp.role && (
-                  <div className="absolute top-2 right-2 z-10">
-                    <EpauletteBadge roleName={exp.role} size="sm" />
-                  </div>
-                )}
+              <div key={idx} className="rounded-lg border border-border">
                 <button
                   onClick={() => setExpandedIdx(isExpanded ? null : idx)}
                   className="flex w-full items-center gap-3 p-3 text-left"
                 >
                   <Ship className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                  <div className="min-w-0 flex-1 pr-12">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
                       {prefix} {exp.vessel_name ?? 'Unknown vessel'}
                     </p>
@@ -236,6 +231,7 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
                       {exp.role ?? 'Unknown role'} · {dateRange}
                     </p>
                   </div>
+                  {exp.role && <EpauletteBadge roleName={exp.role} size="sm" />}
                   {isExpanded ? (
                     <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   ) : (

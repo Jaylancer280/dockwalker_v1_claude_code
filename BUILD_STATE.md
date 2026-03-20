@@ -156,7 +156,10 @@
 - [Stage 113] Epaulette badges — auto-derived rank insignia (department symbol + seniority stripes) on profile experience cards, discover job cards, review applicant cards, profile overlay; 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew) with split-symbol badges; migration 00055 for hybrid role data + department CHECK; RolePicker lists hybrids under both parent departments; gold (deck/bridge/engineering) and silver (interior/galley) color coding
 
 - [Stage 112] UI state freshness — post form double-submit guard (ref-based), checklist toggle optimistic update with rollback on error, availability re-check before apply (5-min cache), mine page + review page counts already correct (array-derived)
-- [Stage 114] Epaulette polish — experience card top-right positioning (profile + overlay), all 4 SVG icons replaced with filled silhouettes, view-profile icon on AvailableCrewCard, ApplicantCard tap target fix, supabase/README.md migration entries 00053-00055
+- [Stage 114] Epaulette polish — experience card flex row layout (profile + overlay, chevron overlap fix), all 4 SVG icons replaced with filled silhouettes, view-profile icon on AvailableCrewCard, ApplicantCard tap target fix, supabase/README.md migration entries 00053-00055, My Jobs page epaulettes, post form live epaulette preview
+- [Stage 115] Experience add/edit feedback — error toasts on all failure paths (vessel creation, experience creation, overlap, network), success toasts on add/edit/delete, stale data fix on profile redirect (router.refresh), try/catch submit hardening
+- [Stage 116] Badge polish — bg-destructive to bg-primary on 3 notification badges, message count changed from total-unread to threads-with-unread, OfflineBanner hydration fix (deferred navigator.onLine to useEffect)
+- [Stage 117] Discover card scroll containment — header z-index bump (z-10 to z-30), card stack overflow clip
 
 ## Current Schema Version
 

@@ -251,11 +251,9 @@ export default function DiscoverPage() {
     loadLookups();
   }, []);
 
-   
   useEffect(() => {
     checkAvailability();
   }, [checkAvailability]);
-   
 
   const buildFilterParams = useCallback(() => {
     const params = new URLSearchParams();
@@ -329,19 +327,16 @@ export default function DiscoverPage() {
   }, [nextCursor, hasMore, loadingMore, buildFilterParams]);
 
   // Auto-load more when card stack runs low
-   
+
   useEffect(() => {
     if (cards.length <= 5 && hasMore && !loadingMore && !loading) {
       loadMore();
     }
   }, [cards.length, hasMore, loadingMore, loading, loadMore]);
-   
 
-   
   useEffect(() => {
     loadCards();
   }, [loadCards]);
-   
 
   /** Gate apply actions behind availability check */
   const AVAIL_RECHECK_MS = 5 * 60 * 1000;
@@ -437,11 +432,10 @@ export default function DiscoverPage() {
   }, []);
 
   // Load invitations on mount (for badge count) and when switching tabs
-   
+
   useEffect(() => {
     loadInvitations();
   }, [activeTab, loadInvitations]);
-   
 
   async function handleAcceptInvitation(inv: Invitation) {
     setRespondingId(inv.id);
@@ -485,7 +479,7 @@ export default function DiscoverPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background">
+      <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 pt-3 pb-2">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold tracking-tight">Discover</h1>
@@ -793,7 +787,7 @@ export default function DiscoverPage() {
             )}
 
             {!loading && cards.length > 0 && (
-              <div className="relative h-[420px] w-full">
+              <div className="relative h-[420px] w-full overflow-hidden">
                 {/* Next card preview (underneath) */}
                 {nextCard && (
                   <div className="absolute inset-0 z-0">

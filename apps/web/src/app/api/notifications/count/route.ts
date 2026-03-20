@@ -75,9 +75,9 @@ export async function GET() {
         // Determine which hat this engagement belongs to
         const engHat = eng.crew_person_id === user.id ? 'crew' : 'employer';
         if (engHat === currentHat) {
-          msgCurrent += unread;
+          msgCurrent += 1;
         } else {
-          msgAlt += unread;
+          msgAlt += 1;
         }
       }
     }

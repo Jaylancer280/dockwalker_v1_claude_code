@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 import { createClient } from '@/lib/supabase/client';
 
 interface LookupItem {
@@ -324,7 +325,12 @@ export default function PostDayworkPage() {
 
         {/* Role */}
         <div className="flex flex-col gap-1.5">
-          <Label>Role needed</Label>
+          <Label className="flex items-center gap-2">
+            Role needed
+            {roleId && roles.find((r) => r.id === roleId)?.name && (
+              <EpauletteBadge roleName={roles.find((r) => r.id === roleId)!.name} size="sm" />
+            )}
+          </Label>
           <Select value={roleId} onValueChange={setRoleId} required>
             <SelectTrigger>
               <SelectValue placeholder="Select role" />

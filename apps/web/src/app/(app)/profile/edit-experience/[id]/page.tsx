@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RolePicker } from '@/components/role-picker';
 import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 
 interface RoleItem {
@@ -42,6 +43,7 @@ const CONTRACT_TYPES = [
 export default function EditExperiencePage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const { showError, showSuccess } = useToast();
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,40 +97,45 @@ export default function EditExperiencePage() {
     setLoading(false);
   }, [id]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadData();
   }, [loadData]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   async function handleSubmit() {
     if (!roleId || !startDate) return;
-    setSubmitting(true);
-    setError(null);
+    try {
+      setSubmitting(true);
+      setError(null);
 
-    const res = await fetch(`/api/experiences/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        roleId,
-        startDate,
-        endDate: endDate || null,
-        isCurrent,
-        vesselOperation: expVesselOperation,
-        flagState: flagState || null,
-        contractType: contractType || null,
-        contractDetails: contractDetails || null,
-        description: description || null,
-      }),
-    });
+      const res = await fetch(`/api/experiences/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roleId,
+          startDate,
+          endDate: endDate || null,
+          isCurrent,
+          vesselOperation: expVesselOperation,
+          flagState: flagState || null,
+          contractType: contractType || null,
+          contractDetails: contractDetails || null,
+          description: description || null,
+        }),
+      });
 
-    if (res.ok) {
-      router.push('/profile');
-    } else {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? 'Failed to update experience');
+      if (res.ok) {
+        showSuccess('Experience updated');
+        router.push('/profile');
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? 'Failed to update experience');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
   if (loading) {

@@ -46,6 +46,10 @@
 
 - **Every write route must validate current_hat and use it as roleContext:** Ownership checks alone are insufficient — a user can own a resource from a previous hat context. Pattern: destructure `person` from guard, check hat (`['employer', 'agent'].includes(person.current_hat)` or `person.current_hat === 'crew'`), use `person.current_hat as 'employer' | 'agent'` as roleContext. Never hardcode roleContext strings.
 
+- **SVG icons at small sizes must be filled silhouettes, not strokes:** Stroked SVG paths become invisible wisps at 12-14px. The epaulette anchor, crescent, propeller, and knife icons all used `stroke` + `strokeWidth` instead of `fill`, making them unrecognizable in the dark pill badge. Rule: any icon rendered below ~20px should be a single filled `<path fill={color}>` silhouette — no strokes, no fine detail, maximum visual mass. Always test SVG icons at the actual rendered size in the browser before committing.
+
+- **Implementation must match the wireframe positioning, not just "somewhere on the page":** The epaulette wireframe clearly showed badges in the top-right corner of experience cards. The implementation placed them inline with text — a fundamentally different visual hierarchy. When a wireframe specifies positioning (top-right, bottom-left, etc.), that's a design requirement, not a suggestion. If the implementation deviates, it should be flagged and justified, not silently changed.
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)

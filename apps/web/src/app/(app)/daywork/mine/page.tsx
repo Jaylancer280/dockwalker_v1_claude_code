@@ -42,6 +42,7 @@ import { createClient } from '@/lib/supabase/client';
 import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-jobs-tab';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 
 interface DayworkPosting {
   id: string;
@@ -265,8 +266,11 @@ export default function MyPostingsPage() {
       <Card key={posting.id}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
+            <CardTitle className="text-base flex items-center gap-1.5">
               {posting.yacht_roles?.name ?? 'Unknown role'}
+              {posting.yacht_roles?.name && (
+                <EpauletteBadge roleName={posting.yacht_roles.name} size="sm" />
+              )}
             </CardTitle>
             <Badge className={statusColor[posting.status] ?? ''}>
               {statusLabel[posting.status] ?? posting.status}
