@@ -23,11 +23,15 @@ export async function GET(request: Request) {
     // Find engagements starting tomorrow
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const { data: engagements } = await serviceClient
+    const { data: engagements, error: engError } = await serviceClient
       .from('active_engagements')
       .select('id, crew_person_id, employer_person_id, start_date, daywork_id')
       .eq('status', 'active')
       .eq('start_date', tomorrow);
+
+    if (engError) {
+      return NextResponse.json({ error: engError.message }, { status: 500 });
+    }
 
     if (!engagements || engagements.length === 0) {
       return NextResponse.json({ notified: 0 });

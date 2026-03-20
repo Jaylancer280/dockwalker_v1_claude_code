@@ -172,6 +172,8 @@
 - [Stage 124] Engagement starts tomorrow reminder — daily cron (07:00 UTC), in-app + push + email notification for both parties, duplicate prevention, engagement-starting email template, exported getRecipientEmail; 5 new tests (716 total)
 - [Stage 125] Notification count N+1 fix — `get_unread_counts` Postgres function (migration 00058) replaces per-engagement COUNT loops in `/api/notifications/count` and `/api/messages`; fixed query count regardless of engagement volume; tests updated to mock RPC
 
+- [Stage 126] Pre-launch lint cleanup — ESLint warnings fixed (unused vars, unused imports, next/image), cron error handling
+
 ## Current Schema Version
 
 v58 — unread counts function (58 migrations applied)

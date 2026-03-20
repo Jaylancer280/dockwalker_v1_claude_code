@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
 interface AvatarProps {
   src: string | null;
@@ -14,18 +15,24 @@ const sizeMap = {
   lg: 'h-20 w-20 text-xl',
 };
 
+const pxMap = { sm: 32, md: 48, lg: 80 };
+
 export function Avatar({ src, name, size = 'md' }: AvatarProps) {
   const [imgError, setImgError] = useState(false);
   const initials = (name || '?')[0].toUpperCase();
   const sizeClass = sizeMap[size];
+  const imgSize = pxMap[size];
 
   if (src && !imgError) {
     return (
-      <img
+      <Image
         src={src}
         alt={name}
+        width={imgSize}
+        height={imgSize}
         className={`${sizeClass} shrink-0 rounded-full object-cover`}
         onError={() => setImgError(true)}
+        unoptimized
       />
     );
   }

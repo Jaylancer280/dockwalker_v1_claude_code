@@ -22,12 +22,16 @@ export async function GET(request: Request) {
     const now = new Date().toISOString();
     const in24h = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: expiringWindows } = await serviceClient
+    const { data: expiringWindows, error: expError } = await serviceClient
       .from('availability_windows')
       .select('person_id')
       .gt('expires_at', now)
       .lte('expires_at', in24h)
       .eq('not_available', false);
+
+    if (expError) {
+      return NextResponse.json({ error: expError.message }, { status: 500 });
+    }
 
     if (!expiringWindows || expiringWindows.length === 0) {
       return NextResponse.json({ notified: 0 });

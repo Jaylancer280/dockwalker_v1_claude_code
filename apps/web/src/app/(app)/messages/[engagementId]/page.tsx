@@ -7,8 +7,6 @@ import {
   ChevronLeft,
   Send,
   Loader2,
-  MapPin,
-  Calendar,
   XCircle,
   CheckCircle,
   ClipboardCheck,

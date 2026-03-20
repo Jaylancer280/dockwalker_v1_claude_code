@@ -55,29 +55,6 @@ function makeRatingsChain(data: unknown[]) {
   };
 }
 
-// Mock for read cursors query: .select().eq().in() -> { data }
-function makeCursorsChain(data: unknown[] = []) {
-  return {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        in: vi.fn().mockResolvedValue({ data }),
-      }),
-    }),
-  };
-}
-
-// Mock for unread count per engagement: .select({count}).eq().neq().gt() -> { count }
-function makeUnreadCountChain(count = 0) {
-  return {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        neq: vi.fn().mockReturnValue({
-          gt: vi.fn().mockResolvedValue({ count }),
-        }),
-      }),
-    }),
-  };
-}
 
 describe('GET /api/messages', () => {
   beforeEach(() => {
