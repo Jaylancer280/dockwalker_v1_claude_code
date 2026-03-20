@@ -25,6 +25,10 @@
     {
       "path": "/api/cron/availability-expiry",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/engagement-starts",
+      "schedule": "0 7 * * *"
     }
   ]
 }

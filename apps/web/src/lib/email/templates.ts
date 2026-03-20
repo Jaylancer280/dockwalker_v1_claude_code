@@ -83,3 +83,26 @@ export function newMessageEmail(params: {
     `),
   };
 }
+
+export function engagementStartingEmail(params: {
+  recipientName: string;
+  otherPartyName: string;
+  roleName: string;
+  startDate: string;
+  engagementId: string;
+}): { subject: string; html: string } {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.dockwalker.com';
+  return {
+    subject: 'Your engagement starts tomorrow',
+    html: wrap(`
+      <p style="color:#1e293b;font-size:16px;margin:0 0 16px;">Hi ${params.recipientName},</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 8px;">
+        Your <strong>${params.roleName}</strong> engagement with <strong>${params.otherPartyName}</strong> starts tomorrow (${params.startDate}).
+      </p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;">
+        Check the pre-arrival checklist and make sure everything is ready.
+      </p>
+      ${ctaButton(`${appUrl}/messages/${params.engagementId}`, 'Open chat')}
+    `),
+  };
+}

@@ -7,6 +7,7 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 }));
 
 const mockFromAuth = vi.fn();
+const mockRpc = vi.fn();
 
 function guardOk(userId = 'u1', hat = 'crew') {
   return {
@@ -15,7 +16,7 @@ function guardOk(userId = 'u1', hat = 'crew') {
       user: { id: userId },
       person: { id: userId, identity_type: 'crew', current_hat: hat },
       profile: { person_id: userId },
-      supabase: { from: mockFromAuth },
+      supabase: { from: mockFromAuth, rpc: mockRpc },
       serviceClient: { rpc: vi.fn() },
     },
   };
@@ -41,30 +42,6 @@ function engagementChain(
   return {
     select: vi.fn().mockReturnValue({
       or: vi.fn().mockResolvedValue({ data }),
-    }),
-  };
-}
-
-function cursorChain(
-  data: { engagement_id: string; last_read_at: string }[],
-) {
-  return {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        in: vi.fn().mockResolvedValue({ data }),
-      }),
-    }),
-  };
-}
-
-function messageCountChain(count: number) {
-  return {
-    select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
-        neq: vi.fn().mockReturnValue({
-          gt: vi.fn().mockResolvedValue({ count }),
-        }),
-      }),
     }),
   };
 }
@@ -96,9 +73,9 @@ describe('GET /api/notifications/count', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     mockFromAuth
-      .mockReturnValueOnce(notifChain(3)) // current hat (crew) notifs
-      .mockReturnValueOnce(notifChain(1)) // alt hat (employer) notifs
-      .mockReturnValueOnce(engagementChain([])); // no engagements
+      .mockReturnValueOnce(notifChain(3))
+      .mockReturnValueOnce(notifChain(1))
+      .mockReturnValueOnce(engagementChain([]));
 
     const res = await callGET();
     expect(res.status).toBe(200);
@@ -121,24 +98,28 @@ describe('GET /api/notifications/count', () => {
     ];
 
     mockFromAuth
-      .mockReturnValueOnce(notifChain(0)) // current hat notifs
-      .mockReturnValueOnce(notifChain(0)) // alt hat notifs
-      .mockReturnValueOnce(engagementChain(engagements)) // 2 engagements
-      .mockReturnValueOnce(cursorChain([])) // no cursors
-      .mockReturnValueOnce(messageCountChain(3)) // eng-a: 3 unread
-      .mockReturnValueOnce(messageCountChain(2)); // eng-b: 2 unread
+      .mockReturnValueOnce(notifChain(0))
+      .mockReturnValueOnce(notifChain(0))
+      .mockReturnValueOnce(engagementChain(engagements));
+
+    // RPC returns both engagements with unread (3 and 2 respectively)
+    mockRpc.mockResolvedValueOnce({
+      data: [
+        { engagement_id: 'eng-a', unread_count: 3 },
+        { engagement_id: 'eng-b', unread_count: 2 },
+      ],
+    });
 
     const res = await callGET();
     expect(res.status).toBe(200);
 
     const body = await res.json();
-    // message_count = 2 (threads with unread), not 5 (total unread messages)
+    // message_count = 2 (threads with unread), not 5 (total)
     expect(body.message_count).toBe(2);
     expect(body.alt_message_count).toBe(0);
   });
 
   it('returns alt counts for other hat engagements', async () => {
-    // User's current hat is crew, but they have an engagement as employer
     mockRequireDomainUser.mockResolvedValue(guardOk('u1', 'crew'));
 
     const engagements = [
@@ -146,11 +127,13 @@ describe('GET /api/notifications/count', () => {
     ];
 
     mockFromAuth
-      .mockReturnValueOnce(notifChain(2)) // current hat notifs
-      .mockReturnValueOnce(notifChain(5)) // alt hat notifs
-      .mockReturnValueOnce(engagementChain(engagements))
-      .mockReturnValueOnce(cursorChain([]))
-      .mockReturnValueOnce(messageCountChain(4)); // 4 unread in employer engagement
+      .mockReturnValueOnce(notifChain(2))
+      .mockReturnValueOnce(notifChain(5))
+      .mockReturnValueOnce(engagementChain(engagements));
+
+    mockRpc.mockResolvedValueOnce({
+      data: [{ engagement_id: 'eng-c', unread_count: 4 }],
+    });
 
     const res = await callGET();
     expect(res.status).toBe(200);
@@ -158,47 +141,31 @@ describe('GET /api/notifications/count', () => {
     const body = await res.json();
     expect(body).toEqual({
       notification_count: 2,
-      message_count: 0, // no crew engagements
+      message_count: 0,
       alt_notification_count: 5,
-      alt_message_count: 1, // 1 employer thread with unread
+      alt_message_count: 1,
     });
   });
 
-  it('respects read cursor when counting unread messages', async () => {
+  it('handles RPC returning empty (no unread anywhere)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk('u1', 'crew'));
 
     const engagements = [
       { id: 'eng-d', crew_person_id: 'u1', employer_person_id: 'e1' },
-      { id: 'eng-e', crew_person_id: 'u1', employer_person_id: 'e2' },
-    ];
-
-    const cursors = [
-      { engagement_id: 'eng-d', last_read_at: '2026-03-20T10:00:00Z' },
     ];
 
     mockFromAuth
       .mockReturnValueOnce(notifChain(0))
       .mockReturnValueOnce(notifChain(0))
-      .mockReturnValueOnce(engagementChain(engagements))
-      .mockReturnValueOnce(cursorChain(cursors))
-      .mockReturnValueOnce(messageCountChain(0)) // eng-d: 0 unread (cursor caught up)
-      .mockReturnValueOnce(messageCountChain(1)); // eng-e: 1 unread (no cursor, epoch baseline)
+      .mockReturnValueOnce(engagementChain(engagements));
+
+    // RPC returns empty — all cursors caught up
+    mockRpc.mockResolvedValueOnce({ data: [] });
 
     const res = await callGET();
     expect(res.status).toBe(200);
 
     const body = await res.json();
-    // Only eng-e has unread, eng-d cursor caught up
-    expect(body.message_count).toBe(1);
-
-    // Verify the cursor was passed through: eng-d's .gt() gets the cursor timestamp,
-    // eng-e's .gt() gets the epoch fallback
-    const msgCallD = mockFromAuth.mock.results[4].value;
-    const gtFnD = msgCallD.select().eq().neq().gt;
-    expect(gtFnD).toHaveBeenCalledWith('created_at', '2026-03-20T10:00:00Z');
-
-    const msgCallE = mockFromAuth.mock.results[5].value;
-    const gtFnE = msgCallE.select().eq().neq().gt;
-    expect(gtFnE).toHaveBeenCalledWith('created_at', '1970-01-01T00:00:00Z');
+    expect(body.message_count).toBe(0);
   });
 });

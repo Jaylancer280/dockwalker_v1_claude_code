@@ -597,7 +597,10 @@ function shouldSendMessageEmail(engagementId: string): boolean {
   return true;
 }
 
-async function getRecipientEmail(sc: SupabaseClient, personId: string): Promise<string | null> {
+export async function getRecipientEmail(
+  sc: SupabaseClient,
+  personId: string,
+): Promise<string | null> {
   const { data } = await sc.auth.admin.getUserById(personId);
   return data?.user?.email ?? null;
 }

@@ -13,244 +13,342 @@
 
 ---
 
-### Fix 118a: Invitations GET — filter full-position dayworks
+### Stage 124: Engagement Starts Tomorrow — Cron Reminder
 
-**Goal:** Crew should not see invitations for daywork postings where all positions are already filled.
+**Goal:** Notify both crew and employer 24 hours before an engagement's start date via in-app notification, push, and email. Modelled after the availability expiry cron (Stage 102).
 
-**Will NOT touch:** Database, migrations, invitation respond flow, push notifications.
+**Will touch:** New cron route, vercel.json, new email template, push-triggers (email helper reuse).
 
-**Done condition:** `GET /api/daywork/invitations` excludes invitations where `positions_filled >= positions_available` on the linked daywork. Test proves it.
+**Will NOT touch:** Database schema, migrations, existing event types, engagement lifecycle, chat page.
 
----
-
-#### 1. Add positions columns to daywork select
-
-File: `apps/web/src/app/api/daywork/invitations/route.ts`
-
-The daywork query (lines 50-57) currently selects `id, job_number, start_date, end_date, working_days, day_rate, currency, meals, notes, status, vessel_id, yacht_roles(...), ports(...), experience_brackets(...)`.
-
-- [x] Add `positions_available, positions_filled` to the `.select()` string
+**Done condition:** Both parties receive in-app + push + email notification the morning before an engagement starts. Duplicate prevention ensures one notification per engagement per person per day. Cron authenticated via CRON_SECRET.
 
 ---
 
-#### 2. Add full-position filter to post-fetch filtering
+#### 1. Create cron route
 
-File: `apps/web/src/app/api/daywork/invitations/route.ts`
+File: `apps/web/src/app/api/cron/engagement-starts/route.ts`
 
-The existing post-fetch filter (lines 99-112) already checks `startDate < today` and `status !== 'active'`.
+Follow the exact pattern from `apps/web/src/app/api/cron/availability-expiry/route.ts`.
 
-- [x] Add a third condition after the status check:
-  ```typescript
-  const filled = dw.positions_filled as number | null;
-  const available = dw.positions_available as number | null;
-  if (filled != null && available != null && filled >= available) return false;
-  ```
-  This filters out invitations for dayworks where all positions are filled. Uses `!= null` to handle the case where columns exist but are null (legacy rows before multi-crew).
-
----
-
-#### 3. Add test for full-position filtering
-
-File: `apps/web/__tests__/api/invitations.test.ts`
-
-- [x] Add test: `filters out invitations for fully-filled daywork positions`
-  - Mock a pending invitation where the linked daywork has `positions_filled: 2, positions_available: 2, status: 'active'`, start_date in the future
-  - Assert the invitation is NOT in the response
-- [x] Add test: `keeps invitations for partially-filled daywork positions`
-  - Mock same setup but `positions_filled: 1, positions_available: 2`
-  - Assert the invitation IS in the response
-
----
-
-#### 4. Documentation
-
-- [x] Update `BUILD_STATE.md`: append to Stage 118 entry or add a `[Fix 118a]` line
-
----
-
-### Fix 123a: Rollback 00057 — restore full apply_projection body
-
-**Goal:** Make rollback 00057 self-contained per the project invariant (CLAUDE.md rule 4) and the lesson "Rollbacks must be self-contained."
-
-**Will NOT touch:** Forward migration, API routes, UI, tests.
-
-**Done condition:** `supabase/rollbacks/00057_nationality_and_visas.down.sql` contains the complete `CREATE OR REPLACE FUNCTION apply_projection(...)` body from migration 00056. Running this rollback would fully restore the database to the pre-00057 state.
-
----
-
-#### 1. Replace the placeholder comment with the full function body
-
-File: `supabase/rollbacks/00057_nationality_and_visas.down.sql`
-
-- [x] Remove the comment on lines 11-12
-- [x] Copy the complete `CREATE OR REPLACE FUNCTION public.apply_projection(...)` from `supabase/migrations/00056_invitation_source.sql` (lines 18-374) and paste it after line 9
-- [x] Verify: the restored function's `PROFILE.CREATED` handler does NOT write `nationality_id` or `visa_ids` (it shouldn't — it's the 00056 version which predates those columns)
-- [x] Verify: the restored function's `PROFILE.UPDATED` handler also does NOT reference `nationality_id` or `visa_ids`
-- [x] Verify: the `DAYWORK.APPLIED` handler in the restored function DOES include `source` column handling (since 00056 added source, and rolling back 00057 should keep 00056's changes intact)
-
----
-
-#### 2. Mental walkthrough
-
-- [x] Confirm: if you run ONLY this rollback file against a DB at schema v57, the result is:
-  1. `visa_ids` column dropped from profiles
-  2. `nationality_id` column dropped from profiles
-  3. `visa_types` table dropped
-  4. `nationalities` table dropped
-  5. `apply_projection` restored to exact 00056 version (with source/invitation handling, without nationality/visa handling)
-     — i.e., the DB is at schema v56 state
-
----
-
-#### 3. Documentation
-
-- [x] Update `BUILD_STATE.md`: append a `[Fix 123a]` line noting the rollback was completed
-
----
-
-### Fix 123b: Onboarding UI — add nationality + visa fields
-
-**Goal:** Collect nationality and visas during onboarding so new users don't have to discover these fields in profile edit.
-
-**Will NOT touch:** Database, migrations, API response shapes (onboarding API already accepts `nationalityId` and `visaIds`).
-
-**Done condition:** Onboarding profile step shows a nationality dropdown (with flag emoji) and a visa multi-select. Selected values are submitted to the onboarding API. Nationality is required for crew, optional for agents. Visas are always optional.
-
----
-
-#### 1. Add state variables
-
-File: `apps/web/src/app/onboarding/page.tsx`
-
-- [x] Add state variables alongside other profile state (near lines 151-167):
+- [x] Auth: validate `Authorization: Bearer ${CRON_SECRET}`, return 401 if missing/invalid
+- [x] Use `createServiceClient()` (service role bypasses RLS)
+- [x] Query `active_engagements` where:
 
   ```typescript
-  const [nationalityId, setNationalityId] = useState('');
-  const [visaIds, setVisaIds] = useState<string[]>([]);
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const { data: engagements } = await serviceClient
+    .from('active_engagements')
+    .select('id, crew_person_id, employer_person_id, start_date, daywork_id')
+    .eq('status', 'active')
+    .eq('start_date', tomorrow);
   ```
 
-- [x] Add lookup state alongside other lookups (near lines 182-188):
-  ```typescript
-  const [nationalities, setNationalities] = useState<
-    { id: string; name: string; flag_emoji: string }[]
-  >([]);
-  const [visaTypes, setVisaTypes] = useState<{ id: string; name: string }[]>([]);
-  ```
+  This finds all active engagements starting tomorrow (not today, not in 2 days — exactly tomorrow's date).
+
+- [x] For each engagement, notify BOTH `crew_person_id` and `employer_person_id`:
+  - **Duplicate prevention:** Before inserting, check `notifications` table for existing `type: 'engagement_starting'` with matching `deep_link` containing the engagement ID, created in last 24h. Skip if found.
+    ```typescript
+    const { data: existing } = await serviceClient
+      .from('notifications')
+      .select('id')
+      .eq('person_id', personId)
+      .eq('type', 'engagement_starting')
+      .gt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .like('deep_link', `%${engagement.id}%`)
+      .limit(1);
+    if (existing && existing.length > 0) continue;
+    ```
+  - **In-app notification:**
+    ```typescript
+    await serviceClient.from('notifications').insert({
+      person_id: personId,
+      type: 'engagement_starting',
+      title: 'Engagement starts tomorrow',
+      body: `Your engagement starts tomorrow — check the pre-arrival checklist.`,
+      deep_link: `/messages/${engagement.id}`,
+      role_context: roleContext, // 'crew' for crew_person_id, 'employer' for employer_person_id
+    });
+    ```
+  - **Push notification** (fire-and-forget):
+    ```typescript
+    sendPushToUser(serviceClient, personId, {
+      title: 'Engagement Starts Tomorrow',
+      body: 'Your engagement starts tomorrow — check the pre-arrival checklist.',
+      data: { screen: 'chat', engagementId: engagement.id },
+    }).catch(() => {});
+    ```
+  - **Email notification** (fire-and-forget): see section 2
+
+- [x] Return `{ notified: count }` on success
+- [x] Wrap in try/catch, return 500 on error
 
 ---
 
-#### 2. Fetch lookup data
+#### 2. Email template + send
 
-File: `apps/web/src/app/onboarding/page.tsx`
+File: `apps/web/src/lib/email/templates/engagement-starting.ts` (new file)
 
-- [x] In the existing data-loading useEffect (or wherever roles/certs/brackets are fetched), add parallel fetches:
+- [x] Create template function:
+
   ```typescript
-  supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
-  supabase.from('visa_types').select('id, name').order('sort_order'),
-  ```
-- [x] Set the state from the results
-
----
-
-#### 3. Add nationality dropdown + visa checkboxes to profile step
-
-File: `apps/web/src/app/onboarding/page.tsx`
-
-The profile step runs from approximately lines 523-803. Add the fields after the languages input and before the navigation buttons. Mirror the exact pattern used on the profile page (lines 894-923).
-
-- [x] Nationality `<Select>` dropdown with flag emoji prefix:
-
-  ```tsx
-  <div className="flex flex-col gap-1.5">
-    <Label>
-      Nationality {identityType === 'crew' && <span className="text-destructive">*</span>}
-    </Label>
-    <Select value={nationalityId} onValueChange={setNationalityId}>
-      <SelectTrigger>
-        <SelectValue placeholder="Select nationality" />
-      </SelectTrigger>
-      <SelectContent>
-        {nationalities.map((n) => (
-          <SelectItem key={n.id} value={n.id}>
-            {n.flag_emoji} {n.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  </div>
+  export function engagementStartingEmail(params: {
+    recipientName: string;
+    otherPartyName: string;
+    roleName: string;
+    startDate: string;
+    engagementId: string;
+  }): { subject: string; html: string };
   ```
 
-- [x] Visa multi-select checkboxes:
+  Subject: `Your engagement starts tomorrow`
+  Body: Brief branded email with engagement details (role, date, counterparty name) and a CTA link to the chat thread. Follow the existing template style from `apps/web/src/lib/email/templates/` (check `application-accepted.ts` for the HTML structure).
 
-  ```tsx
-  <div className="flex flex-col gap-1.5">
-    <Label>
-      Visas <span className="text-xs text-muted-foreground">(optional)</span>
-    </Label>
-    <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
-      {visaTypes.map((v) => (
-        <label key={v.id} className="flex items-center gap-2 py-1.5 text-sm">
-          <Checkbox
-            checked={visaIds.includes(v.id)}
-            onCheckedChange={() => {
-              setVisaIds((prev) =>
-                prev.includes(v.id) ? prev.filter((id) => id !== v.id) : [...prev, v.id],
-              );
-            }}
-          />
-          {v.name}
-        </label>
-      ))}
-    </div>
-  </div>
-  ```
+- [x] In the cron route, after creating the notification and push, send the email:
 
-- [x] Verify `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, `Label`, and `Checkbox` are imported (check existing imports — profile step likely already uses Select for other fields)
-
----
-
-#### 4. Wire into submit payload
-
-File: `apps/web/src/app/onboarding/page.tsx`
-
-- [x] In the submit handler (wherever the onboarding API is called), add `nationalityId` and `visaIds` to the profile object:
   ```typescript
-  profile: {
-    // ... existing fields ...
-    nationalityId: nationalityId || null,
-    visaIds,
+  const email = await getRecipientEmail(serviceClient, personId);
+  if (email) {
+    const { subject, html } = engagementStartingEmail({
+      recipientName: ...,
+      otherPartyName: ...,
+      roleName: ...,
+      startDate: engagement.start_date,
+      engagementId: engagement.id,
+    });
+    sendEmail({ to: email, subject, html }).catch(() => {});
   }
   ```
 
+- [x] To resolve names: fetch profiles for both person IDs in a single query before the notification loop:
+
+  ```typescript
+  const personIds = engagements.flatMap((e) => [e.crew_person_id, e.employer_person_id]);
+  const { data: profiles } = await serviceClient
+    .from('profiles')
+    .select('person_id, display_name')
+    .in('person_id', [...new Set(personIds)]);
+  const nameMap = new Map(profiles?.map((p) => [p.person_id, p.display_name]) ?? []);
+  ```
+
+- [x] To resolve role name: fetch daywork role in a single query:
+
+  ```typescript
+  const dayworkIds = [...new Set(engagements.map((e) => e.daywork_id))];
+  const { data: dayworks } = await serviceClient
+    .from('dayworks')
+    .select('id, yacht_roles(name)')
+    .in('id', dayworkIds);
+  const roleMap = new Map(dayworks?.map((d) => [d.id, d.yacht_roles?.name]) ?? []);
+  ```
+
+- [x] Import `sendEmail` from `@/lib/email/send` and `getRecipientEmail` from `@/lib/push-triggers` (or inline the auth.admin.getUserById pattern if getRecipientEmail is not exported)
+
 ---
 
-#### 5. Add validation for crew nationality requirement
+#### 3. Register cron in vercel.json
 
-File: `apps/web/src/app/onboarding/page.tsx`
+File: `vercel.json`
 
-- [x] In the profile step's "Next" button handler (or validation logic), add:
-  ```typescript
-  if (identityType === 'crew' && !nationalityId) {
-    // prevent advancing — show validation error or disable Next
+- [x] Add to the `crons` array:
+  ```json
+  {
+    "path": "/api/cron/engagement-starts",
+    "schedule": "0 7 * * *"
   }
   ```
-  Match the existing validation pattern used for other required fields in the same step.
+  Runs at 07:00 UTC daily — one hour before the availability expiry cron (08:00 UTC). This gives engagement reminders slightly higher priority in the morning notification stack.
 
 ---
 
-#### 6. Verify end-to-end
+#### 4. Export getRecipientEmail if needed
 
-- [x] Verify: existing onboarding tests still pass (the API already accepts these fields — this is UI-only)
-- [x] Verify: nationality and visas appear on the profile page after completing onboarding with values set
+File: `apps/web/src/lib/push-triggers.ts`
+
+- [x] Check if `getRecipientEmail` is exported. If not, either:
+  - **Option A:** Export it (preferred — it's a utility function)
+  - **Option B:** Duplicate the 3-line function in the cron route
+- [x] If exporting, verify no circular import issues
 
 ---
 
-#### 7. Documentation
+#### 5. Tests
 
-- [x] Update `BUILD_STATE.md`: append a `[Fix 123b]` line noting onboarding UI was completed
+File: `apps/web/__tests__/api/cron-engagement-starts.test.ts`
+
+- [x] Test: returns 401 without valid CRON_SECRET
+- [x] Test: returns `{ notified: 0 }` when no engagements start tomorrow
+- [x] Test: happy path — engagement starting tomorrow → notifications inserted for both crew and employer, returns `{ notified: 2 }`
+- [x] Test: duplicate prevention — existing notification in last 24h → skipped, returns `{ notified: 0 }`
+- [x] Test: only active engagements (cancelled/completed excluded)
+- [x] Test: does not notify for engagements starting today or in 2+ days
+
+Mock pattern: mock `createServiceClient` returning a mock Supabase client. Mock `sendPushToUser` and `sendEmail` as fire-and-forget (verify they're called but don't test delivery). Follow the existing cron test pattern if one exists, otherwise follow the standard API test pattern.
+
+---
+
+#### 6. Documentation
+
+- [x] Update `BUILD_STATE.md`: stage entry `[Stage 124] Engagement starts tomorrow reminder — daily cron (07:00 UTC), in-app + push + email notification for both parties, duplicate prevention, engagement-starting email template`
+- [x] Update `apps/web/README.md`: add cron endpoint to the API routes list
+- [x] Update launch readiness `tasks/launch-readiness.md`: mark P2 #17 as `[x]` with Stage 124
+
+---
+
+### Stage 125: Notification Count N+1 Fix
+
+**Goal:** Replace the per-engagement COUNT loops in `/api/notifications/count` and `/api/messages` with single aggregate queries. Currently a user with 20 engagements triggers 22+ database queries per badge poll.
+
+**Will touch:** Two API route files, one new Postgres function, migration + rollback, test updates.
+
+**Will NOT touch:** Frontend badge/count display logic, notification table, read cursor update flow, message send/receive.
+
+**Done condition:** Both endpoints execute a fixed number of queries regardless of engagement count. Tests pass. Badge counts unchanged from user perspective.
+
+---
+
+#### 1. Migration — create `get_unread_counts` Postgres function
+
+File: `supabase/migrations/00058_unread_counts_function.sql`
+
+- [x] Create a function that returns unread message counts per engagement in one query:
+
+  ```sql
+  create or replace function public.get_unread_counts(p_person_id uuid)
+  returns table (engagement_id uuid, unread_count bigint)
+  language sql
+  stable
+  security definer
+  as $$
+    select
+      m.engagement_id,
+      count(*) as unread_count
+    from public.messages m
+    left join public.message_read_cursors mrc
+      on mrc.engagement_id = m.engagement_id
+      and mrc.person_id = p_person_id
+    where m.engagement_id in (
+      select id from public.active_engagements
+      where crew_person_id = p_person_id or employer_person_id = p_person_id
+    )
+    and m.sender_person_id != p_person_id
+    and m.created_at > coalesce(mrc.last_read_at, '1970-01-01'::timestamptz)
+    group by m.engagement_id
+    having count(*) > 0;
+  $$;
+  ```
+
+  This returns ONLY engagements with unread messages (the `having` clause). Engagements with 0 unread simply don't appear — the caller treats missing = 0.
+
+- [x] Corresponding rollback: `supabase/rollbacks/00058_unread_counts_function.down.sql`
+  ```sql
+  drop function if exists public.get_unread_counts(uuid);
+  ```
+
+---
+
+#### 2. Refactor notification count endpoint
+
+File: `apps/web/src/app/api/notifications/count/route.ts`
+
+Replace the N+1 loop (lines ~63-82) with a single RPC call.
+
+- [x] Call the new function:
+
+  ```typescript
+  const { data: unreadRows } = await supabase.rpc('get_unread_counts', {
+    p_person_id: user.id,
+  });
+  const unreadMap = new Map(
+    (unreadRows ?? []).map((r: { engagement_id: string; unread_count: number }) => [
+      r.engagement_id,
+      r.unread_count,
+    ]),
+  );
+  ```
+
+- [x] Replace the per-engagement loop with a simple iteration over the engagements list:
+
+  ```typescript
+  for (const eng of engList) {
+    const hasUnread = unreadMap.has(eng.id);
+    if (!hasUnread) continue;
+
+    const engHat = eng.crew_person_id === user.id ? 'crew' : 'employer';
+    if (engHat === currentHat) {
+      msgCurrent += 1; // threads with unread (Stage 116 semantics)
+    } else {
+      msgAlt += 1;
+    }
+  }
+  ```
+
+- [x] Remove the `message_read_cursors` query that was previously fetched for the loop (the function handles cursors internally)
+
+- [x] Net result: the entire endpoint should now make ~3-4 queries total:
+  1. Auth (guard)
+  2. Engagements list
+  3. `get_unread_counts` RPC (replaces N queries)
+  4. Notifications count
+
+---
+
+#### 3. Refactor messages endpoint
+
+File: `apps/web/src/app/api/messages/route.ts`
+
+Replace the N+1 loop (lines ~120-130) with the same RPC.
+
+- [x] Call `get_unread_counts` RPC (same pattern as above)
+- [x] Build unread map, then assign `unread_count` per conversation from the map:
+  ```typescript
+  const unreadCount = unreadMap.get(engId) ?? 0;
+  ```
+- [x] Remove the per-engagement COUNT loop
+- [x] Remove the separate `message_read_cursors` batch query (the function handles it)
+- [x] Verify `unread_total` in the response is still the sum of all `unread_count` values
+
+---
+
+#### 4. Update tests — notification count
+
+File: `apps/web/__tests__/api/notifications-count.test.ts`
+
+The tests currently mock individual per-engagement Supabase count calls. They need to mock the RPC instead.
+
+- [x] Replace mock pattern: instead of mocking N `from('messages').select(...)` calls, mock `rpc('get_unread_counts', ...)` returning an array of `{ engagement_id, unread_count }` rows
+- [x] Test: no unread messages → RPC returns empty array → message_count = 0
+- [x] Test: 2 threads with unread on current hat → message_count = 2
+- [x] Test: 1 thread current hat + 1 thread alt hat → message_count = 1, alt_message_count = 1
+- [x] Test: cursor semantics preserved (implicit — the RPC handles it, but verify the response matches expected counts)
+- [x] Keep auth test (401 unauthenticated) unchanged
+
+---
+
+#### 5. Update tests — messages endpoint
+
+File: `apps/web/__tests__/api/messages.test.ts`
+
+- [x] Replace mock pattern: mock `rpc('get_unread_counts', ...)` instead of per-engagement count queries
+- [x] Verify `unread_count` per conversation matches the RPC return value
+- [x] Verify `unread_total` is the sum
+- [x] Verify conversations with 0 unread (not in RPC result) get `unread_count: 0`
+
+---
+
+#### 6. Documentation
+
+- [x] Update `BUILD_STATE.md`:
+  - Stage entry: `[Stage 125] Notification count N+1 fix — get_unread_counts Postgres function replaces per-engagement COUNT loops in /api/notifications/count and /api/messages; fixed query count regardless of engagement volume`
+  - Schema version: v58
+  - Migration 00058 in table
+- [x] Update `supabase/README.md`: new migration + RPC
+- [x] Update `packages/db/README.md` if the RPC is exposed through db helpers (likely not — called directly via `supabase.rpc()`)
+- [x] Remove the N+1 deferred decision from `BUILD_STATE.md` Deferred Decisions section (it's resolved)
 
 ---
 
 ## Done
 
-(See git history for completed stages 51-123)
+(See git history for completed stages 51-123, fixes 118a/123a/123b)

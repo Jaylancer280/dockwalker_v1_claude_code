@@ -169,10 +169,12 @@
 - [Fix 118a] Invitations GET filters out fully-filled daywork positions (positions_filled >= positions_available); 2 new tests
 - [Fix 123a] Rollback 00057 completed — full apply_projection body from 00056 restored (self-contained per CLAUDE.md rule 4)
 - [Fix 123b] Onboarding UI — nationality dropdown (required for crew) and visa checkboxes added to profile step; wired into submit payload with validation
+- [Stage 124] Engagement starts tomorrow reminder — daily cron (07:00 UTC), in-app + push + email notification for both parties, duplicate prevention, engagement-starting email template, exported getRecipientEmail; 5 new tests (716 total)
+- [Stage 125] Notification count N+1 fix — `get_unread_counts` Postgres function (migration 00058) replaces per-engagement COUNT loops in `/api/notifications/count` and `/api/messages`; fixed query count regardless of engagement volume; tests updated to mock RPC
 
 ## Current Schema Version
 
-v57 — nationality and visas (57 migrations applied)
+v58 — unread counts function (58 migrations applied)
 
 ## Migrations Applied
 
@@ -235,6 +237,7 @@ v57 — nationality and visas (57 migrations applied)
 | `00055_hybrid_roles.sql`                     | Expands department CHECK constraint to include `deck_engineering`, `deck_interior`, `galley_interior`; inserts 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew)                                                                                                                            |
 | `00056_invitation_source.sql`                | Adds `source` column (`direct`/`invitation`) to `applications`; updates `apply_projection` DAYWORK.APPLIED handler to auto-shortlist when source is `invitation`                                                                                                                               |
 | `00057_nationality_and_visas.sql`            | `nationalities` (40 entries) and `visa_types` (10 entries) canonical lookups with RLS; `nationality_id` and `visa_ids` columns on `profiles`; updated `apply_projection` PROFILE.CREATED/UPDATED handlers                                                                                      |
+| `00058_unread_counts_function.sql`           | `get_unread_counts(uuid)` Postgres function — returns per-engagement unread message counts in a single query, replacing N+1 COUNT loops in badge polling endpoints                                                                                                                             |
 
 ## Deferred Decisions
 
@@ -247,7 +250,6 @@ v57 — nationality and visas (57 migrations applied)
 - Admin tooling for duplicate vessel resolution (per-registrant IMO records may diverge)
 - "Verified against public records" badge on vessels
 - Size band discovery filter operates post-fetch (50-row DB limit applied before filtering) — may produce sparse results. Options: increase pre-filter limit when sizeBandId set, or denormalize size_band_id onto dayworks table
-- `GET /api/notifications/count` has N+1 query pattern: loops through each engagement and makes a separate Supabase count query per engagement to calculate unread messages. For a user with 20 engagements, that's 22 queries (1 notification count + 1 engagement list + 20 per-engagement message counts). Works at MVP scale but should be replaced with a single aggregate query or Postgres function before launch. Same pattern exists in `GET /api/messages` for per-conversation unread counts.
 - Stripe product/price creation and dashboard setup (required before subscriptions work in any environment)
 - MCA document corpus ingestion — pgvector table deployed empty, need PDF download + chunking + embedding script
 - Docky streaming responses (Anthropic SDK supports streaming; deferred to polish stage)

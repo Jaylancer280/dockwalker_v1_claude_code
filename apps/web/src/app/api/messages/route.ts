@@ -104,29 +104,12 @@ export async function GET() {
         }
       }
 
-      // Read cursors for unread counts
-      const { data: cursors } = await supabase
-        .from('message_read_cursors')
-        .select('engagement_id, last_read_at')
-        .eq('person_id', user.id)
-        .in('engagement_id', engagementIds);
-
-      const cursorMap = new Map<string, string>();
-      for (const c of cursors ?? []) {
-        cursorMap.set(c.engagement_id, c.last_read_at);
-      }
-
-      // Count unread per engagement
-      for (const engId of engagementIds) {
-        const lastRead = cursorMap.get(engId) ?? '1970-01-01T00:00:00Z';
-        const { count } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('engagement_id', engId)
-          .neq('sender_person_id', user.id)
-          .gt('created_at', lastRead);
-
-        unreadCounts[engId] = count ?? 0;
+      // Single RPC replaces N per-engagement COUNT queries + cursor lookup
+      const { data: unreadRows } = await supabase.rpc('get_unread_counts', {
+        p_person_id: user.id,
+      });
+      for (const r of unreadRows ?? []) {
+        unreadCounts[r.engagement_id as string] = r.unread_count as number;
       }
     }
 
