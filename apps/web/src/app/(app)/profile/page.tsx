@@ -72,6 +72,9 @@ interface Profile {
   avatar_url: string | null;
   agency_name: string | null;
   role_specialization_ids: string[];
+  nationality_id: string | null;
+  visa_ids: string[];
+  nationalities: { id: string; name: string; flag_emoji: string } | null;
   yacht_roles: { id: string; name: string } | null;
   experience_brackets: { id: string; label: string } | null;
   ports: { id: string; name: string; cities: { name: string; regions: { name: string } } } | null;
@@ -154,12 +157,18 @@ export default function ProfilePage() {
   const [vesselSizeExposureIds, setVesselSizeExposureIds] = useState<string[]>([]);
   const [agencyName, setAgencyName] = useState('');
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
+  const [nationalityId, setNationalityId] = useState('');
+  const [visaIds, setVisaIds] = useState<string[]>([]);
 
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certs, setCerts] = useState<LookupItem[]>([]);
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
+  const [nationalities, setNationalities] = useState<
+    { id: string; name: string; flag_emoji: string }[]
+  >([]);
+  const [visaTypes, setVisaTypes] = useState<{ id: string; name: string }[]>([]);
 
   // Name maps for view-mode pills
   const [certNames, setCertNames] = useState<Record<string, string>>({});
@@ -169,7 +178,11 @@ export default function ProfilePage() {
     const res = await fetch('/api/profile');
     const data = await res.json();
     if (data.person) setPerson(data.person);
-    if (data.profile) setProfile(data.profile);
+    if (data.profile) {
+      setProfile(data.profile);
+      if (data.profile.nationality_id) setNationalityId(data.profile.nationality_id);
+      if (data.profile.visa_ids) setVisaIds(data.profile.visa_ids);
+    }
     setLoading(false);
   }, []);
 
@@ -195,6 +208,14 @@ export default function ProfilePage() {
   // Load cert and size band names for view-mode pills
   const loadLookupNames = useCallback(async (p: Profile) => {
     const supabase = createClient();
+    // Load nationalities and visa types for view + edit modes
+    const [natRes, visaRes] = await Promise.all([
+      supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
+      supabase.from('visa_types').select('id, name').order('sort_order'),
+    ]);
+    if (natRes.data) setNationalities(natRes.data);
+    if (visaRes.data) setVisaTypes(visaRes.data);
+
     if (p.certification_ids?.length > 0) {
       const { data } = await supabase
         .from('certifications')
@@ -273,6 +294,8 @@ export default function ProfilePage() {
     setVesselSizeExposureIds(profile.vessel_size_exposure_ids ?? []);
     setAgencyName(profile.agency_name ?? '');
     setRoleSpecializationIds(profile.role_specialization_ids ?? []);
+    setNationalityId(profile.nationality_id ?? '');
+    setVisaIds(profile.visa_ids ?? []);
     setEditing(true);
 
     // Load lookups for edit mode
@@ -303,6 +326,8 @@ export default function ProfilePage() {
       body.experienceBracketId = experienceBracketId || null;
       body.certificationIds = certificationIds;
       body.vesselSizeExposureIds = vesselSizeExposureIds;
+      body.nationalityId = nationalityId || null;
+      body.visaIds = visaIds;
     } else {
       body.agencyName = agencyName || null;
       body.roleSpecializationIds = roleSpecializationIds;
@@ -573,6 +598,29 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+            {profile.nationalities && (
+              <div>
+                <p className="text-xs text-muted-foreground">Nationality</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-lg">{profile.nationalities.flag_emoji}</span>
+                  <span className="text-sm">{profile.nationalities.name}</span>
+                </div>
+              </div>
+            )}
+            {visaIds.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground">Visas</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {visaTypes
+                    .filter((v) => visaIds.includes(v.id))
+                    .map((v) => (
+                      <Badge key={v.id} variant="outline">
+                        {v.name}
+                      </Badge>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -838,6 +886,37 @@ export default function ProfilePage() {
                       }
                     />
                     {sb.label ?? sb.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Nationality</Label>
+              <Select value={nationalityId} onValueChange={setNationalityId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select nationality" />
+                </SelectTrigger>
+                <SelectContent>
+                  {nationalities.map((n) => (
+                    <SelectItem key={n.id} value={n.id}>
+                      {n.flag_emoji} {n.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Visas</Label>
+              <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+                {visaTypes.map((v) => (
+                  <label key={v.id} className="flex items-center gap-2 py-1.5 text-sm">
+                    <Checkbox
+                      checked={visaIds.includes(v.id)}
+                      onCheckedChange={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
+                    />
+                    {v.name}
                   </label>
                 ))}
               </div>

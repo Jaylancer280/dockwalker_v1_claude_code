@@ -165,10 +165,11 @@
 - [Stage 120] Toast consistency — success/error toasts on all mutations across discover (apply/withdraw/invite), mine (cancel/positions/templates), post (submit/save template), review (accept/reject/shortlist/invite), chat (completion/rating/work-started/checklist/postponement/cancel/relist), vessels (add)
 - [Stage 121] Test gap coverage — propose-postponement (8 tests), respond-postponement (5 tests), respond-crew-cancel (5 tests), notifications/count (5 tests); invite/extend/relist already covered; 701 tests total
 - [Stage 122] Test coverage completion — messages-read (4 tests), notifications-read (4 tests); checklist set/toggle, push-tokens, profile-view, experiences already covered by existing tests; 709 tests total
+- [Stage 123] Crew nationality + visas — `nationalities` (40 entries) and `visa_types` (10 entries) canonical lookups, `nationality_id` and `visa_ids` on profiles, updated `apply_projection`, onboarding + profile edit + profile PATCH accept nationality/visas, flag emoji display on profile page + overlay + review cards (ApplicantCard + AvailableCrewCard), view-only profile API returns nationality + visas
 
 ## Current Schema Version
 
-v56 — invitation source (56 migrations applied)
+v57 — nationality and visas (57 migrations applied)
 
 ## Migrations Applied
 
@@ -230,6 +231,7 @@ v56 — invitation source (56 migrations applied)
 | `00054_admin_canonical_projection.sql`       | Adds audit-only no-op handlers for `ADMIN.CANONICAL_ADDED` and `ADMIN.CANONICAL_UPDATED` in `apply_projection` (RAISE NOTICE instead of falling through to unknown event warning)                                                                                                              |
 | `00055_hybrid_roles.sql`                     | Expands department CHECK constraint to include `deck_engineering`, `deck_interior`, `galley_interior`; inserts 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew)                                                                                                                            |
 | `00056_invitation_source.sql`                | Adds `source` column (`direct`/`invitation`) to `applications`; updates `apply_projection` DAYWORK.APPLIED handler to auto-shortlist when source is `invitation`                                                                                                                               |
+| `00057_nationality_and_visas.sql`            | `nationalities` (40 entries) and `visa_types` (10 entries) canonical lookups with RLS; `nationality_id` and `visa_ids` columns on `profiles`; updated `apply_projection` PROFILE.CREATED/UPDATED handlers                                                                                      |
 
 ## Deferred Decisions
 

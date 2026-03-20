@@ -879,7 +879,7 @@ Route: `GET /api/experiences/[id]`
 
 #### 1. Migration — `00057_nationality_and_visas.sql`
 
-- [ ] Create `nationalities` canonical lookup table:
+- [x] Create `nationalities` canonical lookup table:
 
   ```sql
   create table public.nationalities (
@@ -893,7 +893,7 @@ Route: `GET /api/experiences/[id]`
 
   RLS: read-only for authenticated users.
 
-- [ ] Create `visa_types` canonical lookup table:
+- [x] Create `visa_types` canonical lookup table:
 
   ```sql
   create table public.visa_types (
@@ -906,81 +906,81 @@ Route: `GET /api/experiences/[id]`
 
   RLS: read-only for authenticated users.
 
-- [ ] Add columns to `profiles`:
+- [x] Add columns to `profiles`:
 
   ```sql
   alter table public.profiles add column nationality_id uuid references public.nationalities(id);
   alter table public.profiles add column visa_ids uuid[] default '{}';
   ```
 
-- [ ] Update `apply_projection` for `PROFILE.CREATED` and `PROFILE.UPDATED` to write `nationality_id` and `visa_ids` from payload
+- [x] Update `apply_projection` for `PROFILE.CREATED` and `PROFILE.UPDATED` to write `nationality_id` and `visa_ids` from payload
 
-- [ ] Seed data — nationalities: start with the top maritime crew nationalities (~30-40 countries covering major flag states + common crew origins). Visa types: Schengen, B1/B2 US, C1/D US, UAE residence, UK work visa, Australian work visa, Bahamian work permit, plus an "Other" catch-all.
+- [x] Seed data — nationalities: start with the top maritime crew nationalities (~30-40 countries covering major flag states + common crew origins). Visa types: Schengen, B1/B2 US, C1/D US, UAE residence, UK work visa, Australian work visa, Bahamian work permit, plus an "Other" catch-all.
 
-- [ ] Corresponding rollback
+- [x] Corresponding rollback
 
 ---
 
 #### 2. Types — `packages/types/src/events.ts`
 
-- [ ] Add `nationality_id?: string` and `visa_ids?: string[]` to `PROFILE.CREATED` and `PROFILE.UPDATED` payloads
+- [x] Add `nationality_id?: string` and `visa_ids?: string[]` to `PROFILE.CREATED` and `PROFILE.UPDATED` payloads
 
 ---
 
 #### 3. Onboarding — collect nationality + visas
 
-- [ ] API: `POST /api/onboarding` — accept `nationalityId` and `visaIds` in profile payload
-- [ ] UI: add nationality dropdown (searchable, with flag emoji prefix) and visa multi-select to the onboarding flow
-- [ ] Nationality required for crew, visas optional
+- [x] API: `POST /api/onboarding` — accept `nationalityId` and `visaIds` in profile payload
+- [x] UI: add nationality dropdown (searchable, with flag emoji prefix) and visa multi-select to the onboarding flow
+- [x] Nationality required for crew, visas optional
 
 ---
 
 #### 4. Profile edit — nationality + visas editable
 
-- [ ] Profile page edit mode: add nationality dropdown + visa multi-select
-- [ ] Profile save: include `nationalityId` and `visaIds` in PROFILE.UPDATED event
+- [x] Profile page edit mode: add nationality dropdown + visa multi-select
+- [x] Profile save: include `nationalityId` and `visaIds` in PROFILE.UPDATED event
 
 ---
 
 #### 5. Profile display — nationality flag visual
 
-- [ ] Crew profile page: show nationality flag emoji + country name near the display name
-- [ ] Visa pills below nationality (similar to cert pills)
-- [ ] Profile overlay: same — flag + name in header, visa pills in body
+- [x] Crew profile page: show nationality flag emoji + country name near the display name
+- [x] Visa pills below nationality (similar to cert pills)
+- [x] Profile overlay: same — flag + name in header, visa pills in body
 
 ---
 
 #### 6. Cards — nationality flag on all crew-visible surfaces
 
-- [ ] Review page ApplicantCard: nationality flag emoji next to crew name
-- [ ] Review page AvailableCrewCard: same
-- [ ] Discover page application cards: flag next to role/name if visible
-- [ ] Discover page invitation cards: flag on employer view of invited crew (if applicable)
-- [ ] Messages list: optional — flag next to counterparty name
+- [x] Review page ApplicantCard: nationality flag emoji next to crew name
+- [x] Review page AvailableCrewCard: same
+- [x] Discover page application cards: flag next to role/name if visible
+- [x] Discover page invitation cards: flag on employer view of invited crew (if applicable)
+- [x] Messages list: optional — flag next to counterparty name
 
 ---
 
 #### 7. View-only profile API — include nationality + visas
 
-- [ ] `GET /api/profile/[personId]`: include `nationality` (resolved name + country_code + flag_emoji) and `visas` (resolved names) in crew profile response
+- [x] `GET /api/profile/[personId]`: include `nationality` (resolved name + country_code + flag_emoji) and `visas` (resolved names) in crew profile response
 
 ---
 
 #### 8. Tests
 
-- [ ] Onboarding test: nationality + visas persisted
-- [ ] Profile update test: nationality + visa change
-- [ ] View profile test: nationality + visas returned
-- [ ] Integration test: PROFILE.CREATED with nationality_id + visa_ids → projection writes correctly
+- [x] Onboarding test: nationality + visas persisted
+- [x] Profile update test: nationality + visa change
+- [x] View profile test: nationality + visas returned
+- [x] Integration test: PROFILE.CREATED with nationality_id + visa_ids → projection writes correctly
 
 ---
 
 #### 9. Documentation
 
-- [ ] Update `BUILD_STATE.md`: stage entry, schema version, migration table
-- [ ] Update `packages/types/README.md` — new payload fields
-- [ ] Update `supabase/README.md` — new migration + tables
-- [ ] Update `apps/web/README.md` — new lookup endpoints if any
+- [x] Update `BUILD_STATE.md`: stage entry, schema version, migration table
+- [x] Update `packages/types/README.md` — new payload fields
+- [x] Update `supabase/README.md` — new migration + tables
+- [x] Update `apps/web/README.md` — new lookup endpoints if any
 
 ---
 

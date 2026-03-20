@@ -90,6 +90,8 @@ export async function POST(request: Request) {
       available_to_start: profile.availableToStart || null,
       onboarding_version: profile.onboardingVersion ?? 1,
       ...(profile.avatarUrl ? { avatar_url: profile.avatarUrl } : {}),
+      nationality_id: profile.nationalityId || null,
+      visa_ids: profile.visaIds || [],
     };
 
     // Step 1: Create person + profile atomically

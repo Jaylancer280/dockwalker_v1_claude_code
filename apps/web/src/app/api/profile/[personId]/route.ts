@@ -38,11 +38,12 @@ export async function GET(
         `
       person_id, display_name, identity_type, bio, avatar_url,
       primary_role_id, certification_ids, experience_bracket_id,
-      vessel_size_exposure_ids, location_port_id,
+      vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
       agency_name, role_specialization_ids,
       yacht_roles(id, name, department),
       experience_brackets(id, label),
-      ports(name, cities(name, regions(name)))
+      ports(name, cities(name, regions(name))),
+      nationalities(id, name, country_code, flag_emoji)
     `,
       )
       .eq('person_id', personId)
@@ -145,6 +146,16 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     .eq('person_id', personId)
     .order('start_date', { ascending: false });
 
+  // Resolve visa names
+  let visas: { id: string; name: string }[] = [];
+  if (profile.visa_ids?.length > 0) {
+    const { data } = await supabase
+      .from('visa_types')
+      .select('id, name')
+      .in('id', profile.visa_ids);
+    visas = data ?? [];
+  }
+
   const ports = profile.ports as {
     name: string;
     cities: { name: string; regions: { name: string } };
@@ -155,7 +166,10 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     display_name: profile.display_name,
     identity_type: 'crew',
     bio: profile.bio,
+    avatar_url: profile.avatar_url,
     primary_role: profile.yacht_roles,
+    nationality: profile.nationalities ?? null,
+    visas,
     certifications,
     experience_bracket: profile.experience_brackets,
     vessel_size_exposure: vesselSizeExposure,

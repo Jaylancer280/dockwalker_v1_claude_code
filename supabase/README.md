@@ -83,6 +83,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Admin Canonical Projection                    | 00054     | Adds audit-only no-op handlers for `ADMIN.CANONICAL_ADDED` and `ADMIN.CANONICAL_UPDATED` in `apply_projection` (RAISE NOTICE instead of unknown event warning).                                                                                                                                   |
 | Hybrid Roles                                  | 00055     | Expands department CHECK constraint to include `deck_engineering`, `deck_interior`, `galley_interior`. Inserts 3 hybrid roles: Deck/Engineer, Deck/Stew, Cook/Stew.                                                                                                                               |
 | Invitation Source                             | 00056     | Adds `source` column (`direct`/`invitation`) to `applications`. Updates `apply_projection` DAYWORK.APPLIED handler: when `source = 'invitation'`, application is created as `shortlisted` instead of `applied`. Multi-crew invitation revocation unchanged (already position-gated).              |
+| Nationality + Visas                           | 00057     | `nationalities` (40 entries, flag emoji) and `visa_types` (10 entries, region-grouped) canonical lookups with read-only RLS. `nationality_id` and `visa_ids` columns on `profiles`. Updated `apply_projection` PROFILE.CREATED/UPDATED handlers.                                                  |
 
 ## Daywork Status Lifecycle
 

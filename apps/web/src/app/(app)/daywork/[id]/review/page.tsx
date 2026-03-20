@@ -59,6 +59,7 @@ interface ApplicantProfile {
   } | null;
   certification_ids: string[];
   vessel_size_exposure_ids: string[];
+  nationalities: { name: string; flag_emoji: string } | null;
 }
 
 interface Applicant {
@@ -92,6 +93,7 @@ interface AvailableCrew {
     cities: { name: string; regions: { name: string } };
   } | null;
   available_days: number;
+  nationalities: { name: string; flag_emoji: string } | null;
 }
 
 type TabView = 'applicants' | 'shortlist' | 'available';
@@ -961,7 +963,12 @@ function AvailableCrewCard({
           <Avatar src={crew.avatar_url ?? null} name={crew.display_name ?? '?'} size="md" />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold">{crew.display_name ?? 'Unknown'}</h3>
+              <h3 className="text-lg font-bold">
+                {crew.nationalities?.flag_emoji && (
+                  <span className="mr-1">{crew.nationalities.flag_emoji}</span>
+                )}
+                {crew.display_name ?? 'Unknown'}
+              </h3>
               {!isPreview && onViewProfile && (
                 <button
                   className="ml-auto p-2 -m-2 text-muted-foreground hover:text-primary"
@@ -1062,7 +1069,12 @@ function ApplicantCard({
           <Avatar src={profile?.avatar_url ?? null} name={profile?.display_name ?? '?'} size="md" />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold">{profile?.display_name ?? 'Unknown'}</h3>
+              <h3 className="text-lg font-bold">
+                {profile?.nationalities?.flag_emoji && (
+                  <span className="mr-1">{profile.nationalities.flag_emoji}</span>
+                )}
+                {profile?.display_name ?? 'Unknown'}
+              </h3>
               {applicant.status === 'shortlisted' && (
                 <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
               )}

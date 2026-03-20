@@ -105,6 +105,8 @@ export interface EventPayloadMap {
     available_to_start?: string | null;
     onboarding_version?: number;
     avatar_url?: string | null;
+    nationality_id?: string | null;
+    visa_ids?: string[];
   };
   'PROFILE.UPDATED': {
     display_name?: string;
@@ -121,6 +123,8 @@ export interface EventPayloadMap {
     languages?: string[];
     available_to_start?: string | null;
     avatar_url?: string | null;
+    nationality_id?: string | null;
+    visa_ids?: string[];
   };
   'AGENT.VERIFIED': Record<string, never>;
   'VESSEL.CREATED': {

@@ -158,7 +158,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       experience_bracket_id, vessel_size_exposure_ids, bio, location_port_id,
       yacht_roles:primary_role_id(id, name, department),
       experience_brackets:experience_bracket_id(label),
-      ports:location_port_id(name, cities(name, regions(name)))
+      ports:location_port_id(name, cities(name, regions(name))),
+      nationalities:nationality_id(name, flag_emoji)
     `,
       )
       .in('person_id', eligibleIds);

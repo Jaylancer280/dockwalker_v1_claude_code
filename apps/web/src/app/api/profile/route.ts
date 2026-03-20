@@ -18,11 +18,12 @@ export async function GET() {
       `
       person_id, display_name, identity_type, bio, avatar_url,
       primary_role_id, certification_ids, experience_bracket_id,
-      vessel_size_exposure_ids, location_port_id,
+      vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
       agency_name, role_specialization_ids,
       yacht_roles(id, name),
       experience_brackets(id, label),
-      ports(id, name, cities(name, regions(name)))
+      ports(id, name, cities(name, regions(name))),
+      nationalities(id, name, country_code, flag_emoji)
     `,
     )
     .eq('person_id', user.id)
@@ -59,6 +60,8 @@ export async function PATCH(request: Request) {
   if (body.roleSpecializationIds !== undefined)
     payload.role_specialization_ids = body.roleSpecializationIds;
   if (body.locationPortId !== undefined) payload.location_port_id = body.locationPortId;
+  if (body.nationalityId !== undefined) payload.nationality_id = body.nationalityId;
+  if (body.visaIds !== undefined) payload.visa_ids = body.visaIds;
 
   if (Object.keys(payload).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });

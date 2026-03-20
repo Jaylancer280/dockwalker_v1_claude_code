@@ -32,6 +32,8 @@ interface CrewProfile {
   certifications: { id: string; name: string }[];
   experience_bracket: { id: string; label: string } | null;
   vessel_size_exposure: { id: string; label: string }[];
+  nationality: { id: string; name: string; country_code: string; flag_emoji: string } | null;
+  visas: { id: string; name: string }[];
   location: { port: string; city: string; region: string } | null;
   experiences: CrewExperience[];
 }
@@ -141,7 +143,12 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
       <div className="flex items-center gap-3">
         <Avatar src={profile.avatar_url} name={profile.display_name} size="md" />
         <div>
-          <p className="font-semibold">{profile.display_name}</p>
+          <p className="font-semibold">
+            {profile.nationality?.flag_emoji && (
+              <span className="mr-1.5">{profile.nationality.flag_emoji}</span>
+            )}
+            {profile.display_name}
+          </p>
           {profile.primary_role && (
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               <span>{profile.primary_role.name}</span>
@@ -200,6 +207,20 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
             {profile.vessel_size_exposure.map((s) => (
               <span key={s.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">
                 {s.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Visas */}
+      {profile.visas.length > 0 && (
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">Visas</p>
+          <div className="flex flex-wrap gap-1">
+            {profile.visas.map((v) => (
+              <span key={v.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                {v.name}
               </span>
             ))}
           </div>
