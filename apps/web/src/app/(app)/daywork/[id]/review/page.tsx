@@ -72,6 +72,7 @@ interface Applicant {
   availability_city: string | null;
   availability_not_available: boolean;
   past_daywork_count: number;
+  source: string | null;
 }
 
 interface AvailableCrew {
@@ -100,7 +101,7 @@ const SWIPE_THRESHOLD = 100;
 export default function ReviewApplicantsPage() {
   const { id: dayworkId } = useParams<{ id: string }>();
   const router = useRouter();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const [allApplicants, setAllApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -251,6 +252,7 @@ export default function ReviewApplicantsPage() {
       method: 'POST',
     });
     if (res.ok) {
+      showSuccess('Added to shortlist');
       setAllApplicants((prev) =>
         prev.map((a) => (a.crew_person_id === crewId ? { ...a, status: 'shortlisted' } : a)),
       );
@@ -288,6 +290,7 @@ export default function ReviewApplicantsPage() {
         setAllApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
       }
 
+      showSuccess('Crew accepted');
       if (data.engagementId) {
         setAcceptedDialog({ crewName, engagementId: data.engagementId });
       }
@@ -304,6 +307,7 @@ export default function ReviewApplicantsPage() {
       method: 'POST',
     });
     if (res.ok) {
+      showSuccess('Applicant rejected');
       setAllApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
     } else {
       const data = await res.json().catch(() => ({}));
@@ -321,6 +325,7 @@ export default function ReviewApplicantsPage() {
       body: JSON.stringify({ crewPersonId: personId }),
     });
     if (res.ok) {
+      showSuccess('Invitation sent');
       setAvailableCrew((prev) => prev.filter((c) => c.person_id !== personId));
       setInvitationCount((prev) => prev + 1);
     } else {
@@ -1060,6 +1065,11 @@ function ApplicantCard({
               <h3 className="text-lg font-bold">{profile?.display_name ?? 'Unknown'}</h3>
               {applicant.status === 'shortlisted' && (
                 <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+              )}
+              {applicant.source === 'invitation' && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  Invited
+                </span>
               )}
               {!isPreview && (
                 <button

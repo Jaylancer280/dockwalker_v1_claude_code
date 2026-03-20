@@ -96,13 +96,19 @@ export async function GET() {
 
     const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
 
-    // Filter out invitations where the daywork start date has already passed
+    // Filter out stale invitations:
+    // - daywork start date has passed
+    // - daywork is not active (cancelled/completed/in_progress)
+    // - all positions are filled
     const today = new Date().toISOString().slice(0, 10);
     const validInvitations = invitations.filter((inv) => {
       const dw = dayworkMap.get(inv.daywork_id) as Record<string, unknown> | undefined;
       if (!dw) return true; // keep if daywork not found (will show null daywork)
       const startDate = dw.start_date as string | null;
-      return !startDate || startDate >= today;
+      if (startDate && startDate < today) return false;
+      const status = dw.status as string | null;
+      if (status && status !== 'active') return false;
+      return true;
     });
 
     // Hydrate invitations

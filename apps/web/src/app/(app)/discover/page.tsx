@@ -170,7 +170,7 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 const SWIPE_THRESHOLD = 100;
 
 export default function DiscoverPage() {
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const prefs = usePreferences();
   const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>('browse');
   const [cards, setCards] = useState<DayworkCard[]>([]);
@@ -363,6 +363,7 @@ export default function DiscoverPage() {
     const res = await fetch(`/api/daywork/${dayworkId}/apply`, opts);
     if (res.ok) {
       setCards((prev) => prev.filter((c) => c.id !== dayworkId));
+      showSuccess('Application sent');
       // Refresh application count for the badge
       loadApplications();
     } else {
@@ -414,6 +415,7 @@ export default function DiscoverPage() {
     const res = await fetch(`/api/daywork/${dayworkId}/withdraw`, { method: 'POST' });
     if (res.ok) {
       setApplications((prev) => prev.filter((a) => a.daywork_id !== dayworkId));
+      showSuccess('Application withdrawn');
     } else {
       const data = await res.json().catch(() => ({}));
       showError(data.error ?? 'Failed to withdraw');
@@ -447,6 +449,7 @@ export default function DiscoverPage() {
     });
     if (res.ok) {
       setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      showSuccess('Invitation accepted');
       loadApplications();
     } else {
       const data = await res.json().catch(() => ({}));
@@ -466,6 +469,7 @@ export default function DiscoverPage() {
     });
     if (res.ok) {
       setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      showSuccess('Invitation declined');
     } else {
       const data = await res.json().catch(() => ({}));
       setInvitationError(data.error ?? 'Failed to decline invitation');

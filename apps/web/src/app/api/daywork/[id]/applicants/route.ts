@@ -38,7 +38,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .from('applications')
       .select(
         `
-      id, crew_person_id, status, message, created_at,
+      id, crew_person_id, status, message, created_at, source,
       profiles!applications_crew_person_id_profiles_fkey(
         display_name, avatar_url,
         primary_role_id,

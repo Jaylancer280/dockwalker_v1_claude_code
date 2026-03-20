@@ -192,6 +192,7 @@ export interface EventPayloadMap {
     daywork_id: string;
     crew_person_id?: string;
     message?: string | null;
+    source?: 'direct' | 'invitation';
   };
   'DAYWORK.VIEWED': { daywork_id: string; crew_person_id: string };
   'DAYWORK.SHORTLISTED': { daywork_id: string; crew_person_id: string };

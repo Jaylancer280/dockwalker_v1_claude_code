@@ -142,6 +142,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           id: applicationId,
           daywork_id: invitation.daywork_id,
           crew_person_id: user.id,
+          source: 'invitation',
         },
         personId: user.id,
       },

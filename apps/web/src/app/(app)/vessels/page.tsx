@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Ship, Plus, ShieldAlert, Loader2 } from 'lucide-react';
+import { Ship, Plus, ShieldAlert, Loader2, Pencil } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
+import { useToast } from '@/hooks/use-toast';
 
 interface Vessel {
   id: string;
@@ -81,8 +83,11 @@ export default function VesselsPage() {
     loadSizeBands();
   }, [loadVessels]);
 
+  const { showSuccess } = useToast();
+
   function handleCreated() {
     setDialogOpen(false);
+    showSuccess('Vessel added');
     loadVessels();
   }
 
@@ -150,12 +155,19 @@ export default function VesselsPage() {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">{vessel.name}</CardTitle>
-                {vessel.nda_flag && (
-                  <Badge variant="outline" className="gap-1 text-xs">
-                    <ShieldAlert className="h-3 w-3" />
-                    NDA
-                  </Badge>
-                )}
+                <div className="flex items-center gap-1">
+                  <Link href={`/vessels/${vessel.id}/edit`}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
+                  {vessel.nda_flag && (
+                    <Badge variant="outline" className="gap-1 text-xs">
+                      <ShieldAlert className="h-3 w-3" />
+                      NDA
+                    </Badge>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent>

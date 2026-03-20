@@ -281,7 +281,7 @@ File: `apps/web/src/app/(app)/discover/page.tsx`
 
 File: `supabase/migrations/00056_invitation_source.sql`
 
-- [ ] Add nullable `source` column to `applications`:
+- [x] Add nullable `source` column to `applications`:
 
   ```sql
   alter table public.applications add column source text
@@ -290,7 +290,7 @@ File: `supabase/migrations/00056_invitation_source.sql`
 
   NULL = legacy applications (before this migration). `'direct'` = organic apply. `'invitation'` = accepted invitation.
 
-- [ ] Update `apply_projection` `DAYWORK.APPLIED` handler:
+- [x] Update `apply_projection` `DAYWORK.APPLIED` handler:
 
   ```sql
   -- BEFORE:
@@ -309,7 +309,7 @@ File: `supabase/migrations/00056_invitation_source.sql`
 
   When `source = 'invitation'`, the application is created directly as `shortlisted` — no separate `DAYWORK.SHORTLISTED` event needed.
 
-- [ ] Update `apply_projection` `DAYWORK.ACCEPTED` handler — fix multi-crew invitation revocation:
+- [x] Update `apply_projection` `DAYWORK.ACCEPTED` handler — fix multi-crew invitation revocation:
 
   ```sql
   -- BEFORE: unconditionally revoke ALL pending invitations
@@ -327,7 +327,7 @@ File: `supabase/migrations/00056_invitation_source.sql`
 
   For single-position jobs, this behaves identically (first accept fills all positions → revoke). For multi-crew, invitations stay open until all positions are filled.
 
-- [ ] Corresponding rollback: `supabase/rollbacks/00056_invitation_source.down.sql` — drop `source` column, restore previous `apply_projection` body
+- [x] Corresponding rollback: `supabase/rollbacks/00056_invitation_source.down.sql` — drop `source` column, restore previous `apply_projection` body
 
 ---
 
@@ -335,7 +335,7 @@ File: `supabase/migrations/00056_invitation_source.sql`
 
 File: `packages/types/src/events.ts`
 
-- [ ] Add optional `source` field to `DAYWORK.APPLIED` payload:
+- [x] Add optional `source` field to `DAYWORK.APPLIED` payload:
   ```typescript
   'DAYWORK.APPLIED': {
     id: string;
@@ -352,7 +352,7 @@ File: `packages/types/src/events.ts`
 
 File: `apps/web/src/app/api/daywork/invitations/[id]/respond/route.ts`
 
-- [ ] In the accept path, add `source: 'invitation'` to the `DAYWORK.APPLIED` event payload:
+- [x] In the accept path, add `source: 'invitation'` to the `DAYWORK.APPLIED` event payload:
   ```typescript
   {
     eventType: 'DAYWORK.APPLIED',
@@ -372,8 +372,8 @@ File: `apps/web/src/app/api/daywork/invitations/[id]/respond/route.ts`
 
 File: `apps/web/src/app/api/daywork/[id]/apply/route.ts`
 
-- [ ] Add `source: 'direct'` to the `DAYWORK.APPLIED` event payload (or omit it — NULL means legacy/direct, which is also fine)
-- [ ] **Decision: omit it.** NULL = direct apply. Only invitation accepts set `source: 'invitation'`. This avoids touching the direct apply route at all — backward compatible.
+- [x] Add `source: 'direct'` to the `DAYWORK.APPLIED` event payload (or omit it — NULL means legacy/direct, which is also fine)
+- [x] **Decision: omit it.** NULL = direct apply. Only invitation accepts set `source: 'invitation'`. This avoids touching the direct apply route at all — backward compatible.
 
 ---
 
@@ -381,14 +381,14 @@ File: `apps/web/src/app/api/daywork/[id]/apply/route.ts`
 
 File: `apps/web/src/app/api/daywork/[id]/applicants/route.ts`
 
-- [ ] Add `source` to the select query:
+- [x] Add `source` to the select query:
   ```typescript
   .select(`
     id, crew_person_id, status, message, created_at, source,
     profiles!applications_crew_person_id_profiles_fkey(...)
   `)
   ```
-- [ ] The response now includes `source: 'invitation' | 'direct' | null` per applicant
+- [x] The response now includes `source: 'invitation' | 'direct' | null` per applicant
 
 ---
 
@@ -396,7 +396,7 @@ File: `apps/web/src/app/api/daywork/[id]/applicants/route.ts`
 
 File: `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`
 
-- [ ] In the `ApplicantCard` component, add an "Invited" badge when `applicant.source === 'invitation'`:
+- [x] In the `ApplicantCard` component, add an "Invited" badge when `applicant.source === 'invitation'`:
 
   ```tsx
   {
@@ -410,7 +410,7 @@ File: `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`
 
   Position: on the name line, after the shortlist star (or replacing it — they'll already be in the Shortlisted tab since auto-shortlisted)
 
-- [ ] The invited crew will appear in the **Shortlisted tab** automatically (their status is `shortlisted` from the projection). The "Invited" badge provides additional context about WHY they're shortlisted.
+- [x] The invited crew will appear in the **Shortlisted tab** automatically (their status is `shortlisted` from the projection). The "Invited" badge provides additional context about WHY they're shortlisted.
 
 ---
 
@@ -418,7 +418,7 @@ File: `apps/web/src/app/(app)/daywork/[id]/review/page.tsx`
 
 File: `apps/web/src/app/api/daywork/invitations/route.ts`
 
-- [ ] Add a join or subquery to filter out invitations where the daywork is no longer active:
+- [x] Add a join or subquery to filter out invitations where the daywork is no longer active:
 
   ```typescript
   // Add to the existing query chain:
@@ -427,30 +427,30 @@ File: `apps/web/src/app/api/daywork/invitations/route.ts`
 
   Or post-fetch filter if the join is complex. This prevents crew from seeing invitations for cancelled or completed dayworks.
 
-- [ ] Also filter out invitations where `positions_filled >= positions_available` on the daywork (all positions full — invitation is effectively stale even though not yet revoked)
+- [x] Also filter out invitations where `positions_filled >= positions_available` on the daywork (all positions full — invitation is effectively stale even though not yet revoked)
 
 ---
 
 #### 8. Tests
 
-- [ ] Update existing invitation respond tests: verify accepted invitation creates application with `source: 'invitation'` and `status: 'shortlisted'`
-- [ ] Add test: applicants API returns `source` field
-- [ ] Add test: multi-crew accept does NOT revoke invitations when positions remain
-- [ ] Add test: multi-crew accept DOES revoke invitations when last position is filled
-- [ ] Add integration test: invitation accept → application created as shortlisted (verify in DB)
-- [ ] Verify existing invitation tests still pass
+- [x] Update existing invitation respond tests: verify accepted invitation creates application with `source: 'invitation'` and `status: 'shortlisted'`
+- [x] Add test: applicants API returns `source` field
+- [x] Add test: multi-crew accept does NOT revoke invitations when positions remain
+- [x] Add test: multi-crew accept DOES revoke invitations when last position is filled
+- [x] Add integration test: invitation accept → application created as shortlisted (verify in DB)
+- [x] Verify existing invitation tests still pass
 
 ---
 
 #### 9. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 118] Invitation accept improvements — auto-shortlist invited crew (source column on applications, conditional status in apply_projection), "Invited" badge on review page, multi-crew invitation revocation only when positions full, stale invitation filtering`
   - Update schema version
   - Add migration 00056 to table
-- [ ] Update `packages/types/README.md` — new payload field
-- [ ] Update `supabase/README.md` — new migration
-- [ ] Update `apps/web/README.md` if applicants API response shape changed
+- [x] Update `packages/types/README.md` — new payload field
+- [x] Update `supabase/README.md` — new migration
+- [x] Update `apps/web/README.md` if applicants API response shape changed
 
 ---
 
@@ -473,8 +473,8 @@ The header currently crams job number, role, location, and dates into a single `
 - The daywork summary card pinned below the header
 - The inbox thread list (role + location + dates)
 
-- [ ] Remove the job context `<div>` from the header (the `flex items-center gap-2 text-xs text-muted-foreground` block with job number, role, location, dates)
-- [ ] Keep only:
+- [x] Remove the job context `<div>` from the header (the `flex items-center gap-2 text-xs text-muted-foreground` block with job number, role, location, dates)
+- [x] Keep only:
   ```tsx
   <header className="shrink-0 border-b border-border bg-background px-4 py-3">
     <div className="mx-auto flex max-w-lg items-center gap-3">
@@ -488,8 +488,8 @@ The header currently crams job number, role, location, and dates into a single `
     </div>
   </header>
   ```
-- [ ] The daywork summary card remains pinned below the header — it already shows all job details in a clean, readable card format
-- [ ] Verify the header now looks clean on 375px mobile viewport
+- [x] The daywork summary card remains pinned below the header — it already shows all job details in a clean, readable card format
+- [x] Verify the header now looks clean on 375px mobile viewport
 
 ---
 
@@ -497,11 +497,11 @@ The header currently crams job number, role, location, and dates into a single `
 
 File: `apps/web/src/app/(app)/vessels/page.tsx` (or wherever vessel list is rendered)
 
-- [ ] Add an edit icon button (Pencil) on each vessel card — top-right corner or inline
-- [ ] On tap, navigate to an edit form or open an inline edit mode
-- [ ] **Option A (simpler):** Navigate to `/vessels/[id]/edit` — new page with form pre-populated from vessel data, calls `PATCH /api/vessels/[id]`
-- [ ] **Option B:** Inline edit on the card — more complex, not worth it for v1
-- [ ] **Go with Option A.** Create `/vessels/[id]/edit/page.tsx`:
+- [x] Add an edit icon button (Pencil) on each vessel card — top-right corner or inline
+- [x] On tap, navigate to an edit form or open an inline edit mode
+- [x] **Option A (simpler):** Navigate to `/vessels/[id]/edit` — new page with form pre-populated from vessel data, calls `PATCH /api/vessels/[id]`
+- [x] **Option B:** Inline edit on the card — more complex, not worth it for v1
+- [x] **Go with Option A.** Create `/vessels/[id]/edit/page.tsx`:
   - Fetch vessel by ID on mount
   - Pre-populate form: name, vessel type (motor/sail), LOA, NDA flag
   - IMO is read-only (immutable per CLAUDE.md)
@@ -509,7 +509,7 @@ File: `apps/web/src/app/(app)/vessels/page.tsx` (or wherever vessel list is rend
   - Success toast + redirect back to vessels list
   - Error toast on failure
   - Try/catch/finally pattern for submit hardening
-- [ ] The `PATCH /api/vessels/[id]` route already exists (Stage 61) with full validation and NDA immutability guard — no API changes needed
+- [x] The `PATCH /api/vessels/[id]` route already exists (Stage 61) with full validation and NDA immutability guard — no API changes needed
 
 ---
 
@@ -520,8 +520,8 @@ File: `apps/web/src/app/(app)/profile/page.tsx`
 Current header right side: `[Edit button] [Settings gear]`
 Desired order: `[My Vessels button] [Edit button] [Settings gear]`
 
-- [ ] Import `Ship` icon from lucide-react
-- [ ] Add a "My Vessels" icon button, only visible when `person.current_hat` is `'employer'` or `'agent'`:
+- [x] Import `Ship` icon from lucide-react
+- [x] Add a "My Vessels" icon button, only visible when `person.current_hat` is `'employer'` or `'agent'`:
   ```tsx
   <div className="flex items-center gap-1">
     {!editing && person?.current_hat !== 'crew' && (
@@ -542,22 +542,22 @@ Desired order: `[My Vessels button] [Edit button] [Settings gear]`
     )}
   </div>
   ```
-- [ ] The Ship icon button matches the Settings gear style (ghost variant, icon size)
-- [ ] Hidden during edit mode (same as Settings) and hidden for crew hat (crew don't own vessels for daywork posting)
+- [x] The Ship icon button matches the Settings gear style (ghost variant, icon size)
+- [x] Hidden during edit mode (same as Settings) and hidden for crew hat (crew don't own vessels for daywork posting)
 
 ---
 
 #### 4. Tests
 
-- [ ] Verify existing chat page tests still pass after header simplification
-- [ ] Verify existing vessel tests still pass
-- [ ] No new API tests needed — `PATCH /api/vessels/[id]` already has test coverage
+- [x] Verify existing chat page tests still pass after header simplification
+- [x] Verify existing vessel tests still pass
+- [x] No new API tests needed — `PATCH /api/vessels/[id]` already has test coverage
 
 ---
 
 #### 5. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 119] Chat header cleanup (stripped to name + actions, job details in summary card only), vessel edit page (/vessels/[id]/edit with PATCH API), "My Vessels" Ship icon button on employer profile header`
 
 ---
@@ -576,10 +576,10 @@ Desired order: `[My Vessels button] [Edit button] [Settings gear]`
 
 `useToast` already imported.
 
-- [ ] Apply action: add `showSuccess('Application sent')`
-- [ ] Withdraw action: add `showSuccess('Application withdrawn')`
-- [ ] Accept invitation: add `showSuccess('Invitation accepted')`
-- [ ] Decline invitation: add `showSuccess('Invitation declined')`
+- [x] Apply action: add `showSuccess('Application sent')`
+- [x] Withdraw action: add `showSuccess('Application withdrawn')`
+- [x] Accept invitation: add `showSuccess('Invitation accepted')`
+- [x] Decline invitation: add `showSuccess('Invitation declined')`
 
 ---
 
@@ -587,18 +587,18 @@ Desired order: `[My Vessels button] [Edit button] [Settings gear]`
 
 `useToast` NOT imported.
 
-- [ ] Import `useToast`, destructure `showSuccess` and `showError`
-- [ ] Cancel daywork: add `showSuccess('Posting cancelled')` + `showError(...)` on failure
-- [ ] Update positions: add `showSuccess('Positions updated')` + `showError(...)` on failure
-- [ ] Delete template: add `showSuccess('Template deleted')` + `showError(...)` on failure
+- [x] Import `useToast`, destructure `showSuccess` and `showError`
+- [x] Cancel daywork: add `showSuccess('Posting cancelled')` + `showError(...)` on failure
+- [x] Update positions: add `showSuccess('Positions updated')` + `showError(...)` on failure
+- [x] Delete template: add `showSuccess('Template deleted')` + `showError(...)` on failure
 
 ---
 
 #### 3. Post daywork page — `apps/web/src/app/(app)/daywork/post/page.tsx`
 
-- [ ] Import `useToast` if not already
-- [ ] Post daywork submit: add `showSuccess('Daywork posted')` before redirect
-- [ ] Save template: add `showSuccess('Template saved')` + `showError(...)` on failure
+- [x] Import `useToast` if not already
+- [x] Post daywork submit: add `showSuccess('Daywork posted')` before redirect
+- [x] Save template: add `showSuccess('Template saved')` + `showError(...)` on failure
 
 ---
 
@@ -606,10 +606,10 @@ Desired order: `[My Vessels button] [Edit button] [Settings gear]`
 
 `useToast` already imported.
 
-- [ ] Accept applicant: add `showSuccess('Crew accepted')` (before/alongside the "Go to messages" dialog)
-- [ ] Reject applicant: add `showSuccess('Applicant rejected')`
-- [ ] Shortlist applicant: add `showSuccess('Added to shortlist')`
-- [ ] Invite crew: add `showSuccess('Invitation sent')` — verify this doesn't already exist inline
+- [x] Accept applicant: add `showSuccess('Crew accepted')` (before/alongside the "Go to messages" dialog)
+- [x] Reject applicant: add `showSuccess('Applicant rejected')`
+- [x] Shortlist applicant: add `showSuccess('Added to shortlist')`
+- [x] Invite crew: add `showSuccess('Invitation sent')` — verify this doesn't already exist inline
 
 ---
 
@@ -617,26 +617,26 @@ Desired order: `[My Vessels button] [Edit button] [Settings gear]`
 
 `useToast` already imported. Most actions have error toasts but no success toasts.
 
-- [ ] Confirm completion: add `showSuccess('Completion confirmed')`
-- [ ] Submit rating: add `showSuccess('Rating submitted')`
-- [ ] Work started (initiate): add `showSuccess('Work started notification sent')`
-- [ ] Work started (confirm): add `showSuccess('Work started confirmed')`
-- [ ] Checklist submit: add `showSuccess('Checklist saved')`
-- [ ] Postponement request: add `showSuccess('Date change proposed')`
-- [ ] Respond to postponement (approve): add `showSuccess('New dates approved')`
-- [ ] Respond to postponement (reject): add `showSuccess('Date change rejected')`
-- [ ] Cancel engagement (employer submit): add `showSuccess('Cancellation submitted')`
-- [ ] Cancel engagement (crew submit): add `showSuccess('Cancellation submitted')`
-- [ ] Relist after rejection: add `showSuccess('Job relisted')`
-- [ ] **Skip message send** — no toast on every message (too noisy, chat is real-time feedback)
+- [x] Confirm completion: add `showSuccess('Completion confirmed')`
+- [x] Submit rating: add `showSuccess('Rating submitted')`
+- [x] Work started (initiate): add `showSuccess('Work started notification sent')`
+- [x] Work started (confirm): add `showSuccess('Work started confirmed')`
+- [x] Checklist submit: add `showSuccess('Checklist saved')`
+- [x] Postponement request: add `showSuccess('Date change proposed')`
+- [x] Respond to postponement (approve): add `showSuccess('New dates approved')`
+- [x] Respond to postponement (reject): add `showSuccess('Date change rejected')`
+- [x] Cancel engagement (employer submit): add `showSuccess('Cancellation submitted')`
+- [x] Cancel engagement (crew submit): add `showSuccess('Cancellation submitted')`
+- [x] Relist after rejection: add `showSuccess('Job relisted')`
+- [x] **Skip message send** — no toast on every message (too noisy, chat is real-time feedback)
 
 ---
 
 #### 6. Profile page — `apps/web/src/app/(app)/profile/page.tsx`
 
-- [ ] Delete experience: add `showSuccess('Experience removed')` — already planned in Stage 115, verify not duplicated
-- [ ] Avatar upload: verify component-level feedback exists, add toast if silent
-- [ ] Avatar delete: same
+- [x] Delete experience: add `showSuccess('Experience removed')` — already planned in Stage 115, verify not duplicated
+- [x] Avatar upload: verify component-level feedback exists, add toast if silent
+- [x] Avatar delete: same
 
 ---
 
@@ -644,23 +644,23 @@ Desired order: `[My Vessels button] [Edit button] [Settings gear]`
 
 `useToast` NOT imported. Currently uses inline text feedback.
 
-- [ ] Import `useToast`
-- [ ] Export data: add `showSuccess('Data exported')` after download triggers + `showError(...)` on failure
-- [ ] Delete account: add `showSuccess('Account deactivated')` before signout (may flash briefly — acceptable)
-- [ ] Change password and change email already show inline text feedback — keep those AND add toast for consistency, or leave as-is since they have feedback. **Decision: leave as-is** — inline text is appropriate for settings forms.
+- [x] Import `useToast`
+- [x] Export data: add `showSuccess('Data exported')` after download triggers + `showError(...)` on failure
+- [x] Delete account: add `showSuccess('Account deactivated')` before signout (may flash briefly — acceptable)
+- [x] Change password and change email already show inline text feedback — keep those AND add toast for consistency, or leave as-is since they have feedback. **Decision: leave as-is** — inline text is appropriate for settings forms.
 
 ---
 
 #### 8. Vessels page — `apps/web/src/app/(app)/vessels/page.tsx`
 
-- [ ] Import `useToast` if not already
-- [ ] Add vessel: add `showSuccess('Vessel added')` + `showError(...)` on failure
+- [x] Import `useToast` if not already
+- [x] Add vessel: add `showSuccess('Vessel added')` + `showError(...)` on failure
 
 ---
 
 #### 9. Documentation
 
-- [ ] Update `BUILD_STATE.md`:
+- [x] Update `BUILD_STATE.md`:
   - Stage entry: `[Stage 120] Toast consistency — success/error toasts on all mutations across discover (apply/withdraw/invite), mine (cancel/positions/templates), post (submit/save template), review (accept/reject/shortlist/invite), chat (completion/rating/work-started/checklist/postponement/cancel/relist), settings (export/delete), vessels (add)`
 
 ---

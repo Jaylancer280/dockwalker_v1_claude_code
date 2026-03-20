@@ -26,6 +26,7 @@ import {
 import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 
 interface LookupItem {
@@ -58,6 +59,7 @@ type MealOption = 'breakfast' | 'lunch' | 'dinner';
 export default function PostDayworkPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showSuccess, showError: showErrorToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -212,10 +214,14 @@ export default function PostDayworkPage() {
     });
 
     if (res.ok) {
+      showSuccess('Template saved');
       setSaveDialogOpen(false);
       setTemplateName('');
       const templatesRes = await fetch('/api/daywork/templates').then((r) => r.json());
       if (templatesRes.templates) setTemplates(templatesRes.templates);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showErrorToast(data.error ?? 'Failed to save template');
     }
     setSavingTemplate(false);
   }
@@ -276,6 +282,7 @@ export default function PostDayworkPage() {
       return;
     }
 
+    showSuccess('Daywork posted');
     router.push('/daywork/mine');
   }
 

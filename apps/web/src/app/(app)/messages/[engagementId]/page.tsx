@@ -48,7 +48,7 @@ import {
 export default function ChatPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
   const router = useRouter();
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -218,6 +218,7 @@ export default function ChatPage() {
     if (res.ok) {
       const data = await res.json();
       setContext((prev) => (prev ? { ...prev, crew_completion_status: data.status } : prev));
+      showSuccess('Completion confirmed');
     } else {
       const data = await res.json().catch(() => ({}));
       showError(data.error ?? 'Failed to confirm');
@@ -264,6 +265,7 @@ export default function ChatPage() {
           : prev,
       );
       setShowRating(false);
+      showSuccess('Rating submitted');
     } else {
       const data = await res.json().catch(() => ({}));
       showError(data.error ?? 'Failed to submit rating');
@@ -285,6 +287,7 @@ export default function ChatPage() {
     });
     if (res.ok) {
       setShowCancelForm(false);
+      showSuccess('Cancellation submitted');
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -303,6 +306,7 @@ export default function ChatPage() {
     });
     if (res.ok) {
       setShowCrewCancelForm(false);
+      showSuccess('Cancellation submitted');
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -340,6 +344,7 @@ export default function ChatPage() {
       body: JSON.stringify({ action }),
     });
     if (res.ok) {
+      showSuccess(action === 'relist' ? 'Job relisted' : 'Posting cancelled');
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -354,6 +359,7 @@ export default function ChatPage() {
     setCompleting(true);
     const res = await fetch(`/api/daywork/${context.daywork_id}/complete`, { method: 'POST' });
     if (res.ok) {
+      showSuccess('Daywork marked complete');
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -379,6 +385,7 @@ export default function ChatPage() {
     }
     if (result.outcome === 'proposed' || result.outcome === 'conflict_confirmed') {
       setShowPostponementForm(false);
+      showSuccess('Date change proposed');
       await Promise.all([loadContext(), loadMessages()]);
     }
     return result;
@@ -390,6 +397,7 @@ export default function ChatPage() {
       method: 'POST',
     });
     if (res.ok) {
+      showSuccess('Job relisted');
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -406,6 +414,7 @@ export default function ChatPage() {
       body: JSON.stringify({ accepted }),
     });
     if (res.ok) {
+      showSuccess(accepted ? 'New dates approved' : 'Date change rejected');
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -422,6 +431,9 @@ export default function ChatPage() {
       body: JSON.stringify({ action }),
     });
     if (res.ok) {
+      showSuccess(
+        action === 'initiate' ? 'Work started notification sent' : 'Work started confirmed',
+      );
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -438,6 +450,7 @@ export default function ChatPage() {
     });
     if (res.ok) {
       setShowChecklistForm(false);
+      showSuccess('Checklist saved');
       await Promise.all([loadContext(), loadMessages()]);
     } else {
       const data = await res.json().catch(() => ({}));
@@ -500,28 +513,6 @@ export default function ChatPage() {
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-sm font-bold">{context?.other_name ?? 'Chat'}</h1>
-            {context && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                {context.dayworks?.job_number && (
-                  <span className="font-mono">
-                    DW-{String(context.dayworks.job_number).padStart(5, '0')}
-                  </span>
-                )}
-                {context.dayworks?.yacht_roles?.name && (
-                  <span>{context.dayworks.yacht_roles.name}</span>
-                )}
-                {context.dayworks?.ports?.name && (
-                  <span className="flex items-center gap-0.5">
-                    <MapPin className="h-3 w-3" />
-                    {context.dayworks.ports.name}
-                  </span>
-                )}
-                <span className="flex items-center gap-0.5">
-                  <Calendar className="h-3 w-3" />
-                  {context.start_date} — {context.end_date}
-                </span>
-              </div>
-            )}
           </div>
           {context && context.status === 'active' && !showCancelForm && !showCrewCancelForm && (
             <div ref={menuRef} className="relative shrink-0">

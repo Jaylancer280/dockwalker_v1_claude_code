@@ -160,10 +160,13 @@
 - [Stage 115] Experience add/edit feedback — error toasts on all failure paths (vessel creation, experience creation, overlap, network), success toasts on add/edit/delete, stale data fix on profile redirect (router.refresh), try/catch submit hardening
 - [Stage 116] Badge polish — bg-destructive to bg-primary on 3 notification badges, message count changed from total-unread to threads-with-unread, OfflineBanner hydration fix (deferred navigator.onLine to useEffect)
 - [Stage 117] Discover card scroll containment — header z-index bump (z-10 to z-30), card stack overflow clip
+- [Stage 118] Invitation accept improvements — auto-shortlist invited crew (source column on applications, conditional status in apply_projection), "Invited" badge on review page, stale invitation filtering (non-active dayworks excluded from crew view), source field on applicants API
+- [Stage 119] Chat header cleanup (stripped to name + actions, job details in summary card only), vessel edit page (/vessels/[id]/edit with PATCH API), "My Vessels" Ship icon button on employer profile header
+- [Stage 120] Toast consistency — success/error toasts on all mutations across discover (apply/withdraw/invite), mine (cancel/positions/templates), post (submit/save template), review (accept/reject/shortlist/invite), chat (completion/rating/work-started/checklist/postponement/cancel/relist), vessels (add)
 
 ## Current Schema Version
 
-v55 — hybrid roles (55 migrations applied)
+v56 — invitation source (56 migrations applied)
 
 ## Migrations Applied
 
@@ -224,6 +227,7 @@ v55 — hybrid roles (55 migrations applied)
 | `00053_accept_race_guard.sql`                | Adds positions-full pre-check to DAYWORK.ACCEPTED handler in `apply_projection` — concurrent accepts on a fully-filled daywork no-op instead of creating phantom fills                                                                                                                         |
 | `00054_admin_canonical_projection.sql`       | Adds audit-only no-op handlers for `ADMIN.CANONICAL_ADDED` and `ADMIN.CANONICAL_UPDATED` in `apply_projection` (RAISE NOTICE instead of falling through to unknown event warning)                                                                                                              |
 | `00055_hybrid_roles.sql`                     | Expands department CHECK constraint to include `deck_engineering`, `deck_interior`, `galley_interior`; inserts 3 hybrid roles (Deck/Engineer, Deck/Stew, Cook/Stew)                                                                                                                            |
+| `00056_invitation_source.sql`                | Adds `source` column (`direct`/`invitation`) to `applications`; updates `apply_projection` DAYWORK.APPLIED handler to auto-shortlist when source is `invitation`                                                                                                                               |
 
 ## Deferred Decisions
 

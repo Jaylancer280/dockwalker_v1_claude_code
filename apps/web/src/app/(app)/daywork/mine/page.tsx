@@ -43,6 +43,7 @@ import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-j
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface DayworkPosting {
   id: string;
@@ -81,6 +82,7 @@ interface Template {
 export default function MyPostingsPage() {
   const router = useRouter();
   const prefs = usePreferences();
+  const { showSuccess, showError } = useToast();
   const [activePostings, setActivePostings] = useState<DayworkPosting[]>([]);
   const [inProgressPostings, setInProgressPostings] = useState<DayworkPosting[]>([]);
   const [completedPostings, setCompletedPostings] = useState<DayworkPosting[]>([]);
@@ -220,7 +222,13 @@ export default function MyPostingsPage() {
   async function handleCancel(dayworkId: string) {
     setCancelling(dayworkId);
     const res = await fetch(`/api/daywork/${dayworkId}/cancel`, { method: 'POST' });
-    if (res.ok) loadData();
+    if (res.ok) {
+      showSuccess('Posting cancelled');
+      loadData();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to cancel posting');
+    }
     setCancelling(null);
   }
 
@@ -235,8 +243,12 @@ export default function MyPostingsPage() {
       body: JSON.stringify({ positionsAvailable: val }),
     });
     if (res.ok) {
+      showSuccess('Positions updated');
       setEditPositions(null);
       loadData();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to update positions');
     }
     setSavingPositions(false);
   }
@@ -246,6 +258,10 @@ export default function MyPostingsPage() {
     const res = await fetch(`/api/daywork/templates/${id}`, { method: 'DELETE' });
     if (res.ok) {
       setTemplates((prev) => prev.filter((t) => t.id !== id));
+      showSuccess('Template deleted');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to delete template');
     }
     setDeletingTemplate(null);
   }

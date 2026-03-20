@@ -364,6 +364,11 @@ export default function ProfilePage() {
             <NotificationBell />
           </div>
           <div className="flex items-center gap-1">
+            {!editing && !isCrewHat && (
+              <Button variant="ghost" size="icon" onClick={() => router.push('/vessels')}>
+                <Ship className="h-4 w-4" />
+              </Button>
+            )}
             {!editing && (
               <Button variant="ghost" size="sm" onClick={enterEdit}>
                 <Pencil className="mr-1 h-3.5 w-3.5" />
