@@ -83,8 +83,9 @@ export default function PermanentReviewPage() {
       }
     } catch {
       showError('Failed to load applicants');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [postingId, showError]);
 
   useEffect(() => {

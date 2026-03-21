@@ -199,8 +199,8 @@ Every daywork posting receives a sequential `job_number` (SERIAL UNIQUE) auto-as
 
 | Account  | Email | Password   | Hat      | Profile                                                                                                       |
 | -------- | ----- | ---------- | -------- | ------------------------------------------------------------------------------------------------------------- |
-| Employer | `e@1` | `12345678` | employer | "Profile One" — Captain, 5+ yrs, Port Vauban. Owns M/Y Serenity (IMO 9876543). Has 3 active daywork postings. |
-| Crew     | `c@1` | `12345678` | crew     | "Profile Two" — Deckhand, 2-5 yrs, Port Vauban. 14-day availability window.                                   |
+| Employer | `e@1` | `87654321` | employer | "Profile One" — Captain, 5+ yrs, Port Vauban. Owns M/Y Serenity (IMO 9876543). Has 3 active daywork postings. |
+| Crew     | `c@1` | `87654321` | crew     | "Profile Two" — Deckhand, 2-5 yrs, Port Vauban. 14-day availability window.                                   |
 
 `seed/003_advanced_scenarios.sql` adds 3 jobs in various lifecycle states using the same test accounts:
 
@@ -211,6 +211,17 @@ Every daywork posting receives a sequential `job_number` (SERIAL UNIQUE) auto-as
 | DW-006 | Stewardess | Port de Nice      | completed   | Full lifecycle: accepted → messages → completed → confirmed → both rated |
 
 `config.toml` references all three seed files. Seed data is applied automatically during `npx supabase db reset`.
+
+## Integration Tests
+
+Integration tests (`npm run test:integration` from `apps/web/`) run against the real local Supabase database. They use fixed UUIDs and require a clean database state:
+
+```bash
+npx supabase db reset          # Reset DB + apply seed data
+cd apps/web && npm run test:integration
+```
+
+Tests will fail against a non-clean database due to unique constraint violations from fixed test UUIDs.
 
 ## Message Hiding (Removed)
 

@@ -199,85 +199,100 @@ export default function ChatPage() {
     if (!input.trim() || sending) return;
 
     setSending(true);
-    const res = await fetch(`/api/messages/${engagementId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: input.trim() }),
-    });
+    try {
+      const res = await fetch(`/api/messages/${engagementId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: input.trim() }),
+      });
 
-    if (res.ok) {
-      setInput('');
-      await loadMessages();
-    } else {
-      showError('Failed to send message');
+      if (res.ok) {
+        setInput('');
+        await loadMessages();
+      } else {
+        showError('Failed to send message');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setSending(false);
     }
-    setSending(false);
   }
 
   async function handleConfirmCompletion(confirmed: boolean) {
     if (!context) return;
     setConfirming(true);
-    const res = await fetch(`/api/engagements/${engagementId}/confirm-completion`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirmed }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setContext((prev) => (prev ? { ...prev, crew_completion_status: data.status } : prev));
-      showSuccess('Completion confirmed');
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to confirm');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/confirm-completion`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContext((prev) => (prev ? { ...prev, crew_completion_status: data.status } : prev));
+        showSuccess('Completion confirmed');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to confirm');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setConfirming(false);
     }
-    setConfirming(false);
   }
 
   async function handleSubmitRating(ratingData: Record<string, unknown>) {
     setSubmittingRating(true);
-    const res = await fetch(`/api/engagements/${engagementId}/rate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ratingData),
-    });
-    if (res.ok) {
-      const responseData = await res.json().catch(() => ({}));
-      setContext((prev) =>
-        prev
-          ? {
-              ...prev,
-              has_rated: true,
-              my_rating: {
-                id: responseData.id ?? 'local',
-                rater_role: isCrew ? 'crew' : 'employer',
-                rating_context: prev.status === 'cancelled' ? 'cancelled' : 'completed',
-                pay_accuracy: (ratingData.pay_accuracy as string) ?? null,
-                meals_accuracy: (ratingData.meals_accuracy as string) ?? null,
-                role_accuracy: (ratingData.role_accuracy as string) ?? null,
-                working_days_accuracy: (ratingData.working_days_accuracy as string) ?? null,
-                vessel_condition: (ratingData.vessel_condition as number) ?? null,
-                would_work_on_vessel_again:
-                  (ratingData.would_work_on_vessel_again as boolean) ?? null,
-                skills_as_advertised: (ratingData.skills_as_advertised as string) ?? null,
-                certifications_verified: (ratingData.certifications_verified as string) ?? null,
-                punctuality: (ratingData.punctuality as string) ?? null,
-                would_rehire: (ratingData.would_rehire as boolean) ?? null,
-                communication_accuracy: (ratingData.communication_accuracy as boolean) ?? null,
-                overall_match: (ratingData.overall_match as number) ?? null,
-                notice_given: (ratingData.notice_given as string) ?? null,
-                permanent_opportunity_accuracy:
-                  (ratingData.permanent_opportunity_accuracy as string) ?? null,
-              },
-            }
-          : prev,
-      );
-      setShowRating(false);
-      showSuccess('Rating submitted');
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to submit rating');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/rate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ratingData),
+      });
+      if (res.ok) {
+        const responseData = await res.json().catch(() => ({}));
+        setContext((prev) =>
+          prev
+            ? {
+                ...prev,
+                has_rated: true,
+                my_rating: {
+                  id: responseData.id ?? 'local',
+                  rater_role: isCrew ? 'crew' : 'employer',
+                  rating_context: prev.status === 'cancelled' ? 'cancelled' : 'completed',
+                  pay_accuracy: (ratingData.pay_accuracy as string) ?? null,
+                  meals_accuracy: (ratingData.meals_accuracy as string) ?? null,
+                  role_accuracy: (ratingData.role_accuracy as string) ?? null,
+                  working_days_accuracy: (ratingData.working_days_accuracy as string) ?? null,
+                  vessel_condition: (ratingData.vessel_condition as number) ?? null,
+                  would_work_on_vessel_again:
+                    (ratingData.would_work_on_vessel_again as boolean) ?? null,
+                  skills_as_advertised: (ratingData.skills_as_advertised as string) ?? null,
+                  certifications_verified: (ratingData.certifications_verified as string) ?? null,
+                  punctuality: (ratingData.punctuality as string) ?? null,
+                  would_rehire: (ratingData.would_rehire as boolean) ?? null,
+                  communication_accuracy: (ratingData.communication_accuracy as boolean) ?? null,
+                  overall_match: (ratingData.overall_match as number) ?? null,
+                  notice_given: (ratingData.notice_given as string) ?? null,
+                  permanent_opportunity_accuracy:
+                    (ratingData.permanent_opportunity_accuracy as string) ?? null,
+                },
+              }
+            : prev,
+        );
+        setShowRating(false);
+        showSuccess('Rating submitted');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to submit rating');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setSubmittingRating(false);
     }
-    setSubmittingRating(false);
   }
 
   async function handleCancelSubmit(cancelData: {
@@ -328,16 +343,21 @@ export default function ChatPage() {
       const today = new Date().toISOString().split('T')[0];
       if (context.start_date < today) {
         setRespondingCrewCancel(true);
-        const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'cancel' }),
-        });
-        if (res.ok) {
-          router.push(`/daywork/post?fromDaywork=${context.daywork_id}`);
-        } else {
-          const data = await res.json().catch(() => ({}));
-          showError(data.error ?? 'Failed to cancel original posting');
+        try {
+          const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'cancel' }),
+          });
+          if (res.ok) {
+            router.push(`/daywork/post?fromDaywork=${context.daywork_id}`);
+          } else {
+            const data = await res.json().catch(() => ({}));
+            showError(data.error ?? 'Failed to cancel original posting');
+            setRespondingCrewCancel(false);
+          }
+        } catch {
+          showError('Network error — please try again');
           setRespondingCrewCancel(false);
         }
         return;
@@ -345,34 +365,44 @@ export default function ChatPage() {
     }
 
     setRespondingCrewCancel(true);
-    const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    });
-    if (res.ok) {
-      showSuccess(action === 'relist' ? 'Job relisted' : 'Posting cancelled');
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to respond');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        showSuccess(action === 'relist' ? 'Job relisted' : 'Posting cancelled');
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to respond');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setRespondingCrewCancel(false);
     }
-    setRespondingCrewCancel(false);
   }
 
   async function handleComplete() {
     if (!context) return;
     setShowCompleteConfirm(false);
     setCompleting(true);
-    const res = await fetch(`/api/daywork/${context.daywork_id}/complete`, { method: 'POST' });
-    if (res.ok) {
-      showSuccess('Daywork marked complete');
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to complete');
+    try {
+      const res = await fetch(`/api/daywork/${context.daywork_id}/complete`, { method: 'POST' });
+      if (res.ok) {
+        showSuccess('Daywork marked complete');
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to complete');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setCompleting(false);
     }
-    setCompleting(false);
   }
 
   async function handlePostponementSubmit(data: {
@@ -400,53 +430,68 @@ export default function ChatPage() {
 
   async function handleRelistAfterRejection() {
     setRelistingAfterRejection(true);
-    const res = await fetch(`/api/engagements/${engagementId}/relist-with-dates`, {
-      method: 'POST',
-    });
-    if (res.ok) {
-      showSuccess('Job relisted');
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to relist');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/relist-with-dates`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        showSuccess('Job relisted');
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to relist');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setRelistingAfterRejection(false);
     }
-    setRelistingAfterRejection(false);
   }
 
   async function handleRespondPostponement(accepted: boolean) {
     setRespondingPostponement(true);
-    const res = await fetch(`/api/engagements/${engagementId}/respond-postponement`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accepted }),
-    });
-    if (res.ok) {
-      showSuccess(accepted ? 'New dates approved' : 'Date change rejected');
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to respond');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/respond-postponement`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accepted }),
+      });
+      if (res.ok) {
+        showSuccess(accepted ? 'New dates approved' : 'Date change rejected');
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to respond');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setRespondingPostponement(false);
     }
-    setRespondingPostponement(false);
   }
 
   async function handleWorkStarted(action: 'initiate' | 'confirm') {
     setWorkStarting(true);
-    const res = await fetch(`/api/engagements/${engagementId}/work-started`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    });
-    if (res.ok) {
-      showSuccess(
-        action === 'initiate' ? 'Work started notification sent' : 'Work started confirmed',
-      );
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to update');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/work-started`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        showSuccess(
+          action === 'initiate' ? 'Work started notification sent' : 'Work started confirmed',
+        );
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to update');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setWorkStarting(false);
     }
-    setWorkStarting(false);
   }
 
   async function handleChecklistSubmit(items: Array<{ id: string; label: string; value: string }>) {

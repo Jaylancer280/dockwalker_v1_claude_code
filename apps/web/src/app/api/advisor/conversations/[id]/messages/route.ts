@@ -66,20 +66,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // Subscription + usage check (before saving user message)
     const subResult = await requireSubscription(supabase, user.id, 'crew_pro');
     const isPro = subResult.ok;
-    let currentMonth = '';
-    let usageCount = 0;
-
     if (!isPro) {
-      currentMonth = new Date().toISOString().slice(0, 7);
-      const { data: usage } = await serviceClient
-        .from('advisor_usage')
-        .select('question_count')
-        .eq('person_id', user.id)
-        .eq('month', currentMonth)
-        .single();
+      const currentMonth = new Date().toISOString().slice(0, 7);
 
-      usageCount = usage?.question_count ?? 0;
-      if (usageCount >= 3) {
+      // Atomic check-and-increment: prevents concurrent requests from bypassing limit
+      const { data: newCount } = await serviceClient.rpc('increment_advisor_usage', {
+        p_person_id: user.id,
+        p_month: currentMonth,
+        p_limit: 3,
+      });
+
+      if (newCount === null || newCount === undefined) {
         return NextResponse.json(
           { error: 'limit_reached', used: 3, limit: 3, upgrade_url: '/billing' },
           { status: 402 },
@@ -138,17 +135,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: assistantErr.message }, { status: 500 });
     }
 
-    // Increment usage count (free tier only, after successful response)
-    if (!isPro) {
-      await serviceClient.from('advisor_usage').upsert(
-        {
-          person_id: user.id,
-          month: currentMonth,
-          question_count: usageCount + 1,
-        },
-        { onConflict: 'person_id,month' },
-      );
-    }
+    // Usage already incremented atomically before LLM call (via increment_advisor_usage RPC)
 
     // Update conversation title + updated_at
     const isFirstMessage = history.length === 0;

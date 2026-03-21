@@ -73,7 +73,6 @@ export default function SettingsPage() {
     setLoading(false);
   }, [supabase.auth]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadUser();
 
@@ -89,7 +88,6 @@ export default function SettingsPage() {
     )
       setCurrencyPref(savedCurrency);
   }, [loadUser]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleDistanceUnit(value: DistanceUnit) {
     setDistanceUnit(value);
@@ -116,33 +114,37 @@ export default function SettingsPage() {
 
     setPasswordSaving(true);
 
-    // Verify current password by re-signing in
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password: currentPassword,
-    });
+    try {
+      // Verify current password by re-signing in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: currentPassword,
+      });
 
-    if (signInError) {
-      setPasswordError('Current password is incorrect');
+      if (signInError) {
+        setPasswordError('Current password is incorrect');
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+      if (error) {
+        setPasswordError(error.message);
+      } else {
+        setPasswordSuccess(true);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => {
+          setShowPasswordForm(false);
+          setPasswordSuccess(false);
+        }, 1500);
+      }
+    } catch {
+      setPasswordError('Network error — please try again');
+    } finally {
       setPasswordSaving(false);
-      return;
     }
-
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) {
-      setPasswordError(error.message);
-    } else {
-      setPasswordSuccess(true);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => {
-        setShowPasswordForm(false);
-        setPasswordSuccess(false);
-      }, 1500);
-    }
-    setPasswordSaving(false);
   }
 
   async function handleChangeEmail() {
@@ -155,43 +157,58 @@ export default function SettingsPage() {
     }
 
     setEmailSaving(true);
-    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    try {
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
 
-    if (error) {
-      setEmailError(error.message);
-    } else {
-      setEmailSuccess(true);
-      setNewEmail('');
+      if (error) {
+        setEmailError(error.message);
+      } else {
+        setEmailSuccess(true);
+        setNewEmail('');
+      }
+    } catch {
+      setEmailError('Network error — please try again');
+    } finally {
+      setEmailSaving(false);
     }
-    setEmailSaving(false);
   }
 
   async function handleExportData() {
     setExporting(true);
-    const res = await fetch('/api/account/export');
-    if (res.ok) {
-      const data = await res.json();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dockwalker-data-export-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+    try {
+      const res = await fetch('/api/account/export');
+      if (res.ok) {
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dockwalker-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // Network error — spinner cleanup handled in finally
+    } finally {
+      setExporting(false);
     }
-    setExporting(false);
   }
 
   async function handleDeleteAccount() {
     if (deleteConfirmText !== 'DELETE') return;
     setDeleting(true);
 
-    const res = await fetch('/api/account/deactivate', { method: 'POST' });
-    if (res.ok) {
-      await supabase.auth.signOut();
-      router.push('/auth/login');
+    try {
+      const res = await fetch('/api/account/deactivate', { method: 'POST' });
+      if (res.ok) {
+        await supabase.auth.signOut();
+        router.push('/auth/login');
+      }
+    } catch {
+      // Network error — spinner cleanup handled in finally
+    } finally {
+      setDeleting(false);
     }
-    setDeleting(false);
   }
 
   async function handleSignOut() {

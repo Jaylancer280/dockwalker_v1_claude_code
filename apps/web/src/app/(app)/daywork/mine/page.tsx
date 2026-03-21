@@ -226,15 +226,20 @@ export default function MyPostingsPage() {
 
   async function handleCancel(dayworkId: string) {
     setCancelling(dayworkId);
-    const res = await fetch(`/api/daywork/${dayworkId}/cancel`, { method: 'POST' });
-    if (res.ok) {
-      showSuccess('Posting cancelled');
-      loadData();
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to cancel posting');
+    try {
+      const res = await fetch(`/api/daywork/${dayworkId}/cancel`, { method: 'POST' });
+      if (res.ok) {
+        showSuccess('Posting cancelled');
+        loadData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to cancel posting');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setCancelling(null);
     }
-    setCancelling(null);
   }
 
   async function handleSavePositions() {
@@ -242,33 +247,43 @@ export default function MyPostingsPage() {
     const val = parseInt(editPositionsValue, 10);
     if (isNaN(val) || val < 1 || val > 20 || val < editPositions.filled) return;
     setSavingPositions(true);
-    const res = await fetch(`/api/daywork/${editPositions.id}/update-positions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ positionsAvailable: val }),
-    });
-    if (res.ok) {
-      showSuccess('Positions updated');
-      setEditPositions(null);
-      loadData();
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to update positions');
+    try {
+      const res = await fetch(`/api/daywork/${editPositions.id}/update-positions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positionsAvailable: val }),
+      });
+      if (res.ok) {
+        showSuccess('Positions updated');
+        setEditPositions(null);
+        loadData();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to update positions');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setSavingPositions(false);
     }
-    setSavingPositions(false);
   }
 
   async function handleDeleteTemplate(id: string) {
     setDeletingTemplate(id);
-    const res = await fetch(`/api/daywork/templates/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setTemplates((prev) => prev.filter((t) => t.id !== id));
-      showSuccess('Template deleted');
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to delete template');
+    try {
+      const res = await fetch(`/api/daywork/templates/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setTemplates((prev) => prev.filter((t) => t.id !== id));
+        showSuccess('Template deleted');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to delete template');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setDeletingTemplate(null);
     }
-    setDeletingTemplate(null);
   }
 
   const statusColor: Record<string, string> = {

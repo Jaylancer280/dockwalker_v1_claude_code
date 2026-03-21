@@ -6,7 +6,7 @@ import { getStripe } from '@/lib/stripe';
  * POST /api/billing/create-portal
  * Creates a Stripe Customer Portal session for subscription management.
  */
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
 
@@ -28,8 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No subscription found' }, { status: 404 });
     }
 
-    const origin =
-      request.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
     const session = await stripe.billingPortal.sessions.create({
       customer: sub.stripe_customer_id,

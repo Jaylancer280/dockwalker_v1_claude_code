@@ -190,10 +190,11 @@
 - [Stage 137] Permanent integration tests — 9 new integration tests verifying all PERMANENT.\* event roundtrips against real DB (45 integration tests total)
 - [Stage 138] Push-triggers decomposition — 1033-line monolith split into 9 focused modules (types, loaders, notification-mapper, daywork-handlers, permanent-handlers, event-router, email-dispatcher, broadcast, index); zero behavioral change
 - [Stage 139] NDA reveal for permanent engagements — migration 00060 extends `get_vessel_public` with permanent_postings OR branch for IMO reveal
+- [Fix 139a-f] Hardening batch — network failure try/finally on 8 pages, onboarding re-entrant retry, Stripe origin header hardening, Docky atomic usage RPC (migration 00061), integration test password fix, UUID validation on profile view param, ESLint cleanup
 
 ## Current Schema Version
 
-v60 — NDA reveal permanent (60 migrations applied)
+v61 — Atomic advisor usage RPC (61 migrations applied)
 
 ## Migrations Applied
 
@@ -259,6 +260,7 @@ v60 — NDA reveal permanent (60 migrations applied)
 | `00058_unread_counts_function.sql`           | `get_unread_counts(uuid)` Postgres function — returns per-engagement unread message counts in a single query, replacing N+1 COUNT loops in badge polling endpoints                                                                                                                                                                                                                                          |
 | `00059_permanent_jobs.sql`                   | `permanent_postings` + `permanent_templates` tables, profile permanent availability columns (`permanent_availability`, `notice_period_days`, `currently_employed`), applications + engagements XOR extensions (`permanent_posting_id`, `outcome`, `daywork_id` nullable), `PERMANENT.*` handlers in `apply_projection`, `aggregate_type` + `application_status` + `active_engagements_status` CHECK updates |
 | `00060_nda_reveal_permanent.sql`             | Extends `get_vessel_public` with permanent engagement OR branch — crew with active permanent engagement on NDA vessel can see IMO (alongside existing daywork reveal)                                                                                                                                                                                                                                       |
+| `00061_atomic_advisor_usage.sql`             | `increment_advisor_usage(uuid, text, integer)` RPC — atomic check-and-increment for free-tier Docky usage; INSERT ON CONFLICT with WHERE guard prevents concurrent requests bypassing limit                                                                                                                                                                                                                 |
 
 ## Deferred Decisions
 

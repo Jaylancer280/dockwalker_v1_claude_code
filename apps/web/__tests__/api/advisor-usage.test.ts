@@ -50,7 +50,11 @@ function multiTableFrom(tableMap: Record<string, ReturnType<typeof mockChain>>) 
   return vi.fn().mockImplementation((table: string) => tableMap[table] ?? mockChain(null));
 }
 
-function guardOk(fromFn: ReturnType<typeof vi.fn>, serviceFromFn?: ReturnType<typeof vi.fn>) {
+function guardOk(
+  fromFn: ReturnType<typeof vi.fn>,
+  serviceFromFn?: ReturnType<typeof vi.fn>,
+  rpcFn?: ReturnType<typeof vi.fn>,
+) {
   return {
     ok: true as const,
     value: {
@@ -58,7 +62,7 @@ function guardOk(fromFn: ReturnType<typeof vi.fn>, serviceFromFn?: ReturnType<ty
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: fromFn },
-      serviceClient: { from: serviceFromFn ?? fromFn },
+      serviceClient: { from: serviceFromFn ?? fromFn, rpc: rpcFn ?? vi.fn() },
     },
   };
 }
@@ -97,8 +101,10 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       .mockReturnValueOnce(convChain)
       .mockReturnValueOnce(historyChain);
 
-    // Service: usage check (count=1), insert user, insert assistant, upsert usage, update conv
-    const usageChain = mockChain({ question_count: 1 });
+    // Atomic RPC returns new count (1 = under limit)
+    const mockRpc = vi.fn().mockResolvedValue({ data: 1 });
+
+    // Service: insert user msg, insert assistant msg, update conv
     const insertUserChain = mockChain({ id: 'msg-1' });
     const insertAssistantChain = mockChain({
       id: 'msg-2',
@@ -106,16 +112,13 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       sources: [],
       created_at: '2026-03-18T00:00:00Z',
     });
-    const upsertChain = mockChain(null);
     const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(usageChain)     // advisor_usage check
-      .mockReturnValueOnce(insertUserChain) // insert user msg
-      .mockReturnValueOnce(insertAssistantChain) // insert assistant msg
-      .mockReturnValueOnce(upsertChain)    // upsert usage
-      .mockReturnValueOnce(updateChain);   // update conversation
+      .mockReturnValueOnce(insertUserChain)
+      .mockReturnValueOnce(insertAssistantChain)
+      .mockReturnValueOnce(updateChain);
 
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
+    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
     const res = await POST(makeRequest('Hello'), makeParams('conv-1'));
     expect(res.status).toBe(200);
@@ -130,12 +133,11 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       .mockReturnValueOnce(convChain)
       .mockReturnValueOnce(historyChain);
 
-    // Service: usage check (count=3 — at limit)
-    const usageChain = mockChain({ question_count: 3 });
-    const serviceFrom = vi.fn()
-      .mockReturnValueOnce(usageChain);
+    // Atomic RPC returns null when limit hit
+    const mockRpc = vi.fn().mockResolvedValue({ data: null });
+    const serviceFrom = vi.fn();
 
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
+    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
     const res = await POST(makeRequest('Hello'), makeParams('conv-1'));
     expect(res.status).toBe(402);
@@ -156,7 +158,8 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       .mockReturnValueOnce(convChain)
       .mockReturnValueOnce(historyChain);
 
-    // Service: NO usage check, just insert user, insert assistant, update conv
+    // Service: NO usage RPC, just insert user, insert assistant, update conv
+    const mockRpc = vi.fn();
     const insertUserChain = mockChain({ id: 'msg-1' });
     const insertAssistantChain = mockChain({
       id: 'msg-2',
@@ -170,15 +173,16 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       .mockReturnValueOnce(insertAssistantChain)
       .mockReturnValueOnce(updateChain);
 
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
+    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
     const res = await POST(makeRequest('Hello'), makeParams('conv-1'));
     expect(res.status).toBe(200);
-    // No advisor_usage query was made (serviceFrom only called for insert/update, not usage)
+    // No usage RPC called for pro users
+    expect(mockRpc).not.toHaveBeenCalled();
     expect(serviceFrom).toHaveBeenCalledTimes(3); // user insert + assistant insert + update
   });
 
-  it('usage increments on successful response', async () => {
+  it('usage increments atomically via RPC on successful response', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
@@ -187,7 +191,9 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       .mockReturnValueOnce(convChain)
       .mockReturnValueOnce(historyChain);
 
-    const usageChain = mockChain({ question_count: 2 });
+    // Atomic RPC returns new count (2 = under limit)
+    const mockRpc = vi.fn().mockResolvedValue({ data: 2 });
+
     const insertUserChain = mockChain({ id: 'msg-1' });
     const insertAssistantChain = mockChain({
       id: 'msg-2',
@@ -195,26 +201,28 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       sources: [],
       created_at: '2026-03-18T00:00:00Z',
     });
-    const upsertChain = mockChain(null);
     const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(usageChain)
       .mockReturnValueOnce(insertUserChain)
       .mockReturnValueOnce(insertAssistantChain)
-      .mockReturnValueOnce(upsertChain)
       .mockReturnValueOnce(updateChain);
 
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
+    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
     const res = await POST(makeRequest('Question'), makeParams('conv-1'));
     expect(res.status).toBe(200);
-    // 4th call is the upsert
-    expect(serviceFrom).toHaveBeenCalledTimes(5);
-    const upsertCall = serviceFrom.mock.calls[3];
-    expect(upsertCall[0]).toBe('advisor_usage');
+    // RPC called once with correct args
+    expect(mockRpc).toHaveBeenCalledOnce();
+    expect(mockRpc).toHaveBeenCalledWith('increment_advisor_usage', {
+      p_person_id: 'u1',
+      p_month: expect.stringMatching(/^\d{4}-\d{2}$/),
+      p_limit: 3,
+    });
+    // No separate upsert — usage tracked atomically in RPC
+    expect(serviceFrom).toHaveBeenCalledTimes(3);
   });
 
-  it('month rollover resets count', async () => {
+  it('month rollover resets count (RPC inserts fresh row)', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
@@ -223,8 +231,9 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       .mockReturnValueOnce(convChain)
       .mockReturnValueOnce(historyChain);
 
-    // No usage row for current month = count 0
-    const usageChain = mockChain(null);
+    // RPC returns 1 (new month, first question — ON CONFLICT inserts fresh row)
+    const mockRpc = vi.fn().mockResolvedValue({ data: 1 });
+
     const insertUserChain = mockChain({ id: 'msg-1' });
     const insertAssistantChain = mockChain({
       id: 'msg-2',
@@ -232,16 +241,13 @@ describe('POST /api/advisor/conversations/[id]/messages — usage gating', () =>
       sources: [],
       created_at: '2026-03-18T00:00:00Z',
     });
-    const upsertChain = mockChain(null);
     const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(usageChain)
       .mockReturnValueOnce(insertUserChain)
       .mockReturnValueOnce(insertAssistantChain)
-      .mockReturnValueOnce(upsertChain)
       .mockReturnValueOnce(updateChain);
 
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
+    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
     const res = await POST(makeRequest('New month question'), makeParams('conv-1'));
     expect(res.status).toBe(200);

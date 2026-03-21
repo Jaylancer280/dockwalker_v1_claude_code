@@ -209,37 +209,42 @@ function DayworkPostForm() {
     if (!templateName.trim()) return;
     setSavingTemplate(true);
 
-    const res = await fetch('/api/daywork/templates', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: templateName.trim(),
-        vesselId: vesselId || null,
-        roleId: roleId || null,
-        locationPortId: locationPortId || null,
-        workingDays: workingDays ? parseInt(workingDays, 10) : null,
-        requiredCertificationIds: requiredCertIds,
-        experienceBracketId: experienceBracketId || null,
-        dayRate: dayRate || null,
-        currency,
-        meals,
-        notes: notes || null,
-        positionsAvailable: parseInt(positionsAvailable, 10) || 1,
-        permanentOpportunity: permanentOpportunity || undefined,
-      }),
-    });
+    try {
+      const res = await fetch('/api/daywork/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          vesselId: vesselId || null,
+          roleId: roleId || null,
+          locationPortId: locationPortId || null,
+          workingDays: workingDays ? parseInt(workingDays, 10) : null,
+          requiredCertificationIds: requiredCertIds,
+          experienceBracketId: experienceBracketId || null,
+          dayRate: dayRate || null,
+          currency,
+          meals,
+          notes: notes || null,
+          positionsAvailable: parseInt(positionsAvailable, 10) || 1,
+          permanentOpportunity: permanentOpportunity || undefined,
+        }),
+      });
 
-    if (res.ok) {
-      showSuccess('Template saved');
-      setSaveDialogOpen(false);
-      setTemplateName('');
-      const templatesRes = await fetch('/api/daywork/templates').then((r) => r.json());
-      if (templatesRes.templates) setTemplates(templatesRes.templates);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showErrorToast(data.error ?? 'Failed to save template');
+      if (res.ok) {
+        showSuccess('Template saved');
+        setSaveDialogOpen(false);
+        setTemplateName('');
+        const templatesRes = await fetch('/api/daywork/templates').then((r) => r.json());
+        if (templatesRes.templates) setTemplates(templatesRes.templates);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showErrorToast(data.error ?? 'Failed to save template');
+      }
+    } catch {
+      showErrorToast('Network error — please try again');
+    } finally {
+      setSavingTemplate(false);
     }
-    setSavingTemplate(false);
   }
 
   function openSaveDialog() {
@@ -268,38 +273,43 @@ function DayworkPostForm() {
     setShowPostConfirm(false);
     setLoading(true);
 
-    const res = await fetch('/api/daywork', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        vesselId,
-        roleId,
-        locationPortId,
-        startDate,
-        endDate,
-        workingDays: parseInt(workingDays, 10),
-        requiredCertificationIds: requiredCertIds,
-        experienceBracketId: experienceBracketId || undefined,
-        dayRate,
-        currency,
-        meals,
-        notes: notes || undefined,
-        positionsAvailable: parseInt(positionsAvailable, 10) || 1,
-        permanentOpportunity: permanentOpportunity || undefined,
-      }),
-    });
+    try {
+      const res = await fetch('/api/daywork', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vesselId,
+          roleId,
+          locationPortId,
+          startDate,
+          endDate,
+          workingDays: parseInt(workingDays, 10),
+          requiredCertificationIds: requiredCertIds,
+          experienceBracketId: experienceBracketId || undefined,
+          dayRate,
+          currency,
+          meals,
+          notes: notes || undefined,
+          positionsAvailable: parseInt(positionsAvailable, 10) || 1,
+          permanentOpportunity: permanentOpportunity || undefined,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error);
+      if (!res.ok) {
+        setError(data.error);
+        return;
+      }
+
+      showSuccess('Daywork posted');
+      router.push('/daywork/mine');
+    } catch {
+      setError('Network error — please try again');
+    } finally {
       setLoading(false);
       submittingRef.current = false;
-      return;
     }
-
-    showSuccess('Daywork posted');
-    router.push('/daywork/mine');
   }
 
   return (

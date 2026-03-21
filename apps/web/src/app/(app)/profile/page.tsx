@@ -181,18 +181,23 @@ export default function ProfilePage() {
   const [sizeBandNames, setSizeBandNames] = useState<Record<string, string>>({});
 
   const loadProfile = useCallback(async () => {
-    const res = await fetch('/api/profile');
-    const data = await res.json();
-    if (data.person) setPerson(data.person);
-    if (data.profile) {
-      setProfile(data.profile);
-      if (data.profile.nationality_id) setNationalityId(data.profile.nationality_id);
-      if (data.profile.visa_ids) setVisaIds(data.profile.visa_ids);
-      setPermAvail(data.profile.permanent_availability ?? null);
-      setNoticeDays(data.profile.notice_period_days ?? null);
-      setEmployed(data.profile.currently_employed ?? false);
+    try {
+      const res = await fetch('/api/profile');
+      const data = await res.json();
+      if (data.person) setPerson(data.person);
+      if (data.profile) {
+        setProfile(data.profile);
+        if (data.profile.nationality_id) setNationalityId(data.profile.nationality_id);
+        if (data.profile.visa_ids) setVisaIds(data.profile.visa_ids);
+        setPermAvail(data.profile.permanent_availability ?? null);
+        setNoticeDays(data.profile.notice_period_days ?? null);
+        setEmployed(data.profile.currently_employed ?? false);
+      }
+    } catch {
+      // Network error — spinner cleanup handled in finally
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const loadExperiences = useCallback(async () => {
@@ -249,7 +254,6 @@ export default function ProfilePage() {
     }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
@@ -264,7 +268,6 @@ export default function ProfilePage() {
       loadExperiences();
     }
   }, [person?.identity_type, loadAvailability, loadExperiences]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Availability summary
   const availSummary = useMemo(() => {
@@ -324,53 +327,63 @@ export default function ProfilePage() {
 
   async function handleSave() {
     setSaving(true);
-    const body: Record<string, unknown> = {
-      displayName,
-      locationPortId: locationPortId || null,
-    };
+    try {
+      const body: Record<string, unknown> = {
+        displayName,
+        locationPortId: locationPortId || null,
+      };
 
-    if (profile?.identity_type === 'crew') {
-      body.primaryRoleId = primaryRoleId || null;
-      body.bio = bio || null;
-      body.experienceBracketId = experienceBracketId || null;
-      body.certificationIds = certificationIds;
-      body.vesselSizeExposureIds = vesselSizeExposureIds;
-      body.nationalityId = nationalityId || null;
-      body.visaIds = visaIds;
-    } else {
-      body.agencyName = agencyName || null;
-      body.roleSpecializationIds = roleSpecializationIds;
+      if (profile?.identity_type === 'crew') {
+        body.primaryRoleId = primaryRoleId || null;
+        body.bio = bio || null;
+        body.experienceBracketId = experienceBracketId || null;
+        body.certificationIds = certificationIds;
+        body.vesselSizeExposureIds = vesselSizeExposureIds;
+        body.nationalityId = nationalityId || null;
+        body.visaIds = visaIds;
+      } else {
+        body.agencyName = agencyName || null;
+        body.roleSpecializationIds = roleSpecializationIds;
+      }
+
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        setEditing(false);
+        await loadProfile();
+        showSuccess('Profile updated');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to save profile');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setSaving(false);
     }
-
-    const res = await fetch('/api/profile', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-    if (res.ok) {
-      setEditing(false);
-      await loadProfile();
-      showSuccess('Profile updated');
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to save profile');
-    }
-    setSaving(false);
   }
 
   async function handleDeleteExperience(expId: string) {
     setDeletingExpId(expId);
-    const res = await fetch(`/api/experiences/${expId}`, { method: 'DELETE' });
-    if (res.ok) {
-      setExperiences((prev) => prev.filter((e) => e.id !== expId));
-      if (expandedExpId === expId) setExpandedExpId(null);
-      showSuccess('Experience removed');
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to delete experience');
+    try {
+      const res = await fetch(`/api/experiences/${expId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setExperiences((prev) => prev.filter((e) => e.id !== expId));
+        if (expandedExpId === expId) setExpandedExpId(null);
+        showSuccess('Experience removed');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to delete experience');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setDeletingExpId(null);
     }
-    setDeletingExpId(null);
   }
 
   function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {

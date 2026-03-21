@@ -53,8 +53,13 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single();
 
+    let skipOnboardPerson = false;
     if (existingPerson) {
-      return NextResponse.json({ error: 'Already onboarded' }, { status: 409 });
+      // Allow retry if experiences were submitted but failed last time
+      if (!body.experiences?.length) {
+        return NextResponse.json({ error: 'Already onboarded' }, { status: 409 });
+      }
+      skipOnboardPerson = true;
     }
 
     const body_experiences: unknown[] = body.experiences || [];
@@ -94,16 +99,18 @@ export async function POST(request: Request) {
       visa_ids: profile.visaIds || [],
     };
 
-    // Step 1: Create person + profile atomically
-    const { error } = await serviceClient.rpc('onboard_person', {
-      p_identity_type: identityType,
-      p_current_hat: currentHat,
-      p_profile: profilePayload,
-      p_person_id: user.id,
-    });
+    // Step 1: Create person + profile atomically (skip on retry)
+    if (!skipOnboardPerson) {
+      const { error } = await serviceClient.rpc('onboard_person', {
+        p_identity_type: identityType,
+        p_current_hat: currentHat,
+        p_profile: profilePayload,
+        p_person_id: user.id,
+      });
 
-    if (error) {
-      throw new Error(error.message);
+      if (error) {
+        throw new Error(error.message);
+      }
     }
 
     // Step 2: For experienced crew, create vessels + experiences
@@ -208,7 +215,12 @@ export async function POST(request: Request) {
               loa >= b.min_meters && (b.max_meters === null || loa < b.max_meters),
           );
 
-          if (!sizeBand) continue;
+          if (!sizeBand) {
+            return NextResponse.json(
+              { error: `Could not resolve size band for LOA ${loa}m` },
+              { status: 400 },
+            );
+          }
 
           vesselId = randomUUID();
           batchEvents.push({

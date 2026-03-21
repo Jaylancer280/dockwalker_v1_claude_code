@@ -62,6 +62,7 @@ The current app expects the following RPCs to exist in `public`:
 - `onboard_person`
 - `clear_availability_dates`
 - `get_vessel_public`
+- `increment_advisor_usage`
 
 If you see errors like:
 

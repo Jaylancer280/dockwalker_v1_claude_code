@@ -240,27 +240,32 @@ function CreateVesselForm({
 
     setLoading(true);
 
-    const res = await fetch('/api/vessels', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        imoNumber,
-        name,
-        vesselType,
-        loaMeters: Math.round(loaMeters * 100) / 100,
-        ndaFlag,
-      }),
-    });
+    try {
+      const res = await fetch('/api/vessels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imoNumber,
+          name,
+          vesselType,
+          loaMeters: Math.round(loaMeters * 100) / 100,
+          ndaFlag,
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      setError(data.error);
+      if (!res.ok) {
+        setError(data.error);
+        return;
+      }
+
+      onCreated();
+    } catch {
+      setError('Network error — please try again');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    onCreated();
   }
 
   return (

@@ -55,7 +55,7 @@ describe('GET /api/profile/[personId]', () => {
       response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     });
 
-    const res = await GET(new Request('http://localhost'), makeParams('p2'));
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(401);
   });
 
@@ -71,7 +71,7 @@ describe('GET /api/profile/[personId]', () => {
     // Permanent application check — no results
     mockFrom.mockReturnValueOnce(mockChain([]));
 
-    const res = await GET(new Request('http://localhost'), makeParams('p2'));
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toContain("don't have access");
@@ -105,7 +105,7 @@ describe('GET /api/profile/[personId]', () => {
     // Experiences fetch
     mockFrom.mockReturnValueOnce(mockChain([]));
 
-    const res = await GET(new Request('http://localhost'), makeParams('p2'));
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.display_name).toBe('Test Crew');
@@ -153,7 +153,7 @@ describe('GET /api/profile/[personId]', () => {
     // Active posting count
     mockFrom.mockReturnValueOnce(mockChain(null, { count: 2 }));
 
-    const res = await GET(new Request('http://localhost'), makeParams('p2'));
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.display_name).toBe('Test Employer');
@@ -190,7 +190,7 @@ describe('GET /api/profile/[personId]', () => {
     // Experiences
     mockFrom.mockReturnValueOnce(mockChain([]));
 
-    const res = await GET(new Request('http://localhost'), makeParams('p2'));
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
   });
 
@@ -237,7 +237,7 @@ describe('GET /api/profile/[personId]', () => {
 
 
 
-    const res = await GET(new Request('http://localhost'), makeParams('p2'));
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.experiences).toHaveLength(1);

@@ -18,6 +18,11 @@ export async function GET(
 
     const { personId } = await params;
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(personId)) {
+      return NextResponse.json({ error: 'Invalid person ID' }, { status: 400 });
+    }
+
     if (personId === user.id) {
       return NextResponse.json({ error: 'Use /api/profile for your own profile' }, { status: 400 });
     }

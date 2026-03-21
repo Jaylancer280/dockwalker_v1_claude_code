@@ -42,8 +42,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const origin =
-      request.headers.get('origin') ?? process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+    const origin = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
     // Check for existing subscription row with stripe_customer_id
     const { data: existingSub } = await supabase

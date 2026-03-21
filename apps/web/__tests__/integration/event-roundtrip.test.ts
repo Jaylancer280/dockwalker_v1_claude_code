@@ -854,7 +854,7 @@ describe('NDA reveal-after-acceptance', () => {
     });
     const { error: signInError } = await anon.auth.signInWithPassword({
       email: 'c@1',
-      password: '12345678',
+      password: '87654321',
     });
     if (signInError) throw new Error(`Sign-in failed: ${signInError.message}`);
     crewClient = anon;
