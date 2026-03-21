@@ -49,6 +49,7 @@ import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { NotificationBell } from '@/components/notification-bell';
 import { PermanentJobFeed } from './_components/permanent-job-feed';
+import { PermanentApplicationCard } from './_components/permanent-application-card';
 
 interface DayworkCard {
   id: string;
@@ -102,11 +103,13 @@ interface SizeBandItem {
 
 interface MyApplication {
   id: string;
-  daywork_id: string;
+  daywork_id?: string;
+  permanent_posting_id?: string;
+  type?: 'daywork' | 'permanent';
   status: string;
   message: string | null;
   applied_at: string;
-  daywork: {
+  daywork?: {
     job_number: number;
     start_date: string;
     end_date: string;
@@ -402,10 +405,25 @@ export default function DiscoverPage() {
 
   const loadApplications = useCallback(async () => {
     setLoadingApps(true);
-    const res = await fetch('/api/daywork/applications');
-    if (res.ok) {
-      const data = await res.json();
-      setApplications(data.applications ?? []);
+    try {
+      const [dwRes, pmRes] = await Promise.all([
+        fetch('/api/daywork/applications'),
+        fetch('/api/permanent/applications'),
+      ]);
+      const dwApps = dwRes.ok
+        ? ((await dwRes.json()).applications ?? []).map((a: MyApplication) => ({
+            ...a,
+            type: 'daywork' as const,
+          }))
+        : [];
+      const pmApps = pmRes.ok ? ((await pmRes.json()).applications ?? []) : [];
+      const merged = [...dwApps, ...pmApps].sort(
+        (a: MyApplication, b: MyApplication) =>
+          new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime(),
+      );
+      setApplications(merged);
+    } catch {
+      // Silent fail — show what we have
     }
     setLoadingApps(false);
   }, []);
@@ -420,6 +438,19 @@ export default function DiscoverPage() {
     const res = await fetch(`/api/daywork/${dayworkId}/withdraw`, { method: 'POST' });
     if (res.ok) {
       setApplications((prev) => prev.filter((a) => a.daywork_id !== dayworkId));
+      showSuccess('Application withdrawn');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error ?? 'Failed to withdraw');
+    }
+    setWithdrawingId(null);
+  }
+
+  async function handlePermanentWithdraw(postingId: string) {
+    setWithdrawingId(postingId);
+    const res = await fetch(`/api/permanent/${postingId}/withdraw`, { method: 'POST' });
+    if (res.ok) {
+      setApplications((prev) => prev.filter((a) => a.permanent_posting_id !== postingId));
       showSuccess('Application withdrawn');
     } else {
       const data = await res.json().catch(() => ({}));
@@ -640,15 +671,27 @@ export default function DiscoverPage() {
           )}
 
           {!loadingApps &&
-            applications.map((app) => (
-              <ApplicationCard
-                key={app.id}
-                application={app}
-                withdrawing={withdrawingId === app.daywork_id}
-                onWithdraw={() => handleWithdraw(app.daywork_id)}
-                onViewProfile={setViewProfileId}
-              />
-            ))}
+            applications.map((app) =>
+              app.type === 'permanent' ? (
+                <PermanentApplicationCard
+                  key={app.id}
+                  application={
+                    app as import('./_components/permanent-application-card').PermanentApplication
+                  }
+                  withdrawing={withdrawingId === app.permanent_posting_id}
+                  onWithdraw={(pid) => handlePermanentWithdraw(pid)}
+                  onViewProfile={setViewProfileId}
+                />
+              ) : (
+                <ApplicationCard
+                  key={app.id}
+                  application={app}
+                  withdrawing={withdrawingId === app.daywork_id}
+                  onWithdraw={() => handleWithdraw(app.daywork_id!)}
+                  onViewProfile={setViewProfileId}
+                />
+              ),
+            )}
         </div>
       )}
 

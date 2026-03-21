@@ -179,6 +179,7 @@
 - [Stage 128] Permanent post API + form — POST /api/permanent, permanent template CRUD routes, PostingTypeSelector, PermanentPostForm, type selector wired into post page; 14 new tests (730 total)
 - [Stage 129] Permanent discover API + scrollable UI — GET /api/permanent/discover with filters/pagination, PermanentJobCard/Detail/Feed components, Daywork/Permanent toggle on discover page; 10 new tests (740 total)
 - [Stage 130] Permanent apply + cert hard-gate + career status — POST /api/permanent/:id/apply with cert superset check, PERMANENT.APPLICATION_BLOCKED intelligence event, profile PATCH permanent availability fields, career status section on profile page, availability route LEFT JOIN, Apply button enabled on cards; 10 new tests (750 total)
+- [Stage 131] Crew permanent applications + unified Applied tab + withdraw — GET /api/permanent/applications, POST /api/permanent/:id/withdraw (PERMANENT.WITHDRAWN event), unified Applied tab with Promise.all fetch, PermanentApplicationCard with status badges, type-based rendering; 12 new tests (762 total)
 
 ## Current Schema Version
 
