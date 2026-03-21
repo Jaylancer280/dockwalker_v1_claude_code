@@ -13,36 +13,10 @@
 
 ---
 
-### Fix 128b: Wire vessel creation in PermanentPostForm
-
-**Goal:** Pass `onRequestCreate` to `VesselSelector` in the permanent post form so employers with no vessels can create one.
-
-**Done condition:** Clicking "Add your first vessel" in the permanent form navigates to `/vessels`. One-line change.
-
----
-
-File: `apps/web/src/app/(app)/daywork/post/_components/permanent-post-form.tsx` — line 249
-
-Change:
-
-```typescript
-<VesselSelector value={vesselId} onValueChange={setVesselId} />
-```
-
-To:
-
-```typescript
-<VesselSelector value={vesselId} onValueChange={setVesselId} onRequestCreate={() => router.push('/vessels')} />
-```
-
-`router` is already imported and available (line 54).
-
-- [ ] Add `onRequestCreate={() => router.push('/vessels')}` to VesselSelector on line 249
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] Commit
+(empty)
 
 ---
 
 ## Done
 
-(See git history for completed stages 51-128, fixes 118a/123a/123b/127a/128a, messages test cleanup)
+(See git history for completed stages 51-129, fixes 118a/123a/123b/127a/128a/128b, messages test cleanup)

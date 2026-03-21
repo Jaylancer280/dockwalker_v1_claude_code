@@ -56,6 +56,8 @@
 
 - **"Zero contamination" must be verified against actual queries, not just table schemas:** The separate-table architecture looked clean on paper, but shared tables (`applications`, `active_engagements`) have dozens of queries that join through `daywork_id`. A LEFT JOIN to `dayworks(...)` returns null for permanent engagements — not an error, just silent null propagation that breaks UI rendering. Every shared-table join must be audited and dual-join support added where permanent engagements flow through.
 
+- **When copying a component pattern, copy ALL its props — not just the data ones:** The `PermanentPostForm` copied `VesselSelector` usage from the daywork form but omitted `onRequestCreate`, leaving a dead "Add your first vessel" button. When replicating a component's usage from another page, check every prop the original passes — interaction callbacks are easy to miss because they don't cause TypeScript errors (they're optional props that silently default to undefined).
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)

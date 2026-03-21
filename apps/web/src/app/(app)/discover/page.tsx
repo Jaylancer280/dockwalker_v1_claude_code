@@ -48,6 +48,7 @@ import { createClient } from '@/lib/supabase/client';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { NotificationBell } from '@/components/notification-bell';
+import { PermanentJobFeed } from './_components/permanent-job-feed';
 
 interface DayworkCard {
   id: string;
@@ -173,6 +174,10 @@ export default function DiscoverPage() {
   const { showError, showSuccess } = useToast();
   const prefs = usePreferences();
   const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>('browse');
+  const [browseMode, setBrowseMode] = useState<'daywork' | 'permanent'>(() => {
+    if (typeof window === 'undefined') return 'daywork';
+    return (localStorage.getItem('dw-browse-mode') as 'daywork' | 'permanent') || 'daywork';
+  });
   const [cards, setCards] = useState<DayworkCard[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -649,257 +654,289 @@ export default function DiscoverPage() {
 
       {/* ───── Browse tab ───── */}
       {activeTab === 'browse' && (
-        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
-          {/* Filters panel */}
-          {showFilters && (
-            <Card>
-              <CardContent className="flex flex-col gap-3 pt-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Role</label>
-                  <Select value={filterRoleId} onValueChange={setFilterRoleId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All roles" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All roles</SelectItem>
-                      {roles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Location</label>
-                  <LocationPicker
-                    mode="port-required"
-                    value={filterPortId ? { portId: filterPortId } : null}
-                    onValueChange={(v) => setFilterPortId(v.portId ?? '')}
-                    placeholder="All locations"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">From</label>
-                    <Input
-                      type="date"
-                      value={filterStartDate}
-                      onChange={(e) => setFilterStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">To</label>
-                    <Input
-                      type="date"
-                      value={filterEndDate}
-                      onChange={(e) => setFilterEndDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">
-                      Certification
-                    </label>
-                    <Select value={filterCertId} onValueChange={setFilterCertId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All certs" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All certs</SelectItem>
-                        <SelectItem value="none">No certs required</SelectItem>
-                        {certifications.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-1 flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground">Experience</label>
-                    <Select
-                      value={filterExperienceBracketId}
-                      onValueChange={setFilterExperienceBracketId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="All levels" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All levels</SelectItem>
-                        {experienceBrackets.map((eb) => (
-                          <SelectItem key={eb.id} value={eb.id}>
-                            {eb.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Vessel size</label>
-                  <Select value={filterSizeBandId} onValueChange={setFilterSizeBandId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All sizes" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All sizes</SelectItem>
-                      {sizeBands.map((sb) => (
-                        <SelectItem key={sb.id} value={sb.id}>
-                          {convertSizeBandLabel(sb.label, prefs.lengthUnit)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Card stack */}
-          <div className="relative flex flex-1 items-start justify-center pt-4">
-            {loading && (
-              <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <p className="text-sm">Finding jobs...</p>
-              </div>
-            )}
-
-            {!loading && cards.length === 0 && (
-              <Card className="w-full">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base">No jobs found</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    No daywork postings match your filters right now. Try adjusting your filters or
-                    check back later.
-                  </p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={loadCards}>
-                    Refresh
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {!loading && cards.length > 0 && (
-              <div className="relative h-[420px] w-full overflow-hidden">
-                {/* Next card preview (underneath) */}
-                {nextCard && (
-                  <div className="absolute inset-0 z-0">
-                    <JobCard
-                      card={nextCard}
-                      isPreview
-                      lengthUnit={prefs.lengthUnit}
-                      onViewProfile={setViewProfileId}
-                    />
-                  </div>
-                )}
-
-                {/* Top card (swipeable) */}
-                {topCard && (
-                  <SwipeableCard
-                    ref={swipeRef}
-                    key={topCard.id}
-                    card={topCard}
-                    onApply={() => {
-                      if (requireAvailability()) handleApply(topCard.id);
-                    }}
-                    onPass={() => handlePass(topCard.id)}
-                    onComposeMessage={() => {
-                      if (!requireAvailability()) return;
-                      setComposingMessage(true);
-                      setMessageText('');
-                    }}
-                    canApply={!!hasAvailability}
-                    onAvailabilityGate={() => setShowAvailDialog(true)}
-                    composing={composingMessage}
-                    disabled={applying}
-                    lengthUnit={prefs.lengthUnit}
-                    onViewProfile={setViewProfileId}
-                  />
-                )}
-              </div>
-            )}
+        <>
+          {/* Daywork / Permanent toggle */}
+          <div className="mx-auto flex max-w-lg gap-1 rounded-lg bg-muted p-1 mt-2 px-4">
+            <button
+              onClick={() => {
+                setBrowseMode('daywork');
+                localStorage.setItem('dw-browse-mode', 'daywork');
+              }}
+              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${browseMode === 'daywork' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+            >
+              Daywork
+            </button>
+            <button
+              onClick={() => {
+                setBrowseMode('permanent');
+                localStorage.setItem('dw-browse-mode', 'permanent');
+              }}
+              className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${browseMode === 'permanent' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+            >
+              Permanent
+            </button>
           </div>
 
-          {/* Action buttons or message compose */}
-          {!loading && topCard && !composingMessage && (
-            <div className="flex items-center justify-center gap-6 pb-4">
-              <button
-                onClick={() => handlePass(topCard.id)}
-                disabled={applying}
-                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
-              >
-                <X className="h-6 w-6" />
-              </button>
-              <button
-                onClick={() => {
-                  if (requireAvailability()) handleApply(topCard.id);
-                }}
-                disabled={applying}
-                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
-              >
-                <Check className="h-6 w-6" />
-              </button>
+          {browseMode === 'permanent' && <PermanentJobFeed />}
+
+          {browseMode === 'daywork' && (
+            <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+              {/* Filters panel */}
+              {showFilters && (
+                <Card>
+                  <CardContent className="flex flex-col gap-3 pt-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Role</label>
+                      <Select value={filterRoleId} onValueChange={setFilterRoleId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All roles" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All roles</SelectItem>
+                          {roles.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">Location</label>
+                      <LocationPicker
+                        mode="port-required"
+                        value={filterPortId ? { portId: filterPortId } : null}
+                        onValueChange={(v) => setFilterPortId(v.portId ?? '')}
+                        placeholder="All locations"
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="flex flex-1 flex-col gap-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">From</label>
+                        <Input
+                          type="date"
+                          value={filterStartDate}
+                          onChange={(e) => setFilterStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">To</label>
+                        <Input
+                          type="date"
+                          value={filterEndDate}
+                          onChange={(e) => setFilterEndDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="flex flex-1 flex-col gap-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Certification
+                        </label>
+                        <Select value={filterCertId} onValueChange={setFilterCertId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All certs" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All certs</SelectItem>
+                            <SelectItem value="none">No certs required</SelectItem>
+                            {certifications.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1.5">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Experience
+                        </label>
+                        <Select
+                          value={filterExperienceBracketId}
+                          onValueChange={setFilterExperienceBracketId}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="All levels" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All levels</SelectItem>
+                            {experienceBrackets.map((eb) => (
+                              <SelectItem key={eb.id} value={eb.id}>
+                                {eb.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground">
+                        Vessel size
+                      </label>
+                      <Select value={filterSizeBandId} onValueChange={setFilterSizeBandId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All sizes" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All sizes</SelectItem>
+                          {sizeBands.map((sb) => (
+                            <SelectItem key={sb.id} value={sb.id}>
+                              {convertSizeBandLabel(sb.label, prefs.lengthUnit)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Card stack */}
+              <div className="relative flex flex-1 items-start justify-center pt-4">
+                {loading && (
+                  <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <p className="text-sm">Finding jobs...</p>
+                  </div>
+                )}
+
+                {!loading && cards.length === 0 && (
+                  <Card className="w-full">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base">No jobs found</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        No daywork postings match your filters right now. Try adjusting your filters
+                        or check back later.
+                      </p>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={loadCards}>
+                        Refresh
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {!loading && cards.length > 0 && (
+                  <div className="relative h-[420px] w-full overflow-hidden">
+                    {/* Next card preview (underneath) */}
+                    {nextCard && (
+                      <div className="absolute inset-0 z-0">
+                        <JobCard
+                          card={nextCard}
+                          isPreview
+                          lengthUnit={prefs.lengthUnit}
+                          onViewProfile={setViewProfileId}
+                        />
+                      </div>
+                    )}
+
+                    {/* Top card (swipeable) */}
+                    {topCard && (
+                      <SwipeableCard
+                        ref={swipeRef}
+                        key={topCard.id}
+                        card={topCard}
+                        onApply={() => {
+                          if (requireAvailability()) handleApply(topCard.id);
+                        }}
+                        onPass={() => handlePass(topCard.id)}
+                        onComposeMessage={() => {
+                          if (!requireAvailability()) return;
+                          setComposingMessage(true);
+                          setMessageText('');
+                        }}
+                        canApply={!!hasAvailability}
+                        onAvailabilityGate={() => setShowAvailDialog(true)}
+                        composing={composingMessage}
+                        disabled={applying}
+                        lengthUnit={prefs.lengthUnit}
+                        onViewProfile={setViewProfileId}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons or message compose */}
+              {!loading && topCard && !composingMessage && (
+                <div className="flex items-center justify-center gap-6 pb-4">
+                  <button
+                    onClick={() => handlePass(topCard.id)}
+                    disabled={applying}
+                    className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (requireAvailability()) handleApply(topCard.id);
+                    }}
+                    disabled={applying}
+                    className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
+                  >
+                    <Check className="h-6 w-6" />
+                  </button>
+                </div>
+              )}
+
+              {!loading && topCard && composingMessage && (
+                <div className="flex flex-col gap-2 pb-4">
+                  <div className="relative">
+                    <textarea
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value.slice(0, 250))}
+                      placeholder="Why are you a great fit for this job?"
+                      className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                      rows={3}
+                      maxLength={250}
+                      autoFocus
+                    />
+                    <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground/60">
+                      {messageText.length}/250
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleCancelMessage}
+                      disabled={applying}
+                    >
+                      Cancel message
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={handleMessageSubmit}
+                      disabled={applying || !messageText.trim()}
+                    >
+                      <Check className="mr-1 h-3.5 w-3.5" />
+                      Submit & apply
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Counter + loading more */}
+              {!loading && cards.length > 0 && (
+                <p className="text-center text-xs text-muted-foreground">
+                  {cards.length} job{cards.length !== 1 ? 's' : ''} available
+                  {loadingMore && ' · loading more...'}
+                </p>
+              )}
             </div>
           )}
-
-          {!loading && topCard && composingMessage && (
-            <div className="flex flex-col gap-2 pb-4">
-              <div className="relative">
-                <textarea
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value.slice(0, 250))}
-                  placeholder="Why are you a great fit for this job?"
-                  className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  rows={3}
-                  maxLength={250}
-                  autoFocus
-                />
-                <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground/60">
-                  {messageText.length}/250
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleCancelMessage}
-                  disabled={applying}
-                >
-                  Cancel message
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleMessageSubmit}
-                  disabled={applying || !messageText.trim()}
-                >
-                  <Check className="mr-1 h-3.5 w-3.5" />
-                  Submit & apply
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Counter + loading more */}
-          {!loading && cards.length > 0 && (
-            <p className="text-center text-xs text-muted-foreground">
-              {cards.length} job{cards.length !== 1 ? 's' : ''} available
-              {loadingMore && ' · loading more...'}
-            </p>
-          )}
-        </div>
+        </>
       )}
 
       {/* Availability gate dialog */}
