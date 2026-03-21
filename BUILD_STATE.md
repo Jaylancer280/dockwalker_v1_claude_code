@@ -188,6 +188,7 @@
 - [Stage 136b] Cron + GDPR export + admin — engagement-starts cron resolves permanent role names, GDPR export includes permanent_posting_id + outcome + permanent_postings table, admin engagements show permanent_posting_id
 - [Stage 136c] Final contamination checklist passed — all 812 tests green, zero daywork route contamination, single migration (00059), integration tests pass, documentation complete
 - [Stage 137] Permanent integration tests — 9 new integration tests verifying all PERMANENT.\* event roundtrips against real DB (45 integration tests total)
+- [Stage 138] Push-triggers decomposition — 1033-line monolith split into 9 focused modules (types, loaders, notification-mapper, daywork-handlers, permanent-handlers, event-router, email-dispatcher, broadcast, index); zero behavioral change
 - [Stage 139] NDA reveal for permanent engagements — migration 00060 extends `get_vessel_public` with permanent_postings OR branch for IMO reveal
 
 ## Current Schema Version
