@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       .from('daywork_templates')
       .insert({
         person_id: user.id,
-        name: body.name,
+        name: typeof body.name === 'string' ? body.name.slice(0, 100) : body.name,
         role_id: body.roleId || null,
         location_port_id: body.locationPortId || null,
         working_days: body.workingDays || null,

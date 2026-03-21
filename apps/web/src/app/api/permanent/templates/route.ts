@@ -76,7 +76,10 @@ export async function POST(request: Request) {
       .from('permanent_templates')
       .insert({
         employer_person_id: user.id,
-        template_name: body.templateName,
+        template_name:
+          typeof body.templateName === 'string'
+            ? body.templateName.slice(0, 100)
+            : body.templateName,
         vessel_id: body.vesselId || null,
         role_id: body.roleId || null,
         port_id: body.locationPortId || null,

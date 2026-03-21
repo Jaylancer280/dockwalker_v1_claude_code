@@ -68,7 +68,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // Build update object with only provided fields
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (body.templateName !== undefined) updates.template_name = body.templateName;
+    if (body.templateName !== undefined)
+      updates.template_name =
+        typeof body.templateName === 'string' ? body.templateName.slice(0, 100) : body.templateName;
     if (body.vesselId !== undefined) updates.vessel_id = body.vesselId;
     if (body.roleId !== undefined) updates.role_id = body.roleId;
     if (body.locationPortId !== undefined) updates.port_id = body.locationPortId;
