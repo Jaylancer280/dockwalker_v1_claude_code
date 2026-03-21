@@ -13,23 +13,36 @@
 
 ---
 
-### Fix 128a: TypeScript error in PermanentPostForm
+### Fix 128b: Wire vessel creation in PermanentPostForm
 
-**Goal:** Fix the `TS2322` error on line 312 of `permanent-post-form.tsx`. The `Select` component's `onValueChange` passes `string`, but `setSalaryCurrency` expects `CurrencyCode`.
+**Goal:** Pass `onRequestCreate` to `VesselSelector` in the permanent post form so employers with no vessels can create one.
 
-**Done condition:** `npx tsc --noEmit` — zero errors. Commit Stage 128 + fix together.
+**Done condition:** Clicking "Add your first vessel" in the permanent form navigates to `/vessels`. One-line change.
 
 ---
 
-- [ ] Import `CurrencyCode` from `@/lib/units` in `permanent-post-form.tsx`
-- [ ] Change line 312 from `onValueChange={setSalaryCurrency}` to `onValueChange={(v) => setSalaryCurrency(v as CurrencyCode)}`
-- [ ] Check if `salaryPeriod` has the same issue — `setSalaryPeriod` may also need a cast if the state is typed as `'monthly' | 'annual'` but `Select` passes `string`
+File: `apps/web/src/app/(app)/daywork/post/_components/permanent-post-form.tsx` — line 249
+
+Change:
+
+```typescript
+<VesselSelector value={vesselId} onValueChange={setVesselId} />
+```
+
+To:
+
+```typescript
+<VesselSelector value={vesselId} onValueChange={setVesselId} onRequestCreate={() => router.push('/vessels')} />
+```
+
+`router` is already imported and available (line 54).
+
+- [ ] Add `onRequestCreate={() => router.push('/vessels')}` to VesselSelector on line 249
 - [ ] `npx tsc --noEmit` — zero errors
-- [ ] `npx vitest run` — 730 tests pass
-- [ ] Commit Stage 128 with fix
+- [ ] Commit
 
 ---
 
 ## Done
 
-(See git history for completed stages 51-127, fixes 118a/123a/123b/127a, messages test cleanup)
+(See git history for completed stages 51-128, fixes 118a/123a/123b/127a/128a, messages test cleanup)

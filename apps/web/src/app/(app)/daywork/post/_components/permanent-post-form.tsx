@@ -246,7 +246,11 @@ export function PermanentPostForm({ onBack }: PermanentPostFormProps) {
         {/* Vessel */}
         <div>
           <Label>Vessel</Label>
-          <VesselSelector value={vesselId} onValueChange={setVesselId} />
+          <VesselSelector
+            value={vesselId}
+            onValueChange={setVesselId}
+            onRequestCreate={() => router.push('/vessels')}
+          />
         </div>
 
         {/* Role */}
