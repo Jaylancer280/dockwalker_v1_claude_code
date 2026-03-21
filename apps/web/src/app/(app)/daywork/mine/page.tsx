@@ -44,6 +44,7 @@ import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
+import { PermanentMineSection } from './_components/permanent-mine-section';
 
 interface DayworkPosting {
   id: string;
@@ -83,6 +84,10 @@ export default function MyPostingsPage() {
   const router = useRouter();
   const prefs = usePreferences();
   const { showSuccess, showError } = useToast();
+  const [mineMode, setMineMode] = useState<'daywork' | 'permanent'>(() => {
+    if (typeof window === 'undefined') return 'daywork';
+    return (localStorage.getItem('dw-mine-mode') as 'daywork' | 'permanent') || 'daywork';
+  });
   const [activePostings, setActivePostings] = useState<DayworkPosting[]>([]);
   const [inProgressPostings, setInProgressPostings] = useState<DayworkPosting[]>([]);
   const [completedPostings, setCompletedPostings] = useState<DayworkPosting[]>([]);
@@ -433,230 +438,265 @@ export default function MyPostingsPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
-        {error && (
-          <div className="mb-4 flex flex-col items-center gap-2 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" onClick={loadData}>
-              Retry
-            </Button>
-          </div>
-        )}
-
-        {showFilters && (
-          <Card className="mb-4">
-            <CardContent className="flex flex-col gap-3 pt-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Role</label>
-                <Select value={filterRoleId} onValueChange={setFilterRoleId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All roles" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All roles</SelectItem>
-                    {roles.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Location</label>
-                <Select value={filterPortId} onValueChange={setFilterPortId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All locations</SelectItem>
-                    {ports.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                        {p.cities?.name ? ` — ${p.cities.name}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Tabs
-          value={currentTab}
-          onValueChange={(value) => {
-            if (isMyJobsTab(value)) {
-              setCurrentTab(value);
-            }
+      {/* Daywork / Permanent toggle */}
+      <div className="mx-auto flex max-w-lg gap-1 rounded-lg bg-muted p-1 mt-2 px-4">
+        <button
+          onClick={() => {
+            setMineMode('daywork');
+            localStorage.setItem('dw-mine-mode', 'daywork');
           }}
+          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${mineMode === 'daywork' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
         >
-          <TabsList className="w-full">
-            <TabsTrigger value="active" className="flex-1">
-              Active{activePostings.length > 0 ? ` (${activePostings.length})` : ''}
-            </TabsTrigger>
-            <TabsTrigger value="in_progress" className="flex-1">
-              In Progress{inProgressPostings.length > 0 ? ` (${inProgressPostings.length})` : ''}
-            </TabsTrigger>
-            <TabsTrigger value="completed" className="flex-1">
-              Done
-            </TabsTrigger>
-            <TabsTrigger value="templates" className="flex-1">
-              Templates
-            </TabsTrigger>
-          </TabsList>
+          Daywork
+        </button>
+        <button
+          onClick={() => {
+            setMineMode('permanent');
+            localStorage.setItem('dw-mine-mode', 'permanent');
+          }}
+          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${mineMode === 'permanent' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
+        >
+          Permanent
+        </button>
+      </div>
 
-          <TabsContent value="active" className="flex flex-col gap-3 pt-2">
-            {loading && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      {mineMode === 'permanent' && <PermanentMineSection />}
+
+      {mineMode === 'daywork' && (
+        <>
+          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
+            {error && (
+              <div className="mb-4 flex flex-col items-center gap-2 text-center">
+                <p className="text-sm text-destructive">{error}</p>
+                <Button variant="outline" size="sm" onClick={loadData}>
+                  Retry
+                </Button>
               </div>
             )}
-            {!loading && activePostings.length === 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base">No active postings</CardTitle>
-                  </div>
-                  <CardDescription>Post your first daywork to start finding crew.</CardDescription>
-                </CardHeader>
-              </Card>
-            )}
-            {activePostings.map((p) => renderPostingCard(p, true))}
-          </TabsContent>
 
-          <TabsContent value="in_progress" className="flex flex-col gap-3 pt-2">
-            {loading && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            )}
-            {!loading && inProgressPostings.length === 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Play className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base">No in-progress jobs</CardTitle>
+            {showFilters && (
+              <Card className="mb-4">
+                <CardContent className="flex flex-col gap-3 pt-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Role</label>
+                    <Select value={filterRoleId} onValueChange={setFilterRoleId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All roles" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All roles</SelectItem>
+                        {roles.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <CardDescription>Jobs move here after you accept an applicant.</CardDescription>
-                </CardHeader>
-              </Card>
-            )}
-            {inProgressPostings.map((p) => renderPostingCard(p, true))}
-          </TabsContent>
 
-          <TabsContent value="completed" className="flex flex-col gap-3 pt-2">
-            {loading && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            )}
-            {!loading && completedPostings.length === 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base">No completed postings</CardTitle>
-                  </div>
-                  <CardDescription>
-                    Completed and cancelled postings will appear here.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            )}
-            {completedPostings.map((p) => renderPostingCard(p, false))}
-          </TabsContent>
-
-          <TabsContent value="templates" className="flex flex-col gap-3 pt-2">
-            {loading && (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            )}
-            {!loading && templates.length === 0 && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base">No templates</CardTitle>
-                  </div>
-                  <CardDescription>
-                    Save a template from the post form to reuse common configurations.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            )}
-            {templates.map((t) => (
-              <Card key={t.id}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{t.name}</CardTitle>
-                  <CardDescription>
-                    {[
-                      t.yacht_roles?.name,
-                      t.ports?.name,
-                      t.vessels?.name,
-                      t.day_rate ? `${currencySymbol(t.currency ?? 'EUR')}${t.day_rate}/day` : null,
-                      t.working_days ? `${t.working_days}d` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => router.push(`/daywork/post?templateId=${t.id}`)}
-                    >
-                      <Play className="mr-1 h-3.5 w-3.5" />
-                      Use
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteTemplate(t.id)}
-                      disabled={deletingTemplate === t.id}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="mr-1 h-3.5 w-3.5" />
-                      {deletingTemplate === t.id ? 'Deleting...' : 'Delete'}
-                    </Button>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">Location</label>
+                    <Select value={filterPortId} onValueChange={setFilterPortId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All locations" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All locations</SelectItem>
+                        {ports.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                            {p.cities?.name ? ` — ${p.cities.name}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </TabsContent>
-        </Tabs>
-      </div>
-      <Dialog open={!!editPositions} onOpenChange={() => setEditPositions(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit crew count</DialogTitle>
-            <DialogDescription>
-              {editPositions && editPositions.filled > 0
-                ? `${editPositions.filled} position${editPositions.filled !== 1 ? 's' : ''} already filled. Minimum is ${editPositions.filled}.`
-                : 'How many crew do you need for this job?'}
-            </DialogDescription>
-          </DialogHeader>
-          <Input
-            type="number"
-            min={editPositions?.filled ?? 1}
-            max={20}
-            value={editPositionsValue}
-            onChange={(e) => setEditPositionsValue(e.target.value)}
-          />
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setEditPositions(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSavePositions} disabled={savingPositions}>
-              {savingPositions ? 'Saving...' : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            )}
+
+            <Tabs
+              value={currentTab}
+              onValueChange={(value) => {
+                if (isMyJobsTab(value)) {
+                  setCurrentTab(value);
+                }
+              }}
+            >
+              <TabsList className="w-full">
+                <TabsTrigger value="active" className="flex-1">
+                  Active{activePostings.length > 0 ? ` (${activePostings.length})` : ''}
+                </TabsTrigger>
+                <TabsTrigger value="in_progress" className="flex-1">
+                  In Progress
+                  {inProgressPostings.length > 0 ? ` (${inProgressPostings.length})` : ''}
+                </TabsTrigger>
+                <TabsTrigger value="completed" className="flex-1">
+                  Done
+                </TabsTrigger>
+                <TabsTrigger value="templates" className="flex-1">
+                  Templates
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="active" className="flex flex-col gap-3 pt-2">
+                {loading && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {!loading && activePostings.length === 0 && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base">No active postings</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Post your first daywork to start finding crew.
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                )}
+                {activePostings.map((p) => renderPostingCard(p, true))}
+              </TabsContent>
+
+              <TabsContent value="in_progress" className="flex flex-col gap-3 pt-2">
+                {loading && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {!loading && inProgressPostings.length === 0 && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Play className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base">No in-progress jobs</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Jobs move here after you accept an applicant.
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                )}
+                {inProgressPostings.map((p) => renderPostingCard(p, true))}
+              </TabsContent>
+
+              <TabsContent value="completed" className="flex flex-col gap-3 pt-2">
+                {loading && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {!loading && completedPostings.length === 0 && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base">No completed postings</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Completed and cancelled postings will appear here.
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                )}
+                {completedPostings.map((p) => renderPostingCard(p, false))}
+              </TabsContent>
+
+              <TabsContent value="templates" className="flex flex-col gap-3 pt-2">
+                {loading && (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+                {!loading && templates.length === 0 && (
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-muted-foreground" />
+                        <CardTitle className="text-base">No templates</CardTitle>
+                      </div>
+                      <CardDescription>
+                        Save a template from the post form to reuse common configurations.
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                )}
+                {templates.map((t) => (
+                  <Card key={t.id}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base">{t.name}</CardTitle>
+                      <CardDescription>
+                        {[
+                          t.yacht_roles?.name,
+                          t.ports?.name,
+                          t.vessels?.name,
+                          t.day_rate
+                            ? `${currencySymbol(t.currency ?? 'EUR')}${t.day_rate}/day`
+                            : null,
+                          t.working_days ? `${t.working_days}d` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => router.push(`/daywork/post?templateId=${t.id}`)}
+                        >
+                          <Play className="mr-1 h-3.5 w-3.5" />
+                          Use
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteTemplate(t.id)}
+                          disabled={deletingTemplate === t.id}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" />
+                          {deletingTemplate === t.id ? 'Deleting...' : 'Delete'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </TabsContent>
+            </Tabs>
+          </div>
+          <Dialog open={!!editPositions} onOpenChange={() => setEditPositions(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit crew count</DialogTitle>
+                <DialogDescription>
+                  {editPositions && editPositions.filled > 0
+                    ? `${editPositions.filled} position${editPositions.filled !== 1 ? 's' : ''} already filled. Minimum is ${editPositions.filled}.`
+                    : 'How many crew do you need for this job?'}
+                </DialogDescription>
+              </DialogHeader>
+              <Input
+                type="number"
+                min={editPositions?.filled ?? 1}
+                max={20}
+                value={editPositionsValue}
+                onChange={(e) => setEditPositionsValue(e.target.value)}
+              />
+              <DialogFooter className="flex gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setEditPositions(null)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSavePositions} disabled={savingPositions}>
+                  {savingPositions ? 'Saving...' : 'Save'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </main>
   );
 }

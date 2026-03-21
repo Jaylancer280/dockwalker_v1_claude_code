@@ -193,6 +193,7 @@ Integration tests (`npm run test:integration`) run against a real local Supabase
 - Permanent revert (`POST /api/permanent/:id/revert`): employer-only. Reverts selection. Engagement closed. Posting → `active`. Emits `PERMANENT.SELECTION_REVERTED`.
 - Permanent cancel (`POST /api/permanent/:id/cancel`): employer-only. Cancels posting (`active` or `in_negotiation`). Projection handles engagement close cascade. Body: `{ reason?: string }`. Emits `PERMANENT.CANCELLED_BY_EMPLOYER`.
 - Permanent engagement close (`POST /api/permanent/engagements/:id/close`): either party. Closes permanent engagement conversation. Body: `{ outcome: 'successful_placement' | 'not_successful' | 'withdrew' }`. Crew withdrew reverts posting to active. Emits `PERMANENT.ENGAGEMENT_CLOSED`.
+- Permanent mine (`GET /api/permanent/mine`): employer-only. Returns all employer's permanent postings with application counts (applicant_count, shortlist_count, total_applications) and selected_crew_name for in_negotiation postings. Single batch query for counts, no N+1.
 - Message read cursor (`POST /api/messages/:engagementId/read`): upserts read cursor for current user on engagement. Called on chat mount and visibility change.
 - Notifications (`GET /api/notifications`): lists notifications for current user, supports `?unread_only=true`. Returns `{ notifications, unread_count }`.
 - Notifications read (`POST /api/notifications/read`): marks notifications as read. Body: `{ notificationIds: string[] }` or `{ all: true }`.
