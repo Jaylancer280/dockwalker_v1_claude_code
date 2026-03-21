@@ -28,6 +28,8 @@ import { LocationPicker } from '@/components/location-picker';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
+import { PostingTypeSelector } from './_components/posting-type-selector';
+import { PermanentPostForm } from './_components/permanent-post-form';
 
 interface LookupItem {
   id: string;
@@ -57,6 +59,20 @@ interface Template {
 type MealOption = 'breakfast' | 'lunch' | 'dinner';
 
 export default function PostDayworkPage() {
+  const [postingType, setPostingType] = useState<'daywork' | 'permanent' | null>(null);
+
+  if (postingType === null) {
+    return <PostingTypeSelector onSelect={setPostingType} />;
+  }
+
+  if (postingType === 'permanent') {
+    return <PermanentPostForm onBack={() => setPostingType(null)} />;
+  }
+
+  return <DayworkPostForm />;
+}
+
+function DayworkPostForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showSuccess, showError: showErrorToast } = useToast();

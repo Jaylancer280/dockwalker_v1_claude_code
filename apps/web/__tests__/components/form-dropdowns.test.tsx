@@ -364,6 +364,9 @@ describe('Post Daywork page — employer form dropdowns', () => {
     const { default: PostDayworkPage } = await import('@/app/(app)/daywork/post/page');
     render(<PostDayworkPage />);
 
+    // Select daywork type from the type selector
+    fireEvent.click(screen.getByText('Daywork'));
+
     // Wait for lookups to load
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
@@ -396,6 +399,9 @@ describe('Post Daywork page — employer form dropdowns', () => {
   it('queries all 3 canonical lookup tables (location handled by LocationPicker)', async () => {
     const { default: PostDayworkPage } = await import('@/app/(app)/daywork/post/page');
     render(<PostDayworkPage />);
+
+    // Select daywork type from the type selector
+    fireEvent.click(screen.getByText('Daywork'));
 
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');

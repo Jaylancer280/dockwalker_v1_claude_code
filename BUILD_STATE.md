@@ -176,6 +176,7 @@
 - [Stage 126b] Daywork engagement route hardening — daywork_id IS NOT NULL guard on 11 engagement routes, prevents permanent engagement IDs from triggering daywork events
 - [Stage 127] Permanent jobs schema + types + events — permanent_postings table, permanent_templates table, profile availability columns, applications + engagements XOR extensions, 12 PERMANENT.\* event handlers in apply_projection, aggregate_type + application_status CHECK updates
 - [Fix 127a] Integration test seed data alignment — vessel name/type/working_days expectations, self-contained application + lifecycle tests, experience size band fix, rating CHECK values, invitation cleanup
+- [Stage 128] Permanent post API + form — POST /api/permanent, permanent template CRUD routes, PostingTypeSelector, PermanentPostForm, type selector wired into post page; 14 new tests (730 total)
 
 ## Current Schema Version
 
