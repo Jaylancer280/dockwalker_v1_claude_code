@@ -19,6 +19,7 @@ export async function GET() {
       person_id, display_name, identity_type, bio, avatar_url,
       primary_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
+      permanent_availability, notice_period_days, currently_employed,
       agency_name, role_specialization_ids,
       yacht_roles(id, name),
       experience_brackets(id, label),
@@ -62,6 +63,27 @@ export async function PATCH(request: Request) {
   if (body.locationPortId !== undefined) payload.location_port_id = body.locationPortId;
   if (body.nationalityId !== undefined) payload.nationality_id = body.nationalityId;
   if (body.visaIds !== undefined) payload.visa_ids = body.visaIds;
+  if (body.permanentAvailability !== undefined) {
+    if (
+      body.permanentAvailability !== null &&
+      !['immediate', 'after_notice', 'not_looking'].includes(body.permanentAvailability)
+    ) {
+      return NextResponse.json({ error: 'Invalid permanent availability' }, { status: 400 });
+    }
+    payload.permanent_availability = body.permanentAvailability;
+  }
+  if (body.noticePeriodDays !== undefined) {
+    if (
+      body.noticePeriodDays !== null &&
+      (!Number.isInteger(body.noticePeriodDays) || body.noticePeriodDays < 1)
+    ) {
+      return NextResponse.json({ error: 'Invalid notice period' }, { status: 400 });
+    }
+    payload.notice_period_days = body.noticePeriodDays;
+  }
+  if (body.currentlyEmployed !== undefined) {
+    payload.currently_employed = body.currentlyEmployed === true;
+  }
 
   if (Object.keys(payload).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });

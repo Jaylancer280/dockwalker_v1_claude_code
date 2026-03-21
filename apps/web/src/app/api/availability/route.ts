@@ -56,7 +56,9 @@ export async function GET() {
   // Get accepted engagements (blocked days)
   const { data: engagements, error: engError } = await supabase
     .from('active_engagements')
-    .select('id, start_date, end_date, daywork_id, dayworks(yacht_roles(name))')
+    .select(
+      'id, start_date, end_date, daywork_id, permanent_posting_id, dayworks(yacht_roles(name)), permanent_postings(yacht_roles(name))',
+    )
     .eq('crew_person_id', user.id)
     .eq('status', 'active');
 

@@ -40,7 +40,10 @@ export interface PermanentPosting {
 interface PermanentJobCardProps {
   posting: PermanentPosting;
   onTap: () => void;
+  onApply?: (postingId: string) => void;
   onPosterTap?: (personId: string) => void;
+  crewCertIds?: string[];
+  applying?: boolean;
 }
 
 function formatSalary(min: number, max: number, currency: string, period: string) {
@@ -63,7 +66,20 @@ function formatStartDate(dateStr: string) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function PermanentJobCard({ posting, onTap, onPosterTap }: PermanentJobCardProps) {
+export function PermanentJobCard({
+  posting,
+  onTap,
+  onApply,
+  onPosterTap,
+  crewCertIds,
+  applying,
+}: PermanentJobCardProps) {
+  const missingCerts = (() => {
+    if (!crewCertIds || posting.required_certification_ids.length === 0) return [];
+    const crewSet = new Set(crewCertIds);
+    return posting.cert_names.filter((_, i) => !crewSet.has(posting.required_certification_ids[i]));
+  })();
+  const canApply = missingCerts.length === 0;
   const vesselPrefix =
     posting.vessel_type === 'sail' ? 'S/Y' : posting.vessel_type === 'motor' ? 'M/Y' : '';
   const vesselDisplay = posting.vessel_nda
@@ -162,10 +178,26 @@ export function PermanentJobCard({ posting, onTap, onPosterTap }: PermanentJobCa
         <span>{daysAgo(posting.created_at)}</span>
       </div>
 
-      {/* Apply button — disabled in this stage */}
-      <Button className="mt-3 w-full" disabled>
-        Apply
-      </Button>
+      {/* Apply button */}
+      {canApply ? (
+        <Button
+          className="mt-3 w-full"
+          disabled={applying}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onApply) onApply(posting.id);
+          }}
+        >
+          {applying ? 'Applying...' : 'Apply'}
+        </Button>
+      ) : (
+        <div className="mt-3">
+          <Button className="w-full" disabled>
+            Missing certifications
+          </Button>
+          <p className="mt-1 text-xs text-muted-foreground">Requires: {missingCerts.join(', ')}</p>
+        </div>
+      )}
     </div>
   );
 }

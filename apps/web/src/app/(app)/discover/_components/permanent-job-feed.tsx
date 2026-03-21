@@ -17,6 +17,7 @@ import { ProfileOverlay } from '@/components/profile-overlay';
 import { PermanentJobCard, type PermanentPosting } from './permanent-job-card';
 import { PermanentJobDetail } from './permanent-job-detail';
 import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface LookupItem {
   id: string;
@@ -25,12 +26,18 @@ interface LookupItem {
 }
 
 export function PermanentJobFeed() {
+  const { showSuccess, showError } = useToast();
+
   // Data
   const [postings, setPostings] = useState<PermanentPosting[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+
+  // Crew certs for client-side gate
+  const [crewCertIds, setCrewCertIds] = useState<string[]>([]);
 
   // Detail view
   const [selectedPosting, setSelectedPosting] = useState<PermanentPosting | null>(null);
@@ -71,6 +78,15 @@ export function PermanentJobFeed() {
       setBrackets((bracketsRes.data ?? []) as LookupItem[]);
       setSizeBands((bandsRes.data ?? []) as LookupItem[]);
     });
+
+    // Fetch crew's certs for client-side cert gate
+    supabase
+      .from('profiles')
+      .select('certification_ids')
+      .single()
+      .then(({ data }) => {
+        if (data?.certification_ids) setCrewCertIds(data.certification_ids as string[]);
+      });
   }, []);
 
   const loadPostings = useCallback(
@@ -150,6 +166,35 @@ export function PermanentJobFeed() {
     setFilterSizeBandId('');
   }
 
+  async function handleApply(postingId: string) {
+    setApplying(true);
+    try {
+      const res = await fetch(`/api/permanent/${postingId}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const text = await res.text();
+      const data = text ? JSON.parse(text) : {};
+      if (res.status === 403 && data.missing_certs) {
+        const names = data.missing_certs.map((c: { name: string }) => c.name).join(', ');
+        showError(`Missing certifications: ${names}`);
+      } else if (res.status === 409) {
+        showError("You've already applied to this position");
+      } else if (!res.ok) {
+        showError(data.error || 'Failed to apply');
+      } else {
+        setPostings((prev) => prev.filter((p) => p.id !== postingId));
+        if (selectedPosting?.id === postingId) setSelectedPosting(null);
+        showSuccess('Application submitted');
+      }
+    } catch {
+      showError('Network error — please try again');
+    } finally {
+      setApplying(false);
+    }
+  }
+
   const hasActiveFilters =
     (filterRoleId && filterRoleId !== 'all') ||
     filterPortId ||
@@ -161,7 +206,13 @@ export function PermanentJobFeed() {
 
   if (selectedPosting) {
     return (
-      <PermanentJobDetail posting={selectedPosting} onClose={() => setSelectedPosting(null)} />
+      <PermanentJobDetail
+        posting={selectedPosting}
+        onClose={() => setSelectedPosting(null)}
+        onApply={handleApply}
+        crewCertIds={crewCertIds}
+        applying={applying}
+      />
     );
   }
 
@@ -327,7 +378,10 @@ export function PermanentJobFeed() {
               key={posting.id}
               posting={posting}
               onTap={() => setSelectedPosting(posting)}
+              onApply={handleApply}
               onPosterTap={(pid) => setProfilePersonId(pid)}
+              crewCertIds={crewCertIds}
+              applying={applying}
             />
           ))}
 

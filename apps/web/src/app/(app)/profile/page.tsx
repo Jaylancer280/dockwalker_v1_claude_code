@@ -147,6 +147,12 @@ export default function ProfilePage() {
   const [availStatus, setAvailStatus] = useState<'available' | 'not_available' | null>(null);
   const [showAvailOverlay, setShowAvailOverlay] = useState(false);
 
+  // Career status state
+  const [permAvail, setPermAvail] = useState<string | null>(null);
+  const [noticeDays, setNoticeDays] = useState<number | null>(null);
+  const [employed, setEmployed] = useState(false);
+  const [savingCareer, setSavingCareer] = useState(false);
+
   // Edit form state
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -182,6 +188,9 @@ export default function ProfilePage() {
       setProfile(data.profile);
       if (data.profile.nationality_id) setNationalityId(data.profile.nationality_id);
       if (data.profile.visa_ids) setVisaIds(data.profile.visa_ids);
+      setPermAvail(data.profile.permanent_availability ?? null);
+      setNoticeDays(data.profile.notice_period_days ?? null);
+      setEmployed(data.profile.currently_employed ?? false);
     }
     setLoading(false);
   }, []);
@@ -535,6 +544,151 @@ export default function ProfilePage() {
               )}
             </div>
           </button>
+        )}
+
+        {/* Career status — crew hat only, view mode only */}
+        {profile.identity_type === 'crew' && isCrewHat && !editing && (
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Career status</h3>
+            </div>
+            <div className="space-y-3">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={permAvail !== null}
+                  onChange={(e) => {
+                    const val = e.target.checked ? 'immediate' : null;
+                    setPermAvail(val);
+                    setSavingCareer(true);
+                    fetch('/api/profile', {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        permanentAvailability: val,
+                        noticePeriodDays: val === null ? null : noticeDays,
+                        currentlyEmployed: val === null ? false : employed,
+                      }),
+                    })
+                      .then((r) => {
+                        if (r.ok) showSuccess('Career status updated');
+                        else showError('Failed to update');
+                      })
+                      .catch(() => showError('Network error'))
+                      .finally(() => setSavingCareer(false));
+                  }}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <span className="text-sm">Open to permanent opportunities</span>
+              </label>
+
+              {permAvail !== null && (
+                <>
+                  <div className="ml-6 space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="permAvail"
+                        checked={permAvail === 'immediate'}
+                        onChange={() => {
+                          setPermAvail('immediate');
+                          setSavingCareer(true);
+                          fetch('/api/profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ permanentAvailability: 'immediate' }),
+                          })
+                            .then((r) => {
+                              if (r.ok) showSuccess('Updated');
+                              else showError('Failed');
+                            })
+                            .catch(() => showError('Network error'))
+                            .finally(() => setSavingCareer(false));
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm">Available immediately</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="permAvail"
+                        checked={permAvail === 'after_notice'}
+                        onChange={() => {
+                          setPermAvail('after_notice');
+                          setSavingCareer(true);
+                          fetch('/api/profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              permanentAvailability: 'after_notice',
+                              noticePeriodDays: noticeDays || 30,
+                            }),
+                          })
+                            .then((r) => {
+                              if (r.ok) {
+                                showSuccess('Updated');
+                                if (!noticeDays) setNoticeDays(30);
+                              } else showError('Failed');
+                            })
+                            .catch(() => showError('Network error'))
+                            .finally(() => setSavingCareer(false));
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm">After notice period</span>
+                    </label>
+                    {permAvail === 'after_notice' && (
+                      <div className="ml-6 flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={noticeDays ?? ''}
+                          onChange={(e) => setNoticeDays(parseInt(e.target.value, 10) || null)}
+                          onBlur={() => {
+                            if (noticeDays && noticeDays > 0) {
+                              fetch('/api/profile', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ noticePeriodDays: noticeDays }),
+                              })
+                                .then((r) => {
+                                  if (r.ok) showSuccess('Updated');
+                                })
+                                .catch(() => {});
+                            }
+                          }}
+                          className="w-20 rounded border bg-background px-2 py-1 text-sm"
+                          min={1}
+                        />
+                        <span className="text-xs text-muted-foreground">days</span>
+                      </div>
+                    )}
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={employed}
+                        onChange={(e) => {
+                          setEmployed(e.target.checked);
+                          fetch('/api/profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ currentlyEmployed: e.target.checked }),
+                          })
+                            .then((r) => {
+                              if (r.ok) showSuccess('Updated');
+                            })
+                            .catch(() => {});
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <span className="text-sm">Currently employed</span>
+                    </label>
+                  </div>
+                </>
+              )}
+              {savingCareer && <p className="text-xs text-muted-foreground">Saving...</p>}
+            </div>
+          </div>
         )}
 
         <Separator />

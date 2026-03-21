@@ -12,6 +12,9 @@ import { useState } from 'react';
 interface PermanentJobDetailProps {
   posting: PermanentPosting;
   onClose: () => void;
+  onApply?: (postingId: string) => void;
+  crewCertIds?: string[];
+  applying?: boolean;
 }
 
 function formatSalary(min: number, max: number, currency: string, period: string) {
@@ -27,7 +30,13 @@ function formatStartDate(dateStr: string) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export function PermanentJobDetail({ posting, onClose }: PermanentJobDetailProps) {
+export function PermanentJobDetail({
+  posting,
+  onClose,
+  onApply,
+  crewCertIds,
+  applying,
+}: PermanentJobDetailProps) {
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
 
   const vesselPrefix =
@@ -148,9 +157,17 @@ export function PermanentJobDetail({ posting, onClose }: PermanentJobDetailProps
               </button>
             )}
 
-            {/* Apply — disabled in this stage */}
-            <Button className="w-full" disabled>
-              Apply
+            {/* Apply */}
+            <Button
+              className="w-full"
+              disabled={
+                applying ||
+                (crewCertIds !== undefined &&
+                  posting.required_certification_ids.some((id) => !crewCertIds.includes(id)))
+              }
+              onClick={() => onApply?.(posting.id)}
+            >
+              {applying ? 'Applying...' : 'Apply'}
             </Button>
           </div>
         </div>
