@@ -1,6 +1,6 @@
 # Permanent Jobs — Product & Technical Spec
 
-> **Status:** Draft v5 — final review incorporated
+> **Status:** Implemented — Stages 126b-136 (2026-03-21)
 > **Created:** 2026-03-19 | **v2:** zero contamination | **v3:** negotiation stage | **v4:** second stress test | **v5:** final review
 > **Prerequisite:** Stage 126 complete (daywork codebase clean)
 > **Scope:** MVP permanent job listings alongside daywork at launch

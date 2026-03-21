@@ -184,6 +184,9 @@
 - [Stage 133] Negotiation resolution — POST confirm/revert/cancel/engagement-close routes, ConfirmPlacementDialog + RevertSelectionDialog + CloseConversationDialog components; 19 new tests (797 total)
 - [Stage 134] Permanent mine page — GET /api/permanent/mine with application counts, PermanentMineSection with 5 tabs (Active/Negotiating/Filled/Cancelled/Templates), Daywork/Permanent toggle on mine page; 5 new tests (802 total)
 - [Stage 135] Chat integration — messages API + context API dual LEFT JOIN for permanent_postings, EngagementContext type extended, PermanentSummaryCard, chat page type detection + conditional kebab menu (confirm/revert/close/cancel/withdraw), daywork actions gated behind !isPermanent
+- [Stage 136a] Permanent push triggers + email templates — 8 notification types in push-triggers, 3 email templates (shortlisted/selected/placement confirmed), deep link routing for permanent events; 10 new tests (812 total)
+- [Stage 136b] Cron + GDPR export + admin — engagement-starts cron resolves permanent role names, GDPR export includes permanent_posting_id + outcome + permanent_postings table, admin engagements show permanent_posting_id
+- [Stage 136c] Final contamination checklist passed — all 812 tests green, zero daywork route contamination, single migration (00059), integration tests pass, documentation complete
 
 ## Current Schema Version
 
