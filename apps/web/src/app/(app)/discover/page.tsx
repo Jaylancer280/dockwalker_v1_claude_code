@@ -45,6 +45,7 @@ import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { ProfileOverlay } from '@/components/profile-overlay';
 import { LocationPicker } from '@/components/location-picker';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { NotificationBell } from '@/components/notification-bell';
@@ -230,14 +231,14 @@ export default function DiscoverPage() {
   const lastAvailCheckRef = useRef<number>(0);
   const checkAvailability = useCallback(async () => {
     try {
-      const res = await fetch('/api/availability');
-      if (res.ok) {
-        const data = await res.json();
-        setHasAvailability(data.status === 'available');
+      const result = await safeFetch<{ status: string }>('/api/availability');
+      if (result.ok) {
+        setHasAvailability(result.data.status === 'available');
         lastAvailCheckRef.current = Date.now();
       }
-    } catch {
       // Network failure — keep cached availability state
+    } catch {
+      // safeFetch never throws, but try/catch needed for React compiler lint
     }
   }, []);
 
@@ -293,13 +294,16 @@ export default function DiscoverPage() {
     try {
       const params = buildFilterParams();
       const qs = params.toString();
-      const res = await fetch(`/api/daywork/discover${qs ? `?${qs}` : ''}`);
-      const data = await res.json();
-      if (data.dayworks) setCards(data.dayworks);
-      setNextCursor(data.next_cursor ?? null);
-      setHasMore(data.has_more ?? false);
-    } catch {
-      // Network error — spinner cleanup handled in finally
+      const result = await safeFetch<{
+        dayworks?: DayworkCard[];
+        next_cursor?: string;
+        has_more?: boolean;
+      }>(`/api/daywork/discover${qs ? `?${qs}` : ''}`);
+      if (result.ok) {
+        if (result.data.dayworks) setCards(result.data.dayworks);
+        setNextCursor(result.data.next_cursor ?? null);
+        setHasMore(result.data.has_more ?? false);
+      }
     } finally {
       setLoading(false);
     }
@@ -309,42 +313,43 @@ export default function DiscoverPage() {
     if (!nextCursor || !hasMore || loadingMore) return;
     setLoadingMore(true);
 
-    try {
-      let currentCursor = nextCursor;
-      let retries = 0;
-      const MAX_RETRIES = 3;
+    let currentCursor = nextCursor;
+    let retries = 0;
+    const MAX_RETRIES = 3;
 
-      while (retries < MAX_RETRIES) {
-        const params = buildFilterParams();
-        params.set('cursor', currentCursor);
-        const qs = params.toString();
-        const res = await fetch(`/api/daywork/discover?${qs}`);
-        const data = await res.json();
-        const newCards = data.dayworks ?? [];
+    while (retries < MAX_RETRIES) {
+      const params = buildFilterParams();
+      params.set('cursor', currentCursor);
+      const qs = params.toString();
+      const result = await safeFetch<{
+        dayworks?: DayworkCard[];
+        next_cursor?: string;
+        has_more?: boolean;
+      }>(`/api/daywork/discover?${qs}`);
 
-        if (newCards.length > 0) {
-          setCards((prev) => [...prev, ...newCards]);
-          setNextCursor(data.next_cursor ?? null);
-          setHasMore(data.has_more ?? false);
-          break;
-        }
+      if (!result.ok) break;
 
-        // Empty batch (e.g. post-fetch sizeBand filter removed all results)
-        if (!data.has_more || !data.next_cursor) {
-          setNextCursor(null);
-          setHasMore(false);
-          break;
-        }
+      const newCards = result.data.dayworks ?? [];
 
-        // Retry with new cursor
-        currentCursor = data.next_cursor;
-        retries++;
+      if (newCards.length > 0) {
+        setCards((prev) => [...prev, ...newCards]);
+        setNextCursor(result.data.next_cursor ?? null);
+        setHasMore(result.data.has_more ?? false);
+        break;
       }
-    } catch {
-      // Network error — spinner cleanup handled in finally
-    } finally {
-      setLoadingMore(false);
+
+      // Empty batch (e.g. post-fetch sizeBand filter removed all results)
+      if (!result.data.has_more || !result.data.next_cursor) {
+        setNextCursor(null);
+        setHasMore(false);
+        break;
+      }
+
+      // Retry with new cursor
+      currentCursor = result.data.next_cursor;
+      retries++;
     }
+    setLoadingMore(false);
   }, [nextCursor, hasMore, loadingMore, buildFilterParams]);
 
   // Auto-load more when card stack runs low
@@ -375,29 +380,23 @@ export default function DiscoverPage() {
       await checkAvailability();
     }
     setApplying(true);
-    try {
-      const opts: RequestInit = { method: 'POST' };
-      if (message) {
-        opts.headers = { 'Content-Type': 'application/json' };
-        opts.body = JSON.stringify({ message });
-      }
-      const res = await fetch(`/api/daywork/${dayworkId}/apply`, opts);
-      if (res.ok) {
-        setCards((prev) => prev.filter((c) => c.id !== dayworkId));
-        showSuccess('Application sent');
-        // Refresh application count for the badge
-        loadApplications();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to apply');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setComposingMessage(false);
-      setMessageText('');
-      setApplying(false);
+    const opts: RequestInit = { method: 'POST' };
+    if (message) {
+      opts.headers = { 'Content-Type': 'application/json' };
+      opts.body = JSON.stringify({ message });
     }
+    const result = await safeFetch<{ error?: string }>(`/api/daywork/${dayworkId}/apply`, opts);
+    if (result.ok) {
+      setCards((prev) => prev.filter((c) => c.id !== dayworkId));
+      showSuccess('Application sent');
+      // Refresh application count for the badge
+      loadApplications();
+    } else {
+      showError(result.error);
+    }
+    setComposingMessage(false);
+    setMessageText('');
+    setApplying(false);
   }
 
   function handlePass(dayworkId: string) {
@@ -422,28 +421,23 @@ export default function DiscoverPage() {
 
   const loadApplications = useCallback(async () => {
     setLoadingApps(true);
-    try {
-      const [dwRes, pmRes] = await Promise.all([
-        fetch('/api/daywork/applications'),
-        fetch('/api/permanent/applications'),
-      ]);
-      const dwApps = dwRes.ok
-        ? ((await dwRes.json()).applications ?? []).map((a: MyApplication) => ({
-            ...a,
-            type: 'daywork' as const,
-          }))
-        : [];
-      const pmApps = pmRes.ok ? ((await pmRes.json()).applications ?? []) : [];
-      const merged = [...dwApps, ...pmApps].sort(
-        (a: MyApplication, b: MyApplication) =>
-          new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime(),
-      );
-      setApplications(merged);
-    } catch {
-      // Silent fail — show what we have
-    } finally {
-      setLoadingApps(false);
-    }
+    const [dwResult, pmResult] = await Promise.all([
+      safeFetch<{ applications?: MyApplication[] }>('/api/daywork/applications'),
+      safeFetch<{ applications?: MyApplication[] }>('/api/permanent/applications'),
+    ]);
+    const dwApps = dwResult.ok
+      ? (dwResult.data.applications ?? []).map((a: MyApplication) => ({
+          ...a,
+          type: 'daywork' as const,
+        }))
+      : [];
+    const pmApps = pmResult.ok ? (pmResult.data.applications ?? []) : [];
+    const merged = [...dwApps, ...pmApps].sort(
+      (a: MyApplication, b: MyApplication) =>
+        new Date(b.applied_at).getTime() - new Date(a.applied_at).getTime(),
+    );
+    setApplications(merged);
+    setLoadingApps(false);
   }, []);
 
   // Load applications on mount (for badge count) and when switching to the Applied tab
@@ -453,53 +447,39 @@ export default function DiscoverPage() {
 
   async function handleWithdraw(dayworkId: string) {
     setWithdrawingId(dayworkId);
-    try {
-      const res = await fetch(`/api/daywork/${dayworkId}/withdraw`, { method: 'POST' });
-      if (res.ok) {
-        setApplications((prev) => prev.filter((a) => a.daywork_id !== dayworkId));
-        showSuccess('Application withdrawn');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to withdraw');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setWithdrawingId(null);
+    const result = await safeFetch<{ error?: string }>(`/api/daywork/${dayworkId}/withdraw`, {
+      method: 'POST',
+    });
+    if (result.ok) {
+      setApplications((prev) => prev.filter((a) => a.daywork_id !== dayworkId));
+      showSuccess('Application withdrawn');
+    } else {
+      showError(result.error);
     }
+    setWithdrawingId(null);
   }
 
   async function handlePermanentWithdraw(postingId: string) {
     setWithdrawingId(postingId);
-    try {
-      const res = await fetch(`/api/permanent/${postingId}/withdraw`, { method: 'POST' });
-      if (res.ok) {
-        setApplications((prev) => prev.filter((a) => a.permanent_posting_id !== postingId));
-        showSuccess('Application withdrawn');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to withdraw');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setWithdrawingId(null);
+    const result = await safeFetch<{ error?: string }>(`/api/permanent/${postingId}/withdraw`, {
+      method: 'POST',
+    });
+    if (result.ok) {
+      setApplications((prev) => prev.filter((a) => a.permanent_posting_id !== postingId));
+      showSuccess('Application withdrawn');
+    } else {
+      showError(result.error);
     }
+    setWithdrawingId(null);
   }
 
   const loadInvitations = useCallback(async () => {
     setLoadingInvitations(true);
-    try {
-      const res = await fetch('/api/daywork/invitations');
-      if (res.ok) {
-        const data = await res.json();
-        setInvitations(data.invitations ?? []);
-      }
-    } catch {
-      // Network error — spinner cleanup handled in finally
-    } finally {
-      setLoadingInvitations(false);
+    const result = await safeFetch<{ invitations?: Invitation[] }>('/api/daywork/invitations');
+    if (result.ok) {
+      setInvitations(result.data.invitations ?? []);
     }
+    setLoadingInvitations(false);
   }, []);
 
   // Load invitations on mount (for badge count) and when switching tabs
@@ -511,50 +491,44 @@ export default function DiscoverPage() {
   async function handleAcceptInvitation(inv: Invitation) {
     setRespondingId(inv.id);
     setInvitationError(null);
-    try {
-      const res = await fetch(`/api/daywork/invitations/${inv.id}/respond`, {
+    const result = await safeFetch<{ error?: string }>(
+      `/api/daywork/invitations/${inv.id}/respond`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'accept' }),
-      });
-      if (res.ok) {
-        setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
-        showSuccess('Invitation accepted');
-        loadApplications();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setInvitationError(data.error ?? 'Failed to accept invitation');
-      }
-    } catch {
-      setInvitationError('Network error — please try again');
-    } finally {
-      setRespondingId(null);
-      setConfirmAcceptInv(null);
+      },
+    );
+    if (result.ok) {
+      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      showSuccess('Invitation accepted');
+      loadApplications();
+    } else {
+      setInvitationError(result.error);
     }
+    setRespondingId(null);
+    setConfirmAcceptInv(null);
   }
 
   async function handleDeclineInvitation(inv: Invitation) {
     setRespondingId(inv.id);
     setInvitationError(null);
-    try {
-      const res = await fetch(`/api/daywork/invitations/${inv.id}/respond`, {
+    const result = await safeFetch<{ error?: string }>(
+      `/api/daywork/invitations/${inv.id}/respond`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'decline' }),
-      });
-      if (res.ok) {
-        setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
-        showSuccess('Invitation declined');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setInvitationError(data.error ?? 'Failed to decline invitation');
-      }
-    } catch {
-      setInvitationError('Network error — please try again');
-    } finally {
-      setRespondingId(null);
-      setConfirmDeclineInv(null);
+      },
+    );
+    if (result.ok) {
+      setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
+      showSuccess('Invitation declined');
+    } else {
+      setInvitationError(result.error);
     }
+    setRespondingId(null);
+    setConfirmDeclineInv(null);
   }
 
   const topCard = cards[0] ?? null;

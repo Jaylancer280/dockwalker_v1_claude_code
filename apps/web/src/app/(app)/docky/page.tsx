@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LifeBuoy, Plus, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
+import { safeFetch } from '@/lib/safe-fetch';
 import {
   Dialog,
   DialogContent,
@@ -46,12 +47,14 @@ export default function DockyPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/advisor/conversations');
-      if (!res.ok) throw new Error('Failed to load');
-      const data = await res.json();
-      setConversations(data.conversations ?? []);
-    } catch {
-      showError('Failed to load conversations');
+      const result = await safeFetch<{ conversations?: Conversation[] }>(
+        '/api/advisor/conversations',
+      );
+      if (result.ok) {
+        setConversations(result.data.conversations ?? []);
+      } else {
+        showError('Failed to load conversations');
+      }
     } finally {
       setLoading(false);
     }
@@ -62,18 +65,15 @@ export default function DockyPage() {
 
     // Fetch usage pill data
     async function loadUsage() {
-      try {
-        const res = await fetch('/api/advisor/usage');
-        if (!res.ok) return;
-        const text = await res.text();
-        const data = text ? JSON.parse(text) : {};
-        if (data.plan) {
+      const result = await safeFetch<{ plan?: string; limit?: number; used?: number }>(
+        '/api/advisor/usage',
+      );
+      if (result.ok) {
+        if (result.data.plan) {
           setUsagePill('Pro');
-        } else if (data.limit != null) {
-          setUsagePill(`${data.used ?? 0} of ${data.limit}`);
+        } else if (result.data.limit != null) {
+          setUsagePill(`${result.data.used ?? 0} of ${result.data.limit}`);
         }
-      } catch {
-        // No pill on failure
       }
     }
     loadUsage();
@@ -81,12 +81,12 @@ export default function DockyPage() {
 
   async function createConversation() {
     setCreating(true);
-    try {
-      const res = await fetch('/api/advisor/conversations', { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to create');
-      const data = await res.json();
-      router.push(`/docky/${data.id}`);
-    } catch {
+    const result = await safeFetch<{ id: string }>('/api/advisor/conversations', {
+      method: 'POST',
+    });
+    if (result.ok) {
+      router.push(`/docky/${result.data.id}`);
+    } else {
       showError('Failed to create conversation');
       setCreating(false);
     }
@@ -94,41 +94,38 @@ export default function DockyPage() {
 
   async function handleChipTap(chipText: string) {
     setCreating(true);
-    try {
-      const res = await fetch('/api/advisor/conversations', { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to create');
-      const { id } = await res.json();
-
-      const msgRes = await fetch(`/api/advisor/conversations/${id}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: chipText }),
-      });
-
-      if (!msgRes.ok && msgRes.status !== 503) throw new Error('Failed to send');
-
-      router.push(`/docky/${id}`);
-    } catch {
+    const createResult = await safeFetch<{ id: string }>('/api/advisor/conversations', {
+      method: 'POST',
+    });
+    if (!createResult.ok) {
       showError('Failed to start conversation');
       setCreating(false);
+      return;
     }
+    const { id } = createResult.data;
+
+    await safeFetch(`/api/advisor/conversations/${id}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: chipText }),
+    });
+
+    router.push(`/docky/${id}`);
   }
 
   async function handleDelete() {
     if (!deleteTarget) return;
     setDeleting(true);
-    try {
-      const res = await fetch(`/api/advisor/conversations/${deleteTarget}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok && res.status !== 204) throw new Error('Failed to delete');
+    const result = await safeFetch(`/api/advisor/conversations/${deleteTarget}`, {
+      method: 'DELETE',
+    });
+    if (result.ok) {
       setConversations((prev) => prev.filter((c) => c.id !== deleteTarget));
       setDeleteTarget(null);
-    } catch {
+    } else {
       showError('Failed to delete conversation');
-    } finally {
-      setDeleting(false);
     }
+    setDeleting(false);
   }
 
   if (loading) {

@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface Applicant {
   id: string;
@@ -71,41 +72,48 @@ export default function PermanentReviewPage() {
 
   const loadApplicants = useCallback(async () => {
     setLoading(true);
-    try {
-      const res = await fetch(`/api/permanent/${postingId}/review`);
-      if (res.ok) {
-        const data = await res.json();
-        setApplicants(data.applicants ?? []);
-        setShortlistCap(data.shortlist_cap ?? 5);
-        setShortlistCount(data.shortlist_count ?? 0);
-        setPostingStatus(data.posting_status ?? 'active');
-        setSelectedCrewId(data.selected_crew_id ?? null);
-      }
-    } catch {
+    const result = await safeFetch<{
+      applicants?: Applicant[];
+      shortlist_cap?: number;
+      shortlist_count?: number;
+      posting_status?: string;
+      selected_crew_id?: string | null;
+    }>(`/api/permanent/${postingId}/review`);
+    if (result.ok) {
+      setApplicants(result.data.applicants ?? []);
+      setShortlistCap(result.data.shortlist_cap ?? 5);
+      setShortlistCount(result.data.shortlist_count ?? 0);
+      setPostingStatus(result.data.posting_status ?? 'active');
+      setSelectedCrewId(result.data.selected_crew_id ?? null);
+    } else {
       showError('Failed to load applicants');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, [postingId, showError]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      try {
-        const res = await fetch(`/api/permanent/${postingId}/review`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setApplicants(data.applicants ?? []);
-          setShortlistCap(data.shortlist_cap ?? 5);
-          setShortlistCount(data.shortlist_count ?? 0);
-          setPostingStatus(data.posting_status ?? 'active');
-          setSelectedCrewId(data.selected_crew_id ?? null);
+      const result = await safeFetch<{
+        applicants?: Applicant[];
+        shortlist_cap?: number;
+        shortlist_count?: number;
+        posting_status?: string;
+        selected_crew_id?: string | null;
+      }>(`/api/permanent/${postingId}/review`);
+      if (!cancelled) {
+        if (result.ok) {
+          setApplicants(result.data.applicants ?? []);
+          setShortlistCap(result.data.shortlist_cap ?? 5);
+          setShortlistCount(result.data.shortlist_count ?? 0);
+          setPostingStatus(result.data.posting_status ?? 'active');
+          setSelectedCrewId(result.data.selected_crew_id ?? null);
+        } else {
+          showError('Failed to load applicants');
         }
-      } catch {
-        if (!cancelled) showError('Failed to load applicants');
+        setLoading(false);
       }
-      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -120,61 +128,55 @@ export default function PermanentReviewPage() {
 
   async function handleShortlist(crewId: string) {
     setActioningId(crewId);
-    try {
-      const res = await fetch(`/api/permanent/${postingId}/applicants/${crewId}/shortlist`, {
+    const result = await safeFetch<{ error?: string }>(
+      `/api/permanent/${postingId}/applicants/${crewId}/shortlist`,
+      {
         method: 'POST',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        showSuccess('Candidate shortlisted');
-        loadApplicants();
-      } else {
-        showError(data.error ?? 'Failed to shortlist');
-      }
-    } catch {
-      showError('Network error');
+      },
+    );
+    if (result.ok) {
+      showSuccess('Candidate shortlisted');
+      loadApplicants();
+    } else {
+      showError(result.error);
     }
     setActioningId(null);
   }
 
   async function handleReject(crewId: string) {
     setActioningId(crewId);
-    try {
-      const res = await fetch(`/api/permanent/${postingId}/applicants/${crewId}/reject`, {
+    const result = await safeFetch<{ error?: string }>(
+      `/api/permanent/${postingId}/applicants/${crewId}/reject`,
+      {
         method: 'POST',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        showSuccess('Candidate rejected');
-        setApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
-      } else {
-        showError(data.error ?? 'Failed to reject');
-      }
-    } catch {
-      showError('Network error');
+      },
+    );
+    if (result.ok) {
+      showSuccess('Candidate rejected');
+      setApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
+    } else {
+      showError(result.error);
     }
     setActioningId(null);
   }
 
   async function handleSelect(crewId: string) {
     setActioningId(crewId);
-    try {
-      const res = await fetch(`/api/permanent/${postingId}/applicants/${crewId}/select`, {
+    const result = await safeFetch<{ engagementId?: string; error?: string }>(
+      `/api/permanent/${postingId}/applicants/${crewId}/select`,
+      {
         method: 'POST',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        showSuccess('Candidate selected — opening conversation');
-        if (data.engagementId) {
-          router.push(`/messages/${data.engagementId}`);
-        } else {
-          loadApplicants();
-        }
+      },
+    );
+    if (result.ok) {
+      showSuccess('Candidate selected — opening conversation');
+      if (result.data.engagementId) {
+        router.push(`/messages/${result.data.engagementId}`);
       } else {
-        showError(data.error ?? 'Failed to select');
+        loadApplicants();
       }
-    } catch {
-      showError('Network error');
+    } else {
+      showError(result.error);
     }
     setActioningId(null);
   }

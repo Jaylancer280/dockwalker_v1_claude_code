@@ -5,7 +5,7 @@
 
 ## Current Task
 
-(none)
+Stage 141a: safeFetch Migration + Consistent Error Handling
 
 ---
 
@@ -66,48 +66,48 @@ No toast. Failed background refresh just means stale data. The page still functi
 
 ##### HIGH — Most bare fetches relative to try coverage
 
-- [ ] `messages/[engagementId]/page.tsx` — 21 fetches, 16 try, 9 finally. The 5 unguarded fetches are mostly permanent actions added in Stage 135. Migrate all 21 to safeFetch.
+- [x] `messages/[engagementId]/page.tsx` — 21 fetches, 16 try, 9 finally. The 5 unguarded fetches are mostly permanent actions added in Stage 135. Migrate all 21 to safeFetch.
   - Action fetches (send, cancel, complete, rate, checklist, work-started, postponement, permanent actions): Pattern A with toast
   - `loadContext`, `loadMessages`: Pattern B — already have try/catch, convert to safeFetch for consistency
   - `init()` auth fetch: Pattern B — already has `.catch(() => null)`, convert to safeFetch
   - `markRead`: fire-and-forget, already has `.catch(() => {})` — convert to safeFetch with no result check
 
-- [ ] `daywork/[id]/review/page.tsx` — 6 fetches, 2 try, 2 finally. The 4 unguarded fetches are likely data loads (applicants, shortlist actions). Migrate all.
+- [x] `daywork/[id]/review/page.tsx` — 6 fetches, 2 try, 2 finally. The 4 unguarded fetches are likely data loads (applicants, shortlist actions). Migrate all.
 
-- [ ] `profile/add-experience/page.tsx` — 3 fetches, 1 try, 1 finally. Likely lookup data loads + form submit.
+- [x] `profile/add-experience/page.tsx` — 3 fetches, 1 try, 1 finally. Likely lookup data loads + form submit.
 
 ##### MEDIUM — Some gaps
 
-- [ ] `docky/page.tsx` — 6 fetches, 5 try, 2 finally. Mostly covered, fill the gap.
-- [ ] `profile/page.tsx` — 5 fetches, 4 try, 3 finally. One unguarded fetch, likely a data load.
-- [ ] `daywork/post/page.tsx` — 4 fetches, 2 try, 2 finally. Template load + submit.
-- [ ] `permanent/[id]/review/page.tsx` — 5 fetches, 5 try, 1 finally. Try coverage good but finally missing on 4 — loading flags may stick.
-- [ ] `notifications/page.tsx` — 2 fetches, 1 try, 1 finally.
-- [ ] `billing/page.tsx` — 3 fetches, 3 try, 1 finally.
+- [x] `docky/page.tsx` — 6 fetches, 5 try, 2 finally. Mostly covered, fill the gap.
+- [x] `profile/page.tsx` — 5 fetches, 4 try, 3 finally. One unguarded fetch, likely a data load.
+- [x] `daywork/post/page.tsx` — 4 fetches, 2 try, 2 finally. Template load + submit.
+- [x] `permanent/[id]/review/page.tsx` — 5 fetches, 5 try, 1 finally. Try coverage good but finally missing on 4 — loading flags may stick.
+- [x] `notifications/page.tsx` — 2 fetches, 1 try, 1 finally.
+- [x] `billing/page.tsx` — 3 fetches, 3 try, 1 finally.
 
 ##### LOW — Already good, convert for consistency
 
-- [ ] `discover/page.tsx` — 9 fetches, 10 try, 9 finally. Well-covered already. Convert for consistency.
-- [ ] `settings/page.tsx` — already well-guarded. Convert for consistency.
-- [ ] `vessels/page.tsx`, `vessels/[id]/edit/page.tsx` — already well-guarded. Convert.
-- [ ] `messages/page.tsx` — 1 fetch, well-guarded. Convert.
-- [ ] `docky/[conversationId]/page.tsx` — well-guarded. Convert.
-- [ ] `daywork/mine/page.tsx` — well-guarded. Convert.
-- [ ] `profile/edit-experience/[id]/page.tsx` — well-guarded. Convert.
+- [x] `discover/page.tsx` — 9 fetches, 10 try, 9 finally. Well-covered already. Convert for consistency.
+- [x] `settings/page.tsx` — already well-guarded. Convert for consistency.
+- [x] `vessels/page.tsx`, `vessels/[id]/edit/page.tsx` — already well-guarded. Convert.
+- [x] `messages/page.tsx` — 1 fetch, well-guarded. Convert.
+- [x] `docky/[conversationId]/page.tsx` — well-guarded. Convert.
+- [x] `daywork/mine/page.tsx` — well-guarded. Convert.
+- [x] `profile/edit-experience/[id]/page.tsx` — well-guarded. Convert.
 
 ##### Component files with fetch calls
 
-- [ ] `daywork/mine/_components/permanent-mine-section.tsx` — has fetch calls for postings + templates
-- [ ] `discover/_components/permanent-job-feed.tsx` — has fetch calls for feed + apply
-- [ ] `daywork/post/_components/permanent-post-form.tsx` — has fetch calls for lookups + submit + templates
-- [ ] Any other `_components/` files with fetch calls — audit and convert
+- [x] `daywork/mine/_components/permanent-mine-section.tsx` — has fetch calls for postings + templates
+- [x] `discover/_components/permanent-job-feed.tsx` — has fetch calls for feed + apply
+- [x] `daywork/post/_components/permanent-post-form.tsx` — has fetch calls for lookups + submit + templates
+- [x] Any other `_components/` files with fetch calls — audit and convert
 
 #### Verify
 
-- [ ] `grep -rn "await fetch(" src/app/\(app\)/ --include="*.tsx"` — zero results (all converted to safeFetch)
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] `npx vitest run` — all tests pass
-- [ ] `npx eslint src/ --max-warnings 0` — zero warnings
+- [x] `grep -rn "await fetch(" src/app/\(app\)/ --include="*.tsx"` — zero results (all converted to safeFetch)
+- [x] `npx tsc --noEmit` — zero errors
+- [x] `npx vitest run` — all tests pass (812/812)
+- [x] `npx eslint src/ --max-warnings 0` — zero warnings
 - [ ] Commit: "Stage 141a: safeFetch migration — zero bare fetch in client pages"
 
 ---

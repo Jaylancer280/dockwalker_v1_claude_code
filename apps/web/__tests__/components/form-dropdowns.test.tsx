@@ -280,9 +280,11 @@ function mockFetchResponses(overrides: Record<string, unknown> = {}) {
       ...overrides,
     };
     const key = Object.keys(defaults).find((k) => (url as string).includes(k));
+    const data = key ? defaults[key] : {};
     return Promise.resolve({
       ok: true,
-      json: () => Promise.resolve(key ? defaults[key] : {}),
+      json: () => Promise.resolve(data),
+      text: () => Promise.resolve(JSON.stringify(data)),
     });
   });
 }
@@ -476,7 +478,7 @@ describe('Profile page — edit mode dropdowns', () => {
 
     // Wait for profile to load
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith('/api/profile');
+      expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.anything());
     });
 
     // Enter edit mode

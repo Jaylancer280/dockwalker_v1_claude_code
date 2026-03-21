@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { useToast } from '@/hooks/use-toast';
+import { safeFetch } from '@/lib/safe-fetch';
 import Link from 'next/link';
 import {
   ChevronLeft,
@@ -172,25 +173,29 @@ export default function ReviewApplicantsPage() {
 
   const loadApplicants = useCallback(async () => {
     setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filterCertId && filterCertId !== 'all') params.set('certificationId', filterCertId);
-      if (filterMinDays) params.set('minAvailableDays', filterMinDays);
-      const qs = params.toString();
-      const res = await fetch(`/api/daywork/${dayworkId}/applicants${qs ? `?${qs}` : ''}`);
-      if (!res.ok) throw new Error('Failed to load');
-      const data = await res.json();
-      if (data.applicants) setAllApplicants(data.applicants);
-      if (data.positions_available !== undefined) setPositionsAvailable(data.positions_available);
-      if (data.positions_filled !== undefined) setPositionsFilled(data.positions_filled);
-      if (data.permanent_opportunity !== undefined)
-        setPermanentOpportunity(data.permanent_opportunity);
+    const params = new URLSearchParams();
+    if (filterCertId && filterCertId !== 'all') params.set('certificationId', filterCertId);
+    if (filterMinDays) params.set('minAvailableDays', filterMinDays);
+    const qs = params.toString();
+    const result = await safeFetch<{
+      applicants?: Applicant[];
+      positions_available?: number;
+      positions_filled?: number;
+      permanent_opportunity?: boolean;
+    }>(`/api/daywork/${dayworkId}/applicants${qs ? `?${qs}` : ''}`);
+    if (result.ok) {
+      if (result.data.applicants) setAllApplicants(result.data.applicants);
+      if (result.data.positions_available !== undefined)
+        setPositionsAvailable(result.data.positions_available);
+      if (result.data.positions_filled !== undefined)
+        setPositionsFilled(result.data.positions_filled);
+      if (result.data.permanent_opportunity !== undefined)
+        setPermanentOpportunity(result.data.permanent_opportunity);
       setError(null);
-    } catch {
+    } else {
       setError('Failed to load applicants. Please try again.');
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   }, [dayworkId, filterCertId, filterMinDays]);
 
   useEffect(() => {
@@ -199,22 +204,24 @@ export default function ReviewApplicantsPage() {
 
   const loadAvailableCrew = useCallback(async () => {
     setAvailableLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (allRoles) params.set('allRoles', 'true');
-      const qs = params.toString();
-      const res = await fetch(`/api/daywork/${dayworkId}/available-crew${qs ? `?${qs}` : ''}`);
-      if (!res.ok) throw new Error('Failed to load');
-      const data = await res.json();
-      setAvailableCrew(data.crew ?? []);
-      setInvitationCount(data.invitation_count ?? 0);
-      if (data.invitation_limit !== undefined) setInvitationLimit(data.invitation_limit);
-    } catch {
+    const params = new URLSearchParams();
+    if (allRoles) params.set('allRoles', 'true');
+    const qs = params.toString();
+    const result = await safeFetch<{
+      crew?: AvailableCrew[];
+      invitation_count?: number;
+      invitation_limit?: number;
+    }>(`/api/daywork/${dayworkId}/available-crew${qs ? `?${qs}` : ''}`);
+    if (result.ok) {
+      setAvailableCrew(result.data.crew ?? []);
+      setInvitationCount(result.data.invitation_count ?? 0);
+      if (result.data.invitation_limit !== undefined)
+        setInvitationLimit(result.data.invitation_limit);
+    } else {
       setAvailableCrew([]);
-    } finally {
-      setAvailableLoading(false);
-      setAvailableLoaded(true);
     }
+    setAvailableLoading(false);
+    setAvailableLoaded(true);
   }, [dayworkId, allRoles]);
 
   // Lazy load: fetch available crew only when tab is first activated
@@ -242,7 +249,7 @@ export default function ReviewApplicantsPage() {
     const top = applicantStack[0];
     if (top && !viewedRef.current.has(top.crew_person_id)) {
       viewedRef.current.add(top.crew_person_id);
-      fetch(`/api/daywork/${dayworkId}/applicants/${top.crew_person_id}/view`, {
+      void safeFetch(`/api/daywork/${dayworkId}/applicants/${top.crew_person_id}/view`, {
         method: 'POST',
       });
     }
@@ -250,17 +257,16 @@ export default function ReviewApplicantsPage() {
 
   async function handleShortlist(crewId: string) {
     setActing(true);
-    const res = await fetch(`/api/daywork/${dayworkId}/applicants/${crewId}/shortlist`, {
+    const result = await safeFetch(`/api/daywork/${dayworkId}/applicants/${crewId}/shortlist`, {
       method: 'POST',
     });
-    if (res.ok) {
+    if (result.ok) {
       showSuccess('Added to shortlist');
       setAllApplicants((prev) =>
         prev.map((a) => (a.crew_person_id === crewId ? { ...a, status: 'shortlisted' } : a)),
       );
     } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to shortlist');
+      showError(result.error);
     }
     setActing(false);
   }
@@ -273,11 +279,13 @@ export default function ReviewApplicantsPage() {
 
   async function handleAccept(crewId: string) {
     setActing(true);
-    const res = await fetch(`/api/daywork/${dayworkId}/applicants/${crewId}/accept`, {
-      method: 'POST',
-    });
-    if (res.ok) {
-      const data = await res.json();
+    const result = await safeFetch<{ engagementId?: string }>(
+      `/api/daywork/${dayworkId}/applicants/${crewId}/accept`,
+      {
+        method: 'POST',
+      },
+    );
+    if (result.ok) {
       const accepted = allApplicants.find((a) => a.crew_person_id === crewId);
       const crewName = accepted?.profiles?.display_name ?? 'the crew member';
       const newFilled = positionsFilled + 1;
@@ -293,27 +301,25 @@ export default function ReviewApplicantsPage() {
       }
 
       showSuccess('Crew accepted');
-      if (data.engagementId) {
-        setAcceptedDialog({ crewName, engagementId: data.engagementId });
+      if (result.data.engagementId) {
+        setAcceptedDialog({ crewName, engagementId: result.data.engagementId });
       }
     } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to accept');
+      showError(result.error);
     }
     setActing(false);
   }
 
   async function handleReject(crewId: string) {
     setActing(true);
-    const res = await fetch(`/api/daywork/${dayworkId}/applicants/${crewId}/reject`, {
+    const result = await safeFetch(`/api/daywork/${dayworkId}/applicants/${crewId}/reject`, {
       method: 'POST',
     });
-    if (res.ok) {
+    if (result.ok) {
       showSuccess('Applicant rejected');
       setAllApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
     } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to reject');
+      showError(result.error);
     }
     setActing(false);
   }
@@ -321,18 +327,17 @@ export default function ReviewApplicantsPage() {
   async function handleInvite(personId: string) {
     setActing(true);
     setInviteError(null);
-    const res = await fetch(`/api/daywork/${dayworkId}/invite`, {
+    const result = await safeFetch(`/api/daywork/${dayworkId}/invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ crewPersonId: personId }),
     });
-    if (res.ok) {
+    if (result.ok) {
       showSuccess('Invitation sent');
       setAvailableCrew((prev) => prev.filter((c) => c.person_id !== personId));
       setInvitationCount((prev) => prev + 1);
     } else {
-      const data = await res.json().catch(() => ({}));
-      setInviteError(data.error ?? 'Failed to send invitation');
+      setInviteError(result.error);
     }
     setActing(false);
   }

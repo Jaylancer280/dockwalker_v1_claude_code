@@ -50,6 +50,7 @@ import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { LocationPicker } from '@/components/location-picker';
 import { RolePicker } from '@/components/role-picker';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface LookupItem {
   id: string;
@@ -182,40 +183,50 @@ export default function ProfilePage() {
 
   const loadProfile = useCallback(async () => {
     try {
-      const res = await fetch('/api/profile');
-      const data = await res.json();
-      if (data.person) setPerson(data.person);
-      if (data.profile) {
-        setProfile(data.profile);
-        if (data.profile.nationality_id) setNationalityId(data.profile.nationality_id);
-        if (data.profile.visa_ids) setVisaIds(data.profile.visa_ids);
-        setPermAvail(data.profile.permanent_availability ?? null);
-        setNoticeDays(data.profile.notice_period_days ?? null);
-        setEmployed(data.profile.currently_employed ?? false);
+      const result = await safeFetch<{
+        person?: Person;
+        profile?: Profile & {
+          permanent_availability?: string;
+          notice_period_days?: number;
+          currently_employed?: boolean;
+        };
+      }>('/api/profile');
+      if (result.ok) {
+        if (result.data.person) setPerson(result.data.person);
+        if (result.data.profile) {
+          setProfile(result.data.profile);
+          if (result.data.profile.nationality_id)
+            setNationalityId(result.data.profile.nationality_id);
+          if (result.data.profile.visa_ids) setVisaIds(result.data.profile.visa_ids);
+          setPermAvail(result.data.profile.permanent_availability ?? null);
+          setNoticeDays(result.data.profile.notice_period_days ?? null);
+          setEmployed(result.data.profile.currently_employed ?? false);
+        }
       }
-    } catch {
-      // Network error — spinner cleanup handled in finally
     } finally {
       setLoading(false);
     }
   }, []);
 
   const loadExperiences = useCallback(async () => {
-    const res = await fetch('/api/experiences');
-    if (res.ok) {
-      const data = await res.json();
-      setExperiences(data.experiences ?? []);
+    const result = await safeFetch<{ experiences?: ExperienceEntry[] }>('/api/experiences');
+    if (result.ok) {
+      setExperiences(result.data.experiences ?? []);
     }
   }, []);
 
   const loadAvailability = useCallback(async () => {
-    const res = await fetch('/api/availability');
-    if (res.ok) {
-      const data = await res.json();
-      setAvailWindows(data.windows ?? []);
-      setAvailCity(data.city ?? null);
-      setAvailPort(data.port ?? null);
-      setAvailStatus(data.status ?? null);
+    const result = await safeFetch<{
+      windows?: AvailabilityWindow[];
+      city?: AvailabilityCity | null;
+      port?: { id: string; name: string } | null;
+      status?: 'available' | 'not_available' | null;
+    }>('/api/availability');
+    if (result.ok) {
+      setAvailWindows(result.data.windows ?? []);
+      setAvailCity(result.data.city ?? null);
+      setAvailPort(result.data.port ?? null);
+      setAvailStatus(result.data.status ?? null);
     }
   }, []);
 
@@ -327,63 +338,53 @@ export default function ProfilePage() {
 
   async function handleSave() {
     setSaving(true);
-    try {
-      const body: Record<string, unknown> = {
-        displayName,
-        locationPortId: locationPortId || null,
-      };
+    const body: Record<string, unknown> = {
+      displayName,
+      locationPortId: locationPortId || null,
+    };
 
-      if (profile?.identity_type === 'crew') {
-        body.primaryRoleId = primaryRoleId || null;
-        body.bio = bio || null;
-        body.experienceBracketId = experienceBracketId || null;
-        body.certificationIds = certificationIds;
-        body.vesselSizeExposureIds = vesselSizeExposureIds;
-        body.nationalityId = nationalityId || null;
-        body.visaIds = visaIds;
-      } else {
-        body.agencyName = agencyName || null;
-        body.roleSpecializationIds = roleSpecializationIds;
-      }
-
-      const res = await fetch('/api/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (res.ok) {
-        setEditing(false);
-        await loadProfile();
-        showSuccess('Profile updated');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to save profile');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setSaving(false);
+    if (profile?.identity_type === 'crew') {
+      body.primaryRoleId = primaryRoleId || null;
+      body.bio = bio || null;
+      body.experienceBracketId = experienceBracketId || null;
+      body.certificationIds = certificationIds;
+      body.vesselSizeExposureIds = vesselSizeExposureIds;
+      body.nationalityId = nationalityId || null;
+      body.visaIds = visaIds;
+    } else {
+      body.agencyName = agencyName || null;
+      body.roleSpecializationIds = roleSpecializationIds;
     }
+
+    const result = await safeFetch<{ error?: string }>('/api/profile', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (result.ok) {
+      setEditing(false);
+      await loadProfile();
+      showSuccess('Profile updated');
+    } else {
+      showError(result.error);
+    }
+    setSaving(false);
   }
 
   async function handleDeleteExperience(expId: string) {
     setDeletingExpId(expId);
-    try {
-      const res = await fetch(`/api/experiences/${expId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setExperiences((prev) => prev.filter((e) => e.id !== expId));
-        if (expandedExpId === expId) setExpandedExpId(null);
-        showSuccess('Experience removed');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to delete experience');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setDeletingExpId(null);
+    const result = await safeFetch<{ error?: string }>(`/api/experiences/${expId}`, {
+      method: 'DELETE',
+    });
+    if (result.ok) {
+      setExperiences((prev) => prev.filter((e) => e.id !== expId));
+      if (expandedExpId === expId) setExpandedExpId(null);
+      showSuccess('Experience removed');
+    } else {
+      showError(result.error);
     }
+    setDeletingExpId(null);
   }
 
   function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {
@@ -570,11 +571,11 @@ export default function ProfilePage() {
                 <input
                   type="checkbox"
                   checked={permAvail !== null}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const val = e.target.checked ? 'immediate' : null;
                     setPermAvail(val);
                     setSavingCareer(true);
-                    fetch('/api/profile', {
+                    const result = await safeFetch('/api/profile', {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
@@ -582,13 +583,10 @@ export default function ProfilePage() {
                         noticePeriodDays: val === null ? null : noticeDays,
                         currentlyEmployed: val === null ? false : employed,
                       }),
-                    })
-                      .then((r) => {
-                        if (r.ok) showSuccess('Career status updated');
-                        else showError('Failed to update');
-                      })
-                      .catch(() => showError('Network error'))
-                      .finally(() => setSavingCareer(false));
+                    });
+                    if (result.ok) showSuccess('Career status updated');
+                    else showError('Failed to update');
+                    setSavingCareer(false);
                   }}
                   className="h-4 w-4 rounded border-border"
                 />
@@ -603,20 +601,17 @@ export default function ProfilePage() {
                         type="radio"
                         name="permAvail"
                         checked={permAvail === 'immediate'}
-                        onChange={() => {
+                        onChange={async () => {
                           setPermAvail('immediate');
                           setSavingCareer(true);
-                          fetch('/api/profile', {
+                          const result = await safeFetch('/api/profile', {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ permanentAvailability: 'immediate' }),
-                          })
-                            .then((r) => {
-                              if (r.ok) showSuccess('Updated');
-                              else showError('Failed');
-                            })
-                            .catch(() => showError('Network error'))
-                            .finally(() => setSavingCareer(false));
+                          });
+                          if (result.ok) showSuccess('Updated');
+                          else showError('Failed');
+                          setSavingCareer(false);
                         }}
                         className="h-4 w-4"
                       />
@@ -627,25 +622,22 @@ export default function ProfilePage() {
                         type="radio"
                         name="permAvail"
                         checked={permAvail === 'after_notice'}
-                        onChange={() => {
+                        onChange={async () => {
                           setPermAvail('after_notice');
                           setSavingCareer(true);
-                          fetch('/api/profile', {
+                          const result = await safeFetch('/api/profile', {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                               permanentAvailability: 'after_notice',
                               noticePeriodDays: noticeDays || 30,
                             }),
-                          })
-                            .then((r) => {
-                              if (r.ok) {
-                                showSuccess('Updated');
-                                if (!noticeDays) setNoticeDays(30);
-                              } else showError('Failed');
-                            })
-                            .catch(() => showError('Network error'))
-                            .finally(() => setSavingCareer(false));
+                          });
+                          if (result.ok) {
+                            showSuccess('Updated');
+                            if (!noticeDays) setNoticeDays(30);
+                          } else showError('Failed');
+                          setSavingCareer(false);
                         }}
                         className="h-4 w-4"
                       />
@@ -657,17 +649,14 @@ export default function ProfilePage() {
                           type="number"
                           value={noticeDays ?? ''}
                           onChange={(e) => setNoticeDays(parseInt(e.target.value, 10) || null)}
-                          onBlur={() => {
+                          onBlur={async () => {
                             if (noticeDays && noticeDays > 0) {
-                              fetch('/api/profile', {
+                              const result = await safeFetch('/api/profile', {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ noticePeriodDays: noticeDays }),
-                              })
-                                .then((r) => {
-                                  if (r.ok) showSuccess('Updated');
-                                })
-                                .catch(() => {});
+                              });
+                              if (result.ok) showSuccess('Updated');
                             }
                           }}
                           className="w-20 rounded border bg-background px-2 py-1 text-sm"
@@ -680,17 +669,14 @@ export default function ProfilePage() {
                       <input
                         type="checkbox"
                         checked={employed}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           setEmployed(e.target.checked);
-                          fetch('/api/profile', {
+                          const result = await safeFetch('/api/profile', {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ currentlyEmployed: e.target.checked }),
-                          })
-                            .then((r) => {
-                              if (r.ok) showSuccess('Updated');
-                            })
-                            .catch(() => {});
+                          });
+                          if (result.ok) showSuccess('Updated');
                         }}
                         className="h-4 w-4 rounded border-border"
                       />

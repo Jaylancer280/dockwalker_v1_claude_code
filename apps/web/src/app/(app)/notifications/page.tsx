@@ -17,6 +17,7 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface Notification {
   id: string;
@@ -64,27 +65,24 @@ export default function NotificationsPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications');
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications ?? []);
+      const result = await safeFetch<{ notifications?: Notification[] }>('/api/notifications');
+      if (result.ok) {
+        setNotifications(result.data.notifications ?? []);
+        setError(null);
+      } else {
+        setError('Failed to load notifications. Please try again.');
       }
-      setError(null);
-    } catch {
-      setError('Failed to load notifications. Please try again.');
     } finally {
       setLoading(false);
     }
   }, []);
 
-   
   useEffect(() => {
     load();
   }, [load]);
-   
 
   async function markAllRead() {
-    await fetch('/api/notifications/read', {
+    await safeFetch('/api/notifications/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ all: true }),
@@ -94,7 +92,7 @@ export default function NotificationsPage() {
 
   async function handleTap(notif: Notification) {
     if (!notif.read) {
-      fetch('/api/notifications/read', {
+      void safeFetch('/api/notifications/read', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: [notif.id] }),

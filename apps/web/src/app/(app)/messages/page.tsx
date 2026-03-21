@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { NotificationBell } from '@/components/notification-bell';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface Conversation {
   id: string;
@@ -36,12 +37,13 @@ export default function MessagesPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/messages');
-      const data = await res.json();
-      if (data.conversations) setConversations(data.conversations);
-      setError(null);
-    } catch {
-      setError('Failed to load messages. Please try again.');
+      const result = await safeFetch<{ conversations?: Conversation[] }>('/api/messages');
+      if (result.ok) {
+        if (result.data.conversations) setConversations(result.data.conversations);
+        setError(null);
+      } else {
+        setError('Failed to load messages. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { safeFetch } from '@/lib/safe-fetch';
 import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 
 import type { Message, EngagementContext } from './_components/types';
@@ -84,26 +85,17 @@ export default function ChatPage() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const loadContext = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/messages/${engagementId}/context`);
-      const data = await res.json().catch(() => ({}));
-      if (data.engagement) setContext(data.engagement);
-    } catch {
-      showError('Failed to load conversation');
-    }
-  }, [engagementId, showError]);
+    const result = await safeFetch<{ engagement?: EngagementContext }>(
+      `/api/messages/${engagementId}/context`,
+    );
+    if (result.ok && result.data.engagement) setContext(result.data.engagement);
+  }, [engagementId]);
 
   const loadMessages = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/messages/${engagementId}`);
-      const data = await res.json();
-      if (data.messages) setMessages(data.messages);
-    } catch {
-      showError('Failed to load messages');
-    } finally {
-      setLoading(false);
-    }
-  }, [engagementId, showError]);
+    const result = await safeFetch<{ messages?: Message[] }>(`/api/messages/${engagementId}`);
+    if (result.ok && result.data.messages) setMessages(result.data.messages);
+    setLoading(false);
+  }, [engagementId]);
 
   // Realtime subscription for messages — falls back to polling if not connected after 5s
   const { isConnected: realtimeConnected } = useRealtimeMessages(engagementId, (newMsg) => {
@@ -125,22 +117,15 @@ export default function ChatPage() {
     let fallbackTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     function markRead() {
-      fetch(`/api/messages/${engagementId}/read`, { method: 'POST' }).catch(() => {});
+      void safeFetch('/api/messages/' + engagementId + '/read', { method: 'POST' });
     }
 
     async function init() {
-      try {
-        const [, userRes] = await Promise.all([
-          Promise.all([loadContext(), loadMessages()]),
-          fetch('/api/auth/me').catch(() => null),
-        ]);
-        if (userRes) {
-          const userData = await userRes.json().catch(() => ({}));
-          if (userData.userId) setUserId(userData.userId);
-        }
-      } catch {
-        // Init failed — page still renders with whatever loaded
-      }
+      const [, userResult] = await Promise.all([
+        Promise.all([loadContext(), loadMessages()]),
+        safeFetch<{ userId?: string }>('/api/auth/me'),
+      ]);
+      if (userResult.ok && userResult.data.userId) setUserId(userResult.data.userId);
 
       // These MUST run even if init fetches failed
       markRead();
@@ -211,100 +196,83 @@ export default function ChatPage() {
     if (!input.trim() || sending) return;
 
     setSending(true);
-    try {
-      const res = await fetch(`/api/messages/${engagementId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: input.trim() }),
-      });
-
-      if (res.ok) {
-        setInput('');
-        await loadMessages();
-      } else {
-        showError('Failed to send message');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setSending(false);
+    const result = await safeFetch(`/api/messages/${engagementId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: input.trim() }),
+    });
+    if (result.ok) {
+      setInput('');
+      await loadMessages();
+    } else {
+      showError(result.error);
     }
+    setSending(false);
   }
 
   async function handleConfirmCompletion(confirmed: boolean) {
     if (!context) return;
     setConfirming(true);
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/confirm-completion`, {
+    const result = await safeFetch<{ status: string }>(
+      `/api/engagements/${engagementId}/confirm-completion`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirmed }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setContext((prev) => (prev ? { ...prev, crew_completion_status: data.status } : prev));
-        showSuccess('Completion confirmed');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to confirm');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setConfirming(false);
+      },
+    );
+    if (result.ok) {
+      setContext((prev) => (prev ? { ...prev, crew_completion_status: result.data.status } : prev));
+      showSuccess('Completion confirmed');
+    } else {
+      showError(result.error);
     }
+    setConfirming(false);
   }
 
   async function handleSubmitRating(ratingData: Record<string, unknown>) {
     setSubmittingRating(true);
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/rate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ratingData),
-      });
-      if (res.ok) {
-        const responseData = await res.json().catch(() => ({}));
-        setContext((prev) =>
-          prev
-            ? {
-                ...prev,
-                has_rated: true,
-                my_rating: {
-                  id: responseData.id ?? 'local',
-                  rater_role: isCrew ? 'crew' : 'employer',
-                  rating_context: prev.status === 'cancelled' ? 'cancelled' : 'completed',
-                  pay_accuracy: (ratingData.pay_accuracy as string) ?? null,
-                  meals_accuracy: (ratingData.meals_accuracy as string) ?? null,
-                  role_accuracy: (ratingData.role_accuracy as string) ?? null,
-                  working_days_accuracy: (ratingData.working_days_accuracy as string) ?? null,
-                  vessel_condition: (ratingData.vessel_condition as number) ?? null,
-                  would_work_on_vessel_again:
-                    (ratingData.would_work_on_vessel_again as boolean) ?? null,
-                  skills_as_advertised: (ratingData.skills_as_advertised as string) ?? null,
-                  certifications_verified: (ratingData.certifications_verified as string) ?? null,
-                  punctuality: (ratingData.punctuality as string) ?? null,
-                  would_rehire: (ratingData.would_rehire as boolean) ?? null,
-                  communication_accuracy: (ratingData.communication_accuracy as boolean) ?? null,
-                  overall_match: (ratingData.overall_match as number) ?? null,
-                  notice_given: (ratingData.notice_given as string) ?? null,
-                  permanent_opportunity_accuracy:
-                    (ratingData.permanent_opportunity_accuracy as string) ?? null,
-                },
-              }
-            : prev,
-        );
-        setShowRating(false);
-        showSuccess('Rating submitted');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to submit rating');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setSubmittingRating(false);
+    const result = await safeFetch<{ id?: string }>(`/api/engagements/${engagementId}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ratingData),
+    });
+    if (result.ok) {
+      setContext((prev) =>
+        prev
+          ? {
+              ...prev,
+              has_rated: true,
+              my_rating: {
+                id: result.data.id ?? 'local',
+                rater_role: isCrew ? 'crew' : 'employer',
+                rating_context: prev.status === 'cancelled' ? 'cancelled' : 'completed',
+                pay_accuracy: (ratingData.pay_accuracy as string) ?? null,
+                meals_accuracy: (ratingData.meals_accuracy as string) ?? null,
+                role_accuracy: (ratingData.role_accuracy as string) ?? null,
+                working_days_accuracy: (ratingData.working_days_accuracy as string) ?? null,
+                vessel_condition: (ratingData.vessel_condition as number) ?? null,
+                would_work_on_vessel_again:
+                  (ratingData.would_work_on_vessel_again as boolean) ?? null,
+                skills_as_advertised: (ratingData.skills_as_advertised as string) ?? null,
+                certifications_verified: (ratingData.certifications_verified as string) ?? null,
+                punctuality: (ratingData.punctuality as string) ?? null,
+                would_rehire: (ratingData.would_rehire as boolean) ?? null,
+                communication_accuracy: (ratingData.communication_accuracy as boolean) ?? null,
+                overall_match: (ratingData.overall_match as number) ?? null,
+                notice_given: (ratingData.notice_given as string) ?? null,
+                permanent_opportunity_accuracy:
+                  (ratingData.permanent_opportunity_accuracy as string) ?? null,
+              },
+            }
+          : prev,
+      );
+      setShowRating(false);
+      showSuccess('Rating submitted');
+    } else {
+      showError(result.error);
     }
+    setSubmittingRating(false);
   }
 
   async function handleCancelSubmit(cancelData: {
@@ -314,22 +282,17 @@ export default function ChatPage() {
     relist_reason_category?: string;
     relist_reason_text?: string;
   }) {
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/cancel-employer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cancelData),
-      });
-      if (res.ok) {
-        setShowCancelForm(false);
-        showSuccess('Cancellation submitted');
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to cancel');
-      }
-    } catch {
-      showError('Network error — please try again');
+    const result = await safeFetch(`/api/engagements/${engagementId}/cancel-employer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cancelData),
+    });
+    if (result.ok) {
+      setShowCancelForm(false);
+      showSuccess('Cancellation submitted');
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
   }
 
@@ -337,22 +300,17 @@ export default function ChatPage() {
     reason_category: string;
     reason_text?: string;
   }) {
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/cancel-crew`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cancelData),
-      });
-      if (res.ok) {
-        setShowCrewCancelForm(false);
-        showSuccess('Cancellation submitted');
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to cancel');
-      }
-    } catch {
-      showError('Network error — please try again');
+    const result = await safeFetch(`/api/engagements/${engagementId}/cancel-crew`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cancelData),
+    });
+    if (result.ok) {
+      setShowCrewCancelForm(false);
+      showSuccess('Cancellation submitted');
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
   }
 
@@ -363,21 +321,15 @@ export default function ChatPage() {
       const today = new Date().toISOString().split('T')[0];
       if (context.start_date < today) {
         setRespondingCrewCancel(true);
-        try {
-          const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'cancel' }),
-          });
-          if (res.ok) {
-            router.push(`/daywork/post?fromDaywork=${context.daywork_id}`);
-          } else {
-            const data = await res.json().catch(() => ({}));
-            showError(data.error ?? 'Failed to cancel original posting');
-            setRespondingCrewCancel(false);
-          }
-        } catch {
-          showError('Network error — please try again');
+        const result = await safeFetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cancel' }),
+        });
+        if (result.ok) {
+          router.push(`/daywork/post?fromDaywork=${context.daywork_id}`);
+        } else {
+          showError(result.error);
           setRespondingCrewCancel(false);
         }
         return;
@@ -385,44 +337,34 @@ export default function ChatPage() {
     }
 
     setRespondingCrewCancel(true);
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      if (res.ok) {
-        showSuccess(action === 'relist' ? 'Job relisted' : 'Posting cancelled');
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to respond');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setRespondingCrewCancel(false);
+    const result = await safeFetch(`/api/engagements/${engagementId}/respond-crew-cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    if (result.ok) {
+      showSuccess(action === 'relist' ? 'Job relisted' : 'Posting cancelled');
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
+    setRespondingCrewCancel(false);
   }
 
   async function handleComplete() {
     if (!context) return;
     setShowCompleteConfirm(false);
     setCompleting(true);
-    try {
-      const res = await fetch(`/api/daywork/${context.daywork_id}/complete`, { method: 'POST' });
-      if (res.ok) {
-        showSuccess('Daywork marked complete');
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to complete');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setCompleting(false);
+    const result = await safeFetch(`/api/daywork/${context.daywork_id}/complete`, {
+      method: 'POST',
+    });
+    if (result.ok) {
+      showSuccess('Daywork marked complete');
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
+    setCompleting(false);
   }
 
   async function handlePostponementSubmit(data: {
@@ -431,106 +373,85 @@ export default function ChatPage() {
     working_days: number;
     confirm_conflict?: boolean;
   }): Promise<{ outcome: string }> {
-    const res = await fetch(`/api/engagements/${engagementId}/propose-postponement`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(result.error ?? 'Failed to propose postponement');
+    const result = await safeFetch<{ outcome: string }>(
+      `/api/engagements/${engagementId}/propose-postponement`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+    );
+    if (!result.ok) {
+      throw new Error(result.error);
     }
-    if (result.outcome === 'proposed' || result.outcome === 'conflict_confirmed') {
+    if (result.data.outcome === 'proposed' || result.data.outcome === 'conflict_confirmed') {
       setShowPostponementForm(false);
       showSuccess('Date change proposed');
       await Promise.all([loadContext(), loadMessages()]);
     }
-    return result;
+    return result.data;
   }
 
   async function handleRelistAfterRejection() {
     setRelistingAfterRejection(true);
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/relist-with-dates`, {
-        method: 'POST',
-      });
-      if (res.ok) {
-        showSuccess('Job relisted');
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to relist');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setRelistingAfterRejection(false);
+    const result = await safeFetch(`/api/engagements/${engagementId}/relist-with-dates`, {
+      method: 'POST',
+    });
+    if (result.ok) {
+      showSuccess('Job relisted');
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
+    setRelistingAfterRejection(false);
   }
 
   async function handleRespondPostponement(accepted: boolean) {
     setRespondingPostponement(true);
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/respond-postponement`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accepted }),
-      });
-      if (res.ok) {
-        showSuccess(accepted ? 'New dates approved' : 'Date change rejected');
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to respond');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setRespondingPostponement(false);
+    const result = await safeFetch(`/api/engagements/${engagementId}/respond-postponement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accepted }),
+    });
+    if (result.ok) {
+      showSuccess(accepted ? 'New dates approved' : 'Date change rejected');
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
+    setRespondingPostponement(false);
   }
 
   async function handleWorkStarted(action: 'initiate' | 'confirm') {
     setWorkStarting(true);
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/work-started`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      if (res.ok) {
-        showSuccess(
-          action === 'initiate' ? 'Work started notification sent' : 'Work started confirmed',
-        );
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to update');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setWorkStarting(false);
+    const result = await safeFetch(`/api/engagements/${engagementId}/work-started`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+    if (result.ok) {
+      showSuccess(
+        action === 'initiate' ? 'Work started notification sent' : 'Work started confirmed',
+      );
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
+    setWorkStarting(false);
   }
 
   async function handleChecklistSubmit(items: Array<{ id: string; label: string; value: string }>) {
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/checklist`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
-      });
-      if (res.ok) {
-        setShowChecklistForm(false);
-        showSuccess('Checklist saved');
-        await Promise.all([loadContext(), loadMessages()]);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to set checklist');
-      }
-    } catch {
-      showError('Network error — please try again');
+    const result = await safeFetch(`/api/engagements/${engagementId}/checklist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+    if (result.ok) {
+      setShowChecklistForm(false);
+      showSuccess('Checklist saved');
+      await Promise.all([loadContext(), loadMessages()]);
+    } else {
+      showError(result.error);
     }
   }
 
@@ -545,30 +466,21 @@ export default function ChatPage() {
       return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: newAcked } };
     });
 
-    try {
-      const res = await fetch(`/api/engagements/${engagementId}/checklist/toggle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ item_id: itemId, checked }),
-      });
-      if (!res.ok) {
-        // Rollback
-        setContext((prev) => {
-          if (!prev?.checklist) return prev;
-          return {
-            ...prev,
-            checklist: { ...prev.checklist, acknowledged_item_ids: previousAcked },
-          };
-        });
-        showError('Failed to update checklist');
-      }
-    } catch {
+    const result = await safeFetch(`/api/engagements/${engagementId}/checklist/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, checked }),
+    });
+    if (!result.ok) {
       // Rollback
       setContext((prev) => {
         if (!prev?.checklist) return prev;
-        return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: previousAcked } };
+        return {
+          ...prev,
+          checklist: { ...prev.checklist, acknowledged_item_ids: previousAcked },
+        };
       });
-      showError('Network error — please try again');
+      showError(result.error);
     }
   }
 
@@ -665,15 +577,14 @@ export default function ChatPage() {
                       onClick={async () => {
                         setShowActionMenu(false);
                         if (!permPostingId) return;
-                        const res = await fetch(`/api/permanent/${permPostingId}/withdraw`, {
+                        const r = await safeFetch(`/api/permanent/${permPostingId}/withdraw`, {
                           method: 'POST',
                         });
-                        if (res.ok) {
+                        if (r.ok) {
                           showSuccess('Application withdrawn');
                           router.push('/messages');
                         } else {
-                          const d = await res.json().catch(() => ({}));
-                          showError(d.error ?? 'Failed to withdraw');
+                          showError(r.error);
                         }
                       }}
                     >
@@ -1053,15 +964,14 @@ export default function ChatPage() {
             onConfirm={async () => {
               setShowConfirmPlacement(false);
               if (!permPostingId) return;
-              const res = await fetch(`/api/permanent/${permPostingId}/confirm`, {
+              const r = await safeFetch(`/api/permanent/${permPostingId}/confirm`, {
                 method: 'POST',
               });
-              if (res.ok) {
+              if (r.ok) {
                 showSuccess('Placement confirmed');
                 loadContext();
               } else {
-                const d = await res.json().catch(() => ({}));
-                showError(d.error ?? 'Failed');
+                showError(r.error);
               }
             }}
             crewName={context?.other_name ?? 'crew member'}
@@ -1073,13 +983,14 @@ export default function ChatPage() {
             onRevert={async () => {
               setShowRevertSelection(false);
               if (!permPostingId) return;
-              const res = await fetch(`/api/permanent/${permPostingId}/revert`, { method: 'POST' });
-              if (res.ok) {
+              const r = await safeFetch(`/api/permanent/${permPostingId}/revert`, {
+                method: 'POST',
+              });
+              if (r.ok) {
                 showSuccess('Selection reverted');
                 router.push('/messages');
               } else {
-                const d = await res.json().catch(() => ({}));
-                showError(d.error ?? 'Failed');
+                showError(r.error);
               }
             }}
             crewName={context?.other_name ?? 'this candidate'}
@@ -1089,17 +1000,16 @@ export default function ChatPage() {
             onOpenChange={setShowCloseConversation}
             onClose={async (outcome: string) => {
               setShowCloseConversation(false);
-              const res = await fetch(`/api/permanent/engagements/${engagementId}/close`, {
+              const r = await safeFetch(`/api/permanent/engagements/${engagementId}/close`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ outcome }),
               });
-              if (res.ok) {
+              if (r.ok) {
                 showSuccess('Conversation closed');
                 router.push('/messages');
               } else {
-                const d = await res.json().catch(() => ({}));
-                showError(d.error ?? 'Failed');
+                showError(r.error);
               }
             }}
             isCrew={isCrew}
@@ -1122,16 +1032,15 @@ export default function ChatPage() {
                   onClick={async () => {
                     if (!cancelPostingId) return;
                     setCancelPostingId(null);
-                    const res = await fetch(`/api/permanent/${cancelPostingId}/cancel`, {
+                    const r = await safeFetch(`/api/permanent/${cancelPostingId}/cancel`, {
                       method: 'POST',
                       body: '{}',
                     });
-                    if (res.ok) {
+                    if (r.ok) {
                       showSuccess('Posting cancelled');
                       router.push('/messages');
                     } else {
-                      const d = await res.json().catch(() => ({}));
-                      showError(d.error ?? 'Failed');
+                      showError(r.error);
                     }
                   }}
                 >

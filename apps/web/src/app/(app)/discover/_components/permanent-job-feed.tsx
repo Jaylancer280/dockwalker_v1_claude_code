@@ -17,6 +17,7 @@ import { ProfileOverlay } from '@/components/profile-overlay';
 import { PermanentJobCard, type PermanentPosting } from './permanent-job-card';
 import { PermanentJobDetail } from './permanent-job-detail';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 
 interface LookupItem {
@@ -108,17 +109,21 @@ export function PermanentJobFeed() {
           params.set('sizeBandId', filterSizeBandId);
         if (cursorParam) params.set('cursor', cursorParam);
 
-        const res = await fetch(`/api/permanent/discover?${params.toString()}`);
-        const data = await res.json();
+        const result = await safeFetch<{
+          postings?: PermanentPosting[];
+          has_more?: boolean;
+          next_cursor?: string | null;
+        }>(`/api/permanent/discover?${params.toString()}`);
 
-        if (isLoadMore) {
-          setPostings((prev) => [...prev, ...(data.postings ?? [])]);
-        } else {
-          setPostings(data.postings ?? []);
+        if (result.ok) {
+          if (isLoadMore) {
+            setPostings((prev) => [...prev, ...(result.data.postings ?? [])]);
+          } else {
+            setPostings(result.data.postings ?? []);
+          }
+          setHasMore(result.data.has_more ?? false);
+          setNextCursor(result.data.next_cursor ?? null);
         }
-        setHasMore(data.has_more ?? false);
-        setNextCursor(data.next_cursor ?? null);
-      } catch {
         // Silent fail — feed shows what we have
       } finally {
         setLoading(false);
@@ -168,31 +173,19 @@ export function PermanentJobFeed() {
 
   async function handleApply(postingId: string) {
     setApplying(true);
-    try {
-      const res = await fetch(`/api/permanent/${postingId}/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-      if (res.status === 403 && data.missing_certs) {
-        const names = data.missing_certs.map((c: { name: string }) => c.name).join(', ');
-        showError(`Missing certifications: ${names}`);
-      } else if (res.status === 409) {
-        showError("You've already applied to this position");
-      } else if (!res.ok) {
-        showError(data.error || 'Failed to apply');
-      } else {
-        setPostings((prev) => prev.filter((p) => p.id !== postingId));
-        if (selectedPosting?.id === postingId) setSelectedPosting(null);
-        showSuccess('Application submitted');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setApplying(false);
+    const result = await safeFetch<Record<string, unknown>>(`/api/permanent/${postingId}/apply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (result.ok) {
+      setPostings((prev) => prev.filter((p) => p.id !== postingId));
+      if (selectedPosting?.id === postingId) setSelectedPosting(null);
+      showSuccess('Application submitted');
+    } else {
+      showError(result.error);
     }
+    setApplying(false);
   }
 
   const hasActiveFilters =

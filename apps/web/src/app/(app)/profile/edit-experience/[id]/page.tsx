@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RolePicker } from '@/components/role-picker';
 import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 
@@ -43,7 +44,7 @@ const CONTRACT_TYPES = [
 export default function EditExperiencePage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const { showError, showSuccess } = useToast();
+  const { showSuccess } = useToast();
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,35 +67,51 @@ export default function EditExperiencePage() {
   const [description, setDescription] = useState('');
 
   const loadData = useCallback(async () => {
-    const supabase = createClient();
-    const [rolesRes, flagsRes, expRes] = await Promise.all([
-      supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-      supabase.from('flag_states').select('id, name').order('sort_order'),
-      fetch('/api/experiences'),
-    ]);
-    if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
-    if (flagsRes.data) setFlagStates(flagsRes.data);
+    try {
+      const supabase = createClient();
+      const [rolesRes, flagsRes, expResult] = await Promise.all([
+        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+        supabase.from('flag_states').select('id, name').order('sort_order'),
+        safeFetch<{
+          experiences?: {
+            id: string;
+            role_id: string;
+            vessel_operation: string;
+            flag_state: string;
+            start_date: string;
+            end_date: string;
+            is_current: boolean;
+            contract_type: string;
+            contract_details: string;
+            description: string;
+            vessels: { name: string; vessel_type: string } | null;
+          }[];
+        }>('/api/experiences'),
+      ]);
+      if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
+      if (flagsRes.data) setFlagStates(flagsRes.data);
 
-    if (expRes.ok) {
-      const data = await expRes.json();
-      const exp = (data.experiences ?? []).find((e: { id: string }) => e.id === id);
-      if (exp) {
-        setRoleId(exp.role_id ?? '');
-        setExpVesselOperation(exp.vessel_operation ?? 'charter');
-        setFlagState(exp.flag_state ?? '');
-        setStartDate(exp.start_date ?? '');
-        setEndDate(exp.end_date ?? '');
-        setIsCurrent(exp.is_current ?? false);
-        setContractType(exp.contract_type ?? '');
-        setContractDetails(exp.contract_details ?? '');
-        setDescription(exp.description ?? '');
-        if (exp.vessels) {
-          setVesselName(exp.vessels.name ?? '');
-          setVesselType(exp.vessels.vessel_type ?? 'motor');
+      if (expResult.ok) {
+        const exp = (expResult.data.experiences ?? []).find((e) => e.id === id);
+        if (exp) {
+          setRoleId(exp.role_id ?? '');
+          setExpVesselOperation((exp.vessel_operation as 'charter' | 'private') ?? 'charter');
+          setFlagState(exp.flag_state ?? '');
+          setStartDate(exp.start_date ?? '');
+          setEndDate(exp.end_date ?? '');
+          setIsCurrent(exp.is_current ?? false);
+          setContractType(exp.contract_type ?? '');
+          setContractDetails(exp.contract_details ?? '');
+          setDescription(exp.description ?? '');
+          if (exp.vessels) {
+            setVesselName(exp.vessels.name ?? '');
+            setVesselType(exp.vessels.vessel_type ?? 'motor');
+          }
         }
       }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [id]);
 
   useEffect(() => {
@@ -103,39 +120,33 @@ export default function EditExperiencePage() {
 
   async function handleSubmit() {
     if (!roleId || !startDate) return;
-    try {
-      setSubmitting(true);
-      setError(null);
+    setSubmitting(true);
+    setError(null);
 
-      const res = await fetch(`/api/experiences/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roleId,
-          startDate,
-          endDate: endDate || null,
-          isCurrent,
-          vesselOperation: expVesselOperation,
-          flagState: flagState || null,
-          contractType: contractType || null,
-          contractDetails: contractDetails || null,
-          description: description || null,
-        }),
-      });
+    const result = await safeFetch<{ error?: string }>(`/api/experiences/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roleId,
+        startDate,
+        endDate: endDate || null,
+        isCurrent,
+        vesselOperation: expVesselOperation,
+        flagState: flagState || null,
+        contractType: contractType || null,
+        contractDetails: contractDetails || null,
+        description: description || null,
+      }),
+    });
 
-      if (res.ok) {
-        showSuccess('Experience updated');
-        router.push('/profile');
-        router.refresh();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? 'Failed to update experience');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setSubmitting(false);
+    if (result.ok) {
+      showSuccess('Experience updated');
+      router.push('/profile');
+      router.refresh();
+    } else {
+      setError(result.error);
     }
+    setSubmitting(false);
   }
 
   if (loading) {

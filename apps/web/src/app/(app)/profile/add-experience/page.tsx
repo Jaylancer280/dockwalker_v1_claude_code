@@ -17,6 +17,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RolePicker } from '@/components/role-picker';
 import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2, Search } from 'lucide-react';
 
@@ -72,14 +73,17 @@ export default function AddExperiencePage() {
   const [description, setDescription] = useState('');
 
   const loadLookups = useCallback(async () => {
-    const supabase = createClient();
-    const [rolesRes, flagsRes] = await Promise.all([
-      supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-      supabase.from('flag_states').select('id, name').order('sort_order'),
-    ]);
-    if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
-    if (flagsRes.data) setFlagStates(flagsRes.data);
-    setLoading(false);
+    try {
+      const supabase = createClient();
+      const [rolesRes, flagsRes] = await Promise.all([
+        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+        supabase.from('flag_states').select('id, name').order('sort_order'),
+      ]);
+      if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
+      if (flagsRes.data) setFlagStates(flagsRes.data);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -90,16 +94,20 @@ export default function AddExperiencePage() {
     if (imoNumber.length !== 7) return;
     setLookingUpImo(true);
     setImoMessage('');
-    const res = await fetch(`/api/vessels/lookup?imo=${imoNumber}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.found) {
-        const prefix = data.vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
-        setImoMessage(`Found: ${prefix} ${data.vessel.name} (${data.vessel.loa_meters}m)`);
-        setVesselName(data.vessel.name);
-        setLoaMeters(String(data.vessel.loa_meters));
-        setVesselType(data.vessel.vessel_type);
-        setExistingVesselId(data.vessel.id);
+    const result = await safeFetch<{
+      found: boolean;
+      vessel?: { name: string; loa_meters: number; vessel_type: string; id: string };
+    }>(`/api/vessels/lookup?imo=${imoNumber}`);
+    if (result.ok) {
+      if (result.data.found && result.data.vessel) {
+        const prefix = result.data.vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
+        setImoMessage(
+          `Found: ${prefix} ${result.data.vessel.name} (${result.data.vessel.loa_meters}m)`,
+        );
+        setVesselName(result.data.vessel.name);
+        setLoaMeters(String(result.data.vessel.loa_meters));
+        setVesselType(result.data.vessel.vessel_type as 'motor' | 'sail');
+        setExistingVesselId(result.data.vessel.id);
         setUseExisting(true);
       } else {
         setImoMessage('Not found — enter vessel details below');
@@ -112,67 +120,60 @@ export default function AddExperiencePage() {
 
   async function handleSubmit() {
     if (!roleId || !startDate || !expVesselOperation || !imoNumber) return;
-    try {
-      setSubmitting(true);
+    setSubmitting(true);
 
-      let vesselId = existingVesselId;
+    let vesselId = existingVesselId;
 
-      // Create vessel if not using existing
-      if (!useExisting) {
-        if (!vesselName || !loaMeters) {
-          setSubmitting(false);
-          return;
-        }
-        const vesselRes = await fetch('/api/vessels', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imoNumber,
-            name: vesselName,
-            vesselType,
-            loaMeters: Number(loaMeters),
-            ndaFlag: false,
-          }),
-        });
-        if (!vesselRes.ok) {
-          const data = await vesselRes.json().catch(() => ({}));
-          showError(data.error ?? 'Failed to create vessel');
-          return;
-        }
-        const vesselData = await vesselRes.json();
-        vesselId = vesselData.id;
+    // Create vessel if not using existing
+    if (!useExisting) {
+      if (!vesselName || !loaMeters) {
+        setSubmitting(false);
+        return;
       }
-
-      const res = await fetch('/api/experiences', {
+      const vesselResult = await safeFetch<{ id: string }>('/api/vessels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          vesselId,
-          roleId,
-          startDate,
-          endDate: endDate || null,
-          isCurrent,
-          vesselOperation: expVesselOperation,
-          flagState: flagState || null,
-          contractType: contractType || null,
-          contractDetails: contractDetails || null,
-          description: description || null,
+          imoNumber,
+          name: vesselName,
+          vesselType,
+          loaMeters: Number(loaMeters),
+          ndaFlag: false,
         }),
       });
-
-      if (res.ok) {
-        showSuccess('Experience added');
-        router.push('/profile');
-        router.refresh();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to add experience');
+      if (!vesselResult.ok) {
+        showError(vesselResult.error);
+        setSubmitting(false);
+        return;
       }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setSubmitting(false);
+      vesselId = vesselResult.data.id;
     }
+
+    const result = await safeFetch('/api/experiences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vesselId,
+        roleId,
+        startDate,
+        endDate: endDate || null,
+        isCurrent,
+        vesselOperation: expVesselOperation,
+        flagState: flagState || null,
+        contractType: contractType || null,
+        contractDetails: contractDetails || null,
+        description: description || null,
+      }),
+    });
+
+    if (result.ok) {
+      showSuccess('Experience added');
+      router.push('/profile');
+      router.refresh();
+    } else {
+      showError(result.error);
+    }
+    setSubmitting(false);
   }
 
   if (loading) {

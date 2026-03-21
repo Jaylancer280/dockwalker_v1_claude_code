@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import type { DistanceUnit, CurrencyCode } from '@/lib/units';
 
 export default function SettingsPage() {
@@ -175,40 +176,28 @@ export default function SettingsPage() {
 
   async function handleExportData() {
     setExporting(true);
-    try {
-      const res = await fetch('/api/account/export');
-      if (res.ok) {
-        const data = await res.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `dockwalker-data-export-${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch {
-      // Network error — spinner cleanup handled in finally
-    } finally {
-      setExporting(false);
+    const result = await safeFetch<Record<string, unknown>>('/api/account/export');
+    if (result.ok) {
+      const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dockwalker-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
+    setExporting(false);
   }
 
   async function handleDeleteAccount() {
     if (deleteConfirmText !== 'DELETE') return;
     setDeleting(true);
-
-    try {
-      const res = await fetch('/api/account/deactivate', { method: 'POST' });
-      if (res.ok) {
-        await supabase.auth.signOut();
-        router.push('/auth/login');
-      }
-    } catch {
-      // Network error — spinner cleanup handled in finally
-    } finally {
-      setDeleting(false);
+    const result = await safeFetch('/api/account/deactivate', { method: 'POST' });
+    if (result.ok) {
+      await supabase.auth.signOut();
+      router.push('/auth/login');
     }
+    setDeleting(false);
   }
 
   async function handleSignOut() {

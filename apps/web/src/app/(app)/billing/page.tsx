@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Loader2, Check, LifeBuoy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface SubscriptionStatus {
   plan: string | null;
@@ -28,54 +29,37 @@ export default function BillingPage() {
 
   useEffect(() => {
     async function load() {
-      try {
-        const res = await fetch('/api/billing/status');
-        const text = await res.text();
-        const data = text ? JSON.parse(text) : {};
-        if (res.ok) {
-          setSubscription({ plan: data.plan ?? null, status: data.status ?? null });
-        }
-      } catch {
-        // Show free plan on failure
-      } finally {
-        setLoading(false);
+      const result = await safeFetch<{ plan?: string; status?: string }>('/api/billing/status');
+      if (result.ok) {
+        setSubscription({ plan: result.data.plan ?? null, status: result.data.status ?? null });
       }
+      setLoading(false);
     }
     load();
   }, []);
 
   async function handleSubscribe() {
     setRedirecting(true);
-    try {
-      const res = await fetch('/api/billing/create-checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: 'crew_pro' }),
-      });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-    } catch {
-      // Fall through
+    const result = await safeFetch<{ url?: string }>('/api/billing/create-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan: 'crew_pro' }),
+    });
+    if (result.ok && result.data.url) {
+      window.location.href = result.data.url;
+      return;
     }
     setRedirecting(false);
   }
 
   async function handleManage() {
     setRedirecting(true);
-    try {
-      const res = await fetch('/api/billing/create-portal', { method: 'POST' });
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-    } catch {
-      // Fall through
+    const result = await safeFetch<{ url?: string }>('/api/billing/create-portal', {
+      method: 'POST',
+    });
+    if (result.ok && result.data.url) {
+      window.location.href = result.data.url;
+      return;
     }
     setRedirecting(false);
   }

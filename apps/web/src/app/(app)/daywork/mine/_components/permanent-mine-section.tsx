@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { currencySymbol } from '@/lib/units';
+import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,15 +55,14 @@ export function PermanentMineSection() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/permanent/mine').then((r) => r.json()),
-      fetch('/api/permanent/templates').then((r) => r.json()),
-    ])
-      .then(([mineData, tplData]) => {
-        setPostings(mineData.postings ?? []);
-        setTemplates(tplData.templates ?? []);
-      })
-      .catch(() => showError('Failed to load postings'))
-      .finally(() => setLoading(false));
+      safeFetch<{ postings?: Posting[] }>('/api/permanent/mine'),
+      safeFetch<{ templates?: Template[] }>('/api/permanent/templates'),
+    ]).then(([mineResult, tplResult]) => {
+      if (mineResult.ok) setPostings(mineResult.data.postings ?? []);
+      else showError('Failed to load postings');
+      if (tplResult.ok) setTemplates(tplResult.data.templates ?? []);
+      setLoading(false);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -73,19 +73,17 @@ export function PermanentMineSection() {
 
   async function handleCancel(postingId: string) {
     setCancelling(true);
-    try {
-      const res = await fetch(`/api/permanent/${postingId}/cancel`, { method: 'POST', body: '{}' });
-      if (res.ok) {
-        showSuccess('Posting cancelled');
-        setPostings((prev) =>
-          prev.map((p) => (p.id === postingId ? { ...p, status: 'cancelled' } : p)),
-        );
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to cancel');
-      }
-    } catch {
-      showError('Network error');
+    const result = await safeFetch<{ error?: string }>(`/api/permanent/${postingId}/cancel`, {
+      method: 'POST',
+      body: '{}',
+    });
+    if (result.ok) {
+      showSuccess('Posting cancelled');
+      setPostings((prev) =>
+        prev.map((p) => (p.id === postingId ? { ...p, status: 'cancelled' } : p)),
+      );
+    } else {
+      showError(result.error);
     }
     setCancelling(false);
     setCancelId(null);
@@ -108,16 +106,12 @@ export function PermanentMineSection() {
 
   async function handleDeleteTemplate(templateId: string) {
     setDeletingId(templateId);
-    try {
-      const res = await fetch(`/api/permanent/templates/${templateId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setTemplates((prev) => prev.filter((t) => t.id !== templateId));
-        showSuccess('Template deleted');
-      } else {
-        showError('Failed to delete template');
-      }
-    } catch {
-      showError('Network error');
+    const result = await safeFetch(`/api/permanent/templates/${templateId}`, { method: 'DELETE' });
+    if (result.ok) {
+      setTemplates((prev) => prev.filter((t) => t.id !== templateId));
+      showSuccess('Template deleted');
+    } else {
+      showError(result.error);
     }
     setDeletingId(null);
   }

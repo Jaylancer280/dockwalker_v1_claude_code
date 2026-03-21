@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-jobs-tab';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
@@ -147,17 +148,27 @@ export default function MyPostingsPage() {
       if (filterPortId && filterPortId !== 'all') filterParams.set('portId', filterPortId);
       const filterSuffix = filterParams.toString() ? `&${filterParams.toString()}` : '';
 
-      const [activeRes, inProgressRes, completedRes, templatesRes] = await Promise.all([
-        fetch(`/api/daywork/mine?status=active${filterSuffix}`).then((r) => r.json()),
-        fetch(`/api/daywork/mine?status=in_progress${filterSuffix}`).then((r) => r.json()),
-        fetch(`/api/daywork/mine?status=completed,cancelled${filterSuffix}`).then((r) => r.json()),
-        fetch('/api/daywork/templates').then((r) => r.json()),
+      const [activeResult, inProgressResult, completedResult, templatesResult] = await Promise.all([
+        safeFetch<{ dayworks?: DayworkPosting[] }>(
+          `/api/daywork/mine?status=active${filterSuffix}`,
+        ),
+        safeFetch<{ dayworks?: DayworkPosting[] }>(
+          `/api/daywork/mine?status=in_progress${filterSuffix}`,
+        ),
+        safeFetch<{ dayworks?: DayworkPosting[] }>(
+          `/api/daywork/mine?status=completed,cancelled${filterSuffix}`,
+        ),
+        safeFetch<{ templates?: Template[] }>('/api/daywork/templates'),
       ]);
-      if (activeRes.dayworks) setActivePostings(activeRes.dayworks);
-      if (inProgressRes.dayworks) {
-        setInProgressPostings(inProgressRes.dayworks);
+
+      if (activeResult.ok && activeResult.data.dayworks)
+        setActivePostings(activeResult.data.dayworks);
+      if (inProgressResult.ok && inProgressResult.data.dayworks) {
+        setInProgressPostings(inProgressResult.data.dayworks);
         // Fetch engagement IDs for in-progress postings so we can link to chat
-        const ipIds = (inProgressRes.dayworks as DayworkPosting[]).map((d: DayworkPosting) => d.id);
+        const ipIds = (inProgressResult.data.dayworks as DayworkPosting[]).map(
+          (d: DayworkPosting) => d.id,
+        );
         if (ipIds.length > 0) {
           const supabase = createClient();
           const { data: engagements } = await supabase
@@ -186,11 +197,17 @@ export default function MyPostingsPage() {
           }
         }
       }
-      if (completedRes.dayworks) setCompletedPostings(completedRes.dayworks);
-      if (templatesRes.templates) setTemplates(templatesRes.templates);
-      setError(null);
-    } catch {
-      setError('Failed to load data. Please try again.');
+      if (completedResult.ok && completedResult.data.dayworks)
+        setCompletedPostings(completedResult.data.dayworks);
+      if (templatesResult.ok && templatesResult.data.templates)
+        setTemplates(templatesResult.data.templates);
+
+      // Set error only if all fetches failed
+      if (!activeResult.ok && !inProgressResult.ok && !completedResult.ok && !templatesResult.ok) {
+        setError('Failed to load data. Please try again.');
+      } else {
+        setError(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -202,7 +219,7 @@ export default function MyPostingsPage() {
 
   // Refetch stale data when the page becomes visible again (tab switch,
   // returning from another app, or browser back/forward cache)
-  const lastFetch = useRef(Date.now());
+  const lastFetch = useRef(0);
   useEffect(() => {
     lastFetch.current = Date.now();
   }, [activePostings, inProgressPostings, completedPostings]);
@@ -226,20 +243,16 @@ export default function MyPostingsPage() {
 
   async function handleCancel(dayworkId: string) {
     setCancelling(dayworkId);
-    try {
-      const res = await fetch(`/api/daywork/${dayworkId}/cancel`, { method: 'POST' });
-      if (res.ok) {
-        showSuccess('Posting cancelled');
-        loadData();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to cancel posting');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setCancelling(null);
+    const result = await safeFetch<{ error?: string }>(`/api/daywork/${dayworkId}/cancel`, {
+      method: 'POST',
+    });
+    if (result.ok) {
+      showSuccess('Posting cancelled');
+      loadData();
+    } else {
+      showError(result.error);
     }
+    setCancelling(null);
   }
 
   async function handleSavePositions() {
@@ -247,43 +260,36 @@ export default function MyPostingsPage() {
     const val = parseInt(editPositionsValue, 10);
     if (isNaN(val) || val < 1 || val > 20 || val < editPositions.filled) return;
     setSavingPositions(true);
-    try {
-      const res = await fetch(`/api/daywork/${editPositions.id}/update-positions`, {
+    const result = await safeFetch<{ error?: string }>(
+      `/api/daywork/${editPositions.id}/update-positions`,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ positionsAvailable: val }),
-      });
-      if (res.ok) {
-        showSuccess('Positions updated');
-        setEditPositions(null);
-        loadData();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to update positions');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setSavingPositions(false);
+      },
+    );
+    if (result.ok) {
+      showSuccess('Positions updated');
+      setEditPositions(null);
+      loadData();
+    } else {
+      showError(result.error);
     }
+    setSavingPositions(false);
   }
 
   async function handleDeleteTemplate(id: string) {
     setDeletingTemplate(id);
-    try {
-      const res = await fetch(`/api/daywork/templates/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setTemplates((prev) => prev.filter((t) => t.id !== id));
-        showSuccess('Template deleted');
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to delete template');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setDeletingTemplate(null);
+    const result = await safeFetch<{ error?: string }>(`/api/daywork/templates/${id}`, {
+      method: 'DELETE',
+    });
+    if (result.ok) {
+      setTemplates((prev) => prev.filter((t) => t.id !== id));
+      showSuccess('Template deleted');
+    } else {
+      showError(result.error);
     }
+    setDeletingTemplate(null);
   }
 
   const statusColor: Record<string, string> = {

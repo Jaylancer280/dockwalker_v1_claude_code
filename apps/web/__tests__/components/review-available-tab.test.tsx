@@ -99,7 +99,7 @@ describe('Review Page — Available Tab', () => {
     // Default: applicants API returns empty
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({ applicants: [] }),
+      text: async () => JSON.stringify({ applicants: [] }),
     });
   });
 
@@ -120,7 +120,7 @@ describe('Review Page — Available Tab', () => {
     // First call: applicants API (initial load)
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ applicants: [] }),
+      text: async () => JSON.stringify({ applicants: [] }),
     });
 
     render(<ReviewApplicantsPage />);
@@ -133,7 +133,7 @@ describe('Review Page — Available Tab', () => {
     // Mock available crew response for when tab is clicked
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
+      text: async () => JSON.stringify({
         crew: [
           {
             person_id: 'c1',
@@ -167,7 +167,7 @@ describe('Review Page — Available Tab', () => {
   it('shows invitation limit reached message when all invitations used', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ applicants: [] }),
+      text: async () => JSON.stringify({ applicants: [] }),
     });
 
     render(<ReviewApplicantsPage />);
@@ -179,7 +179,7 @@ describe('Review Page — Available Tab', () => {
     // Return empty crew with limit reached
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
+      text: async () => JSON.stringify({
         crew: [],
         invitation_count: 2,
         invitation_limit: 2,

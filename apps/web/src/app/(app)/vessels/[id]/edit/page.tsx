@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 
 interface SizeBand {
@@ -45,8 +46,17 @@ export default function EditVesselPage() {
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
-    const [vesselRes, bandsRes] = await Promise.all([
-      fetch('/api/vessels'),
+    const [vesselResult, bandsRes] = await Promise.all([
+      safeFetch<{
+        vessels?: {
+          id: string;
+          imo_number: string;
+          name: string;
+          vessel_type: string;
+          loa_meters: number | null;
+          nda_flag: boolean;
+        }[];
+      }>('/api/vessels'),
       supabase
         .from('vessel_size_bands')
         .select('id, label, min_meters, max_meters')
@@ -55,25 +65,27 @@ export default function EditVesselPage() {
 
     if (bandsRes.data) setSizeBands(bandsRes.data);
 
-    if (vesselRes.ok) {
-      const data = await vesselRes.json();
-      const vessel = (data.vessels ?? []).find((v: { id: string }) => v.id === id);
-      if (vessel) {
-        setImoNumber(vessel.imo_number ?? '');
-        setName(vessel.name ?? '');
-        setVesselType(vessel.vessel_type ?? 'motor');
-        setNdaFlag(vessel.nda_flag ?? false);
-        setOriginalNda(vessel.nda_flag ?? false);
-        if (vessel.loa_meters != null) {
-          setLoaInput(
-            prefs.lengthUnit === 'ft'
-              ? String(Math.round(metersToFeet(vessel.loa_meters)))
-              : String(vessel.loa_meters),
-          );
+    try {
+      if (vesselResult.ok) {
+        const vessel = (vesselResult.data.vessels ?? []).find((v) => v.id === id);
+        if (vessel) {
+          setImoNumber(vessel.imo_number ?? '');
+          setName(vessel.name ?? '');
+          setVesselType(vessel.vessel_type ?? 'motor');
+          setNdaFlag(vessel.nda_flag ?? false);
+          setOriginalNda(vessel.nda_flag ?? false);
+          if (vessel.loa_meters != null) {
+            setLoaInput(
+              prefs.lengthUnit === 'ft'
+                ? String(Math.round(metersToFeet(vessel.loa_meters)))
+                : String(vessel.loa_meters),
+            );
+          }
         }
       }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [id, prefs.lengthUnit]);
 
   useEffect(() => {
@@ -96,31 +108,25 @@ export default function EditVesselPage() {
 
   async function handleSubmit() {
     if (!name) return;
-    try {
-      setSubmitting(true);
-      const res = await fetch(`/api/vessels/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          vesselType,
-          loaMeters: loaMeters != null ? Math.round(loaMeters * 100) / 100 : undefined,
-          ndaFlag,
-        }),
-      });
-      if (res.ok) {
-        showSuccess('Vessel updated');
-        router.push('/vessels');
-        router.refresh();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        showError(data.error ?? 'Failed to update vessel');
-      }
-    } catch {
-      showError('Network error — please try again');
-    } finally {
-      setSubmitting(false);
+    setSubmitting(true);
+    const result = await safeFetch<{ error?: string }>(`/api/vessels/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        vesselType,
+        loaMeters: loaMeters != null ? Math.round(loaMeters * 100) / 100 : undefined,
+        ndaFlag,
+      }),
+    });
+    if (result.ok) {
+      showSuccess('Vessel updated');
+      router.push('/vessels');
+      router.refresh();
+    } else {
+      showError(result.error);
     }
+    setSubmitting(false);
   }
 
   if (loading) {

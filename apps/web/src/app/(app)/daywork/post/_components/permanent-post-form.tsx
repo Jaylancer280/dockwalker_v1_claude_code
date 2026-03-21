@@ -20,6 +20,7 @@ import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
 import { currencySymbol, type CurrencyCode } from '@/lib/units';
+import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
 
 interface LookupItem {
@@ -99,10 +100,9 @@ export function PermanentPostForm({ onBack }: PermanentPostFormProps) {
       setExperienceBrackets((bracketsRes.data ?? []) as LookupItem[]);
     });
 
-    fetch('/api/permanent/templates')
-      .then((r) => r.json())
-      .then((d) => setTemplates(d.templates ?? []))
-      .catch(() => {});
+    safeFetch<{ templates?: PermanentTemplate[] }>('/api/permanent/templates').then((result) => {
+      if (result.ok) setTemplates(result.data.templates ?? []);
+    });
   }, []);
 
   // Load template into form
@@ -146,11 +146,41 @@ export function PermanentPostForm({ onBack }: PermanentPostFormProps) {
     setLoading(true);
     setError(null);
 
-    try {
-      const res = await fetch('/api/permanent', {
+    const result = await safeFetch<Record<string, unknown>>('/api/permanent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vesselId,
+        roleId,
+        locationPortId,
+        startDate,
+        salaryMin: parseFloat(salaryMin),
+        salaryMax: parseFloat(salaryMax),
+        salaryCurrency,
+        salaryPeriod,
+        liveAboard,
+        requiredCertificationIds: certificationIds,
+        experienceBracketId: experienceBracketId || null,
+        shortlistCap: parseInt(shortlistCap, 10) || 5,
+        notes: notes || null,
+      }),
+    });
+
+    if (!result.ok) {
+      setError(result.error);
+      showErrorToast(result.error);
+      setLoading(false);
+      submittingRef.current = false;
+      return;
+    }
+
+    // Save template alongside if checked
+    if (saveAsTemplate && templateName.trim()) {
+      await safeFetch('/api/permanent/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          templateName: templateName.trim(),
           vesselId,
           roleId,
           locationPortId,
@@ -166,51 +196,12 @@ export function PermanentPostForm({ onBack }: PermanentPostFormProps) {
           notes: notes || null,
         }),
       });
-
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
-
-      if (!res.ok) {
-        const msg = data.error || 'Failed to create posting';
-        setError(msg);
-        showErrorToast(msg);
-        return;
-      }
-
-      // Save template alongside if checked
-      if (saveAsTemplate && templateName.trim()) {
-        await fetch('/api/permanent/templates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            templateName: templateName.trim(),
-            vesselId,
-            roleId,
-            locationPortId,
-            startDate,
-            salaryMin: parseFloat(salaryMin),
-            salaryMax: parseFloat(salaryMax),
-            salaryCurrency,
-            salaryPeriod,
-            liveAboard,
-            requiredCertificationIds: certificationIds,
-            experienceBracketId: experienceBracketId || null,
-            shortlistCap: parseInt(shortlistCap, 10) || 5,
-            notes: notes || null,
-          }),
-        }).catch(() => {});
-      }
-
-      showSuccess('Permanent posting created');
-      router.push('/daywork/mine');
-    } catch {
-      const msg = 'Network error — please try again';
-      setError(msg);
-      showErrorToast(msg);
-    } finally {
-      setLoading(false);
-      submittingRef.current = false;
     }
+
+    showSuccess('Permanent posting created');
+    router.push('/daywork/mine');
+    setLoading(false);
+    submittingRef.current = false;
   }
 
   return (

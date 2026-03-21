@@ -6,6 +6,7 @@ import { ChevronLeft, SendHorizontal, LifeBuoy, Loader2, ChevronDown, Lock } fro
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface Source {
   document: string;
@@ -93,12 +94,14 @@ export default function DockyConversationPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`/api/advisor/conversations/${conversationId}/messages`);
-        if (!res.ok) throw new Error('Failed to load');
-        const data = await res.json();
-        setMessages(data.messages ?? []);
-      } catch {
-        showError('Failed to load messages');
+        const result = await safeFetch<{ messages?: Message[] }>(
+          `/api/advisor/conversations/${conversationId}/messages`,
+        );
+        if (result.ok) {
+          setMessages(result.data.messages ?? []);
+        } else {
+          showError('Failed to load messages');
+        }
       } finally {
         setLoading(false);
       }
@@ -118,62 +121,64 @@ export default function DockyConversationPage() {
       setTitle(trimmed.slice(0, 40));
     }
 
-    try {
-      const res = await fetch(`/api/advisor/conversations/${conversationId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: trimmed }),
-      });
+    const result = await safeFetch<{
+      id: string;
+      content: string;
+      sources?: Source[] | null;
+      created_at: string;
+    }>(`/api/advisor/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: trimmed }),
+    });
 
-      const text = await res.text();
-      const data = text ? JSON.parse(text) : {};
+    if (!result.ok && result.error === 'limit_reached') {
+      // Don't add user message — it wasn't saved server-side
+      setLimitReached(true);
+      setSending(false);
+      return;
+    }
 
-      if (res.status === 402 && data.error === 'limit_reached') {
-        // Don't add user message — it wasn't saved server-side
-        setLimitReached(true);
-        return;
-      }
+    // User message was saved — add it to local state
+    const now = new Date();
+    const userMsg: Message = {
+      id: `temp-${crypto.randomUUID()}`,
+      role: 'user',
+      content: trimmed,
+      created_at: now.toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
 
-      // User message was saved — add it to local state
-      const userMsg: Message = {
-        id: `temp-${Date.now()}`,
-        role: 'user',
-        content: trimmed,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, userMsg]);
-
-      if (res.status === 503) {
+    if (!result.ok) {
+      if (result.error.includes('temporarily unavailable')) {
         setMessages((prev) => [
           ...prev,
           {
-            id: `err-${Date.now()}`,
+            id: `err-${crypto.randomUUID()}`,
             role: 'assistant',
             content:
               'Docky is temporarily unavailable. Your question has been saved — try sending again.',
             created_at: new Date().toISOString(),
           },
         ]);
-        return;
+      } else {
+        showError('Failed to send message');
       }
-
-      if (!res.ok) throw new Error('Failed to send');
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: data.id,
-          role: 'assistant',
-          content: data.content,
-          sources: data.sources,
-          created_at: data.created_at,
-        },
-      ]);
-    } catch {
-      showError('Failed to send message');
-    } finally {
       setSending(false);
+      return;
     }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: result.data.id,
+        role: 'assistant',
+        content: result.data.content,
+        sources: result.data.sources,
+        created_at: result.data.created_at,
+      },
+    ]);
+    setSending(false);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {

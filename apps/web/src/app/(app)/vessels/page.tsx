@@ -25,6 +25,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { createClient } from '@/lib/supabase/client';
+import { safeFetch } from '@/lib/safe-fetch';
 import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
@@ -58,13 +59,13 @@ export default function VesselsPage() {
 
   const loadVessels = useCallback(async () => {
     try {
-      const res = await fetch('/api/vessels');
-      if (!res.ok) throw new Error('Failed to load vessels');
-      const data = await res.json();
-      if (data.vessels) setVessels(data.vessels);
-      setError(null);
-    } catch {
-      setError('Failed to load vessels. Please try again.');
+      const result = await safeFetch<{ vessels?: Vessel[] }>('/api/vessels');
+      if (result.ok) {
+        if (result.data.vessels) setVessels(result.data.vessels);
+        setError(null);
+      } else {
+        setError('Failed to load vessels. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -239,33 +240,23 @@ function CreateVesselForm({
     }
 
     setLoading(true);
-
-    try {
-      const res = await fetch('/api/vessels', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imoNumber,
-          name,
-          vesselType,
-          loaMeters: Math.round(loaMeters * 100) / 100,
-          ndaFlag,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error);
-        return;
-      }
-
+    const result = await safeFetch<{ error?: string }>('/api/vessels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        imoNumber,
+        name,
+        vesselType,
+        loaMeters: Math.round(loaMeters * 100) / 100,
+        ndaFlag,
+      }),
+    });
+    if (result.ok) {
       onCreated();
-    } catch {
-      setError('Network error — please try again');
-    } finally {
-      setLoading(false);
+    } else {
+      setError(result.error);
     }
+    setLoading(false);
   }
 
   return (
