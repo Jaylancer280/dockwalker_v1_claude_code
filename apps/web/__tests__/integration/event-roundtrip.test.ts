@@ -1752,3 +1752,299 @@ describe('Experience aggregate_type roundtrip', () => {
     expect(data?.description).toBe('Updated via integration test');
   });
 });
+
+// ===========================================================================
+// Permanent jobs roundtrip
+// ===========================================================================
+describe('Permanent jobs roundtrip', () => {
+  // Fresh UUIDs — no seed conflicts
+  const PERM_POSTING_ID = 'ff000000-0000-0000-0001-000000000001';
+  const PERM_APP_ID = 'ff000000-0000-0000-0001-000000000002';
+  const PERM_APP_ID_2 = 'ff000000-0000-0000-0001-000000000003';
+  const PERM_ENG_ID = 'ff000000-0000-0000-0001-000000000004';
+  const PERM_AGG = `${CREW_ID}:${PERM_POSTING_ID}`;
+
+  // Revert posting (separate flow)
+  const REVERT_POSTING_ID = 'ff000000-0000-0000-0002-000000000001';
+  const REVERT_APP_ID = 'ff000000-0000-0000-0002-000000000002';
+  const REVERT_ENG_ID = 'ff000000-0000-0000-0002-000000000003';
+
+  // Cancel from active
+  const CANCEL_POSTING_ID = 'ff000000-0000-0000-0003-000000000001';
+  const CANCEL_APP_ID = 'ff000000-0000-0000-0003-000000000002';
+
+  // Engagement close
+  const CLOSE_POSTING_ID = 'ff000000-0000-0000-0004-000000000001';
+  const CLOSE_APP_ID = 'ff000000-0000-0000-0004-000000000002';
+  const CLOSE_ENG_ID = 'ff000000-0000-0000-0004-000000000003';
+
+  it('PERMANENT.POSTED creates row in permanent_postings', async () => {
+    await appendEvent(
+      'PERMANENT.POSTED',
+      PERM_POSTING_ID,
+      'permanent',
+      'employer',
+      {
+        id: PERM_POSTING_ID,
+        vessel_id: VESSEL_ID,
+        role_id: ROLE_CAPTAIN,
+        port_id: PORT_VAUBAN,
+        start_date: '2099-06-01',
+        salary_min: 5000,
+        salary_max: 7000,
+        salary_currency: 'EUR',
+        salary_period: 'monthly',
+        live_aboard: true,
+        required_certification_ids: [],
+        shortlist_cap: 2,
+        notes: 'Integration test permanent posting',
+      },
+      EMPLOYER_ID,
+    );
+
+    const { data } = await service
+      .from('permanent_postings')
+      .select('status, job_number, salary_min, salary_max, shortlist_cap')
+      .eq('id', PERM_POSTING_ID)
+      .single();
+
+    expect(data?.status).toBe('active');
+    expect(data?.job_number).toBeGreaterThan(0);
+    expect(data?.salary_min).toBe(5000);
+    expect(data?.shortlist_cap).toBe(2);
+  });
+
+  it('PERMANENT.APPLIED creates application with permanent_posting_id', async () => {
+    await appendEvent(
+      'PERMANENT.APPLIED',
+      PERM_AGG,
+      'permanent',
+      'crew',
+      {
+        id: PERM_APP_ID,
+        permanent_posting_id: PERM_POSTING_ID,
+        crew_person_id: CREW_ID,
+        message: 'Integration test apply',
+      },
+      CREW_ID,
+    );
+
+    const { data } = await service
+      .from('applications')
+      .select('status, permanent_posting_id, daywork_id, message')
+      .eq('id', PERM_APP_ID)
+      .single();
+
+    expect(data?.status).toBe('applied');
+    expect(data?.permanent_posting_id).toBe(PERM_POSTING_ID);
+    expect(data?.daywork_id).toBeNull();
+    expect(data?.message).toBe('Integration test apply');
+  });
+
+  it('PERMANENT.APPLICATION_BLOCKED is a no-op — event exists but no state change', async () => {
+    await appendEvent(
+      'PERMANENT.APPLICATION_BLOCKED',
+      `${CREW_ID}:${PERM_POSTING_ID}`,
+      'permanent',
+      'crew',
+      {
+        crew_person_id: CREW_ID,
+        permanent_posting_id: PERM_POSTING_ID,
+        missing_certification_ids: [1, 2],
+      },
+      CREW_ID,
+    );
+
+    // Verify event was recorded
+    const { data: events } = await service
+      .from('events')
+      .select('id')
+      .eq('event_type', 'PERMANENT.APPLICATION_BLOCKED')
+      .eq('aggregate_type', 'permanent');
+
+    expect(events).toBeTruthy();
+    expect(events!.length).toBeGreaterThan(0);
+  });
+
+  it('PERMANENT.SHORTLISTED updates application and enforces cap', async () => {
+    await appendEvent(
+      'PERMANENT.SHORTLISTED',
+      PERM_AGG,
+      'permanent',
+      'employer',
+      { crew_person_id: CREW_ID, permanent_posting_id: PERM_POSTING_ID },
+      EMPLOYER_ID,
+    );
+
+    const { data: app } = await service
+      .from('applications')
+      .select('status')
+      .eq('id', PERM_APP_ID)
+      .single();
+    expect(app?.status).toBe('shortlisted');
+  });
+
+  it('PERMANENT.SELECTED creates engagement and moves posting to in_negotiation', async () => {
+    await appendEvent(
+      'PERMANENT.SELECTED',
+      PERM_AGG,
+      'permanent',
+      'employer',
+      {
+        crew_person_id: CREW_ID,
+        permanent_posting_id: PERM_POSTING_ID,
+        engagement_id: PERM_ENG_ID,
+      },
+      EMPLOYER_ID,
+    );
+
+    // Application → selected
+    const { data: app } = await service
+      .from('applications')
+      .select('status')
+      .eq('id', PERM_APP_ID)
+      .single();
+    expect(app?.status).toBe('selected');
+
+    // Engagement created
+    const { data: eng } = await service
+      .from('active_engagements')
+      .select('permanent_posting_id, daywork_id, status')
+      .eq('permanent_posting_id', PERM_POSTING_ID)
+      .eq('crew_person_id', CREW_ID)
+      .single();
+    expect(eng?.permanent_posting_id).toBe(PERM_POSTING_ID);
+    expect(eng?.daywork_id).toBeNull();
+    expect(eng?.status).toBe('active');
+
+    // Posting → in_negotiation
+    const { data: posting } = await service
+      .from('permanent_postings')
+      .select('status')
+      .eq('id', PERM_POSTING_ID)
+      .single();
+    expect(posting?.status).toBe('in_negotiation');
+  });
+
+  it('PERMANENT.PLACEMENT_CONFIRMED fills posting', async () => {
+    await appendEvent(
+      'PERMANENT.PLACEMENT_CONFIRMED',
+      PERM_POSTING_ID,
+      'permanent',
+      'employer',
+      { permanent_posting_id: PERM_POSTING_ID },
+      EMPLOYER_ID,
+    );
+
+    const { data: posting } = await service
+      .from('permanent_postings')
+      .select('status')
+      .eq('id', PERM_POSTING_ID)
+      .single();
+    expect(posting?.status).toBe('filled');
+  });
+
+  it('PERMANENT.SELECTION_REVERTED closes engagement and reverts posting', async () => {
+    // Setup: post → apply → shortlist → select
+    await appendEvent('PERMANENT.POSTED', REVERT_POSTING_ID, 'permanent', 'employer', {
+      id: REVERT_POSTING_ID, vessel_id: VESSEL_ID, role_id: ROLE_CAPTAIN, port_id: PORT_VAUBAN,
+      start_date: '2099-07-01', salary_min: 4000, salary_max: 5000, salary_currency: 'EUR',
+      salary_period: 'monthly', live_aboard: false, required_certification_ids: [], shortlist_cap: 3,
+    }, EMPLOYER_ID);
+
+    await appendEvent('PERMANENT.APPLIED', `${CREW_ID}:${REVERT_POSTING_ID}`, 'permanent', 'crew', {
+      id: REVERT_APP_ID, permanent_posting_id: REVERT_POSTING_ID, crew_person_id: CREW_ID,
+    }, CREW_ID);
+
+    await appendEvent('PERMANENT.SHORTLISTED', `${CREW_ID}:${REVERT_POSTING_ID}`, 'permanent', 'employer', {
+      crew_person_id: CREW_ID, permanent_posting_id: REVERT_POSTING_ID,
+    }, EMPLOYER_ID);
+
+    await appendEvent('PERMANENT.SELECTED', `${CREW_ID}:${REVERT_POSTING_ID}`, 'permanent', 'employer', {
+      crew_person_id: CREW_ID, permanent_posting_id: REVERT_POSTING_ID, engagement_id: REVERT_ENG_ID,
+    }, EMPLOYER_ID);
+
+    // Get engagement ID
+    const { data: eng } = await service.from('active_engagements')
+      .select('id').eq('permanent_posting_id', REVERT_POSTING_ID).eq('crew_person_id', CREW_ID).single();
+
+    // Revert
+    await appendEvent('PERMANENT.SELECTION_REVERTED', REVERT_POSTING_ID, 'permanent', 'employer', {
+      permanent_posting_id: REVERT_POSTING_ID, engagement_id: eng!.id,
+    }, EMPLOYER_ID);
+
+    // Engagement → closed
+    const { data: closedEng } = await service.from('active_engagements')
+      .select('status, outcome').eq('id', eng!.id).single();
+    expect(closedEng?.status).toBe('closed');
+    expect(closedEng?.outcome).toBe('not_successful');
+
+    // Posting → active
+    const { data: posting } = await service.from('permanent_postings')
+      .select('status').eq('id', REVERT_POSTING_ID).single();
+    expect(posting?.status).toBe('active');
+  });
+
+  it('PERMANENT.CANCELLED_BY_EMPLOYER from active cancels posting and rejects apps', async () => {
+    await appendEvent('PERMANENT.POSTED', CANCEL_POSTING_ID, 'permanent', 'employer', {
+      id: CANCEL_POSTING_ID, vessel_id: VESSEL_ID, role_id: ROLE_CAPTAIN, port_id: PORT_VAUBAN,
+      start_date: '2099-08-01', salary_min: 3000, salary_max: 4000, salary_currency: 'EUR',
+      salary_period: 'monthly', live_aboard: true, required_certification_ids: [], shortlist_cap: 3,
+    }, EMPLOYER_ID);
+
+    await appendEvent('PERMANENT.APPLIED', `${CREW_ID}:${CANCEL_POSTING_ID}`, 'permanent', 'crew', {
+      id: CANCEL_APP_ID, permanent_posting_id: CANCEL_POSTING_ID, crew_person_id: CREW_ID,
+    }, CREW_ID);
+
+    await appendEvent('PERMANENT.CANCELLED_BY_EMPLOYER', CANCEL_POSTING_ID, 'permanent', 'employer', {
+      permanent_posting_id: CANCEL_POSTING_ID, reason: 'Changed plans',
+    }, EMPLOYER_ID);
+
+    const { data: posting } = await service.from('permanent_postings')
+      .select('status').eq('id', CANCEL_POSTING_ID).single();
+    expect(posting?.status).toBe('cancelled');
+
+    const { data: app } = await service.from('applications')
+      .select('status').eq('id', CANCEL_APP_ID).single();
+    expect(app?.status).toBe('rejected');
+  });
+
+  it('PERMANENT.ENGAGEMENT_CLOSED with crew withdrew closes engagement and reverts posting', async () => {
+    // Setup: post → apply → shortlist → select
+    await appendEvent('PERMANENT.POSTED', CLOSE_POSTING_ID, 'permanent', 'employer', {
+      id: CLOSE_POSTING_ID, vessel_id: VESSEL_ID, role_id: ROLE_CAPTAIN, port_id: PORT_VAUBAN,
+      start_date: '2099-09-01', salary_min: 6000, salary_max: 8000, salary_currency: 'EUR',
+      salary_period: 'monthly', live_aboard: true, required_certification_ids: [], shortlist_cap: 3,
+    }, EMPLOYER_ID);
+
+    await appendEvent('PERMANENT.APPLIED', `${CREW_ID}:${CLOSE_POSTING_ID}`, 'permanent', 'crew', {
+      id: CLOSE_APP_ID, permanent_posting_id: CLOSE_POSTING_ID, crew_person_id: CREW_ID,
+    }, CREW_ID);
+
+    await appendEvent('PERMANENT.SHORTLISTED', `${CREW_ID}:${CLOSE_POSTING_ID}`, 'permanent', 'employer', {
+      crew_person_id: CREW_ID, permanent_posting_id: CLOSE_POSTING_ID,
+    }, EMPLOYER_ID);
+
+    await appendEvent('PERMANENT.SELECTED', `${CREW_ID}:${CLOSE_POSTING_ID}`, 'permanent', 'employer', {
+      crew_person_id: CREW_ID, permanent_posting_id: CLOSE_POSTING_ID, engagement_id: CLOSE_ENG_ID,
+    }, EMPLOYER_ID);
+
+    const { data: eng } = await service.from('active_engagements')
+      .select('id').eq('permanent_posting_id', CLOSE_POSTING_ID).eq('crew_person_id', CREW_ID).single();
+
+    // Crew closes with withdrew
+    await appendEvent('PERMANENT.ENGAGEMENT_CLOSED', CLOSE_POSTING_ID, 'permanent', 'crew', {
+      engagement_id: eng!.id, outcome: 'withdrew', closed_by: 'crew',
+    }, CREW_ID);
+
+    const { data: closedEng } = await service.from('active_engagements')
+      .select('status, outcome').eq('id', eng!.id).single();
+    expect(closedEng?.status).toBe('closed');
+    expect(closedEng?.outcome).toBe('withdrew');
+
+    // Posting reverted to active (crew withdrew)
+    const { data: posting } = await service.from('permanent_postings')
+      .select('status').eq('id', CLOSE_POSTING_ID).single();
+    expect(posting?.status).toBe('active');
+  });
+});

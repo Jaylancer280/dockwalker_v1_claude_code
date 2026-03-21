@@ -877,3 +877,402 @@ insert into public.user_preferences (person_id, profile_visible)
 values
   ('11111111-1111-1111-1111-111111111111', true),
   ('22222222-2222-2222-2222-222222222222', true);
+
+-- =============================================================================
+-- PERMANENT JOB SCENARIOS
+-- =============================================================================
+--
+-- Uses same employer e@1 (11111111) and crew c@1 (22222222).
+-- PM-00001: Active, no applicants (discoverable by crew)
+-- PM-00002: Applied — crew applied, pending review
+-- PM-00003: Shortlisted — crew applied and was shortlisted
+-- PM-00004: In Negotiation — crew selected, engagement created, messages exchanged
+-- PM-00005: Filled — placement confirmed, crew placed
+-- PM-00006: Cancelled — employer cancelled before any selection
+-- PM-00007: Active, cert-gated (crew missing required cert — blocked on apply)
+--
+-- =============================================================================
+
+-- Set crew's permanent availability
+select public.append_event(
+  'PROFILE.UPDATED',
+  '22222222-2222-2222-2222-222222222222',
+  'person',
+  'crew',
+  jsonb_build_object(
+    'permanent_availability', 'immediate',
+    'currently_employed', false
+  ),
+  '22222222-2222-2222-2222-222222222222'
+);
+
+-- ========================= PM-00001: ACTIVE — NO APPLICANTS =========================
+-- Chief Engineer, Port Vauban, start in 30 days
+-- Discoverable by crew in the permanent feed
+
+select public.append_event(
+  'PERMANENT.POSTED',
+  'aa000000-0000-0000-0001-000000000001',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'id', 'aa000000-0000-0000-0001-000000000001',
+    'vessel_id', '33333333-3333-3333-3333-333333333333',
+    'role_id', 'd0000000-0000-0000-0000-000000000007',
+    'port_id', 'c0000000-0000-0000-0000-000000000001',
+    'start_date', (current_date + interval '30 days')::date,
+    'salary_min', 5000,
+    'salary_max', 7000,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000004',
+    'shortlist_cap', 5,
+    'notes', 'Permanent Chief Engineer for 65m motor yacht. Mediterranean season April-October, winter refit in Antibes. MCA compliant.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- ========================= PM-00002: APPLIED — PENDING REVIEW =========================
+-- Deckhand, Port Gallice, start in 45 days
+-- Crew has applied
+
+select public.append_event(
+  'PERMANENT.POSTED',
+  'aa000000-0000-0000-0001-000000000002',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'id', 'aa000000-0000-0000-0001-000000000002',
+    'vessel_id', '33333333-3333-3333-3333-333333333333',
+    'role_id', 'd0000000-0000-0000-0000-000000000006',
+    'port_id', 'c0000000-0000-0000-0000-000000000002',
+    'start_date', (current_date + interval '45 days')::date,
+    'salary_min', 2800,
+    'salary_max', 3200,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000005"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000002',
+    'shortlist_cap', 3,
+    'notes', 'Full-time Deckhand for busy charter season. Strong tender driving and water sports experience preferred.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.APPLIED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000002',
+  'permanent',
+  'crew',
+  jsonb_build_object(
+    'id', 'ab000000-0000-0000-0001-000000000002',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000002',
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'message', 'Keen to join for the charter season. I have 3 years deckhand experience on 40-65m vessels.'
+  ),
+  '22222222-2222-2222-2222-222222222222'
+);
+
+-- ========================= PM-00003: SHORTLISTED =========================
+-- Bosun, Port Hercules, start in 60 days
+-- Crew applied and was shortlisted
+
+select public.append_event(
+  'PERMANENT.POSTED',
+  'aa000000-0000-0000-0001-000000000003',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'id', 'aa000000-0000-0000-0001-000000000003',
+    'vessel_id', '33333333-3333-3333-3333-333333333334',
+    'role_id', 'd0000000-0000-0000-0000-000000000004',
+    'port_id', 'c0000000-0000-0000-0000-000000000007',
+    'start_date', (current_date + interval '60 days')::date,
+    'salary_min', 4000,
+    'salary_max', 5000,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000007"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000003',
+    'shortlist_cap', 4,
+    'notes', 'Bosun for a well-maintained private vessel. Team of 4 deck crew. Monaco-based year-round.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.APPLIED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000003',
+  'permanent',
+  'crew',
+  jsonb_build_object(
+    'id', 'ab000000-0000-0000-0001-000000000003',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000003',
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'message', 'Interested in the Bosun position. Currently available and based in the area.'
+  ),
+  '22222222-2222-2222-2222-222222222222'
+);
+
+select public.append_event(
+  'PERMANENT.SHORTLISTED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000003',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000003'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- ========================= PM-00004: IN NEGOTIATION =========================
+-- First Officer, Port Vauban, start in 14 days
+-- Crew applied → shortlisted → selected → engagement created → messages exchanged
+
+select public.append_event(
+  'PERMANENT.POSTED',
+  'aa000000-0000-0000-0001-000000000004',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'id', 'aa000000-0000-0000-0001-000000000004',
+    'vessel_id', '33333333-3333-3333-3333-333333333333',
+    'role_id', 'd0000000-0000-0000-0000-000000000002',
+    'port_id', 'c0000000-0000-0000-0000-000000000001',
+    'start_date', (current_date + interval '14 days')::date,
+    'salary_min', 5500,
+    'salary_max', 6500,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000005"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000004',
+    'shortlist_cap', 3,
+    'notes', 'First Officer position on 65m charter yacht. GMDSS, OOW 3000gt required. Start 2 weeks.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.APPLIED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000004',
+  'permanent',
+  'crew',
+  jsonb_build_object(
+    'id', 'ab000000-0000-0000-0001-000000000004',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000004',
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'message', 'Very interested in this First Officer role. Available immediately.'
+  ),
+  '22222222-2222-2222-2222-222222222222'
+);
+
+select public.append_event(
+  'PERMANENT.SHORTLISTED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000004',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000004'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.SELECTED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000004',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000004',
+    'engagement_id', 'ac000000-0000-0000-0001-000000000004'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- Messages in the negotiation thread
+do $$
+declare
+  v_engagement_id uuid;
+begin
+  select id into v_engagement_id
+  from public.active_engagements
+  where crew_person_id = '22222222-2222-2222-2222-222222222222'
+    and permanent_posting_id = 'aa000000-0000-0000-0001-000000000004';
+
+  if v_engagement_id is not null then
+    perform public.append_event(
+      'MESSAGE.SENT', v_engagement_id::text, 'engagement', 'employer',
+      jsonb_build_object('id', 'ad000000-0000-0000-0001-000000000001',
+        'content', 'Welcome aboard! Let''s discuss the rotation schedule. We do 6 weeks on / 3 weeks off during charter season.'),
+      '11111111-1111-1111-1111-111111111111'
+    );
+
+    perform public.append_event(
+      'MESSAGE.SENT', v_engagement_id::text, 'engagement', 'crew',
+      jsonb_build_object('id', 'ad000000-0000-0000-0001-000000000002',
+        'content', 'That works well for me. What are the leave arrangements during the winter refit period?'),
+      '22222222-2222-2222-2222-222222222222'
+    );
+
+    perform public.append_event(
+      'MESSAGE.SENT', v_engagement_id::text, 'engagement', 'employer',
+      jsonb_build_object('id', 'ad000000-0000-0000-0001-000000000003',
+        'content', 'During refit (Nov-Feb) it''s 5 days on / 2 off, standard hours. We can discuss salary adjustment for that period if needed.'),
+      '11111111-1111-1111-1111-111111111111'
+    );
+  end if;
+end $$;
+
+-- ========================= PM-00005: FILLED — PLACEMENT CONFIRMED =========================
+-- Stewardess, Vieux Port de Cannes, start 3 months ago
+-- Full lifecycle: applied → shortlisted → selected → placement confirmed
+
+select public.append_event(
+  'PERMANENT.POSTED',
+  'aa000000-0000-0000-0001-000000000005',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'id', 'aa000000-0000-0000-0001-000000000005',
+    'vessel_id', '33333333-3333-3333-3333-333333333333',
+    'role_id', 'd0000000-0000-0000-0000-000000000012',
+    'port_id', 'c0000000-0000-0000-0000-000000000003',
+    'start_date', (current_date - interval '90 days')::date,
+    'salary_min', 3000,
+    'salary_max', 3500,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000002',
+    'shortlist_cap', 5,
+    'notes', 'Full-time Stewardess for busy charter vessel. Silver service experience essential.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.APPLIED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000005',
+  'permanent',
+  'crew',
+  jsonb_build_object(
+    'id', 'ab000000-0000-0000-0001-000000000005',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000005',
+    'crew_person_id', '22222222-2222-2222-2222-222222222222'
+  ),
+  '22222222-2222-2222-2222-222222222222'
+);
+
+select public.append_event(
+  'PERMANENT.SHORTLISTED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000005',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000005'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.SELECTED',
+  '22222222-2222-2222-2222-222222222222:aa000000-0000-0000-0001-000000000005',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'crew_person_id', '22222222-2222-2222-2222-222222222222',
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000005',
+    'engagement_id', 'ac000000-0000-0000-0001-000000000005'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.PLACEMENT_CONFIRMED',
+  'aa000000-0000-0000-0001-000000000005',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000005'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- ========================= PM-00006: CANCELLED BY EMPLOYER =========================
+-- Second Engineer, Port de Nice, start in 20 days
+-- Employer posted then cancelled (vessel sale fell through)
+
+select public.append_event(
+  'PERMANENT.POSTED',
+  'aa000000-0000-0000-0001-000000000006',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'id', 'aa000000-0000-0000-0001-000000000006',
+    'vessel_id', '33333333-3333-3333-3333-333333333334',
+    'role_id', 'd0000000-0000-0000-0000-000000000008',
+    'port_id', 'c0000000-0000-0000-0000-000000000005',
+    'start_date', (current_date + interval '20 days')::date,
+    'salary_min', 4500,
+    'salary_max', 5500,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', false,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000003',
+    'shortlist_cap', 3,
+    'notes', 'Second Engineer for 45m motor yacht. AEC required. Nice-based refit project.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+select public.append_event(
+  'PERMANENT.CANCELLED_BY_EMPLOYER',
+  'aa000000-0000-0000-0001-000000000006',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'permanent_posting_id', 'aa000000-0000-0000-0001-000000000006',
+    'reason', 'Vessel sale did not proceed — position no longer available'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- ========================= PM-00007: ACTIVE — CERT GATED =========================
+-- Head Chef, Port Vauban, start ASAP (past date = ASAP on cards)
+-- Requires Food Safety Level 2 cert (e006) which crew does NOT have
+-- Crew will see this in feed but cannot apply (cert-gated)
+
+select public.append_event(
+  'PERMANENT.POSTED',
+  'aa000000-0000-0000-0001-000000000007',
+  'permanent',
+  'employer',
+  jsonb_build_object(
+    'id', 'aa000000-0000-0000-0001-000000000007',
+    'vessel_id', '33333333-3333-3333-3333-333333333333',
+    'role_id', 'd0000000-0000-0000-0000-000000000016',
+    'port_id', 'c0000000-0000-0000-0000-000000000001',
+    'start_date', (current_date - interval '5 days')::date,
+    'salary_min', 4500,
+    'salary_max', 6000,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000006"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000004',
+    'shortlist_cap', 3,
+    'notes', 'Head Chef for private owner. Mediterranean and Asian fusion. Max 12 covers. Immediate start — ASAP.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
