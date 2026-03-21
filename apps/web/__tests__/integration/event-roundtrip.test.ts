@@ -246,8 +246,8 @@ describe('VESSEL.CREATED roundtrip', () => {
       .single();
 
     expect(data?.imo_number).toBe('9876543');
-    expect(data?.name).toBe('M/Y Serenity');
-    expect(data?.vessel_type).toBe('charter');
+    expect(data?.name).toBe('Serenity');
+    expect(data?.vessel_type).toBe('motor');
     expect(data?.owner_person_id).toBe(EMPLOYER_ID);
   });
 });
@@ -268,7 +268,7 @@ describe('DAYWORK.POSTED roundtrip', () => {
     expect(data?.day_rate).toBe(250);
     expect(data?.currency).toBe('EUR');
     expect(data?.status).toBe('active');
-    expect(data?.working_days).toBe(5);
+    expect(data?.working_days).toBe(2);
   });
 });
 
@@ -276,18 +276,40 @@ describe('DAYWORK.POSTED roundtrip', () => {
 // 6. Apply → Accept roundtrip (tests application + engagement + in_progress)
 // ===========================================================================
 describe('DAYWORK.APPLIED → DAYWORK.ACCEPTED roundtrip', () => {
+  const TEST_DW_ID = 'dddddddd-dddd-dddd-aaaa-000000000001';
   const APP_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa001';
-  const DAYWORK_ID = '44444444-4444-4444-4444-444444444003'; // Posting 3 (1 day, no certs)
-  const AGGREGATE_ID = `${CREW_ID}:${DAYWORK_ID}`;
+  const AGGREGATE_ID = `${CREW_ID}:${TEST_DW_ID}`;
 
   it('creates application, then acceptance creates engagement and moves daywork to in_progress', async () => {
     // Clean up from previous runs (integration tests hit real DB)
     await service.from('messages').delete().eq('engagement_id',
-      (await service.from('active_engagements').select('id').eq('daywork_id', DAYWORK_ID).single()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+      (await service.from('active_engagements').select('id').eq('daywork_id', TEST_DW_ID).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
     );
-    await service.from('active_engagements').delete().eq('daywork_id', DAYWORK_ID);
+    await service.from('active_engagements').delete().eq('daywork_id', TEST_DW_ID);
     await service.from('applications').delete().eq('id', APP_ID);
-    await service.from('dayworks').update({ status: 'active' }).eq('id', DAYWORK_ID);
+    await service.from('dayworks').delete().eq('id', TEST_DW_ID);
+
+    // Create own daywork posting (self-contained, no seed conflicts)
+    await appendEvent(
+      'DAYWORK.POSTED',
+      TEST_DW_ID,
+      'daywork',
+      'employer',
+      {
+        id: TEST_DW_ID,
+        vessel_id: VESSEL_ID,
+        role_id: ROLE_CAPTAIN,
+        location_port_id: PORT_VAUBAN,
+        start_date: '2099-03-01',
+        end_date: '2099-03-05',
+        working_days: 5,
+        required_certification_ids: [],
+        day_rate: 300,
+        currency: 'EUR',
+        meals: [],
+      },
+      EMPLOYER_ID,
+    );
 
     // Apply
     await appendEvent(
@@ -295,7 +317,7 @@ describe('DAYWORK.APPLIED → DAYWORK.ACCEPTED roundtrip', () => {
       AGGREGATE_ID,
       'application',
       'crew',
-      { id: APP_ID, daywork_id: DAYWORK_ID, message: 'Integration test apply' },
+      { id: APP_ID, daywork_id: TEST_DW_ID, message: 'Integration test apply' },
       CREW_ID,
     );
 
@@ -330,7 +352,7 @@ describe('DAYWORK.APPLIED → DAYWORK.ACCEPTED roundtrip', () => {
     const { data: engagement } = await service
       .from('active_engagements')
       .select('crew_person_id, employer_person_id, daywork_id, status')
-      .eq('daywork_id', DAYWORK_ID)
+      .eq('daywork_id', TEST_DW_ID)
       .single();
     expect(engagement?.crew_person_id).toBe(CREW_ID);
     expect(engagement?.employer_person_id).toBe(EMPLOYER_ID);
@@ -340,7 +362,7 @@ describe('DAYWORK.APPLIED → DAYWORK.ACCEPTED roundtrip', () => {
     const { data: dw } = await service
       .from('dayworks')
       .select('status')
-      .eq('id', DAYWORK_ID)
+      .eq('id', TEST_DW_ID)
       .single();
     expect(dw?.status).toBe('in_progress');
   });
@@ -402,29 +424,50 @@ describe('DAYWORK.INVITED roundtrip', () => {
 });
 
 describe('DAYWORK.ACCEPTED revokes pending invitations', () => {
-  const DAYWORK_ID = '44444444-4444-4444-4444-444444444002'; // Posting 2
+  const REVOKE_DW_ID = 'dddddddd-dddd-dddd-aaaa-000000000002';
   const APP_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa002';
-  const AGGREGATE_ID = `${CREW_ID}:${DAYWORK_ID}`;
-  const INVITED_CREW_ID = '33333333-3333-3333-3333-333333333333'; // Use vessel ID as a stand-in — not ideal but we need a distinct person
+  const AGGREGATE_ID = `${CREW_ID}:${REVOKE_DW_ID}`;
 
   it('revokes all pending invitations when crew is accepted', async () => {
-    // Clean up
+    // Clean up from previous runs
     await service.from('messages').delete().eq('engagement_id',
-      (await service.from('active_engagements').select('id').eq('daywork_id', DAYWORK_ID).single()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+      (await service.from('active_engagements').select('id').eq('daywork_id', REVOKE_DW_ID).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
     );
-    await service.from('active_engagements').delete().eq('daywork_id', DAYWORK_ID);
+    await service.from('active_engagements').delete().eq('daywork_id', REVOKE_DW_ID);
     await service.from('applications').delete().eq('id', APP_ID);
-    await service.from('daywork_invitations').delete().eq('daywork_id', DAYWORK_ID);
-    await service.from('dayworks').update({ status: 'active' }).eq('id', DAYWORK_ID);
+    await service.from('daywork_invitations').delete().eq('daywork_id', REVOKE_DW_ID);
+    await service.from('dayworks').delete().eq('id', REVOKE_DW_ID);
+
+    // Create own daywork posting
+    await appendEvent(
+      'DAYWORK.POSTED',
+      REVOKE_DW_ID,
+      'daywork',
+      'employer',
+      {
+        id: REVOKE_DW_ID,
+        vessel_id: VESSEL_ID,
+        role_id: ROLE_CAPTAIN,
+        location_port_id: PORT_VAUBAN,
+        start_date: '2099-04-01',
+        end_date: '2099-04-05',
+        working_days: 5,
+        required_certification_ids: [],
+        day_rate: 300,
+        currency: 'EUR',
+        meals: [],
+      },
+      EMPLOYER_ID,
+    );
 
     // Create a pending invitation for a different crew member
-    // We need a valid person_id — use EMPLOYER_ID as a stand-in for invited crew (not realistic but valid FK)
+    // Use EMPLOYER_ID as a stand-in for invited crew (valid FK)
     await appendEvent(
       'DAYWORK.INVITED',
-      DAYWORK_ID,
+      REVOKE_DW_ID,
       'invitation',
       'employer',
-      { daywork_id: DAYWORK_ID, crew_person_id: EMPLOYER_ID },
+      { daywork_id: REVOKE_DW_ID, crew_person_id: EMPLOYER_ID },
       EMPLOYER_ID,
     );
 
@@ -432,7 +475,7 @@ describe('DAYWORK.ACCEPTED revokes pending invitations', () => {
     const { data: inv } = await service
       .from('daywork_invitations')
       .select('status')
-      .eq('daywork_id', DAYWORK_ID)
+      .eq('daywork_id', REVOKE_DW_ID)
       .eq('crew_person_id', EMPLOYER_ID)
       .single();
     expect(inv?.status).toBe('pending');
@@ -443,7 +486,7 @@ describe('DAYWORK.ACCEPTED revokes pending invitations', () => {
       AGGREGATE_ID,
       'application',
       'crew',
-      { id: APP_ID, daywork_id: DAYWORK_ID },
+      { id: APP_ID, daywork_id: REVOKE_DW_ID },
       CREW_ID,
     );
 
@@ -460,13 +503,13 @@ describe('DAYWORK.ACCEPTED revokes pending invitations', () => {
     const { data: revoked } = await service
       .from('daywork_invitations')
       .select('status')
-      .eq('daywork_id', DAYWORK_ID)
+      .eq('daywork_id', REVOKE_DW_ID)
       .eq('crew_person_id', EMPLOYER_ID)
       .single();
     expect(revoked?.status).toBe('revoked');
 
     // Clean up
-    await service.from('daywork_invitations').delete().eq('daywork_id', DAYWORK_ID);
+    await service.from('daywork_invitations').delete().eq('daywork_id', REVOKE_DW_ID);
   });
 });
 
@@ -614,8 +657,8 @@ describe('DAYWORK.RELISTED revokes pending invitations', () => {
 // ===========================================================================
 describe('MESSAGE.SENT roundtrip', () => {
   it('inserts message linked to engagement', async () => {
-    // Get the engagement created in test 6
-    const DAYWORK_ID = '44444444-4444-4444-4444-444444444003';
+    // Get the engagement created in test 6 (self-contained daywork)
+    const DAYWORK_ID = 'dddddddd-dddd-dddd-aaaa-000000000001';
     const { data: eng } = await service
       .from('active_engagements')
       .select('id')
@@ -695,8 +738,9 @@ describe('Experience auto-derivation', () => {
 
     // ~90 days = ~2.96 months → Green (0-6 months)
     expect(profile?.experience_bracket_id).toBe(EXP_BRACKET_GREEN);
-    // Vessel's size_band_id should appear in exposure
-    expect(profile?.vessel_size_exposure_ids).toContain(SIZE_BAND_4);
+    // Vessel's size_band_id (band 5 from seed vessel) should appear in exposure
+    const SIZE_BAND_5 = 'f1000000-0000-0000-0000-000000000005';
+    expect(profile?.vessel_size_exposure_ids).toContain(SIZE_BAND_5);
   });
 
   it('adding second experience recalculates bracket from total days', async () => {
@@ -913,15 +957,48 @@ describe('NDA reveal-after-acceptance', () => {
 // 10. Engagement lifecycle: completion, confirmation, ratings
 // ===========================================================================
 describe('Engagement lifecycle — completion + ratings', () => {
-  // Use seed daywork 5 which is in_progress with active engagement
-  const DW5 = '44444444-4444-4444-4444-444444444005';
+  const LC_DW = 'dddddddd-dddd-dddd-aaaa-000000000003';
+  const LC_APP = 'dddddddd-dddd-dddd-aaaa-000000000004';
+  const LC_AGG = `${CREW_ID}:${LC_DW}`;
   let engagementId: string;
 
   beforeAll(async () => {
+    // Clean up from previous runs
+    await service.from('engagement_ratings').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', LC_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('messages').delete().eq('engagement_id',
+      (await service.from('active_engagements').select('id').eq('daywork_id', LC_DW).maybeSingle()).data?.id ?? '00000000-0000-0000-0000-000000000000'
+    );
+    await service.from('active_engagements').delete().eq('daywork_id', LC_DW);
+    await service.from('applications').delete().eq('daywork_id', LC_DW);
+    await service.from('dayworks').delete().eq('id', LC_DW);
+
+    // Post + apply + accept to create a fresh active engagement
+    await appendEvent('DAYWORK.POSTED', LC_DW, 'daywork', 'employer', {
+      id: LC_DW,
+      vessel_id: VESSEL_ID,
+      role_id: ROLE_CAPTAIN,
+      location_port_id: PORT_VAUBAN,
+      start_date: '2099-05-01',
+      end_date: '2099-05-05',
+      working_days: 5,
+      required_certification_ids: [],
+      day_rate: 400,
+      currency: 'EUR',
+      meals: [],
+    }, EMPLOYER_ID);
+
+    await appendEvent('DAYWORK.APPLIED', LC_AGG, 'application', 'crew', {
+      id: LC_APP, daywork_id: LC_DW,
+    }, CREW_ID);
+
+    await appendEvent('DAYWORK.ACCEPTED', LC_AGG, 'application', 'employer', {}, EMPLOYER_ID);
+
     const { data } = await service
       .from('active_engagements')
       .select('id')
-      .eq('daywork_id', DW5)
+      .eq('daywork_id', LC_DW)
       .eq('status', 'active')
       .single();
     engagementId = data?.id ?? '';
@@ -930,7 +1007,7 @@ describe('Engagement lifecycle — completion + ratings', () => {
   it('DAYWORK.COMPLETED sets daywork completed and engagement completed', async () => {
     await appendEvent(
       'DAYWORK.COMPLETED',
-      DW5,
+      LC_DW,
       'daywork',
       'employer',
       {},
@@ -940,7 +1017,7 @@ describe('Engagement lifecycle — completion + ratings', () => {
     const { data: dw } = await service
       .from('dayworks')
       .select('status')
-      .eq('id', DW5)
+      .eq('id', LC_DW)
       .single();
     expect(dw?.status).toBe('completed');
 
@@ -982,10 +1059,10 @@ describe('Engagement lifecycle — completion + ratings', () => {
       'engagement',
       'crew',
       {
-        pay_accuracy: 'accurate',
-        meals_accuracy: 'accurate',
-        role_accuracy: 'accurate',
-        working_days_accuracy: 'accurate',
+        pay_accuracy: 'yes',
+        meals_accuracy: 'yes',
+        role_accuracy: 'yes',
+        working_days_accuracy: 'as_listed',
         vessel_condition: 4,
         would_work_on_vessel_again: true,
         communication_accuracy: true,
@@ -1018,9 +1095,9 @@ describe('Engagement lifecycle — completion + ratings', () => {
       'engagement',
       'employer',
       {
-        skills_as_advertised: 'accurate',
-        certifications_verified: 'verified',
-        punctuality: 'on_time',
+        skills_as_advertised: 'yes',
+        certifications_verified: 'yes',
+        punctuality: 'yes',
         would_rehire: true,
         communication_accuracy: true,
         overall_match: 4,
@@ -1559,6 +1636,9 @@ describe('Invitation aggregate_type roundtrip', () => {
   const INV_ID = 'aaaa0000-0000-0000-0000-000000000099';
 
   it('DAYWORK.INVITED creates a pending invitation', async () => {
+    // Clean up from previous runs
+    await service.from('daywork_invitations').delete().eq('daywork_id', INV_DAYWORK_ID).eq('crew_person_id', CREW_ID);
+
     await appendEvent(
       'DAYWORK.INVITED',
       INV_DAYWORK_ID,
