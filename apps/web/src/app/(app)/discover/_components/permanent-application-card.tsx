@@ -1,8 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import { MapPin, Briefcase, Ship } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { currencySymbol } from '@/lib/units';
 
 interface PermanentApplicationPosting {
@@ -70,6 +79,7 @@ export function PermanentApplicationCard({
   onViewProfile,
   withdrawing,
 }: PermanentApplicationCardProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const p = application.posting;
   if (!p) return null;
 
@@ -142,12 +152,46 @@ export function PermanentApplicationCard({
             variant="outline"
             size="sm"
             disabled={withdrawing}
-            onClick={() => onWithdraw(application.permanent_posting_id)}
+            onClick={() => {
+              if (application.status === 'selected') {
+                setConfirmOpen(true);
+              } else {
+                onWithdraw(application.permanent_posting_id);
+              }
+            }}
           >
             {withdrawing ? 'Withdrawing...' : 'Withdraw'}
           </Button>
         )}
       </div>
+
+      {/* Confirmation dialog for selected withdrawal */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Withdraw application?</DialogTitle>
+            <DialogDescription>
+              Withdrawing will close the conversation with the employer and return the posting to
+              their shortlist. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={withdrawing}
+              onClick={() => {
+                setConfirmOpen(false);
+                onWithdraw(application.permanent_posting_id);
+              }}
+            >
+              Withdraw
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
