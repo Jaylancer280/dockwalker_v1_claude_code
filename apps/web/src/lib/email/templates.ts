@@ -106,3 +106,60 @@ export function engagementStartingEmail(params: {
     `),
   };
 }
+
+export function permanentShortlistedEmail(params: {
+  recipientName: string;
+  roleName: string;
+  jobNumber: string;
+}): { subject: string; html: string } {
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  return {
+    subject: `You've been shortlisted — ${params.roleName}`,
+    html: wrap(`
+      <p style="color:#1e293b;font-size:16px;margin:0 0 16px;">Hi ${params.recipientName},</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;">
+        You've been shortlisted for <strong>${params.roleName}</strong> (${params.jobNumber}).
+        The employer is reviewing candidates and will be in touch.
+      </p>
+      ${ctaButton(`${appUrl}/discover`, 'View your applications')}
+    `),
+  };
+}
+
+export function permanentSelectedEmail(params: {
+  recipientName: string;
+  roleName: string;
+  jobNumber: string;
+  engagementId: string;
+}): { subject: string; html: string } {
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  return {
+    subject: `You've been selected — ${params.roleName}`,
+    html: wrap(`
+      <p style="color:#1e293b;font-size:16px;margin:0 0 16px;">Great news, ${params.recipientName}!</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;">
+        You've been selected for <strong>${params.roleName}</strong> (${params.jobNumber}).
+        A message thread has been opened so you can discuss terms with the employer.
+      </p>
+      ${ctaButton(`${appUrl}/messages/${params.engagementId}`, 'Open conversation')}
+    `),
+  };
+}
+
+export function permanentPlacementConfirmedEmail(params: {
+  recipientName: string;
+  roleName: string;
+  jobNumber: string;
+}): { subject: string; html: string } {
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  return {
+    subject: `Placement confirmed — ${params.roleName}`,
+    html: wrap(`
+      <p style="color:#1e293b;font-size:16px;margin:0 0 16px;">Congratulations, ${params.recipientName}!</p>
+      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 16px;">
+        Your placement as <strong>${params.roleName}</strong> (${params.jobNumber}) has been confirmed by the employer.
+      </p>
+      ${ctaButton(`${appUrl}/messages`, 'Open messages')}
+    `),
+  };
+}

@@ -5,6 +5,9 @@ import {
   applicationAcceptedEmail,
   applicationReceivedEmail,
   newMessageEmail,
+  permanentShortlistedEmail,
+  permanentSelectedEmail,
+  permanentPlacementConfirmedEmail,
 } from './email/templates';
 
 interface NotifyContext {
@@ -77,6 +80,14 @@ function mapEventToNotificationType(eventType: string): string | null {
     'ENGAGEMENT.WORK_STARTED_CONFIRMED': 'work_started_confirmed',
     'ENGAGEMENT.POSTPONEMENT_PROPOSED': 'postponement_proposed',
     'CHECKLIST.SET': 'checklist_updated',
+    'PERMANENT.APPLIED': 'permanent_application_received',
+    'PERMANENT.SHORTLISTED': 'permanent_shortlisted',
+    'PERMANENT.SELECTED': 'permanent_selected',
+    'PERMANENT.REJECTED': 'permanent_rejected',
+    'PERMANENT.PLACEMENT_CONFIRMED': 'permanent_placed',
+    'PERMANENT.SELECTION_REVERTED': 'permanent_selection_reverted',
+    'PERMANENT.CANCELLED_BY_EMPLOYER': 'permanent_posting_cancelled',
+    'PERMANENT.ENGAGEMENT_CLOSED': 'permanent_conversation_closed',
   };
   return map[eventType] ?? null;
 }
@@ -106,6 +117,20 @@ function resolveDeepLink(eventType: string, payload: Record<string, unknown>): s
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'ENGAGEMENT.WORK_STARTED_CONFIRMED':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'PERMANENT.APPLIED':
+      return payload.permanent_posting_id
+        ? `/permanent/${payload.permanent_posting_id}/review`
+        : null;
+    case 'PERMANENT.SELECTED':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'PERMANENT.SHORTLISTED':
+    case 'PERMANENT.REJECTED':
+    case 'PERMANENT.PLACEMENT_CONFIRMED':
+    case 'PERMANENT.SELECTION_REVERTED':
+    case 'PERMANENT.CANCELLED_BY_EMPLOYER':
+      return '/discover';
+    case 'PERMANENT.ENGAGEMENT_CLOSED':
+      return null;
     default:
       return null;
   }
@@ -162,6 +187,23 @@ async function resolveNotification(
     case 'CHECKLIST.SET':
       return handleChecklist(sc, payload);
 
+    case 'PERMANENT.APPLIED':
+      return handlePermanentApplied(sc, payload, actorPersonId);
+    case 'PERMANENT.SHORTLISTED':
+      return handlePermanentShortlisted(sc, payload);
+    case 'PERMANENT.SELECTED':
+      return handlePermanentSelected(sc, payload);
+    case 'PERMANENT.REJECTED':
+      return handlePermanentRejected(sc, payload);
+    case 'PERMANENT.PLACEMENT_CONFIRMED':
+      return handlePermanentPlacementConfirmed(sc, payload);
+    case 'PERMANENT.SELECTION_REVERTED':
+      return handlePermanentSelectionReverted(sc, payload);
+    case 'PERMANENT.CANCELLED_BY_EMPLOYER':
+      return handlePermanentCancelled(sc, payload);
+    case 'PERMANENT.ENGAGEMENT_CLOSED':
+      return handlePermanentEngagementClosed(sc, payload, actorPersonId);
+
     default:
       return [];
   }
@@ -186,13 +228,37 @@ async function getDisplayName(sc: SupabaseClient, personId: string): Promise<str
 async function getEngagementParties(
   sc: SupabaseClient,
   engagementId: string,
-): Promise<{ crew_person_id: string; employer_person_id: string; daywork_id: string } | null> {
+): Promise<{
+  crew_person_id: string;
+  employer_person_id: string;
+  daywork_id: string;
+  permanent_posting_id: string | null;
+} | null> {
   const { data } = await sc
     .from('active_engagements')
-    .select('crew_person_id, employer_person_id, daywork_id')
+    .select('crew_person_id, employer_person_id, daywork_id, permanent_posting_id')
     .eq('id', engagementId)
     .single();
   return data;
+}
+
+async function getPermanentPostingInfo(
+  sc: SupabaseClient,
+  postingId: string,
+): Promise<{ employer_person_id: string; role_name: string; job_number: string } | null> {
+  const { data } = await sc
+    .from('permanent_postings')
+    .select('employer_person_id, job_number, yacht_roles(name)')
+    .eq('id', postingId)
+    .single();
+  if (!data) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const roleName = (data as any).yacht_roles?.name ?? 'Permanent role';
+  return {
+    employer_person_id: data.employer_person_id,
+    role_name: roleName,
+    job_number: `PM-${String(data.job_number).padStart(5, '0')}`,
+  };
 }
 
 async function getDayworkPoster(sc: SupabaseClient, dayworkId: string): Promise<string | null> {
@@ -523,6 +589,213 @@ async function handleChecklist(
   ];
 }
 
+// ---- Permanent handlers ----
+
+async function handlePermanentApplied(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+  actorPersonId: string,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  const crewName = await getDisplayName(sc, actorPersonId);
+  return [
+    {
+      recipientPersonId: info.employer_person_id,
+      roleContext: 'employer',
+      notification: {
+        title: `New application for ${info.role_name}`,
+        body: `${crewName} applied to ${info.job_number}`,
+        data: { screen: 'review', permanentPostingId: postingId },
+      },
+    },
+  ];
+}
+
+async function handlePermanentShortlisted(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const crewId = payload.crew_person_id as string;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  return [
+    {
+      recipientPersonId: crewId,
+      roleContext: 'crew',
+      notification: {
+        title: `You've been shortlisted`,
+        body: `You've been shortlisted for ${info.role_name} — ${info.job_number}`,
+        data: { screen: 'discover' },
+      },
+    },
+  ];
+}
+
+async function handlePermanentSelected(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const crewId = payload.crew_person_id as string;
+  const engagementId = payload.engagement_id as string | undefined;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  return [
+    {
+      recipientPersonId: crewId,
+      roleContext: 'crew',
+      notification: {
+        title: `You've been selected`,
+        body: `You've been selected for ${info.role_name} — check your messages`,
+        data: { screen: 'chat', ...(engagementId ? { engagementId } : {}) },
+      },
+    },
+  ];
+}
+
+async function handlePermanentRejected(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const crewId = payload.crew_person_id as string;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  return [
+    {
+      recipientPersonId: crewId,
+      roleContext: 'crew',
+      notification: {
+        title: 'Application Update',
+        body: `Update on your ${info.role_name} application`,
+        data: { screen: 'discover' },
+      },
+    },
+  ];
+}
+
+async function handlePermanentPlacementConfirmed(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  const results: NotifyContext[] = [];
+
+  // Notify placed crew (from active engagement)
+  const { data: eng } = await sc
+    .from('active_engagements')
+    .select('crew_person_id')
+    .eq('permanent_posting_id', postingId)
+    .eq('status', 'active')
+    .single();
+  if (eng) {
+    results.push({
+      recipientPersonId: eng.crew_person_id,
+      roleContext: 'crew',
+      notification: {
+        title: 'Placement Confirmed',
+        body: `Your placement as ${info.role_name} is confirmed`,
+        data: { screen: 'discover' },
+      },
+    });
+  }
+
+  // Notify remaining not-selected
+  const { data: notSelected } = await sc
+    .from('applications')
+    .select('crew_person_id')
+    .eq('permanent_posting_id', postingId)
+    .eq('status', 'not_selected');
+  for (const app of notSelected ?? []) {
+    if (app.crew_person_id !== eng?.crew_person_id) {
+      results.push({
+        recipientPersonId: app.crew_person_id,
+        roleContext: 'crew',
+        notification: {
+          title: 'Position Filled',
+          body: `The ${info.role_name} position has been filled`,
+          data: { screen: 'discover' },
+        },
+      });
+    }
+  }
+
+  return results;
+}
+
+async function handlePermanentSelectionReverted(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const engagementId = payload.engagement_id as string;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  const parties = await getEngagementParties(sc, engagementId);
+  if (!parties) return [];
+  return [
+    {
+      recipientPersonId: parties.crew_person_id,
+      roleContext: 'crew',
+      notification: {
+        title: 'Selection Update',
+        body: `The employer is reviewing other candidates for ${info.role_name}`,
+        data: { screen: 'discover' },
+      },
+    },
+  ];
+}
+
+async function handlePermanentCancelled(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  const { data: apps } = await sc
+    .from('applications')
+    .select('crew_person_id')
+    .eq('permanent_posting_id', postingId)
+    .neq('status', 'withdrawn');
+  const crewIds = [...new Set((apps ?? []).map((a) => a.crew_person_id as string))];
+  return crewIds.map((crewId) => ({
+    recipientPersonId: crewId,
+    roleContext: 'crew' as const,
+    notification: {
+      title: 'Posting Closed',
+      body: `${info.role_name} posting has been closed`,
+      data: { screen: 'discover' },
+    },
+  }));
+}
+
+async function handlePermanentEngagementClosed(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+  actorPersonId: string,
+): Promise<NotifyContext[]> {
+  const engagementId = payload.engagement_id as string;
+  const parties = await getEngagementParties(sc, engagementId);
+  if (!parties) return [];
+  const recipientId =
+    parties.crew_person_id === actorPersonId ? parties.employer_person_id : parties.crew_person_id;
+  const recipientHat: 'crew' | 'employer' =
+    parties.crew_person_id === actorPersonId ? 'employer' : 'crew';
+  return [
+    {
+      recipientPersonId: recipientId,
+      roleContext: recipientHat,
+      notification: { title: 'Conversation Closed', body: 'Conversation closed', data: {} },
+    },
+  ];
+}
+
 // ---- Email notification delivery ----
 
 async function sendEmailForEvent(
@@ -579,6 +852,41 @@ async function sendEmailForEvent(
       senderName: ctx.notification.title,
       preview,
       deepLink,
+    });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'PERMANENT.SHORTLISTED') {
+    const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
+    const postingId = payload.permanent_posting_id as string;
+    const info = await getPermanentPostingInfo(sc, postingId);
+    if (!info) return;
+    const tpl = permanentShortlistedEmail({
+      recipientName,
+      roleName: info.role_name,
+      jobNumber: info.job_number,
+    });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'PERMANENT.SELECTED') {
+    const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
+    const postingId = payload.permanent_posting_id as string;
+    const info = await getPermanentPostingInfo(sc, postingId);
+    if (!info) return;
+    const engagementId = payload.engagement_id as string;
+    const tpl = permanentSelectedEmail({
+      recipientName,
+      roleName: info.role_name,
+      jobNumber: info.job_number,
+      engagementId,
+    });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'PERMANENT.PLACEMENT_CONFIRMED') {
+    const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
+    const postingId = payload.permanent_posting_id as string;
+    const info = await getPermanentPostingInfo(sc, postingId);
+    if (!info) return;
+    const tpl = permanentPlacementConfirmedEmail({
+      recipientName,
+      roleName: info.role_name,
+      jobNumber: info.job_number,
     });
     await sendEmail({ to: email, ...tpl });
   }
