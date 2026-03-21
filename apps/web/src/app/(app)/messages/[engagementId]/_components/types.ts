@@ -28,7 +28,10 @@ export interface RatingData {
 
 export interface EngagementContext {
   id: string;
-  daywork_id: string;
+  daywork_id: string | null;
+  permanent_posting_id: string | null;
+  type: 'daywork' | 'permanent';
+  outcome: string | null;
   crew_person_id: string;
   employer_person_id: string;
   start_date: string;
@@ -57,6 +60,27 @@ export interface EngagementContext {
     meals: string[];
     notes: string | null;
     permanent_opportunity: boolean;
+    yacht_roles: { name: string } | null;
+    ports: { name: string; cities: { name: string } | null } | null;
+    vessels: {
+      name: string;
+      vessel_type?: string;
+      loa_meters?: number;
+      imo_number?: string | null;
+      vessel_size_bands?: { label: string } | null;
+    } | null;
+  } | null;
+  permanent_postings: {
+    id: string;
+    job_number: number;
+    salary_min: number;
+    salary_max: number;
+    salary_currency: string;
+    salary_period: string;
+    live_aboard: boolean;
+    shortlist_cap: number;
+    notes: string | null;
+    status: string;
     yacht_roles: { name: string } | null;
     ports: { name: string; cities: { name: string } | null } | null;
     vessels: {

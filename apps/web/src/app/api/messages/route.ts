@@ -30,9 +30,10 @@ export async function GET() {
         .from('active_engagements')
         .select(
           `
-        id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
+        id, crew_person_id, employer_person_id, daywork_id, permanent_posting_id, start_date, end_date, status,
         crew_completion_status,
         dayworks(yacht_roles(name), ports(name)),
+        permanent_postings(yacht_roles(name), ports(name)),
         profiles!active_engagements_employer_person_id_profiles_fkey(display_name, avatar_url)
       `,
         )
@@ -48,9 +49,10 @@ export async function GET() {
         .from('active_engagements')
         .select(
           `
-        id, crew_person_id, employer_person_id, daywork_id, start_date, end_date, status,
+        id, crew_person_id, employer_person_id, daywork_id, permanent_posting_id, start_date, end_date, status,
         crew_completion_status,
         dayworks(yacht_roles(name), ports(name)),
+        permanent_postings(yacht_roles(name), ports(name)),
         profiles!active_engagements_crew_person_id_profiles_fkey(display_name, avatar_url)
       `,
         )
@@ -130,10 +132,15 @@ export async function GET() {
         ratingExpired = nowMs > expiresAt;
       }
 
-      // Overdue: active engagement past end_date + 3 day grace
+      // Overdue: active engagement past end_date + 3 day grace (daywork only)
       const endMs = endDate ? new Date(endDate + 'T23:59:59Z').getTime() : 0;
+      const isPermanent = !!(eng as Record<string, unknown>).permanent_posting_id;
       const isOverdue =
-        eng.status === 'active' && endDate < todayStr && nowMs - endMs > OVERDUE_GRACE_MS;
+        !isPermanent &&
+        eng.status === 'active' &&
+        endDate &&
+        endDate < todayStr &&
+        nowMs - endMs > OVERDUE_GRACE_MS;
 
       // Strip person_ids from response — not needed by frontend, prevents identity leaks
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -141,6 +148,7 @@ export async function GET() {
 
       return {
         ...rest,
+        type: isPermanent ? 'permanent' : 'daywork',
         has_rated: ratedEngagementIds.has(eng.id),
         last_message: lastMessages[eng.id] ?? null,
         unread_count: unreadCounts[eng.id] ?? 0,

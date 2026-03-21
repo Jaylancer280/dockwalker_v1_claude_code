@@ -34,6 +34,10 @@ import { PostponementFormOverlay } from './_components/postponement-form-overlay
 import { RatingFormOverlay } from './_components/rating-form-overlay';
 import { ChecklistFormOverlay } from './_components/checklist-form-overlay';
 import { DayworkSummaryCard } from './_components/daywork-summary-card';
+import { PermanentSummaryCard } from './_components/permanent-summary-card';
+import { ConfirmPlacementDialog } from '../../permanent/_components/confirm-placement-dialog';
+import { RevertSelectionDialog } from '../../permanent/_components/revert-selection-dialog';
+import { CloseConversationDialog } from '../../permanent/_components/close-conversation-dialog';
 import { ProfileOverlay } from '@/components/profile-overlay';
 import { ChecklistCard } from './_components/checklist-card';
 import {
@@ -62,6 +66,11 @@ export default function ChatPage() {
   const [showChecklistForm, setShowChecklistForm] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
+  // Permanent-specific dialog state
+  const [showConfirmPlacement, setShowConfirmPlacement] = useState(false);
+  const [showRevertSelection, setShowRevertSelection] = useState(false);
+  const [showCloseConversation, setShowCloseConversation] = useState(false);
+  const [cancelPostingId, setCancelPostingId] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [relistingAfterRejection, setRelistingAfterRejection] = useState(false);
@@ -488,6 +497,9 @@ export default function ChatPage() {
 
   const isCrew = context?.crew_person_id === userId;
   const isEmployer = context?.employer_person_id === userId;
+  const isPermanent = context?.type === 'permanent';
+  const permPostingId = context?.permanent_postings?.id ?? null;
+  const permPostingStatus = context?.permanent_postings?.status ?? null;
   const canRate =
     (context?.status === 'completed' &&
       context.has_rated === false &&
@@ -532,8 +544,76 @@ export default function ChatPage() {
                   >
                     View profile
                   </button>
+                  {/* ── Permanent-specific actions ── */}
+                  {isPermanent && permPostingStatus === 'in_negotiation' && isEmployer && (
+                    <>
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                        onClick={() => {
+                          setShowActionMenu(false);
+                          setShowConfirmPlacement(true);
+                        }}
+                      >
+                        Confirm placement
+                      </button>
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                        onClick={() => {
+                          setShowActionMenu(false);
+                          setShowRevertSelection(true);
+                        }}
+                      >
+                        Not proceeding
+                      </button>
+                    </>
+                  )}
+                  {isPermanent && permPostingStatus === 'filled' && (
+                    <button
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                      onClick={() => {
+                        setShowActionMenu(false);
+                        setShowCloseConversation(true);
+                      }}
+                    >
+                      Close conversation
+                    </button>
+                  )}
+                  {isPermanent && isCrew && permPostingStatus === 'in_negotiation' && (
+                    <button
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-accent"
+                      onClick={async () => {
+                        setShowActionMenu(false);
+                        if (!permPostingId) return;
+                        const res = await fetch(`/api/permanent/${permPostingId}/withdraw`, {
+                          method: 'POST',
+                        });
+                        if (res.ok) {
+                          showSuccess('Application withdrawn');
+                          router.push('/messages');
+                        } else {
+                          const d = await res.json().catch(() => ({}));
+                          showError(d.error ?? 'Failed to withdraw');
+                        }
+                      }}
+                    >
+                      Withdraw
+                    </button>
+                  )}
+                  {isPermanent && isEmployer && (
+                    <button
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-accent"
+                      onClick={() => {
+                        setShowActionMenu(false);
+                        setCancelPostingId(permPostingId);
+                      }}
+                    >
+                      Cancel posting
+                    </button>
+                  )}
+
+                  {/* ── Daywork-specific actions ── */}
                   {/* Work started — available to both parties */}
-                  {context.work_started_status === null && (
+                  {!isPermanent && context.work_started_status === null && (
                     <button
                       className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
                       onClick={() => {
@@ -546,7 +626,7 @@ export default function ChatPage() {
                       {workStarting ? 'Updating...' : 'Confirm work started'}
                     </button>
                   )}
-                  {context.work_started_status === 'confirmed' && (
+                  {!isPermanent && context.work_started_status === 'confirmed' && (
                     <div className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground/50 cursor-not-allowed">
                       <CheckCircle className="h-4 w-4" />
                       <span className="flex flex-col">
@@ -557,7 +637,7 @@ export default function ChatPage() {
                   )}
 
                   {/* Employer-only actions */}
-                  {isEmployer && (
+                  {!isPermanent && isEmployer && (
                     <>
                       <button
                         className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
@@ -622,7 +702,7 @@ export default function ChatPage() {
                   )}
 
                   {/* Crew-only actions */}
-                  {isCrew && (
+                  {!isPermanent && isCrew && (
                     <button
                       className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-accent"
                       onClick={() => {
@@ -650,7 +730,13 @@ export default function ChatPage() {
             </div>
           )}
 
-          {!loading && context?.dayworks && <DayworkSummaryCard context={context} />}
+          {!loading &&
+            context &&
+            (context.type === 'permanent' ? (
+              <PermanentSummaryCard context={context} />
+            ) : (
+              context.dayworks && <DayworkSummaryCard context={context} />
+            ))}
 
           {!loading && context?.checklist && (
             <ChecklistCard
@@ -875,6 +961,105 @@ export default function ChatPage() {
           isOpen={true}
           onClose={() => setViewProfileId(null)}
         />
+      )}
+
+      {/* Permanent dialogs */}
+      {isPermanent && (
+        <>
+          <ConfirmPlacementDialog
+            open={showConfirmPlacement}
+            onOpenChange={setShowConfirmPlacement}
+            onConfirm={async () => {
+              setShowConfirmPlacement(false);
+              if (!permPostingId) return;
+              const res = await fetch(`/api/permanent/${permPostingId}/confirm`, {
+                method: 'POST',
+              });
+              if (res.ok) {
+                showSuccess('Placement confirmed');
+                loadContext();
+              } else {
+                const d = await res.json().catch(() => ({}));
+                showError(d.error ?? 'Failed');
+              }
+            }}
+            crewName={context?.other_name ?? 'crew member'}
+            roleName={context?.permanent_postings?.yacht_roles?.name ?? 'this role'}
+          />
+          <RevertSelectionDialog
+            open={showRevertSelection}
+            onOpenChange={setShowRevertSelection}
+            onRevert={async () => {
+              setShowRevertSelection(false);
+              if (!permPostingId) return;
+              const res = await fetch(`/api/permanent/${permPostingId}/revert`, { method: 'POST' });
+              if (res.ok) {
+                showSuccess('Selection reverted');
+                router.push('/messages');
+              } else {
+                const d = await res.json().catch(() => ({}));
+                showError(d.error ?? 'Failed');
+              }
+            }}
+            crewName={context?.other_name ?? 'this candidate'}
+          />
+          <CloseConversationDialog
+            open={showCloseConversation}
+            onOpenChange={setShowCloseConversation}
+            onClose={async (outcome: string) => {
+              setShowCloseConversation(false);
+              const res = await fetch(`/api/permanent/engagements/${engagementId}/close`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ outcome }),
+              });
+              if (res.ok) {
+                showSuccess('Conversation closed');
+                router.push('/messages');
+              } else {
+                const d = await res.json().catch(() => ({}));
+                showError(d.error ?? 'Failed');
+              }
+            }}
+            isCrew={isCrew}
+          />
+          {/* Cancel posting dialog */}
+          <Dialog open={!!cancelPostingId} onOpenChange={() => setCancelPostingId(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Cancel posting?</DialogTitle>
+                <DialogDescription>
+                  This will cancel the posting and reject all pending applicants.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="flex gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setCancelPostingId(null)}>
+                  Keep
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    if (!cancelPostingId) return;
+                    setCancelPostingId(null);
+                    const res = await fetch(`/api/permanent/${cancelPostingId}/cancel`, {
+                      method: 'POST',
+                      body: '{}',
+                    });
+                    if (res.ok) {
+                      showSuccess('Posting cancelled');
+                      router.push('/messages');
+                    } else {
+                      const d = await res.json().catch(() => ({}));
+                      showError(d.error ?? 'Failed');
+                    }
+                  }}
+                >
+                  Cancel posting
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </main>
   );

@@ -20,12 +20,19 @@ export async function GET(
       .from('active_engagements')
       .select(
         `
-      id, daywork_id, crew_person_id, employer_person_id, start_date, end_date, status, crew_completion_status,
+      id, daywork_id, permanent_posting_id, crew_person_id, employer_person_id, start_date, end_date, status, outcome, crew_completion_status,
       cancelled_by, cancellation_reason_category, cancellation_reason_text,
       postponement_status, proposed_start_date, proposed_end_date, proposed_working_days,
       work_started_status, work_started_at,
       dayworks(
         job_number, working_days, day_rate, currency, meals, notes, permanent_opportunity,
+        yacht_roles(name),
+        ports(name, cities(name)),
+        vessels(name, vessel_type, loa_meters, imo_number, vessel_size_bands(label))
+      ),
+      permanent_postings(
+        id, job_number, salary_min, salary_max, salary_currency, salary_period,
+        live_aboard, shortlist_cap, notes, status,
         yacht_roles(name),
         ports(name, cities(name)),
         vessels(name, vessel_type, loa_meters, imo_number, vessel_size_bands(label))
@@ -77,6 +84,7 @@ export async function GET(
     return NextResponse.json({
       engagement: {
         ...engagement,
+        type: engagement.permanent_posting_id ? 'permanent' : 'daywork',
         other_name: otherProfile?.display_name ?? 'Unknown',
         has_rated: !!myRating,
         my_rating: myRating ?? null,

@@ -183,6 +183,7 @@
 - [Stage 132] Permanent review + shortlist + select — GET /api/permanent/:id/review, POST shortlist/reject/select routes, PermanentReviewPage with Applicants + Shortlisted tabs, shortlist cap enforcement, select confirmation dialog, negotiation banner, profile view permanent context; 16 new tests (778 total)
 - [Stage 133] Negotiation resolution — POST confirm/revert/cancel/engagement-close routes, ConfirmPlacementDialog + RevertSelectionDialog + CloseConversationDialog components; 19 new tests (797 total)
 - [Stage 134] Permanent mine page — GET /api/permanent/mine with application counts, PermanentMineSection with 5 tabs (Active/Negotiating/Filled/Cancelled/Templates), Daywork/Permanent toggle on mine page; 5 new tests (802 total)
+- [Stage 135] Chat integration — messages API + context API dual LEFT JOIN for permanent_postings, EngagementContext type extended, PermanentSummaryCard, chat page type detection + conditional kebab menu (confirm/revert/close/cancel/withdraw), daywork actions gated behind !isPermanent
 
 ## Current Schema Version
 
