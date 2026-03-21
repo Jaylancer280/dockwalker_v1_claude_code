@@ -229,11 +229,15 @@ export default function DiscoverPage() {
   // Check crew availability — only 'available' status allows applying
   const lastAvailCheckRef = useRef<number>(0);
   const checkAvailability = useCallback(async () => {
-    const res = await fetch('/api/availability');
-    if (res.ok) {
-      const data = await res.json();
-      setHasAvailability(data.status === 'available');
-      lastAvailCheckRef.current = Date.now();
+    try {
+      const res = await fetch('/api/availability');
+      if (res.ok) {
+        const data = await res.json();
+        setHasAvailability(data.status === 'available');
+        lastAvailCheckRef.current = Date.now();
+      }
+    } catch {
+      // Network failure — keep cached availability state
     }
   }, []);
 
@@ -368,12 +372,7 @@ export default function DiscoverPage() {
     // Re-check availability if last check was more than 5 minutes ago
     const elapsed = Date.now() - lastAvailCheckRef.current;
     if (elapsed > AVAIL_RECHECK_MS) {
-      try {
-        await checkAvailability();
-      } catch {
-        // Network failure on pre-flight — proceed with cached state
-        // Server-side apply route enforces availability anyway
-      }
+      await checkAvailability();
     }
     setApplying(true);
     try {
