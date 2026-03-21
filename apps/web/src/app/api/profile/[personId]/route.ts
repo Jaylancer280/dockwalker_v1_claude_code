@@ -107,6 +107,19 @@ async function checkRelationshipContext(
 
   if (invContext && invContext.length > 0) return true;
 
+  // 4. Permanent application context
+  const { data: permAppContext } = await supabase
+    .from('applications')
+    .select('id, permanent_postings!inner(employer_person_id)')
+    .or(
+      `and(crew_person_id.eq.${targetId},permanent_postings.employer_person_id.eq.${requesterId}),` +
+        `and(crew_person_id.eq.${requesterId},permanent_postings.employer_person_id.eq.${targetId})`,
+    )
+    .not('status', 'eq', 'withdrawn')
+    .limit(1);
+
+  if (permAppContext && permAppContext.length > 0) return true;
+
   return false;
 }
 

@@ -185,6 +185,10 @@ Integration tests (`npm run test:integration`) run against a real local Supabase
 - Profile PATCH now accepts `permanentAvailability` (`'immediate'`/`'after_notice'`/`'not_looking'`/null), `noticePeriodDays` (positive int or null), `currentlyEmployed` (boolean). Profile GET now returns these fields.
 - Permanent applications (`GET /api/permanent/applications`): crew-only. Returns crew's permanent applications (applied, shortlisted, selected, not_selected, rejected) with hydrated posting details, vessel data, poster names, cert names. Each application has `type: 'permanent'` for unified Applied tab rendering.
 - Permanent withdraw (`POST /api/permanent/:id/withdraw`): crew-only. Withdraws applied/shortlisted/selected applications via `PERMANENT.WITHDRAWN` event. Selected withdrawal cascades to engagement closure and posting revert (handled by apply_projection).
+- Permanent review (`GET /api/permanent/:id/review`): employer-only, ownership-gated. Returns applicants with profile joins (availability, nationality, certs), shortlist_cap, shortlist_count, posting_status, selected_crew_id.
+- Permanent shortlist (`POST /api/permanent/:id/applicants/:crewId/shortlist`): employer-only. Shortlists an `applied` candidate. Cap enforced at API layer. Emits `PERMANENT.SHORTLISTED`.
+- Permanent reject (`POST /api/permanent/:id/applicants/:crewId/reject`): employer-only. Rejects `applied` or `shortlisted` candidates. Emits `PERMANENT.REJECTED`.
+- Permanent select (`POST /api/permanent/:id/applicants/:crewId/select`): employer-only. Selects a `shortlisted` candidate. Creates engagement, moves posting to `in_negotiation`. Returns `{ success, engagementId }`. Emits `PERMANENT.SELECTED`.
 - Message read cursor (`POST /api/messages/:engagementId/read`): upserts read cursor for current user on engagement. Called on chat mount and visibility change.
 - Notifications (`GET /api/notifications`): lists notifications for current user, supports `?unread_only=true`. Returns `{ notifications, unread_count }`.
 - Notifications read (`POST /api/notifications/read`): marks notifications as read. Body: `{ notificationIds: string[] }` or `{ all: true }`.

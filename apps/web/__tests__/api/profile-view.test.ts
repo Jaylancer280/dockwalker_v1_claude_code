@@ -68,6 +68,8 @@ describe('GET /api/profile/[personId]', () => {
     mockFrom.mockReturnValueOnce(mockChain([]));
     // Invitation check — no results
     mockFrom.mockReturnValueOnce(mockChain([]));
+    // Permanent application check — no results
+    mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('p2'));
     expect(res.status).toBe(403);
