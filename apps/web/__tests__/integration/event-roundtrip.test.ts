@@ -1757,26 +1757,30 @@ describe('Experience aggregate_type roundtrip', () => {
 // Permanent jobs roundtrip
 // ===========================================================================
 describe('Permanent jobs roundtrip', () => {
-  // Fresh UUIDs — no seed conflicts
-  const PERM_POSTING_ID = 'ff000000-0000-0000-0001-000000000001';
-  const PERM_APP_ID = 'ff000000-0000-0000-0001-000000000002';
-  const PERM_APP_ID_2 = 'ff000000-0000-0000-0001-000000000003';
-  const PERM_ENG_ID = 'ff000000-0000-0000-0001-000000000004';
-  const PERM_AGG = `${CREW_ID}:${PERM_POSTING_ID}`;
+  // Random UUIDs — re-runnable without db reset
+  const PERM_POSTING_ID = crypto.randomUUID();
+  const PERM_APP_ID = crypto.randomUUID();
+  const PERM_APP_ID_2 = crypto.randomUUID();
+  const PERM_ENG_ID = crypto.randomUUID();
+  let PERM_AGG: string;
 
   // Revert posting (separate flow)
-  const REVERT_POSTING_ID = 'ff000000-0000-0000-0002-000000000001';
-  const REVERT_APP_ID = 'ff000000-0000-0000-0002-000000000002';
-  const REVERT_ENG_ID = 'ff000000-0000-0000-0002-000000000003';
+  const REVERT_POSTING_ID = crypto.randomUUID();
+  const REVERT_APP_ID = crypto.randomUUID();
+  const REVERT_ENG_ID = crypto.randomUUID();
 
   // Cancel from active
-  const CANCEL_POSTING_ID = 'ff000000-0000-0000-0003-000000000001';
-  const CANCEL_APP_ID = 'ff000000-0000-0000-0003-000000000002';
+  const CANCEL_POSTING_ID = crypto.randomUUID();
+  const CANCEL_APP_ID = crypto.randomUUID();
 
   // Engagement close
-  const CLOSE_POSTING_ID = 'ff000000-0000-0000-0004-000000000001';
-  const CLOSE_APP_ID = 'ff000000-0000-0000-0004-000000000002';
-  const CLOSE_ENG_ID = 'ff000000-0000-0000-0004-000000000003';
+  const CLOSE_POSTING_ID = crypto.randomUUID();
+  const CLOSE_APP_ID = crypto.randomUUID();
+  const CLOSE_ENG_ID = crypto.randomUUID();
+
+  beforeAll(() => {
+    PERM_AGG = `${CREW_ID}:${PERM_POSTING_ID}`;
+  });
 
   it('PERMANENT.POSTED creates row in permanent_postings', async () => {
     await appendEvent(

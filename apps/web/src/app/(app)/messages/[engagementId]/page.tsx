@@ -84,17 +84,26 @@ export default function ChatPage() {
   const menuRef = useRef<HTMLDivElement>(null);
 
   const loadContext = useCallback(async () => {
-    const res = await fetch(`/api/messages/${engagementId}/context`);
-    const data = await res.json().catch(() => ({}));
-    if (data.engagement) setContext(data.engagement);
-  }, [engagementId]);
+    try {
+      const res = await fetch(`/api/messages/${engagementId}/context`);
+      const data = await res.json().catch(() => ({}));
+      if (data.engagement) setContext(data.engagement);
+    } catch {
+      showError('Failed to load conversation');
+    }
+  }, [engagementId, showError]);
 
   const loadMessages = useCallback(async () => {
-    const res = await fetch(`/api/messages/${engagementId}`);
-    const data = await res.json();
-    if (data.messages) setMessages(data.messages);
-    setLoading(false);
-  }, [engagementId]);
+    try {
+      const res = await fetch(`/api/messages/${engagementId}`);
+      const data = await res.json();
+      if (data.messages) setMessages(data.messages);
+    } catch {
+      showError('Failed to load messages');
+    } finally {
+      setLoading(false);
+    }
+  }, [engagementId, showError]);
 
   // Realtime subscription for messages — falls back to polling if not connected after 5s
   const { isConnected: realtimeConnected } = useRealtimeMessages(engagementId, (newMsg) => {
@@ -302,18 +311,22 @@ export default function ChatPage() {
     relist_reason_category?: string;
     relist_reason_text?: string;
   }) {
-    const res = await fetch(`/api/engagements/${engagementId}/cancel-employer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cancelData),
-    });
-    if (res.ok) {
-      setShowCancelForm(false);
-      showSuccess('Cancellation submitted');
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to cancel');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/cancel-employer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cancelData),
+      });
+      if (res.ok) {
+        setShowCancelForm(false);
+        showSuccess('Cancellation submitted');
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to cancel');
+      }
+    } catch {
+      showError('Network error — please try again');
     }
   }
 
@@ -321,18 +334,22 @@ export default function ChatPage() {
     reason_category: string;
     reason_text?: string;
   }) {
-    const res = await fetch(`/api/engagements/${engagementId}/cancel-crew`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(cancelData),
-    });
-    if (res.ok) {
-      setShowCrewCancelForm(false);
-      showSuccess('Cancellation submitted');
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to cancel');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/cancel-crew`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cancelData),
+      });
+      if (res.ok) {
+        setShowCrewCancelForm(false);
+        showSuccess('Cancellation submitted');
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to cancel');
+      }
+    } catch {
+      showError('Network error — please try again');
     }
   }
 
@@ -495,18 +512,22 @@ export default function ChatPage() {
   }
 
   async function handleChecklistSubmit(items: Array<{ id: string; label: string; value: string }>) {
-    const res = await fetch(`/api/engagements/${engagementId}/checklist`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
-    if (res.ok) {
-      setShowChecklistForm(false);
-      showSuccess('Checklist saved');
-      await Promise.all([loadContext(), loadMessages()]);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showError(data.error ?? 'Failed to set checklist');
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/checklist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      if (res.ok) {
+        setShowChecklistForm(false);
+        showSuccess('Checklist saved');
+        await Promise.all([loadContext(), loadMessages()]);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.error ?? 'Failed to set checklist');
+      }
+    } catch {
+      showError('Network error — please try again');
     }
   }
 
@@ -521,18 +542,30 @@ export default function ChatPage() {
       return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: newAcked } };
     });
 
-    const res = await fetch(`/api/engagements/${engagementId}/checklist/toggle`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item_id: itemId, checked }),
-    });
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/engagements/${engagementId}/checklist/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId, checked }),
+      });
+      if (!res.ok) {
+        // Rollback
+        setContext((prev) => {
+          if (!prev?.checklist) return prev;
+          return {
+            ...prev,
+            checklist: { ...prev.checklist, acknowledged_item_ids: previousAcked },
+          };
+        });
+        showError('Failed to update checklist');
+      }
+    } catch {
       // Rollback
       setContext((prev) => {
         if (!prev?.checklist) return prev;
         return { ...prev, checklist: { ...prev.checklist, acknowledged_item_ids: previousAcked } };
       });
-      showError('Failed to update checklist');
+      showError('Network error — please try again');
     }
   }
 

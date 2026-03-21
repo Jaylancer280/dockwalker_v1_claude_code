@@ -6,6 +6,7 @@ import { getStripe } from '@/lib/stripe';
  * POST /api/billing/create-portal
  * Creates a Stripe Customer Portal session for subscription management.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function POST(_request: Request) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
