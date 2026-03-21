@@ -129,19 +129,22 @@ export default function ChatPage() {
     }
 
     async function init() {
-      const [, userRes] = await Promise.all([
-        Promise.all([loadContext(), loadMessages()]),
-        fetch('/api/auth/me'),
-      ]);
-      const userData = await userRes.json().catch(() => ({}));
-      if (userData.userId) setUserId(userData.userId);
+      try {
+        const [, userRes] = await Promise.all([
+          Promise.all([loadContext(), loadMessages()]),
+          fetch('/api/auth/me').catch(() => null),
+        ]);
+        if (userRes) {
+          const userData = await userRes.json().catch(() => ({}));
+          if (userData.userId) setUserId(userData.userId);
+        }
+      } catch {
+        // Init failed — page still renders with whatever loaded
+      }
 
+      // These MUST run even if init fetches failed
       markRead();
-
-      // Context polling (engagement state changes are infrequent — keep polling)
       contextInterval = setInterval(() => void loadContext(), POLL_INTERVAL);
-
-      // Message fallback: if Realtime isn't connected after 5s, poll messages too
       fallbackTimeoutId = setTimeout(() => {
         if (!realtimeConnectedRef.current) {
           messageFallbackInterval = setInterval(() => void loadMessages(), POLL_INTERVAL);

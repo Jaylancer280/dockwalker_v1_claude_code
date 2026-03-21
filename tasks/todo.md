@@ -17,4 +17,4 @@
 
 ## Done
 
-(See git history for completed stages 51-139, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-c, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-d, template name cap, messages test cleanup)

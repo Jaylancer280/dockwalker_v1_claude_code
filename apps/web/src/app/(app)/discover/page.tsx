@@ -368,7 +368,12 @@ export default function DiscoverPage() {
     // Re-check availability if last check was more than 5 minutes ago
     const elapsed = Date.now() - lastAvailCheckRef.current;
     if (elapsed > AVAIL_RECHECK_MS) {
-      await checkAvailability();
+      try {
+        await checkAvailability();
+      } catch {
+        // Network failure on pre-flight — proceed with cached state
+        // Server-side apply route enforces availability anyway
+      }
     }
     setApplying(true);
     try {
