@@ -181,6 +181,7 @@
 - [Stage 130] Permanent apply + cert hard-gate + career status — POST /api/permanent/:id/apply with cert superset check, PERMANENT.APPLICATION_BLOCKED intelligence event, profile PATCH permanent availability fields, career status section on profile page, availability route LEFT JOIN, Apply button enabled on cards; 10 new tests (750 total)
 - [Stage 131] Crew permanent applications + unified Applied tab + withdraw — GET /api/permanent/applications, POST /api/permanent/:id/withdraw (PERMANENT.WITHDRAWN event), unified Applied tab with Promise.all fetch, PermanentApplicationCard with status badges, type-based rendering; 12 new tests (762 total)
 - [Stage 132] Permanent review + shortlist + select — GET /api/permanent/:id/review, POST shortlist/reject/select routes, PermanentReviewPage with Applicants + Shortlisted tabs, shortlist cap enforcement, select confirmation dialog, negotiation banner, profile view permanent context; 16 new tests (778 total)
+- [Stage 133] Negotiation resolution — POST confirm/revert/cancel/engagement-close routes, ConfirmPlacementDialog + RevertSelectionDialog + CloseConversationDialog components; 19 new tests (797 total)
 
 ## Current Schema Version
 

@@ -189,6 +189,10 @@ Integration tests (`npm run test:integration`) run against a real local Supabase
 - Permanent shortlist (`POST /api/permanent/:id/applicants/:crewId/shortlist`): employer-only. Shortlists an `applied` candidate. Cap enforced at API layer. Emits `PERMANENT.SHORTLISTED`.
 - Permanent reject (`POST /api/permanent/:id/applicants/:crewId/reject`): employer-only. Rejects `applied` or `shortlisted` candidates. Emits `PERMANENT.REJECTED`.
 - Permanent select (`POST /api/permanent/:id/applicants/:crewId/select`): employer-only. Selects a `shortlisted` candidate. Creates engagement, moves posting to `in_negotiation`. Returns `{ success, engagementId }`. Emits `PERMANENT.SELECTED`.
+- Permanent confirm (`POST /api/permanent/:id/confirm`): employer-only. Confirms placement. Posting → `filled`. Remaining shortlisted/applied → `not_selected`. Emits `PERMANENT.PLACEMENT_CONFIRMED`.
+- Permanent revert (`POST /api/permanent/:id/revert`): employer-only. Reverts selection. Engagement closed. Posting → `active`. Emits `PERMANENT.SELECTION_REVERTED`.
+- Permanent cancel (`POST /api/permanent/:id/cancel`): employer-only. Cancels posting (`active` or `in_negotiation`). Projection handles engagement close cascade. Body: `{ reason?: string }`. Emits `PERMANENT.CANCELLED_BY_EMPLOYER`.
+- Permanent engagement close (`POST /api/permanent/engagements/:id/close`): either party. Closes permanent engagement conversation. Body: `{ outcome: 'successful_placement' | 'not_successful' | 'withdrew' }`. Crew withdrew reverts posting to active. Emits `PERMANENT.ENGAGEMENT_CLOSED`.
 - Message read cursor (`POST /api/messages/:engagementId/read`): upserts read cursor for current user on engagement. Called on chat mount and visibility change.
 - Notifications (`GET /api/notifications`): lists notifications for current user, supports `?unread_only=true`. Returns `{ notifications, unread_count }`.
 - Notifications read (`POST /api/notifications/read`): marks notifications as read. Body: `{ notificationIds: string[] }` or `{ all: true }`.
