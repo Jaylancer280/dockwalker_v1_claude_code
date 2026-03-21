@@ -15,7 +15,9 @@ export type ApplicationStatus =
   | 'superseded'
   | 'completed'
   | 'cancelled_by_crew'
-  | 'cancelled_by_employer';
+  | 'cancelled_by_employer'
+  | 'selected'
+  | 'not_selected';
 
 /** Vessel type (motor or sail — determines M/Y or S/Y prefix) */
 export type VesselType = 'motor' | 'sail';
@@ -28,6 +30,15 @@ export type ContractType = 'permanent' | 'rotational' | 'seasonal' | 'crossing' 
 
 /** Meal options for daywork postings */
 export type MealOption = 'breakfast' | 'lunch' | 'dinner';
+
+/** Permanent posting status */
+export type PermanentPostingStatus = 'active' | 'in_negotiation' | 'filled' | 'cancelled';
+
+/** Permanent availability for career status */
+export type PermanentAvailability = 'immediate' | 'after_notice' | 'not_looking';
+
+/** Salary period for permanent postings */
+export type SalaryPeriod = 'monthly' | 'annual';
 
 /** Subscription plan tiers */
 export type SubscriptionPlan = 'free' | 'crew_pro' | 'crew_unlimited';

@@ -3,7 +3,10 @@ import type {
   ContractType,
   IdentityType,
   MealOption,
+  PermanentAvailability,
+  PermanentPostingStatus,
   RoleContext,
+  SalaryPeriod,
   SubscriptionPlan,
   SubscriptionStatus,
   VesselOperation,
@@ -35,6 +38,9 @@ export interface CrewProfile {
   available_to_start: 'immediate' | 'within_1_week' | 'within_2_weeks' | 'within_1_month' | null;
   onboarding_version: number;
   avatar_url: string | null;
+  permanent_availability: PermanentAvailability | null;
+  notice_period_days: number | null;
+  currently_employed: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -89,13 +95,15 @@ export interface Daywork {
   created_at: string;
 }
 
-/** Application — crew+daywork pair */
+/** Application — crew+posting pair (daywork or permanent, XOR) */
 export interface Application {
   id: string;
   crew_person_id: string;
-  daywork_id: string;
+  daywork_id: string | null;
+  permanent_posting_id: string | null;
   status: ApplicationStatus;
   message: string | null;
+  rejection_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -115,10 +123,12 @@ export interface Engagement {
   application_id: string;
   crew_person_id: string;
   employer_person_id: string;
-  daywork_id: string;
+  daywork_id: string | null;
+  permanent_posting_id: string | null;
   start_date: string;
   end_date: string;
-  status: 'active' | 'completed' | 'cancelled';
+  status: 'active' | 'completed' | 'cancelled' | 'closed';
+  outcome: 'successful_placement' | 'not_successful' | 'withdrew' | null;
   crew_completion_status: 'confirmed' | 'disputed' | null;
   created_at: string;
 }
@@ -160,6 +170,51 @@ export interface Subscription {
   status: SubscriptionStatus;
   current_period_start: string | null;
   current_period_end: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Permanent posting */
+export interface PermanentPosting {
+  id: string;
+  employer_person_id: string;
+  vessel_id: string;
+  role_id: number;
+  port_id: number;
+  start_date: string;
+  salary_min: number;
+  salary_max: number;
+  salary_currency: string;
+  salary_period: SalaryPeriod;
+  live_aboard: boolean;
+  required_certification_ids: number[];
+  experience_bracket_id: number | null;
+  shortlist_cap: number;
+  notes: string | null;
+  status: PermanentPostingStatus;
+  job_number: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Permanent template for repeat posting */
+export interface PermanentTemplate {
+  id: string;
+  employer_person_id: string;
+  template_name: string;
+  vessel_id: string;
+  role_id: number;
+  port_id: number;
+  start_date: string;
+  salary_min: number;
+  salary_max: number;
+  salary_currency: string;
+  salary_period: SalaryPeriod;
+  live_aboard: boolean;
+  required_certification_ids: number[];
+  experience_bracket_id: number | null;
+  shortlist_cap: number;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }

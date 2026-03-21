@@ -62,10 +62,22 @@ export type EventType =
   // Admin aggregate
   | 'ADMIN.ENGAGEMENT_COMPLETED'
   | 'ADMIN.CANONICAL_ADDED'
-  | 'ADMIN.CANONICAL_UPDATED';
+  | 'ADMIN.CANONICAL_UPDATED'
+  // Permanent aggregate
+  | 'PERMANENT.POSTED'
+  | 'PERMANENT.APPLIED'
+  | 'PERMANENT.APPLICATION_BLOCKED'
+  | 'PERMANENT.SHORTLISTED'
+  | 'PERMANENT.REJECTED'
+  | 'PERMANENT.SELECTED'
+  | 'PERMANENT.PLACEMENT_CONFIRMED'
+  | 'PERMANENT.SELECTION_REVERTED'
+  | 'PERMANENT.WITHDRAWN'
+  | 'PERMANENT.CANCELLED_BY_EMPLOYER'
+  | 'PERMANENT.ENGAGEMENT_CLOSED';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin';
+export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin' | 'permanent';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -125,6 +137,9 @@ export interface EventPayloadMap {
     avatar_url?: string | null;
     nationality_id?: string | null;
     visa_ids?: string[];
+    permanent_availability?: string | null;
+    notice_period_days?: number | null;
+    currently_employed?: boolean;
   };
   'AGENT.VERIFIED': Record<string, never>;
   'VESSEL.CREATED': {
@@ -370,6 +385,66 @@ export interface EventPayloadMap {
     record_id: string;
     fields: Record<string, unknown>;
     admin_person_id: string;
+  };
+  'PERMANENT.POSTED': {
+    id: string;
+    vessel_id: string;
+    role_id: string;
+    port_id: string;
+    start_date: string;
+    salary_min: number;
+    salary_max: number;
+    salary_currency: string;
+    salary_period: string;
+    live_aboard: boolean;
+    required_certification_ids: string[];
+    experience_bracket_id: string | null;
+    shortlist_cap: number;
+    notes: string | null;
+  };
+  'PERMANENT.APPLIED': {
+    id: string;
+    permanent_posting_id: string;
+    crew_person_id: string;
+    message?: string;
+  };
+  'PERMANENT.APPLICATION_BLOCKED': {
+    crew_person_id: string;
+    permanent_posting_id: string;
+    missing_certification_ids: number[];
+  };
+  'PERMANENT.SHORTLISTED': {
+    crew_person_id: string;
+    permanent_posting_id: string;
+  };
+  'PERMANENT.REJECTED': {
+    crew_person_id: string;
+    permanent_posting_id: string;
+  };
+  'PERMANENT.SELECTED': {
+    crew_person_id: string;
+    permanent_posting_id: string;
+    engagement_id: string;
+  };
+  'PERMANENT.PLACEMENT_CONFIRMED': {
+    permanent_posting_id: string;
+  };
+  'PERMANENT.SELECTION_REVERTED': {
+    permanent_posting_id: string;
+    engagement_id: string;
+  };
+  'PERMANENT.WITHDRAWN': {
+    crew_person_id: string;
+    permanent_posting_id: string;
+  };
+  'PERMANENT.CANCELLED_BY_EMPLOYER': {
+    permanent_posting_id: string;
+    reason?: string;
+  };
+  'PERMANENT.ENGAGEMENT_CLOSED': {
+    engagement_id: string;
+    outcome: 'successful_placement' | 'not_successful' | 'withdrew';
+    closed_by: 'crew' | 'employer';
   };
 }
 

@@ -85,6 +85,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Invitation Source                             | 00056     | Adds `source` column (`direct`/`invitation`) to `applications`. Updates `apply_projection` DAYWORK.APPLIED handler: when `source = 'invitation'`, application is created as `shortlisted` instead of `applied`. Multi-crew invitation revocation unchanged (already position-gated).              |
 | Nationality + Visas                           | 00057     | `nationalities` (40 entries, flag emoji) and `visa_types` (10 entries, region-grouped) canonical lookups with read-only RLS. `nationality_id` and `visa_ids` columns on `profiles`. Updated `apply_projection` PROFILE.CREATED/UPDATED handlers.                                                  |
 | Unread Counts Function                        | 00058     | `get_unread_counts(uuid)` Postgres function — returns per-engagement unread message counts in a single query. Replaces N+1 COUNT loops in badge polling endpoints.                                                                                                                                |
+| Permanent Jobs                                | 00059     | `permanent_postings` + `permanent_templates` tables, profile permanent availability columns, applications + engagements XOR extensions (`permanent_posting_id`, `outcome`), 12 `PERMANENT.*` handlers in `apply_projection`, `aggregate_type` + `application_status` CHECK updates                |
 
 ## Daywork Status Lifecycle
 
@@ -161,6 +162,26 @@ Employers can set a pre-arrival checklist for engaged crew via `CHECKLIST.SET` e
 Crew acknowledges items individually via `CHECKLIST.ITEM_TOGGLED` events (`item_id` + `checked` boolean). When the employer updates the checklist (`CHECKLIST.SET`), all acknowledgements are reset. Both events use `aggregateType: 'checklist'` with `aggregateId` = engagement ID.
 
 RLS: engagement participants can read their checklist. Writes go through the service client.
+
+## Permanent Posting Status Lifecycle
+
+```
+active -> in_negotiation -> filled | active | cancelled
+active -> cancelled  (employer cancels before any selection)
+```
+
+When an employer selects a crew member (`PERMANENT.SELECTED`), the posting moves to `in_negotiation` and an engagement is created. `PERMANENT.PLACEMENT_CONFIRMED` fills the posting and not-selects remaining applicants. If the selection doesn't work out (`PERMANENT.SELECTION_REVERTED`), the posting reverts to `active`.
+
+## Permanent Application State Machine
+
+```
+Applied -> Shortlisted -> Selected -> (Placement confirmed or Reverted)
+Applied -> Rejected | Withdrawn | Not Selected
+Shortlisted -> Selected | Rejected | Withdrawn | Not Selected
+Selected -> Not Selected (reverted) | Withdrawn
+```
+
+Shortlist cap is enforced at the projection layer — `PERMANENT.SHORTLISTED` no-ops if the shortlist + selected count meets the cap. `PERMANENT.WITHDRAWN` handles all withdrawable states and cascades to close the engagement if the applicant was selected.
 
 ## Currency Support
 
