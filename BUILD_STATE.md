@@ -188,10 +188,11 @@
 - [Stage 136b] Cron + GDPR export + admin — engagement-starts cron resolves permanent role names, GDPR export includes permanent_posting_id + outcome + permanent_postings table, admin engagements show permanent_posting_id
 - [Stage 136c] Final contamination checklist passed — all 812 tests green, zero daywork route contamination, single migration (00059), integration tests pass, documentation complete
 - [Stage 137] Permanent integration tests — 9 new integration tests verifying all PERMANENT.\* event roundtrips against real DB (45 integration tests total)
+- [Stage 139] NDA reveal for permanent engagements — migration 00060 extends `get_vessel_public` with permanent_postings OR branch for IMO reveal
 
 ## Current Schema Version
 
-v59 — permanent jobs schema (59 migrations applied)
+v60 — NDA reveal permanent (60 migrations applied)
 
 ## Migrations Applied
 
@@ -256,6 +257,7 @@ v59 — permanent jobs schema (59 migrations applied)
 | `00057_nationality_and_visas.sql`            | `nationalities` (40 entries) and `visa_types` (10 entries) canonical lookups with RLS; `nationality_id` and `visa_ids` columns on `profiles`; updated `apply_projection` PROFILE.CREATED/UPDATED handlers                                                                                                                                                                                                   |
 | `00058_unread_counts_function.sql`           | `get_unread_counts(uuid)` Postgres function — returns per-engagement unread message counts in a single query, replacing N+1 COUNT loops in badge polling endpoints                                                                                                                                                                                                                                          |
 | `00059_permanent_jobs.sql`                   | `permanent_postings` + `permanent_templates` tables, profile permanent availability columns (`permanent_availability`, `notice_period_days`, `currently_employed`), applications + engagements XOR extensions (`permanent_posting_id`, `outcome`, `daywork_id` nullable), `PERMANENT.*` handlers in `apply_projection`, `aggregate_type` + `application_status` + `active_engagements_status` CHECK updates |
+| `00060_nda_reveal_permanent.sql`             | Extends `get_vessel_public` with permanent engagement OR branch — crew with active permanent engagement on NDA vessel can see IMO (alongside existing daywork reveal)                                                                                                                                                                                                                                       |
 
 ## Deferred Decisions
 

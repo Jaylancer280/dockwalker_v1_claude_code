@@ -49,39 +49,6 @@
 
 ---
 
-### Stage 139: NDA Reveal End-to-End Verification
-
-**Goal:** Verify that the `get_vessel_public` RPC correctly reveals IMO for crew with permanent engagements on NDA vessels. Add integration test. If the RPC doesn't cover permanent engagements yet, extend it (documented exception in spec).
-
-**Will touch:** Potentially `supabase/migrations/` (new migration if RPC needs extension), integration test file.
-
-**Will NOT touch:** App code, routes, components.
-
-**Done condition:** Integration test proves: crew with permanent engagement on NDA vessel sees IMO. Crew without engagement sees masked vessel. Test passes against real DB.
-
----
-
-#### 1. Verify current `get_vessel_public` RPC
-
-- [ ] Read the latest `get_vessel_public` function body (in migration 00059 or the last migration that touched it)
-- [ ] Check: does the NDA reveal query join `active_engagements` on `permanent_posting_id` alongside `daywork_id`?
-- [ ] If yes: write integration test only
-- [ ] If no: create migration 00060 to extend the RPC with an OR branch for permanent engagements + rollback
-
-#### 2. Integration test
-
-- [ ] Test: crew with active permanent engagement on NDA vessel → `get_vessel_public` returns `imo_number`
-- [ ] Test: crew without engagement on NDA vessel → `get_vessel_public` returns null `imo_number`
-- [ ] Test: existing daywork NDA reveal still works (regression check)
-
-#### 3. Verify
-
-- [ ] `npx supabase db reset` — clean
-- [ ] `npm run test:integration` — all pass
-- [ ] Commit
-
----
-
 ## Done
 
-(See git history for completed stages 51-137, fixes 118a/123a/123b/127a/128a/128b/131a, messages test cleanup)
+(See git history for completed stages 51-139, fixes 118a/123a/123b/127a/128a/128b/131a, messages test cleanup)
