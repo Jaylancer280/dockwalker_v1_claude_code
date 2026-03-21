@@ -25,7 +25,9 @@ export async function GET(request: Request) {
 
     const { data: engagements, error: engError } = await serviceClient
       .from('active_engagements')
-      .select('id, crew_person_id, employer_person_id, start_date, daywork_id')
+      .select(
+        'id, crew_person_id, employer_person_id, start_date, daywork_id, permanent_posting_id',
+      )
       .eq('status', 'active')
       .eq('start_date', tomorrow);
 
@@ -53,11 +55,13 @@ export async function GET(request: Request) {
     );
 
     // Batch-fetch role names for all dayworks
-    const dayworkIds = [...new Set(engagements.map((e) => e.daywork_id))];
-    const { data: dayworks } = await serviceClient
-      .from('dayworks')
-      .select('id, yacht_roles(name)')
-      .in('id', dayworkIds);
+    const dayworkIds = [
+      ...new Set(engagements.filter((e) => e.daywork_id).map((e) => e.daywork_id)),
+    ];
+    const { data: dayworks } =
+      dayworkIds.length > 0
+        ? await serviceClient.from('dayworks').select('id, yacht_roles(name)').in('id', dayworkIds)
+        : { data: [] };
     const roleMap = new Map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (dayworks ?? []).map((d: any) => [
@@ -65,6 +69,27 @@ export async function GET(request: Request) {
         (d.yacht_roles?.name ?? 'Daywork') as string,
       ]),
     );
+
+    // Batch-fetch role names for permanent postings
+    const permanentIds = [
+      ...new Set(
+        engagements.filter((e) => e.permanent_posting_id).map((e) => e.permanent_posting_id),
+      ),
+    ];
+    let permanentRoleMap = new Map<string, string>();
+    if (permanentIds.length > 0) {
+      const { data: permanentPostings } = await serviceClient
+        .from('permanent_postings')
+        .select('id, yacht_roles(name)')
+        .in('id', permanentIds);
+      permanentRoleMap = new Map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (permanentPostings ?? []).map((p: any) => [
+          p.id as string,
+          (p.yacht_roles?.name ?? 'Permanent role') as string,
+        ]),
+      );
+    }
 
     let notified = 0;
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -92,7 +117,9 @@ export async function GET(request: Request) {
         const otherPersonId =
           personId === eng.crew_person_id ? eng.employer_person_id : eng.crew_person_id;
         const otherName = nameMap.get(otherPersonId) ?? 'your counterparty';
-        const roleName = roleMap.get(eng.daywork_id) ?? 'Daywork';
+        const roleName = eng.daywork_id
+          ? (roleMap.get(eng.daywork_id) ?? 'Daywork')
+          : (permanentRoleMap.get(eng.permanent_posting_id) ?? 'Permanent role');
 
         // In-app notification
         await serviceClient.from('notifications').insert({

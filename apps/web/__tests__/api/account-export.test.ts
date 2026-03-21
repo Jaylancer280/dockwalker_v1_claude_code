@@ -84,6 +84,7 @@ describe('GET /api/account/export', () => {
       chainMock({ data: ratingsData, error: null }),         // engagement_ratings
       chainMock({ data: deviceTokensData, error: null }),    // device_tokens
       chainMock({ data: advisorConvsData, error: null }),    // advisor_conversations
+      chainMock({ data: [], error: null }),                    // permanent_postings
     ];
     mockFrom.mockImplementation(() => results[callIndex++]);
 
@@ -107,14 +108,14 @@ describe('GET /api/account/export', () => {
     expect(body.device_tokens).toEqual(deviceTokensData);
     expect(body.advisor_conversations).toEqual(advisorConvsData);
 
-    expect(mockFrom).toHaveBeenCalledTimes(13);
+    expect(mockFrom).toHaveBeenCalledTimes(14);
   });
 
   it('returns empty arrays when user has no data', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     let callIndex = 0;
-    const results = Array.from({ length: 13 }, () =>
+    const results = Array.from({ length: 14 }, () =>
       chainMock({ data: null, error: null }),
     );
     mockFrom.mockImplementation(() => results[callIndex++]);

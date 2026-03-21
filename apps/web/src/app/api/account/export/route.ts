@@ -27,6 +27,7 @@ export async function GET() {
       ratingsRes,
       deviceTokensRes,
       advisorConvsRes,
+      permanentPostingsRes,
     ] = await Promise.all([
       supabase.from('profiles').select('*').eq('person_id', user.id).single(),
       supabase
@@ -41,7 +42,9 @@ export async function GET() {
         .order('created_at', { ascending: true }),
       supabase
         .from('active_engagements')
-        .select('id, daywork_id, crew_person_id, employer_person_id, status, created_at')
+        .select(
+          'id, daywork_id, permanent_posting_id, crew_person_id, employer_person_id, status, outcome, created_at',
+        )
         .or(`crew_person_id.eq.${user.id},employer_person_id.eq.${user.id}`)
         .order('created_at', { ascending: true }),
       supabase
@@ -64,7 +67,9 @@ export async function GET() {
         .order('start_date', { ascending: false }),
       supabase
         .from('applications')
-        .select('id, daywork_id, status, message, created_at')
+        .select(
+          'id, daywork_id, permanent_posting_id, status, message, rejection_reason, created_at',
+        )
         .eq('crew_person_id', user.id)
         .order('created_at', { ascending: true }),
       supabase
@@ -82,6 +87,13 @@ export async function GET() {
         .from('advisor_conversations')
         .select('id, title, created_at, advisor_messages(id, role, content, created_at)')
         .eq('person_id', user.id)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('permanent_postings')
+        .select(
+          'id, job_number, role_id, port_id, vessel_id, start_date, salary_min, salary_max, salary_currency, salary_period, live_aboard, status, created_at',
+        )
+        .eq('employer_person_id', user.id)
         .order('created_at', { ascending: true }),
     ]);
 
@@ -101,6 +113,7 @@ export async function GET() {
       ratings: ratingsRes.data ?? [],
       device_tokens: deviceTokensRes.data ?? [],
       advisor_conversations: advisorConvsRes.data ?? [],
+      permanent_postings: permanentPostingsRes.data ?? [],
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';

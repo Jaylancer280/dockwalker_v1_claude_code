@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const { data, error } = await serviceClient
       .from('active_engagements')
       .select(
-        'id, daywork_id, crew_person_id, employer_person_id, start_date, end_date, created_at, crew_profile:profiles!active_engagements_crew_person_id_profiles_fkey(display_name), employer_profile:profiles!active_engagements_employer_person_id_profiles_fkey(display_name)',
+        'id, daywork_id, permanent_posting_id, crew_person_id, employer_person_id, start_date, end_date, created_at, crew_profile:profiles!active_engagements_crew_person_id_profiles_fkey(display_name), employer_profile:profiles!active_engagements_employer_person_id_profiles_fkey(display_name)',
       )
       .eq('status', status)
       .lt('created_at', cutoff)
