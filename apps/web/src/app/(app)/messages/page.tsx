@@ -201,14 +201,14 @@ export default function MessagesPage() {
                   </span>
                 </div>
 
-                {/* Find replacement CTA for cancelled engagements (employer only) */}
+                {/* Post replacement CTA for cancelled engagements (employer only) */}
                 {conv.status === 'cancelled' && conv.role === 'employer' && (
                   <Link
                     href={`/daywork/post?fromDaywork=${conv.daywork_id}&replacementDates=true`}
                     onClick={(e) => e.stopPropagation()}
                     className="mt-1 w-fit rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/20"
                   >
-                    Find replacement
+                    Post replacement
                   </Link>
                 )}
 
