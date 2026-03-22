@@ -177,9 +177,6 @@ on conflict (id) do nothing;
 
 insert into public.certifications (id, name, category, sort_order) values
   ('e0000000-0000-0000-0000-000000000001', 'STCW Basic Safety Training', 'safety', 1),
-  ('e0000000-0000-0000-0000-000000000002', 'STCW Proficiency in Survival Craft', 'safety', 2),
-  ('e0000000-0000-0000-0000-000000000003', 'STCW Advanced Fire Fighting', 'safety', 3),
-  ('e0000000-0000-0000-0000-000000000004', 'STCW Medical First Aid', 'safety', 4),
   ('e0000000-0000-0000-0000-000000000005', 'ENG1 Medical Certificate', 'medical', 5),
   ('e0000000-0000-0000-0000-000000000006', 'Food Safety / Hygiene Level 2', 'galley', 6),
   ('e0000000-0000-0000-0000-000000000007', 'Powerboat Level 2', 'deck', 7),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Save } from 'lucide-react';
 import Link from 'next/link';
@@ -102,6 +102,21 @@ function DayworkPostForm() {
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certs, setCerts] = useState<LookupItem[]>([]);
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
+
+  // Max working days = min(14, calendarSpan). Clamp when dates change.
+  const maxWorkingDays = useMemo(() => {
+    if (!startDate || !endDate) return 14;
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    const span = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    return Math.max(1, Math.min(14, span));
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    if (workingDays && parseInt(workingDays, 10) > maxWorkingDays) {
+      setWorkingDays(String(maxWorkingDays));
+    }
+  }, [maxWorkingDays, workingDays]);
 
   const [showPostConfirm, setShowPostConfirm] = useState(false);
 
@@ -409,12 +424,17 @@ function DayworkPostForm() {
             id="workingDays"
             type="number"
             min="1"
-            max="14"
-            placeholder="1-14"
+            max={maxWorkingDays}
+            placeholder={`1-${maxWorkingDays}`}
             value={workingDays}
             onChange={(e) => setWorkingDays(e.target.value)}
             required
           />
+          {startDate && endDate && (
+            <p className="text-xs text-muted-foreground">
+              Up to {maxWorkingDays} days for this date range
+            </p>
+          )}
         </div>
 
         {/* Crew needed */}

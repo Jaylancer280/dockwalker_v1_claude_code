@@ -193,10 +193,11 @@
 - [Fix 139a-f] Hardening batch — network failure try/finally on 8 pages, onboarding re-entrant retry, Stripe origin header hardening, Docky atomic usage RPC (migration 00061), integration test password fix, UUID validation on profile view param, ESLint cleanup
 - [Stage 141a] safeFetch migration — replaced all 82+ bare fetch() calls across 20 client-side page/component files with safeFetch (15s timeout, typed discriminated union, zero unhandled rejections); updated 2 test mocks for res.text() compatibility; 812 tests pass
 - [Stage 142] Client resilience fixes — (a) avatar upload reordered: validate magic bytes → upload new → delete old, preventing broken avatar_url on bad files; (b) chat realtime: reactive polling fallback that starts/stops based on connection state instead of one-shot 5s decision; (c) availability overlay: all 4 fetch calls → safeFetch with try/finally + deselected-date DELETE error handling; (d) completed safeFetch migration on remaining 13 client files (components, hooks, lib, onboarding); zero bare fetch() in client code; 814 tests pass
+- [Stage 143] User testing fixes batch 1 — (a) working days input dynamically clamped to calendar span with helper text; (b) replacement button already correct — skipped; (c) removed 3 unused STCW certs via migration 00062; (d) back button on notifications page; (e) 3 extra daywork + 2 permanent seed postings for discover feed density; (f) fallback card in chat when job details unavailable
 
 ## Current Schema Version
 
-v61 — Atomic advisor usage RPC (61 migrations applied)
+v62 — Remove unused STCW certs (62 migrations applied)
 
 ## Migrations Applied
 
@@ -263,6 +264,7 @@ v61 — Atomic advisor usage RPC (61 migrations applied)
 | `00059_permanent_jobs.sql`                   | `permanent_postings` + `permanent_templates` tables, profile permanent availability columns (`permanent_availability`, `notice_period_days`, `currently_employed`), applications + engagements XOR extensions (`permanent_posting_id`, `outcome`, `daywork_id` nullable), `PERMANENT.*` handlers in `apply_projection`, `aggregate_type` + `application_status` + `active_engagements_status` CHECK updates |
 | `00060_nda_reveal_permanent.sql`             | Extends `get_vessel_public` with permanent engagement OR branch — crew with active permanent engagement on NDA vessel can see IMO (alongside existing daywork reveal)                                                                                                                                                                                                                                       |
 | `00061_atomic_advisor_usage.sql`             | `increment_advisor_usage(uuid, text, integer)` RPC — atomic check-and-increment for free-tier Docky usage; INSERT ON CONFLICT with WHERE guard prevents concurrent requests bypassing limit                                                                                                                                                                                                                 |
+| `00062_remove_unused_stcw_certs.sql`         | Removes 3 unused STCW certifications (Survival Craft, Advanced Fire Fighting, Medical First Aid), keeping only STCW Basic Safety Training                                                                                                                                                                                                                                                                   |
 
 ## Deferred Decisions
 

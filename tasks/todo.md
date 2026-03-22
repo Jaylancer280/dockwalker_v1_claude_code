@@ -13,6 +13,72 @@
 
 ---
 
+### Stage 144: User testing fixes (batch 2 — UX polish)
+
+#### 144a — Career status takes too much space on profile
+
+Currently a full card with header, checkbox, conditional radio buttons, and number input. For most crew it's a simple toggle.
+
+- [ ] Collapse career status into the crew info section rather than a standalone card
+- [ ] When "not looking" / toggled off: show single line "Not open to permanent roles" with edit pencil
+- [ ] When toggled on: show compact summary "Available immediately" or "After X days notice" with edit pencil
+- [ ] Editing opens inline or small expandable — not a full card taking permanent vertical space
+
+#### 144b — "Find daywork" button copy and size
+
+Currently `w-full` with "Find daywork" text. Too prominent and doesn't cover permanent.
+
+- [ ] Change copy to "Browse jobs" (covers both daywork and permanent)
+- [ ] Reduce width: remove `w-full`, use `w-fit` or auto-width
+- [ ] Keep the Compass icon
+
+#### 144c — Sign out should redirect to splash page
+
+Currently `router.push('/auth/login')` after `supabase.auth.signOut()`.
+
+- [ ] Change redirect to `router.push('/')` — the landing/splash page
+- [ ] Verify middleware doesn't intercept unauthenticated `/` and redirect back to `/auth/login`
+
+#### 144d — Splash page copy update
+
+Current copy is daywork-only: "Superyacht daywork, simplified". Doesn't mention permanent hiring, Docky, invitations, or checklists.
+
+- [ ] Update hero headline to cover both modes (e.g., "Superyacht hiring, simplified" or "Your superyacht career starts here")
+- [ ] Update subheading to mention both daywork and permanent
+- [ ] Update value prop cards:
+  - Card 1: keep daywork focus but mention permanent too
+  - Card 2: mention structured hiring pipeline (shortlist → select → place)
+  - Card 3: hint at smart features — "AI career advisor, crew invitations, pre-arrival checklists"
+- [ ] Update how-it-works steps to be mode-neutral
+- [ ] Update footer tagline
+
+#### 144e — IMO fuzzy search auto-trigger at 4 digits
+
+Currently requires exactly 7 digits + explicit button click. User wants auto-search after 4+ digits for better UX.
+
+- [ ] Modify `/api/vessels/lookup` to accept 4-7 digit input: use `LIKE '{imo}%'` for partial matches (prefix search, not full fuzzy), return up to 5 results
+- [ ] In add-experience page: add `useEffect` watching `imoNumber` — when length >= 4, debounce 500ms then auto-call lookup
+- [ ] Show results as a selectable dropdown list below the input (multiple matches possible with partial IMO)
+- [ ] Keep the Search button as a manual fallback but make it enabled at 4+ digits
+- [ ] Same change on edit-experience page
+- [ ] Update vessel lookup tests for partial match behavior
+
+---
+
+### Stage 145: Web vs mobile layout optimization (separate track)
+
+This is a larger UX workstream. Needs design direction from user before implementation.
+
+- [ ] **Planning needed:** Which pages need web-specific layouts? (discover, profile, post form, review, chat, settings, billing)
+- [ ] **Pattern decision:** responsive breakpoints (Tailwind `md:` / `lg:`) vs separate layout components?
+- [ ] **Priority pages for web billing flow:** billing/page.tsx and settings (since Apple payment avoidance is the driver)
+- [ ] **Max-width container:** add `max-w-lg mx-auto` or similar wrapper to prevent full-width stretch on desktop
+- [ ] **Navigation:** bottom nav works on mobile but may need sidebar or top nav on desktop
+
+> Defer detailed implementation until user provides specific layout preferences or screenshots.
+
+---
+
 ## Post-TestFlight
 
 > Deferred work. Not blocking launch. Prioritise based on real user feedback.
@@ -61,4 +127,4 @@ Nudge employers with active permanent engagements that have no activity. Build w
 
 ## Done
 
-(See git history for completed stages 51-139, 141a, 142, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, 141a, 142, 143, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e, template name cap, messages test cleanup)

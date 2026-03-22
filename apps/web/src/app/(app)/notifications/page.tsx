@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  ArrowLeft,
   Bell,
   Loader2,
   MessageSquare,
@@ -109,8 +110,11 @@ export default function NotificationsPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between">
-          <h1 className="text-lg font-bold tracking-tight">Notifications</h1>
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <h1 className="flex-1 text-lg font-bold tracking-tight">Notifications</h1>
           {hasUnread && (
             <Button variant="ghost" size="sm" onClick={markAllRead}>
               Mark all read

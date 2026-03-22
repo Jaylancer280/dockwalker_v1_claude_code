@@ -1276,3 +1276,127 @@ select public.append_event(
   ),
   '11111111-1111-1111-1111-111111111111'
 );
+
+-- ========================= EXTRA DISCOVERABLE DAYWORK POSTINGS =========================
+-- Jobs 11-13: active, future-dated, varied roles/ports, crew user has NOT interacted
+-- These ensure the discover feed is never empty for testing.
+
+-- Job 11: Chief Stewardess, Club de Mar Mallorca, days +20 to +25
+select public.append_event(
+  'DAYWORK.POSTED',
+  '44444444-4444-4444-4444-444444444011',
+  'daywork',
+  'employer',
+  jsonb_build_object(
+    'vessel_id', 'a0000000-0000-0000-0000-000000000001',
+    'role_id', 'd0000000-0000-0000-0000-000000000011',
+    'port_id', 'c0000000-0000-0000-0000-000000000002',
+    'start_date', (current_date + interval '20 days')::date,
+    'end_date', (current_date + interval '25 days')::date,
+    'working_days', 5,
+    'day_rate', 250,
+    'currency', 'EUR',
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000003',
+    'meals', true,
+    'positions_available', 1,
+    'notes', 'Charter prep and guest service. Previous charter experience preferred.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- Job 12: Sous Chef, Marina Ibiza, days +22 to +28
+select public.append_event(
+  'DAYWORK.POSTED',
+  '44444444-4444-4444-4444-444444444012',
+  'daywork',
+  'employer',
+  jsonb_build_object(
+    'vessel_id', 'a0000000-0000-0000-0000-000000000001',
+    'role_id', 'd0000000-0000-0000-0000-000000000016',
+    'port_id', 'c0000000-0000-0000-0000-000000000003',
+    'start_date', (current_date + interval '22 days')::date,
+    'end_date', (current_date + interval '28 days')::date,
+    'working_days', 6,
+    'day_rate', 300,
+    'currency', 'EUR',
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000004',
+    'meals', true,
+    'positions_available', 1,
+    'notes', 'Cover for head chef shore leave. Mediterranean menu. Crew of 14.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- Job 13: ETO, Port Hercule Monaco, days +25 to +30
+select public.append_event(
+  'DAYWORK.POSTED',
+  '44444444-4444-4444-4444-444444444013',
+  'daywork',
+  'employer',
+  jsonb_build_object(
+    'vessel_id', 'a0000000-0000-0000-0000-000000000001',
+    'role_id', 'd0000000-0000-0000-0000-000000000010',
+    'port_id', 'c0000000-0000-0000-0000-000000000007',
+    'start_date', (current_date + interval '25 days')::date,
+    'end_date', (current_date + interval '30 days')::date,
+    'working_days', 5,
+    'day_rate', 350,
+    'currency', 'EUR',
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000004',
+    'meals', true,
+    'positions_available', 2,
+    'notes', 'AV and IT systems maintenance during refit. Must have NMEA 2000 experience.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- ========================= EXTRA DISCOVERABLE PERMANENT POSTINGS =========================
+-- Permanent postings so the permanent discover feed also has content.
+
+-- Perm 3: Second Stewardess, Club de Mar, future start
+select public.append_event(
+  'PERMANENT.POSTED',
+  '55555555-5555-5555-5555-555555555003',
+  'permanent_posting',
+  'employer',
+  jsonb_build_object(
+    'vessel_id', 'a0000000-0000-0000-0000-000000000001',
+    'role_id', 'd0000000-0000-0000-0000-000000000012',
+    'port_id', 'c0000000-0000-0000-0000-000000000002',
+    'start_date', (current_date + interval '14 days')::date,
+    'salary_min', 3000,
+    'salary_max', 3500,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000003',
+    'shortlist_cap', 5,
+    'notes', 'Season starting Palma, moving to Greece in July. Great owners, relaxed charter programme.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);
+
+-- Perm 4: Mate, Port Hercule Monaco, immediate start
+select public.append_event(
+  'PERMANENT.POSTED',
+  '55555555-5555-5555-5555-555555555004',
+  'permanent_posting',
+  'employer',
+  jsonb_build_object(
+    'vessel_id', 'a0000000-0000-0000-0000-000000000001',
+    'role_id', 'd0000000-0000-0000-0000-000000000019',
+    'port_id', 'c0000000-0000-0000-0000-000000000007',
+    'start_date', (current_date - interval '3 days')::date,
+    'salary_min', 5000,
+    'salary_max', 6500,
+    'salary_currency', 'EUR',
+    'salary_period', 'monthly',
+    'live_aboard', true,
+    'required_certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000011"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000005',
+    'shortlist_cap', 3,
+    'notes', 'Experienced Mate for 60m motor yacht. Year-round Mediterranean programme. Must hold OOW 3000gt.'
+  ),
+  '11111111-1111-1111-1111-111111111111'
+);

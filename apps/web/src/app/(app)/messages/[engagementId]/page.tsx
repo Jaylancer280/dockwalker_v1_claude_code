@@ -738,8 +738,18 @@ export default function ChatPage() {
             context &&
             (context.type === 'permanent' ? (
               <PermanentSummaryCard context={context} />
+            ) : context.dayworks ? (
+              <DayworkSummaryCard context={context} />
             ) : (
-              context.dayworks && <DayworkSummaryCard context={context} />
+              <div className="rounded-lg border border-border bg-accent/30 px-4 py-3">
+                <p className="text-sm font-medium">Job details unavailable</p>
+                <p className="text-xs text-muted-foreground">
+                  {context.start_date && context.end_date
+                    ? `${context.start_date} — ${context.end_date}`
+                    : 'Engagement dates not available'}
+                  {context.status && ` · ${context.status}`}
+                </p>
+              </div>
             ))}
 
           {!loading && context?.checklist && (
