@@ -40,7 +40,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         `
       id, crew_person_id, status, message, created_at, source,
       profiles!applications_crew_person_id_profiles_fkey(
-        display_name, avatar_url,
+        display_name, avatar_url, deck_name,
         primary_role_id,
         certification_ids,
         experience_bracket_id,

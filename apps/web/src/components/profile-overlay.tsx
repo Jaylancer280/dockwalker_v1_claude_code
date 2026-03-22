@@ -28,6 +28,7 @@ interface CrewProfile {
   display_name: string;
   identity_type: 'crew';
   avatar_url: string | null;
+  deck_name: string | null;
   bio: string | null;
   primary_role: { id: string; name: string; department: string } | null;
   desired_role: { id: string; name: string } | null;
@@ -145,21 +146,24 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
       <div className="flex items-center gap-3">
         <Avatar src={profile.avatar_url} name={profile.display_name} size="md" />
         <div>
-          <p className="font-semibold">
-            {profile.nationality?.flag_emoji && (
-              <span className="mr-1.5">{profile.nationality.flag_emoji}</span>
-            )}
+          <p className="font-semibold flex items-center gap-1.5">
             {profile.display_name}
-          </p>
-          {profile.primary_role && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1">
-              <span>{profile.primary_role.name}</span>
+            {profile.nationality?.flag_emoji && <span>{profile.nationality.flag_emoji}</span>}
+            {profile.primary_role && (
               <EpauletteBadge
                 roleName={profile.primary_role.name}
                 department={profile.primary_role.department}
                 size="sm"
               />
+            )}
+          </p>
+          {profile.deck_name && (
+            <p className="text-sm text-muted-foreground italic">
+              &ldquo;{profile.deck_name}&rdquo;
             </p>
+          )}
+          {profile.primary_role && (
+            <p className="text-xs text-muted-foreground">{profile.primary_role.name}</p>
           )}
           {profile.desired_role && profile.desired_role.id !== profile.primary_role?.id && (
             <p className="text-xs text-muted-foreground">Seeking: {profile.desired_role.name}</p>

@@ -58,7 +58,11 @@ export async function GET(
 
     const [{ data: otherProfile }, { data: myRating }, { data: daywork }, { data: checklist }] =
       await Promise.all([
-        supabase.from('profiles').select('display_name').eq('person_id', otherId).single(),
+        supabase
+          .from('profiles')
+          .select('display_name, deck_name')
+          .eq('person_id', otherId)
+          .single(),
         supabase
           .from('engagement_ratings')
           .select(
@@ -85,7 +89,7 @@ export async function GET(
       engagement: {
         ...engagement,
         type: engagement.permanent_posting_id ? 'permanent' : 'daywork',
-        other_name: otherProfile?.display_name ?? 'Unknown',
+        other_name: otherProfile?.deck_name || otherProfile?.display_name || 'Unknown',
         has_rated: !!myRating,
         my_rating: myRating ?? null,
         crew_cancel_responded: crewCancelResponded,

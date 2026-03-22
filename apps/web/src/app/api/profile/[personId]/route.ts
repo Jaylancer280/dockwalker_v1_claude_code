@@ -41,7 +41,7 @@ export async function GET(
       .from('profiles')
       .select(
         `
-      person_id, display_name, identity_type, bio, avatar_url,
+      person_id, display_name, identity_type, bio, avatar_url, deck_name,
       primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
       agency_name, role_specialization_ids,
@@ -186,6 +186,7 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     identity_type: 'crew',
     bio: profile.bio,
     avatar_url: profile.avatar_url,
+    deck_name: profile.deck_name ?? null,
     primary_role: profile.yacht_roles,
     desired_role: profile.desired_roles ?? null,
     nationality: profile.nationalities ?? null,

@@ -120,6 +120,7 @@ export interface EventPayloadMap {
     nationality_id?: string | null;
     visa_ids?: string[];
     desired_role_id?: string | null;
+    deck_name?: string | null;
   };
   'PROFILE.UPDATED': {
     display_name?: string;
@@ -142,6 +143,7 @@ export interface EventPayloadMap {
     notice_period_days?: number | null;
     currently_employed?: boolean;
     desired_role_id?: string | null;
+    deck_name?: string | null;
   };
   'AGENT.VERIFIED': Record<string, never>;
   'VESSEL.CREATED': {

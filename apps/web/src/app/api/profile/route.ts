@@ -16,12 +16,12 @@ export async function GET() {
     .from('profiles')
     .select(
       `
-      person_id, display_name, identity_type, bio, avatar_url,
+      person_id, display_name, identity_type, bio, avatar_url, deck_name,
       primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
       permanent_availability, notice_period_days, currently_employed,
       agency_name, role_specialization_ids,
-      yacht_roles!profiles_primary_role_id_fkey(id, name),
+      yacht_roles!profiles_primary_role_id_fkey(id, name, department),
       desired_roles:yacht_roles!profiles_desired_role_id_fkey(id, name),
       experience_brackets(id, label),
       ports(id, name, cities(name, regions(name))),
@@ -58,6 +58,8 @@ export async function PATCH(request: Request) {
   if (body.vesselSizeExposureIds !== undefined)
     payload.vessel_size_exposure_ids = body.vesselSizeExposureIds;
   if (body.bio !== undefined) payload.bio = body.bio;
+  if (body.deckName !== undefined)
+    payload.deck_name = body.deckName ? String(body.deckName).slice(0, 50) : null;
   if (body.agencyName !== undefined) payload.agency_name = body.agencyName;
   if (body.roleSpecializationIds !== undefined)
     payload.role_specialization_ids = body.roleSpecializationIds;

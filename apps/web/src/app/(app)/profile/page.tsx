@@ -8,14 +8,11 @@ import {
   X,
   Check,
   Loader2,
-  CalendarDays,
-  Clock,
   ChevronDown,
   ChevronUp,
   Plus,
   Trash2,
   Ship,
-  Compass,
   Briefcase,
 } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
@@ -77,7 +74,8 @@ interface Profile {
   nationality_id: string | null;
   visa_ids: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
-  yacht_roles: { id: string; name: string } | null;
+  deck_name: string | null;
+  yacht_roles: { id: string; name: string; department: string } | null;
   desired_roles: { id: string; name: string } | null;
   experience_brackets: { id: string; label: string } | null;
   ports: { id: string; name: string; cities: { name: string; regions: { name: string } } } | null;
@@ -167,6 +165,7 @@ export default function ProfilePage() {
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
   const [nationalityId, setNationalityId] = useState('');
   const [visaIds, setVisaIds] = useState<string[]>([]);
+  const [deckName, setDeckName] = useState('');
 
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
@@ -336,6 +335,7 @@ export default function ProfilePage() {
     setRoleSpecializationIds(profile.role_specialization_ids ?? []);
     setNationalityId(profile.nationality_id ?? '');
     setVisaIds(profile.visa_ids ?? []);
+    setDeckName(profile.deck_name ?? '');
     setEditing(true);
 
     // Load lookups for edit mode
@@ -359,6 +359,7 @@ export default function ProfilePage() {
     if (profile?.identity_type === 'crew') {
       body.desiredRoleId = desiredRoleId || null;
       body.bio = bio || null;
+      body.deckName = deckName || null;
       body.certificationIds = certificationIds;
       // vesselSizeExposureIds is auto-derived — not sent in PATCH
       body.nationalityId = nationalityId || null;
@@ -478,10 +479,33 @@ export default function ProfilePage() {
           <div className="flex-1">
             {!editing ? (
               <>
-                <p className="text-lg font-semibold">{profile.display_name}</p>
-                <Badge variant="secondary" className="capitalize">
-                  {profile.identity_type}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <p className="text-lg font-semibold">{profile.display_name}</p>
+                  {profile.identity_type === 'crew' && profile.nationalities?.flag_emoji && (
+                    <span className="text-lg">{profile.nationalities.flag_emoji}</span>
+                  )}
+                  {profile.identity_type === 'crew' && profile.yacht_roles?.name && (
+                    <EpauletteBadge
+                      roleName={profile.yacht_roles.name}
+                      department={profile.yacht_roles.department}
+                      size="sm"
+                    />
+                  )}
+                </div>
+                {profile.identity_type === 'crew' && profile.deck_name && (
+                  <p className="text-sm text-muted-foreground italic">
+                    &ldquo;{profile.deck_name}&rdquo;
+                  </p>
+                )}
+                <div className="mt-1 flex items-center gap-2">
+                  <Badge variant="secondary" className="capitalize">
+                    {profile.identity_type}
+                  </Badge>
+                  <HatSwitcher
+                    currentHat={person.current_hat}
+                    identityType={person.identity_type}
+                  />
+                </div>
               </>
             ) : (
               <div className="flex flex-col gap-1.5">
@@ -492,107 +516,33 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Hat Switcher */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">Current role:</span>
-          <HatSwitcher currentHat={person.current_hat} identityType={person.identity_type} />
-        </div>
-
-        {/* Quick action CTA */}
-        {!editing && (
+        {/* Quick action CTA — employer/agent only */}
+        {!editing && !isCrewHat && (
           <Button
             variant="outline"
             className="w-fit gap-2"
-            onClick={() => router.push(isCrewHat ? '/discover' : '/daywork/mine')}
+            onClick={() => router.push('/daywork/mine')}
           >
-            {isCrewHat ? (
-              <>
-                <Compass className="h-4 w-4" />
-                Browse jobs
-              </>
-            ) : (
-              <>
-                <Briefcase className="h-4 w-4" />
-                My jobs
-              </>
-            )}
+            <Briefcase className="h-4 w-4" />
+            My jobs
           </Button>
-        )}
-
-        {/* Availability card — crew hat only, view mode only */}
-        {profile.identity_type === 'crew' && isCrewHat && !editing && (
-          <button
-            onClick={() => setShowAvailOverlay(true)}
-            className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-accent"
-          >
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                availStatus === 'available'
-                  ? 'bg-success/15 text-success'
-                  : availStatus === 'not_available'
-                    ? 'bg-destructive/15 text-destructive'
-                    : 'bg-muted text-muted-foreground'
-              }`}
-            >
-              <CalendarDays className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              {availStatus === 'not_available' ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-destructive">Not available</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    You have confirmed you are not available for daywork
-                    {availCity ? ` \u00B7 ${availCity.name}, ${availCity.region_name}` : ''}
-                  </p>
-                </>
-              ) : availSummary ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-success">Available</p>
-                    <Badge variant="outline" className="gap-1 text-[10px]">
-                      <Clock className="h-2.5 w-2.5" />
-                      {availSummary.expiryText}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {availSummary.dateRange} ({availSummary.count} day
-                    {availSummary.count !== 1 ? 's' : ''})
-                    {availSummary.cityName && ` \u00B7 ${availSummary.cityName}`}
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-medium">Availability not set</p>
-                  <p className="text-xs text-muted-foreground">
-                    Tap to set your availability dates and location
-                  </p>
-                </>
-              )}
-            </div>
-          </button>
         )}
 
         <Separator />
 
-        {/* Crew-specific fields */}
+        {/* Crew view mode — semantic sections */}
         {profile.identity_type === 'crew' && !editing && (
           <div className="flex flex-col gap-3">
+            {/* Section 1: Summary */}
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 mb-2">
+              Summary
+            </p>
             {profile.yacht_roles?.name && (
               <div>
                 <p className="text-xs text-muted-foreground">Current Role</p>
                 <p className="text-sm font-medium">{profile.yacht_roles.name}</p>
               </div>
             )}
-            <div>
-              <p className="text-xs text-muted-foreground">Desired Role</p>
-              {profile.desired_roles?.name ? (
-                <p className="text-sm font-medium">{profile.desired_roles.name}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">Not set</p>
-              )}
-            </div>
             {profile.experience_brackets?.label && (
               <div>
                 <p className="text-xs text-muted-foreground">Experience</p>
@@ -649,6 +599,43 @@ export default function ProfilePage() {
                 </p>
               </div>
             )}
+            {profile.vessel_size_exposure_ids?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground">Vessel Size Exposure</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {profile.vessel_size_exposure_ids.map((sbId) => {
+                    const sbLabel = sizeBandNames[sbId];
+                    return (
+                      <span key={sbId} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {sbLabel ?? sbId.slice(0, 8)}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {profile.nationalities && (
+              <div>
+                <p className="text-xs text-muted-foreground">Nationality</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-lg">{profile.nationalities.flag_emoji}</span>
+                  <span className="text-sm">{profile.nationalities.name}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Section 2: Looking for */}
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 mb-2">
+              Looking for
+            </p>
+            <div>
+              <p className="text-xs text-muted-foreground">Desired Role</p>
+              {profile.desired_roles?.name ? (
+                <p className="text-sm font-medium">{profile.desired_roles.name}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not set</p>
+              )}
+            </div>
             {profile.ports?.name && (
               <div>
                 <p className="text-xs text-muted-foreground">Location</p>
@@ -815,6 +802,56 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
+            {/* Daywork availability — compact row */}
+            {isCrewHat && (
+              <button
+                onClick={() => setShowAvailOverlay(true)}
+                className="flex w-full items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-accent"
+              >
+                <p className="text-xs text-muted-foreground w-[100px] flex-shrink-0">Daywork</p>
+                {availStatus === 'available' && availSummary ? (
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                      Available
+                    </span>
+                    <span className="text-muted-foreground">&middot; {availSummary.dateRange}</span>
+                    {availSummary.cityName && (
+                      <span className="text-muted-foreground">
+                        &middot; {availSummary.cityName}
+                      </span>
+                    )}
+                  </div>
+                ) : availStatus === 'not_available' ? (
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="inline-block h-2 w-2 rounded-full bg-destructive flex-shrink-0" />
+                    <span className="font-medium text-destructive">Not available</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40 flex-shrink-0" />
+                    <span className="text-muted-foreground">
+                      Not set &mdash; tap to set availability
+                    </span>
+                  </div>
+                )}
+              </button>
+            )}
+
+            {/* Section 3: About */}
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 mb-2">
+              About
+            </p>
+            <div>
+              <p className="text-xs text-muted-foreground">Deck Name</p>
+              {profile.deck_name ? (
+                <p className="text-sm font-medium">&ldquo;{profile.deck_name}&rdquo;</p>
+              ) : (
+                <button onClick={enterEdit} className="text-sm text-primary hover:underline">
+                  Add a deck name
+                </button>
+              )}
+            </div>
             {profile.bio && (
               <div>
                 <p className="text-xs text-muted-foreground">Bio</p>
@@ -836,30 +873,6 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-            {profile.vessel_size_exposure_ids?.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground">Vessel Size Exposure</p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {profile.vessel_size_exposure_ids.map((sbId) => {
-                    const sbLabel = sizeBandNames[sbId];
-                    return (
-                      <span key={sbId} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                        {sbLabel ?? sbId.slice(0, 8)}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-            {profile.nationalities && (
-              <div>
-                <p className="text-xs text-muted-foreground">Nationality</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="text-lg">{profile.nationalities.flag_emoji}</span>
-                  <span className="text-sm">{profile.nationalities.name}</span>
-                </div>
-              </div>
-            )}
             {visaIds.length > 0 && (
               <div>
                 <p className="text-xs text-muted-foreground">Visas</p>
@@ -877,191 +890,193 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Experience history — crew view mode */}
+        {/* Section 4: Experience history — crew view mode */}
         {profile.identity_type === 'crew' && !editing && experiences.length > 0 && (
-          <>
-            <Separator />
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold tracking-tight">Experience</h2>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {(() => {
-                      const now = new Date();
-                      let totalMonths = 0;
-                      let remainDays = 0;
-                      for (const exp of experiences) {
-                        const start = new Date(exp.start_date + 'T00:00:00');
-                        const end = exp.is_current
-                          ? now
-                          : exp.end_date
-                            ? new Date(exp.end_date + 'T00:00:00')
-                            : start;
-                        const months =
-                          (end.getFullYear() - start.getFullYear()) * 12 +
-                          (end.getMonth() - start.getMonth());
-                        const dayDiff = end.getDate() - start.getDate();
-                        totalMonths += months;
-                        remainDays += dayDiff;
-                      }
-                      // Convert excess days to months (>= 15 days rounds up)
-                      totalMonths += Math.floor(remainDays / 30);
-                      remainDays = remainDays % 30;
-                      if (remainDays >= 15) totalMonths += 1;
-                      if (totalMonths < 0) totalMonths = 0;
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 mb-2">
+              Experience
+            </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold tracking-tight">Experience</h2>
+                <Badge variant="secondary" className="text-[10px]">
+                  {(() => {
+                    const now = new Date();
+                    let totalMonths = 0;
+                    let remainDays = 0;
+                    for (const exp of experiences) {
+                      const start = new Date(exp.start_date + 'T00:00:00');
+                      const end = exp.is_current
+                        ? now
+                        : exp.end_date
+                          ? new Date(exp.end_date + 'T00:00:00')
+                          : start;
+                      const months =
+                        (end.getFullYear() - start.getFullYear()) * 12 +
+                        (end.getMonth() - start.getMonth());
+                      const dayDiff = end.getDate() - start.getDate();
+                      totalMonths += months;
+                      remainDays += dayDiff;
+                    }
+                    // Convert excess days to months (>= 15 days rounds up)
+                    totalMonths += Math.floor(remainDays / 30);
+                    remainDays = remainDays % 30;
+                    if (remainDays >= 15) totalMonths += 1;
+                    if (totalMonths < 0) totalMonths = 0;
 
-                      const totalDays = experiences.reduce((sum, exp) => {
-                        const s = new Date(exp.start_date + 'T00:00:00');
-                        const e = exp.is_current
-                          ? now
-                          : exp.end_date
-                            ? new Date(exp.end_date + 'T00:00:00')
-                            : s;
-                        return (
-                          sum + Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000))
-                        );
-                      }, 0);
+                    const totalDays = experiences.reduce((sum, exp) => {
+                      const s = new Date(exp.start_date + 'T00:00:00');
+                      const e = exp.is_current
+                        ? now
+                        : exp.end_date
+                          ? new Date(exp.end_date + 'T00:00:00')
+                          : s;
+                      return (
+                        sum + Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000))
+                      );
+                    }, 0);
 
-                      if (totalMonths >= 12) {
-                        const years = Math.floor(totalMonths / 12);
-                        const months = totalMonths % 12;
-                        return months > 0 ? `${years}y ${months}m` : `${years}y`;
-                      }
-                      if (totalMonths >= 1) {
-                        return `${totalMonths}m`;
-                      }
-                      return `${totalDays}d`;
-                    })()}{' '}
-                    total
-                  </Badge>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1 text-xs"
-                  onClick={() => router.push('/profile/add-experience')}
-                >
-                  <Plus className="h-3 w-3" />
-                  Add
-                </Button>
+                    if (totalMonths >= 12) {
+                      const years = Math.floor(totalMonths / 12);
+                      const months = totalMonths % 12;
+                      return months > 0 ? `${years}y ${months}m` : `${years}y`;
+                    }
+                    if (totalMonths >= 1) {
+                      return `${totalMonths}m`;
+                    }
+                    return `${totalDays}d`;
+                  })()}{' '}
+                  total
+                </Badge>
               </div>
-
-              {experiences.map((exp, idx) => {
-                const isExpanded = expandedExpId === exp.id || idx === 0;
-                const dateRange = formatDateRange(exp.start_date, exp.end_date, exp.is_current);
-
-                return (
-                  <div key={exp.id} className="rounded-lg border border-border bg-card">
-                    <button
-                      onClick={() => setExpandedExpId(isExpanded && idx !== 0 ? null : exp.id)}
-                      className="flex w-full items-center gap-3 p-3 text-left"
-                    >
-                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <Ship className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium truncate">
-                            {exp.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'}{' '}
-                            {exp.vessels?.name ?? 'Unknown vessel'}
-                          </p>
-                          <Badge variant="outline" className="text-[10px] flex-shrink-0">
-                            {exp.vessel_operation}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {exp.yacht_roles?.name ?? 'Unknown role'} · {dateRange}
-                        </p>
-                      </div>
-                      {exp.yacht_roles?.name && (
-                        <EpauletteBadge
-                          roleName={exp.yacht_roles.name}
-                          department={exp.yacht_roles?.department}
-                          size="md"
-                        />
-                      )}
-                      {idx !== 0 &&
-                        (isExpanded ? (
-                          <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        ))}
-                    </button>
-
-                    {isExpanded && (
-                      <div className="border-t border-border px-3 pb-3 pt-2">
-                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
-                          {exp.flag_state && (
-                            <div>
-                              <p className="text-[11px] text-muted-foreground">Flag state</p>
-                              <p className="text-sm">{exp.flag_state}</p>
-                            </div>
-                          )}
-                          {exp.vessels?.loa_meters && (
-                            <div>
-                              <p className="text-[11px] text-muted-foreground">LOA</p>
-                              <p className="text-sm">{exp.vessels.loa_meters}m</p>
-                            </div>
-                          )}
-                          {exp.contract_type && (
-                            <div>
-                              <p className="text-[11px] text-muted-foreground">Contract</p>
-                              <p className="text-sm capitalize">
-                                {exp.contract_type}
-                                {exp.contract_details && ` — ${exp.contract_details}`}
-                              </p>
-                            </div>
-                          )}
-                          {exp.vessels?.vessel_type && (
-                            <div>
-                              <p className="text-[11px] text-muted-foreground">Vessel type</p>
-                              <p className="text-sm capitalize">{exp.vessels.vessel_type}</p>
-                            </div>
-                          )}
-                        </div>
-                        {exp.description && (
-                          <p className="mt-2 text-sm text-muted-foreground">{exp.description}</p>
-                        )}
-                        <div className="mt-3 flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 gap-1 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              router.push(`/profile/edit-experience/${exp.id}`);
-                            }}
-                          >
-                            <Pencil className="h-3 w-3" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
-                            disabled={deletingExpId === exp.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setConfirmDeleteExpId(exp.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            {deletingExpId === exp.id ? 'Removing...' : 'Remove'}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs"
+                onClick={() => router.push('/profile/add-experience')}
+              >
+                <Plus className="h-3 w-3" />
+                Add
+              </Button>
             </div>
-          </>
+
+            {experiences.map((exp, idx) => {
+              const isExpanded = expandedExpId === exp.id || idx === 0;
+              const dateRange = formatDateRange(exp.start_date, exp.end_date, exp.is_current);
+
+              return (
+                <div key={exp.id} className="rounded-lg border border-border bg-card">
+                  <button
+                    onClick={() => setExpandedExpId(isExpanded && idx !== 0 ? null : exp.id)}
+                    className="flex w-full items-center gap-3 p-3 text-left"
+                  >
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <Ship className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium truncate">
+                          {exp.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'}{' '}
+                          {exp.vessels?.name ?? 'Unknown vessel'}
+                        </p>
+                        <Badge variant="outline" className="text-[10px] flex-shrink-0">
+                          {exp.vessel_operation}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {exp.yacht_roles?.name ?? 'Unknown role'} · {dateRange}
+                      </p>
+                    </div>
+                    {exp.yacht_roles?.name && (
+                      <EpauletteBadge
+                        roleName={exp.yacht_roles.name}
+                        department={exp.yacht_roles?.department}
+                        size="md"
+                      />
+                    )}
+                    {idx !== 0 &&
+                      (isExpanded ? (
+                        <ChevronUp className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      ))}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-border px-3 pb-3 pt-2">
+                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+                        {exp.flag_state && (
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">Flag state</p>
+                            <p className="text-sm">{exp.flag_state}</p>
+                          </div>
+                        )}
+                        {exp.vessels?.loa_meters && (
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">LOA</p>
+                            <p className="text-sm">{exp.vessels.loa_meters}m</p>
+                          </div>
+                        )}
+                        {exp.contract_type && (
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">Contract</p>
+                            <p className="text-sm capitalize">
+                              {exp.contract_type}
+                              {exp.contract_details && ` — ${exp.contract_details}`}
+                            </p>
+                          </div>
+                        )}
+                        {exp.vessels?.vessel_type && (
+                          <div>
+                            <p className="text-[11px] text-muted-foreground">Vessel type</p>
+                            <p className="text-sm capitalize">{exp.vessels.vessel_type}</p>
+                          </div>
+                        )}
+                      </div>
+                      {exp.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">{exp.description}</p>
+                      )}
+                      <div className="mt-3 flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/profile/edit-experience/${exp.id}`);
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 gap-1 text-xs text-destructive hover:text-destructive"
+                          disabled={deletingExpId === exp.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDeleteExpId(exp.id);
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          {deletingExpId === exp.id ? 'Removing...' : 'Remove'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
 
         {/* No experiences yet — crew view mode */}
         {profile.identity_type === 'crew' && !editing && experiences.length === 0 && (
-          <>
-            <Separator />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-4 mb-2">
+              Experience
+            </p>
             <div className="flex flex-col items-center gap-2 py-4 text-center">
               <Ship className="h-6 w-6 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">No experience entries yet</p>
@@ -1075,12 +1090,25 @@ export default function ProfilePage() {
                 Add experience
               </Button>
             </div>
-          </>
+          </div>
         )}
 
         {/* Crew edit form */}
         {profile.identity_type === 'crew' && editing && (
           <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label>Name on deck</Label>
+              <Input
+                placeholder="What your crew calls you"
+                value={deckName}
+                onChange={(e) => setDeckName(e.target.value)}
+                maxLength={50}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional &mdash; shown alongside your name
+              </p>
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <Label>Desired Role</Label>
               <RolePicker

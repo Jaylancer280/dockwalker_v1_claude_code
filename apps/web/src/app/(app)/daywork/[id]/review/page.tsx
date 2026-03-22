@@ -50,6 +50,7 @@ import { MY_JOBS_TAB_STORAGE_KEY } from '@/lib/my-jobs-tab';
 
 interface ApplicantProfile {
   display_name: string;
+  deck_name: string | null;
   avatar_url: string | null;
   bio: string | null;
   yacht_roles: { name: string; department: string } | null;
@@ -1079,6 +1080,13 @@ function ApplicantCard({
                   <span className="mr-1">{profile.nationalities.flag_emoji}</span>
                 )}
                 {profile?.display_name ?? 'Unknown'}
+                {profile?.deck_name && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({'\u201C'}
+                    {profile.deck_name}
+                    {'\u201D'})
+                  </span>
+                )}
               </h3>
               {applicant.status === 'shortlisted' && (
                 <Star className="h-4 w-4 fill-amber-500 text-amber-500" />

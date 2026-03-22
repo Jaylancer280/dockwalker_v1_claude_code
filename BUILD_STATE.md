@@ -198,10 +198,11 @@
 
 - [Stage 144j] Auto-derived primary role + desired role — migration 00064 adds `desired_role_id` to profiles, updates `derive_experience_profile()` to auto-derive `primary_role_id` from latest experience; profile page shows "Current Role" (non-editable) + "Desired Role" (editable via RolePicker); experience bracket selector removed from edit mode (auto-derived); profile overlay shows "Seeking: {role}"; view-only profile API includes desired_role; 819 tests pass
 - [Fix 144-batch] User testing fixes — (1) vessel form motor/sail; (2) salary per day; (3) size band removed from exp header; (4) visibilitychange profile re-fetch; (5) cert checker error handling + re-fetch; (6) vessel size exposure read-only; (7) comprehensive reseed (4 experiences, 10 daywork, 7 permanent, templates, availability); (8) cert match/mismatch coloring on all job cards
+- [Stage 145] Profile restructure + deck name — migration 00065 adds `deck_name` to profiles with supplementary trigger; profile header shows flag + epaulette + deck name inline; crew view mode reorganised into 4 semantic sections (Summary, Looking for, About, Experience); availability collapsed from hero card to compact row; deck name on profile overlay, chat header, review cards; "Browse jobs" button removed; 819 tests pass
 
 ## Current Schema Version
 
-v64 — Desired role + auto-derived primary role (64 migrations applied)
+v65 — Deck name on profiles (65 migrations applied)
 
 ## Migrations Applied
 
@@ -271,6 +272,7 @@ v64 — Desired role + auto-derived primary role (64 migrations applied)
 | `00062_remove_unused_stcw_certs.sql`         | Removes 3 unused STCW certifications (Survival Craft, Advanced Fire Fighting, Medical First Aid), keeping only STCW Basic Safety Training                                                                                                                                                                                                                                                                   |
 | `00063_sea_time_columns.sql`                 | Adds `sea_time_days` and `sea_time_nautical_miles` integer columns to `crew_experiences`; supplementary trigger `apply_sea_time_from_event` patches values from EXPERIENCE.ADDED/UPDATED payloads                                                                                                                                                                                                           |
 | `00064_desired_role_and_auto_primary.sql`    | Adds `desired_role_id` FK to profiles; updates `derive_experience_profile()` to auto-derive `primary_role_id` from most recent experience; supplementary trigger `apply_desired_role_from_event` writes desired_role_id from PROFILE events                                                                                                                                                                 |
+| `00065_deck_name.sql`                        | Adds `deck_name VARCHAR(50)` to profiles; supplementary trigger `apply_deck_name_from_event` writes deck_name from PROFILE.CREATED/UPDATED payloads                                                                                                                                                                                                                                                         |
 
 ## Deferred Decisions
 
