@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { Anchor, Search, Handshake } from 'lucide-react';
+import { Search, Briefcase, Sparkles } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -16,11 +16,11 @@ export default function LandingPage() {
           priority
         />
         <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Superyacht daywork, simplified
+          Superyacht hiring, simplified
         </h1>
         <p className="mt-3 max-w-sm text-base text-muted-foreground">
-          The fast-dispatch hiring layer for short-term superyacht crew — find work or fill roles in
-          seconds.
+          Daywork cover and permanent placements for the superyacht industry — find work or fill
+          roles, all in one place.
         </p>
         <div className="mt-8 flex gap-3">
           <Link
@@ -46,33 +46,36 @@ export default function LandingPage() {
               <Search className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Find daywork fast</h2>
+              <h2 className="text-sm font-semibold text-foreground">Short-term daywork cover</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Browse live postings and apply in seconds — no CV uploads, no agency calls.
+                Swipe through live postings and lock in 1-14 day engagements in seconds — no CV
+                uploads, no agency calls.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal/10 text-teal">
-              <Anchor className="h-5 w-5" />
+              <Briefcase className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Fill roles today</h2>
+              <h2 className="text-sm font-semibold text-foreground">Permanent positions</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Post a job, review applicants, and confirm crew — all from your phone.
+                Post a role, shortlist candidates, and place the right crew through a structured
+                hiring pipeline.
               </p>
             </div>
           </div>
           <div className="flex items-start gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-navy/10 text-navy">
-              <Handshake className="h-5 w-5" />
+              <Sparkles className="h-5 w-5" />
             </div>
             <div>
               <h2 className="text-sm font-semibold text-foreground">
-                Structured, fair, transparent
+                Smart features, fair visibility
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                No hidden algorithms, no pay-to-rank. Every crew member gets the same visibility.
+                AI career advisor, crew invitations, and pre-arrival checklists — with no hidden
+                algorithms or pay-to-rank.
               </p>
             </div>
           </div>
@@ -97,7 +100,7 @@ export default function LandingPage() {
                 2
               </span>
               <p className="pt-0.5 text-sm text-muted-foreground">
-                Browse or post daywork in your port
+                Browse or post daywork and permanent roles in your port
               </p>
             </li>
             <li className="flex items-start gap-3">
@@ -115,7 +118,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-border px-6 py-6 text-center">
         <p className="text-xs text-muted-foreground">
-          DockWalker — Superyacht daywork hiring: find crew or find work
+          DockWalker — Superyacht daywork and permanent hiring, all in one place
         </p>
         <Link href="/auth/login" className="mt-2 inline-block text-xs text-sea hover:underline">
           Already have an account? Log in

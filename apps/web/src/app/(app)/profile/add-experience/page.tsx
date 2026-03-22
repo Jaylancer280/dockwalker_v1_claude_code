@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +20,14 @@ import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2, Search } from 'lucide-react';
+
+interface ImoSearchResult {
+  id: string;
+  name: string;
+  vessel_type: string;
+  loa_meters: number;
+  imo_number: string;
+}
 
 interface RoleItem {
   id: string;
@@ -55,6 +63,8 @@ export default function AddExperiencePage() {
   const [imoMessage, setImoMessage] = useState('');
   const [useExisting, setUseExisting] = useState(false);
   const [existingVesselId, setExistingVesselId] = useState('');
+  const [imoSearchResults, setImoSearchResults] = useState<ImoSearchResult[]>([]);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Vessel fields
   const [vesselName, setVesselName] = useState('');
@@ -71,6 +81,15 @@ export default function AddExperiencePage() {
   const [contractType, setContractType] = useState('');
   const [contractDetails, setContractDetails] = useState('');
   const [description, setDescription] = useState('');
+
+  // Private intelligence fields
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [salaryPeriod, setSalaryPeriod] = useState<'monthly' | 'annually'>('monthly');
+  const [salaryCurrency, setSalaryCurrency] = useState(
+    () => (typeof window !== 'undefined' && localStorage.getItem('dw-currency-pref')) || 'EUR',
+  );
+  const [seaTimeDays, setSeaTimeDays] = useState('');
+  const [seaTimeNauticalMiles, setSeaTimeNauticalMiles] = useState('');
 
   const loadLookups = useCallback(async () => {
     try {
@@ -90,29 +109,92 @@ export default function AddExperiencePage() {
     loadLookups();
   }, [loadLookups]);
 
+  // Debounced auto-search when IMO has 4+ digits
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // Only auto-search for partial (4-6 digits); 7 digits uses manual or exact lookup
+    if (imoNumber.length >= 4 && imoNumber.length < 7 && !useExisting) {
+      debounceRef.current = setTimeout(() => {
+        async function fetchPartial() {
+          try {
+            setLookingUpImo(true);
+            const result = await safeFetch<{ results: ImoSearchResult[] }>(
+              `/api/vessels/lookup?imo=${imoNumber}`,
+            );
+            if (result.ok) {
+              setImoSearchResults(result.data.results);
+              if (result.data.results.length === 0) {
+                setImoMessage('No vessels found for this prefix');
+              } else {
+                setImoMessage('');
+              }
+            }
+          } finally {
+            setLookingUpImo(false);
+          }
+        }
+        fetchPartial();
+      }, 500);
+    } else {
+      setImoSearchResults([]);
+    }
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [imoNumber, useExisting]);
+
+  function handleSelectSearchResult(result: ImoSearchResult) {
+    setImoNumber(result.imo_number);
+    setVesselName(result.name);
+    setLoaMeters(String(result.loa_meters));
+    setVesselType(result.vessel_type as 'motor' | 'sail');
+    setExistingVesselId(result.id);
+    setUseExisting(true);
+    setImoSearchResults([]);
+    setImoMessage('');
+  }
+
   async function handleImoLookup() {
-    if (imoNumber.length !== 7) return;
+    if (imoNumber.length < 4) return;
     setLookingUpImo(true);
     setImoMessage('');
-    const result = await safeFetch<{
-      found: boolean;
-      vessel?: { name: string; loa_meters: number; vessel_type: string; id: string };
-    }>(`/api/vessels/lookup?imo=${imoNumber}`);
-    if (result.ok) {
-      if (result.data.found && result.data.vessel) {
-        const prefix = result.data.vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
-        setImoMessage(
-          `Found: ${prefix} ${result.data.vessel.name} (${result.data.vessel.loa_meters}m)`,
-        );
-        setVesselName(result.data.vessel.name);
-        setLoaMeters(String(result.data.vessel.loa_meters));
-        setVesselType(result.data.vessel.vessel_type as 'motor' | 'sail');
-        setExistingVesselId(result.data.vessel.id);
-        setUseExisting(true);
-      } else {
-        setImoMessage('Not found — enter vessel details below');
-        setUseExisting(false);
-        setExistingVesselId('');
+    setImoSearchResults([]);
+
+    if (imoNumber.length === 7) {
+      // Exact lookup
+      const result = await safeFetch<{
+        found: boolean;
+        vessel?: { name: string; loa_meters: number; vessel_type: string; id: string };
+      }>(`/api/vessels/lookup?imo=${imoNumber}`);
+      if (result.ok) {
+        if (result.data.found && result.data.vessel) {
+          const prefix = result.data.vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
+          setImoMessage(
+            `Found: ${prefix} ${result.data.vessel.name} (${result.data.vessel.loa_meters}m)`,
+          );
+          setVesselName(result.data.vessel.name);
+          setLoaMeters(String(result.data.vessel.loa_meters));
+          setVesselType(result.data.vessel.vessel_type as 'motor' | 'sail');
+          setExistingVesselId(result.data.vessel.id);
+          setUseExisting(true);
+        } else {
+          setImoMessage('Not found — enter vessel details below');
+          setUseExisting(false);
+          setExistingVesselId('');
+        }
+      }
+    } else {
+      // Partial lookup (4-6 digits)
+      const result = await safeFetch<{ results: ImoSearchResult[] }>(
+        `/api/vessels/lookup?imo=${imoNumber}`,
+      );
+      if (result.ok) {
+        setImoSearchResults(result.data.results);
+        if (result.data.results.length === 0) {
+          setImoMessage('No vessels found for this prefix');
+        }
       }
     }
     setLookingUpImo(false);
@@ -160,6 +242,11 @@ export default function AddExperiencePage() {
         isCurrent,
         vesselOperation: expVesselOperation,
         flagState: flagState || null,
+        salaryAmount: salaryAmount ? Number(salaryAmount) : null,
+        salaryCurrency: salaryAmount ? salaryCurrency : null,
+        salaryPeriod: salaryAmount ? salaryPeriod : null,
+        seaTimeDays: seaTimeDays ? Number(seaTimeDays) : null,
+        seaTimeNauticalMiles: seaTimeNauticalMiles ? Number(seaTimeNauticalMiles) : null,
         contractType: contractType || null,
         contractDetails: contractDetails || null,
         description: description || null,
@@ -209,11 +296,11 @@ export default function AddExperiencePage() {
         </div>
 
         {/* IMO lookup */}
-        <div className="flex flex-col gap-1.5">
+        <div className="relative flex flex-col gap-1.5">
           <Label>IMO number</Label>
           <div className="flex gap-2">
             <Input
-              placeholder="7 digits"
+              placeholder="4-7 digits"
               value={imoNumber}
               onChange={(e) => {
                 setImoNumber(e.target.value.replace(/\D/g, '').slice(0, 7));
@@ -226,7 +313,7 @@ export default function AddExperiencePage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={imoNumber.length !== 7 || lookingUpImo}
+              disabled={imoNumber.length < 4 || lookingUpImo}
               onClick={handleImoLookup}
             >
               {lookingUpImo ? (
@@ -238,6 +325,26 @@ export default function AddExperiencePage() {
           </div>
           {imoMessage && !useExisting && (
             <p className="text-xs text-muted-foreground">{imoMessage}</p>
+          )}
+          {/* Partial search results dropdown */}
+          {imoSearchResults.length > 0 && (
+            <div className="absolute top-full z-20 mt-1 w-full rounded-md border border-border bg-background shadow-lg">
+              {imoSearchResults.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
+                  onClick={() => handleSelectSearchResult(result)}
+                >
+                  <span className="font-medium">
+                    {result.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} {result.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    IMO {result.imo_number} · {result.loa_meters}m
+                  </span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
@@ -514,6 +621,83 @@ export default function AddExperiencePage() {
             maxLength={250}
             rows={3}
           />
+        </div>
+
+        {/* Private intelligence */}
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-semibold">Private intelligence (optional)</h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            This data is never shown to anyone. It enhances Docky&apos;s career advice accuracy for
+            you.
+          </p>
+
+          {/* Salary */}
+          <div className="mb-3 flex flex-col gap-1.5">
+            <Label>Salary</Label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="Amount"
+                value={salaryAmount}
+                onChange={(e) => setSalaryAmount(e.target.value)}
+                min={0}
+                className="flex-1"
+              />
+              <Select value={salaryCurrency} onValueChange={(v) => setSalaryCurrency(v)}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                  <SelectItem value="AED">AED</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={salaryPeriod}
+                onValueChange={(v) => setSalaryPeriod(v as 'monthly' | 'annually')}
+              >
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">per month</SelectItem>
+                  <SelectItem value="annually">per year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Verified sea time */}
+          <div className="flex flex-col gap-1.5">
+            <Label>Verified sea time</Label>
+            <p className="text-[11px] text-muted-foreground">
+              Engineering Officer routes require days. Deck Officer routes require nautical miles.
+            </p>
+            <div className="flex gap-3">
+              <div className="flex flex-1 flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Days at sea</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={seaTimeDays}
+                  onChange={(e) => setSeaTimeDays(e.target.value)}
+                  min={0}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Nautical miles</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={seaTimeNauticalMiles}
+                  onChange={(e) => setSeaTimeNauticalMiles(e.target.value)}
+                  min={0}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Submit */}

@@ -30,6 +30,7 @@ interface PublicVesselRow {
   imo_number: string | null;
   name: string;
   vessel_type: string;
+  loa_meters: number | null;
   size_band_id: string;
   size_band_label: string | null;
   nda_flag: boolean;
@@ -177,6 +178,7 @@ export async function GET(request: Request) {
               name: vessel.name,
               nda_flag: vessel.nda_flag,
               vessel_type: vessel.vessel_type,
+              loa_meters: vessel.loa_meters,
               size_band_id: vessel.size_band_id,
               vessel_size_bands: vessel.size_band_label ? { label: vessel.size_band_label } : null,
             }

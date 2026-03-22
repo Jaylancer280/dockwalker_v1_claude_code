@@ -35,6 +35,7 @@ interface PublicVesselRow {
   id: string;
   name: string;
   vessel_type: string;
+  loa_meters: number | null;
   size_band_label: string | null;
   nda_flag: boolean;
 }
@@ -141,6 +142,7 @@ export async function GET() {
               experience_label: app.dayworks.experience_brackets?.label ?? null,
               vessel_name: vessel?.nda_flag ? 'NDA Vessel' : (vessel?.name ?? null),
               vessel_type: vessel?.vessel_type ?? null,
+              vessel_loa: vessel?.loa_meters ?? null,
               vessel_size_label: vessel?.size_band_label ?? null,
               permanent_opportunity: app.dayworks?.permanent_opportunity ?? false,
             }

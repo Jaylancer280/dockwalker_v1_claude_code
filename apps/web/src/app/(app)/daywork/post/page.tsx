@@ -82,6 +82,7 @@ function DayworkPostForm() {
 
   // Form fields
   const [vesselId, setVesselId] = useState('');
+  const [vesselNda, setVesselNda] = useState(false);
   const [roleId, setRoleId] = useState('');
   const [locationPortId, setLocationPortId] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -357,6 +358,7 @@ function DayworkPostForm() {
           <VesselSelector
             value={vesselId}
             onValueChange={setVesselId}
+            onNdaChange={setVesselNda}
             onRequestCreate={() => router.push('/vessels')}
           />
         </div>
@@ -571,6 +573,13 @@ function DayworkPostForm() {
             <DialogDescription>
               This will publish your daywork listing and make it visible to crew. You can cancel the
               posting later if needed.
+              {vesselNda && (
+                <>
+                  <br />
+                  <br />
+                  This is an NDA vessel — details will be revealed to crew on acceptance.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

@@ -91,6 +91,8 @@ export async function POST(request: Request) {
       salaryAmount,
       salaryCurrency,
       salaryPeriod,
+      seaTimeDays,
+      seaTimeNauticalMiles,
       contractType,
       contractDetails,
       description,
@@ -207,6 +209,9 @@ export async function POST(request: Request) {
         salary_amount: salaryAmount ?? null,
         salary_currency: salaryCurrency ?? null,
         salary_period: salaryPeriod ?? null,
+        sea_time_days: seaTimeDays != null ? Math.max(0, Math.round(seaTimeDays)) : null,
+        sea_time_nautical_miles:
+          seaTimeNauticalMiles != null ? Math.max(0, Math.round(seaTimeNauticalMiles)) : null,
         contract_type: contractType ?? null,
         contract_details: contractDetails ?? null,
         description: description ?? null,

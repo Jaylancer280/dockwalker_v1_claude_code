@@ -106,9 +106,11 @@ export function PermanentJobCard({
       <div className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
         <Ship className="h-3.5 w-3.5" />
         <span>{vesselDisplay}</span>
-        {posting.vessel_size_label && (
+        {posting.vessel_loa ? (
+          <span className="text-xs">({posting.vessel_loa}m)</span>
+        ) : posting.vessel_size_label ? (
           <span className="text-xs">({posting.vessel_size_label})</span>
-        )}
+        ) : null}
       </div>
 
       {/* Location */}

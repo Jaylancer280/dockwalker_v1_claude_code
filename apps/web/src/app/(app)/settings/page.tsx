@@ -195,14 +195,14 @@ export default function SettingsPage() {
     const result = await safeFetch('/api/account/deactivate', { method: 'POST' });
     if (result.ok) {
       await supabase.auth.signOut();
-      router.push('/auth/login');
+      router.push('/');
     }
     setDeleting(false);
   }
 
   async function handleSignOut() {
     await supabase.auth.signOut();
-    router.push('/auth/login');
+    router.push('/');
   }
 
   if (loading) {

@@ -66,6 +66,15 @@ export default function EditExperiencePage() {
   const [contractDetails, setContractDetails] = useState('');
   const [description, setDescription] = useState('');
 
+  // Private intelligence fields (write-only — GET never returns these)
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [salaryPeriod, setSalaryPeriod] = useState<'monthly' | 'annually'>('monthly');
+  const [salaryCurrency, setSalaryCurrency] = useState(
+    () => (typeof window !== 'undefined' && localStorage.getItem('dw-currency-pref')) || 'EUR',
+  );
+  const [seaTimeDays, setSeaTimeDays] = useState('');
+  const [seaTimeNauticalMiles, setSeaTimeNauticalMiles] = useState('');
+
   const loadData = useCallback(async () => {
     try {
       const supabase = createClient();
@@ -133,6 +142,11 @@ export default function EditExperiencePage() {
         isCurrent,
         vesselOperation: expVesselOperation,
         flagState: flagState || null,
+        salaryAmount: salaryAmount ? Number(salaryAmount) : null,
+        salaryCurrency: salaryAmount ? salaryCurrency : null,
+        salaryPeriod: salaryAmount ? salaryPeriod : null,
+        seaTimeDays: seaTimeDays ? Number(seaTimeDays) : null,
+        seaTimeNauticalMiles: seaTimeNauticalMiles ? Number(seaTimeNauticalMiles) : null,
         contractType: contractType || null,
         contractDetails: contractDetails || null,
         description: description || null,
@@ -375,6 +389,81 @@ export default function EditExperiencePage() {
             maxLength={250}
             rows={3}
           />
+        </div>
+
+        {/* Private intelligence */}
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-semibold">Private intelligence (optional)</h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            This data is never shown to anyone. It enhances Docky&apos;s career advice accuracy for
+            you. Previously entered data is stored securely and cannot be retrieved.
+          </p>
+
+          <div className="mb-3 flex flex-col gap-1.5">
+            <Label>Salary</Label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="Amount"
+                value={salaryAmount}
+                onChange={(e) => setSalaryAmount(e.target.value)}
+                min={0}
+                className="flex-1"
+              />
+              <Select value={salaryCurrency} onValueChange={(v) => setSalaryCurrency(v)}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="GBP">GBP</SelectItem>
+                  <SelectItem value="AED">AED</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={salaryPeriod}
+                onValueChange={(v) => setSalaryPeriod(v as 'monthly' | 'annually')}
+              >
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">per month</SelectItem>
+                  <SelectItem value="annually">per year</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Verified sea time</Label>
+            <p className="text-[11px] text-muted-foreground">
+              Engineering Officer routes require days. Deck Officer routes require nautical miles.
+            </p>
+            <div className="flex gap-3">
+              <div className="flex flex-1 flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Days at sea</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={seaTimeDays}
+                  onChange={(e) => setSeaTimeDays(e.target.value)}
+                  min={0}
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Nautical miles</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={seaTimeNauticalMiles}
+                  onChange={(e) => setSeaTimeNauticalMiles(e.target.value)}
+                  min={0}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Error */}

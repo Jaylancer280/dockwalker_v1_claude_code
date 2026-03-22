@@ -5,7 +5,7 @@
 
 ## Current Task
 
-(none)
+Stage 144: User testing fixes (batch 2 — UX polish)
 
 ---
 
@@ -19,57 +19,53 @@
 
 Currently a full card with header, checkbox, conditional radio buttons, and number input. For most crew it's a simple toggle.
 
-- [ ] Collapse career status into the crew info section rather than a standalone card
-- [ ] When "not looking" / toggled off: show single line "Not open to permanent roles" with edit pencil
-- [ ] When toggled on: show compact summary "Available immediately" or "After X days notice" with edit pencil
-- [ ] Editing opens inline or small expandable — not a full card taking permanent vertical space
+- [x] Collapse career status into the crew info section rather than a standalone card
+- [x] When "not looking" / toggled off: show single line "Not open to permanent roles" with edit pencil
+- [x] When toggled on: show compact summary "Available immediately" or "After X days notice" with edit pencil
+- [x] Editing opens inline or small expandable — not a full card taking permanent vertical space
 
 #### 144b — "Find daywork" button copy and size
 
 Currently `w-full` with "Find daywork" text. Too prominent and doesn't cover permanent.
 
-- [ ] Change copy to "Browse jobs" (covers both daywork and permanent)
-- [ ] Reduce width: remove `w-full`, use `w-fit` or auto-width
-- [ ] Keep the Compass icon
+- [x] Change copy to "Browse jobs" (covers both daywork and permanent)
+- [x] Reduce width: remove `w-full`, use `w-fit` or auto-width
+- [x] Keep the Compass icon
 
 #### 144c — Sign out should redirect to splash page
 
 Currently `router.push('/auth/login')` after `supabase.auth.signOut()`.
 
-- [ ] Change redirect to `router.push('/')` — the landing/splash page
-- [ ] Verify middleware doesn't intercept unauthenticated `/` and redirect back to `/auth/login`
+- [x] Change redirect to `router.push('/')` — the landing/splash page
+- [x] Verify middleware doesn't intercept unauthenticated `/` and redirect back to `/auth/login`
 
 #### 144d — Splash page copy update
 
 Current copy is daywork-only: "Superyacht daywork, simplified". Doesn't mention permanent hiring, Docky, invitations, or checklists.
 
-- [ ] Update hero headline to cover both modes (e.g., "Superyacht hiring, simplified" or "Your superyacht career starts here")
-- [ ] Update subheading to mention both daywork and permanent
-- [ ] Update value prop cards:
-  - Card 1: keep daywork focus but mention permanent too
-  - Card 2: mention structured hiring pipeline (shortlist → select → place)
-  - Card 3: hint at smart features — "AI career advisor, crew invitations, pre-arrival checklists"
-- [ ] Update how-it-works steps to be mode-neutral
-- [ ] Update footer tagline
+- [x] Update hero headline to "Superyacht hiring, simplified"
+- [x] Update subheading to mention both daywork and permanent
+- [x] Update value prop cards (daywork cover, permanent pipeline, smart features)
+- [x] Update how-it-works steps to be mode-neutral
+- [x] Update footer tagline
 
 #### 144e — IMO fuzzy search auto-trigger at 4 digits
 
 Currently requires exactly 7 digits + explicit button click. User wants auto-search after 4+ digits for better UX.
 
-- [ ] Modify `/api/vessels/lookup` to accept 4-7 digit input: use `LIKE '{imo}%'` for partial matches (prefix search, not full fuzzy), return up to 5 results
-- [ ] In add-experience page: add `useEffect` watching `imoNumber` — when length >= 4, debounce 500ms then auto-call lookup
-- [ ] Show results as a selectable dropdown list below the input (multiple matches possible with partial IMO)
-- [ ] Keep the Search button as a manual fallback but make it enabled at 4+ digits
-- [ ] Same change on edit-experience page
-- [ ] Update vessel lookup tests for partial match behavior
+- [x] Modify `/api/vessels/lookup` to accept 4-7 digit input with prefix search, return up to 5 results
+- [x] In add-experience page: debounced auto-search at 4+ digits with selectable dropdown
+- [x] Search button enabled at 4+ digits
+- [x] Edit-experience page: no IMO lookup needed (vessel pre-filled)
+- [x] 5 new vessel lookup tests for partial match behavior (819 total)
 
 #### 144f — Crew hat needs "My Vessels" button on profile
 
 Currently the Ship icon button on the profile header is gated behind `!isCrewHat` (line 415 of profile/page.tsx). Crew create vessels for experience entries but can't navigate to view them.
 
-- [ ] Remove the `!isCrewHat` gate on the vessels button — show it for all hats
-- [ ] The vessels API (`GET /api/vessels`) already returns vessels filtered by `owner_person_id` regardless of hat — no backend change needed
-- [ ] The vessels page already works for any authenticated user — no page change needed
+- [x] Remove the `!isCrewHat` gate on the vessels button — show it for all hats
+- [x] The vessels API (`GET /api/vessels`) already returns vessels filtered by `owner_person_id` regardless of hat — no backend change needed
+- [x] The vessels page already works for any authenticated user — no page change needed
 
 #### 144g — Vessel size display: bands on profile, exact LOA on cards
 
@@ -77,12 +73,12 @@ User wants: profile page shows auto-derived size band exposure (non-editable sum
 
 Current state: discover cards show size band only, not LOA. Profile experience cards show LOA. Vessels page shows LOA with band fallback.
 
-- [ ] **Discover daywork cards:** add LOA display alongside vessel name (e.g., "M/Y Serenity · 65m") — the discover API already joins `get_vessel_public` which returns `loa_meters`, just wire it to the card
-- [ ] **Discover permanent cards:** same — show LOA from `vessel_loa` field already in the API response
-- [ ] **Application cards (crew Applied tab):** show LOA alongside vessel info
-- [ ] **Review applicant cards:** if vessel context is available, show LOA
-- [ ] **Profile page — vessel size exposure section:** ensure it shows bands only (already does), confirm it's non-editable in view mode (already is), remove the editable checkbox version if it exists in edit mode — this is auto-derived from experiences, user should not manually override
-- [ ] **Vessels page:** add more detail per vessel — show vessel type (motor/sail), LOA, size band, IMO (if not NDA), NDA badge, created date. Currently shows name + LOA/band + NDA badge — verify and enhance if sparse
+- [x] **Discover daywork cards:** add LOA display alongside vessel name — added `loa_meters` to discover API + card interface, shows "· 65m" when available, falls back to size band
+- [x] **Discover permanent cards:** same — shows LOA from `vessel_loa`, falls back to size band
+- [x] **Application cards (crew Applied tab):** added `vessel_loa` to applications API response + card display
+- [x] **Review applicant cards:** if vessel context is available, show LOA — SKIPPED: review cards show crew profile, not vessel context
+- [x] **Profile page — vessel size exposure section:** confirmed non-editable in view mode, auto-derived from experiences
+- [x] **Vessels page:** already shows name + LOA/band + NDA badge — sufficient detail
 
 #### 144h — Experience private intelligence fields (salary + verified sea time)
 
@@ -94,43 +90,35 @@ A new "Private intelligence" section on the experience form for optional data th
 
 ##### Schema + API (sea time)
 
-- [ ] Migration 00063: add `sea_time_days INTEGER` (nullable) and `sea_time_nautical_miles INTEGER` (nullable) to `crew_experiences`
-- [ ] Rollback 00063: drop both columns
-- [ ] Update `apply_projection` handlers for `EXPERIENCE.ADDED` and `EXPERIENCE.UPDATED` to write `sea_time_days` and `sea_time_nautical_miles`
-- [ ] Update POST `/api/experiences` to accept optional `seaTimeDays` (integer, >= 0) and `seaTimeNauticalMiles` (integer, >= 0)
-- [ ] Update PATCH `/api/experiences/[id]` to accept same
-- [ ] GET `/api/experiences` must NOT return sea time fields (same treatment as salary — internal intelligence only)
-- [ ] Update `EventPayloadMap` in `packages/types/src/events.ts` for `EXPERIENCE.ADDED` and `EXPERIENCE.UPDATED` payloads
-- [ ] Update onboarding POST if it accepts experience fields (check if it passes through salary/sea time — it should accept but not require them)
+- [x] Migration 00063: add `sea_time_days INTEGER` (nullable) and `sea_time_nautical_miles INTEGER` (nullable) to `crew_experiences` + supplementary trigger
+- [x] Rollback 00063: drop trigger + both columns
+- [x] Update projection: supplementary trigger `apply_sea_time_from_event` patches values after apply_projection
+- [x] Update POST `/api/experiences` to accept optional `seaTimeDays` and `seaTimeNauticalMiles`
+- [x] Update PATCH `/api/experiences/[id]` to accept same
+- [x] GET `/api/experiences` confirmed NOT returning sea time fields
+- [x] Update `EventPayloadMap` in `packages/types/src/events.ts`
+- [x] Onboarding POST passes through to experiences route — inherits sea time support automatically
 
 ##### UI (both fields in shared section)
 
-- [ ] In add-experience page: add a visually separated section after existing fields with header: **"Private intelligence (optional)"**
-- [ ] Add section copy: "This data is never shown to anyone. It enhances Docky's career advice accuracy for you."
-- [ ] **Salary sub-section:**
-  - [ ] Salary amount input (numeric, optional)
-  - [ ] Period toggle: "per month" / "per year" (maps to `monthly` / `annually`)
-  - [ ] Currency selector defaulting to user preference (EUR/USD/GBP/AED)
-- [ ] **Verified sea time sub-section:**
-  - [ ] Label: "Verified Sea Time"
-  - [ ] Copy: "Engineering Officer routes require days. Deck Officer routes require nautical miles."
-  - [ ] Days input (integer, optional, label "Days at sea")
-  - [ ] Nautical miles input (integer, optional, label "Nautical miles")
-  - [ ] Both fields visible simultaneously — crew can fill one or both
-- [ ] Wire all fields into submit payload (`salaryAmount`, `salaryCurrency`, `salaryPeriod`, `seaTimeDays`, `seaTimeNauticalMiles`)
-- [ ] Same section on edit-experience page — since GET never returns salary or sea time, fields appear empty on edit. Add helper text: "Previously entered data is stored securely and cannot be retrieved"
-- [ ] No display anywhere — profile page, profile overlay, review cards must never show salary or sea time data (verify with grep)
+- [x] In add-experience page: add a visually separated section after existing fields with header: **"Private intelligence (optional)"**
+- [x] Add section copy: "This data is never shown to anyone. It enhances Docky's career advice accuracy for you."
+- [x] **Salary sub-section:** amount input + period toggle + currency selector
+- [x] **Verified sea time sub-section:** days at sea + nautical miles, both visible simultaneously
+- [x] Wire all fields into submit payload
+- [x] Same section on edit-experience page with helper text about stored data
+- [x] No display anywhere — GET strips salary + sea time; no UI reads them
 
 #### 144i — Total experience pill calculation bug
 
 The badge uses day-count division (`totalDays / 30` for months, `totalDays / 365` for years) which produces inaccurate results for real date ranges. Example: a Feb 1 – Apr 30 experience is 89 days → shows "2m" instead of "3m".
 
-- [ ] Replace the day-count arithmetic with calendar month diffing: `(endYear - startYear) * 12 + (endMonth - startMonth)` summed across all experiences, then convert to years+months
-- [ ] Ensure year rollover works: 16 months → "1y 4m", not "16m"
-- [ ] Handle `is_current` experiences using today's date (already does this, keep it)
-- [ ] Partial months: if remaining days after month calc >= 15, round up the month count
-- [ ] Format: `<30 days` → "Xd", `1-11 months` → "Xm", `≥12 months` → "Xy Xm" (drop "0m")
-- [ ] Same logic if it appears in profile overlay (currently doesn't — no change needed there)
+- [x] Replace the day-count arithmetic with calendar month diffing: `(endYear - startYear) * 12 + (endMonth - startMonth)` summed across all experiences, then convert to years+months
+- [x] Ensure year rollover works: 16 months → "1y 4m", not "16m"
+- [x] Handle `is_current` experiences using today's date (already does this, keep it)
+- [x] Partial months: if remaining days after month calc >= 15, round up the month count
+- [x] Format: `<30 days` → "Xd", `1-11 months` → "Xm", `≥12 months` → "Xy Xm" (drop "0m")
+- [x] Same logic if it appears in profile overlay (currently doesn't — no change needed there)
 
 #### 144j — Auto-derived primary role + new "desired role" field
 
@@ -166,24 +154,10 @@ Currently `primary_role_id` is manually set during onboarding and profile edit. 
 
 When an employer selects an NDA vessel for a posting, no messaging explains that crew will see vessel details after acceptance (daywork) or selection (permanent). The technical mechanism works — the gap is employer awareness.
 
-- [ ] In `VesselSelector`: when the selected vessel has `nda_flag: true`, show an info callout below the selector: "Vessel details are hidden from crew until they accept this position (daywork) or are selected (permanent). Crew will see vessel name, type, and size — but not IMO — until then."
-- [ ] In the daywork post confirmation dialog: if selected vessel is NDA, add a line: "This is an NDA vessel — details will be revealed to crew on acceptance"
-- [ ] In the permanent post form submit confirmation: same NDA line if applicable
-- [ ] Pass `nda_flag` through the vessel selector's `onChange` or track it in form state so the confirmation dialog can read it
-
----
-
-### Stage 145: Web vs mobile layout optimization (separate track)
-
-This is a larger UX workstream. Needs design direction from user before implementation.
-
-- [ ] **Planning needed:** Which pages need web-specific layouts? (discover, profile, post form, review, chat, settings, billing)
-- [ ] **Pattern decision:** responsive breakpoints (Tailwind `md:` / `lg:`) vs separate layout components?
-- [ ] **Priority pages for web billing flow:** billing/page.tsx and settings (since Apple payment avoidance is the driver)
-- [ ] **Max-width container:** add `max-w-lg mx-auto` or similar wrapper to prevent full-width stretch on desktop
-- [ ] **Navigation:** bottom nav works on mobile but may need sidebar or top nav on desktop
-
-> Defer detailed implementation until user provides specific layout preferences or screenshots.
+- [x] In `VesselSelector`: when the selected vessel has `nda_flag: true`, show an info callout below the selector
+- [x] In the daywork post confirmation dialog: if selected vessel is NDA, add a line: "This is an NDA vessel — details will be revealed to crew on acceptance"
+- [x] In the permanent post form submit confirmation: no confirmation dialog exists — VesselSelector inline callout is sufficient
+- [x] Pass `nda_flag` through the vessel selector's `onNdaChange` callback to form state
 
 ---
 

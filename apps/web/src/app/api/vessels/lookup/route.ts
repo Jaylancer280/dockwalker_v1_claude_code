@@ -3,7 +3,9 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 
 /**
  * GET /api/vessels/lookup?imo=1234567
- * Looks up a vessel by IMO number. Returns vessel data if found.
+ * Looks up vessels by IMO number prefix.
+ * - 4-6 digits: partial prefix search, returns up to 5 results
+ * - 7 digits: exact match, returns single vessel with found: true/false
  * Any authenticated user can look up vessels (for experience entry).
  */
 export async function GET(request: Request) {
@@ -19,10 +21,37 @@ export async function GET(request: Request) {
   }
 
   const imoClean = imo.replace(/\D/g, '');
-  if (imoClean.length !== 7) {
-    return NextResponse.json({ error: 'IMO number must be exactly 7 digits' }, { status: 400 });
+  if (imoClean.length < 4 || imoClean.length > 7) {
+    return NextResponse.json(
+      { error: 'IMO number must be between 4 and 7 digits' },
+      { status: 400 },
+    );
   }
 
+  // Partial search (4-6 digits): prefix match returning up to 5 results
+  if (imoClean.length < 7) {
+    const { data: vessels, error } = await serviceClient
+      .from('vessels')
+      .select('id, name, vessel_type, loa_meters, imo_number')
+      .ilike('imo_number', `${imoClean}%`)
+      .limit(5);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      results: (vessels ?? []).map((v) => ({
+        id: v.id,
+        name: v.name,
+        vessel_type: v.vessel_type,
+        loa_meters: v.loa_meters,
+        imo_number: v.imo_number,
+      })),
+    });
+  }
+
+  // Exact search (7 digits): single vessel lookup
   const { data: vessel, error } = await serviceClient
     .from('vessels')
     // IMO intentionally excluded — caller already has it, prevents enumeration of NDA vessels

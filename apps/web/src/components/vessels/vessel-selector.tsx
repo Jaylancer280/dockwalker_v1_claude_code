@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Ship, Plus } from 'lucide-react';
+import { Ship, Plus, Info } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -21,6 +21,7 @@ interface VesselOption {
 interface VesselSelectorProps {
   value: string;
   onValueChange: (vesselId: string) => void;
+  onNdaChange?: (isNda: boolean) => void;
   onRequestCreate?: () => void;
 }
 
@@ -29,7 +30,12 @@ interface VesselSelectorProps {
  * Loads the current user's vessels and allows selection.
  * Optionally shows a "Create new" action.
  */
-export function VesselSelector({ value, onValueChange, onRequestCreate }: VesselSelectorProps) {
+export function VesselSelector({
+  value,
+  onValueChange,
+  onNdaChange,
+  onRequestCreate,
+}: VesselSelectorProps) {
   const [vessels, setVessels] = useState<VesselOption[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -75,34 +81,55 @@ export function VesselSelector({ value, onValueChange, onRequestCreate }: Vessel
     );
   }
 
+  const selectedVessel = vessels.find((v) => v.id === value);
+
   return (
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger>
-        <SelectValue placeholder="Select vessel" />
-      </SelectTrigger>
-      <SelectContent>
-        {vessels.map((vessel) => (
-          <SelectItem key={vessel.id} value={vessel.id}>
-            <span className="flex items-center gap-2">
-              <Ship className="h-3.5 w-3.5 text-muted-foreground" />
-              {vessel.nda_flag ? 'NDA Vessel' : vessel.name}
-              <span className="text-xs text-muted-foreground">
-                {vessel.nda_flag ? '' : `IMO ${vessel.imo_number}`}
+    <div className="flex flex-col gap-2">
+      <Select
+        value={value}
+        onValueChange={(id) => {
+          onValueChange(id);
+          const v = vessels.find((vsl) => vsl.id === id);
+          onNdaChange?.(v?.nda_flag ?? false);
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Select vessel" />
+        </SelectTrigger>
+        <SelectContent>
+          {vessels.map((vessel) => (
+            <SelectItem key={vessel.id} value={vessel.id}>
+              <span className="flex items-center gap-2">
+                <Ship className="h-3.5 w-3.5 text-muted-foreground" />
+                {vessel.nda_flag ? 'NDA Vessel' : vessel.name}
+                <span className="text-xs text-muted-foreground">
+                  {vessel.nda_flag ? '' : `IMO ${vessel.imo_number}`}
+                </span>
               </span>
-            </span>
-          </SelectItem>
-        ))}
-        {onRequestCreate && (
-          <button
-            type="button"
-            onClick={onRequestCreate}
-            className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add new vessel
-          </button>
-        )}
-      </SelectContent>
-    </Select>
+            </SelectItem>
+          ))}
+          {onRequestCreate && (
+            <button
+              type="button"
+              onClick={onRequestCreate}
+              className="flex w-full items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add new vessel
+            </button>
+          )}
+        </SelectContent>
+      </Select>
+      {selectedVessel?.nda_flag && (
+        <div className="flex gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            Vessel details are hidden from crew until they accept this position (daywork) or are
+            selected (permanent). Crew will see vessel name, type, and size — but not IMO — until
+            then.
+          </span>
+        </div>
+      )}
+    </div>
   );
 }

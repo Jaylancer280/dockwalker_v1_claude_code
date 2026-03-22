@@ -50,6 +50,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       salaryAmount,
       salaryCurrency,
       salaryPeriod,
+      seaTimeDays,
+      seaTimeNauticalMiles,
       contractType,
       contractDetails,
       description,
@@ -162,6 +164,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (salaryAmount !== undefined) payload.salary_amount = salaryAmount;
     if (salaryCurrency !== undefined) payload.salary_currency = salaryCurrency;
     if (salaryPeriod !== undefined) payload.salary_period = salaryPeriod;
+    if (seaTimeDays !== undefined)
+      payload.sea_time_days = seaTimeDays != null ? Math.max(0, Math.round(seaTimeDays)) : null;
+    if (seaTimeNauticalMiles !== undefined)
+      payload.sea_time_nautical_miles =
+        seaTimeNauticalMiles != null ? Math.max(0, Math.round(seaTimeNauticalMiles)) : null;
     if (contractType !== undefined) payload.contract_type = contractType;
     if (contractDetails !== undefined) payload.contract_details = contractDetails;
     if (description !== undefined) payload.description = description;

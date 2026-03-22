@@ -326,6 +326,8 @@ export interface EventPayloadMap {
     salary_amount: number | null;
     salary_currency: 'EUR' | 'USD' | 'GBP' | 'AED' | null;
     salary_period: 'daily' | 'monthly' | 'annually' | null;
+    sea_time_days: number | null;
+    sea_time_nautical_miles: number | null;
     contract_type: 'permanent' | 'rotational' | 'seasonal' | 'crossing' | 'delivery' | 'temporary' | null;
     contract_details: string | null;
     description: string | null;
@@ -340,6 +342,8 @@ export interface EventPayloadMap {
     salary_amount?: number | null;
     salary_currency?: 'EUR' | 'USD' | 'GBP' | 'AED' | null;
     salary_period?: 'daily' | 'monthly' | 'annually' | null;
+    sea_time_days?: number | null;
+    sea_time_nautical_miles?: number | null;
     contract_type?: 'permanent' | 'rotational' | 'seasonal' | 'crossing' | 'delivery' | 'temporary' | null;
     contract_details?: string | null;
     description?: string | null;

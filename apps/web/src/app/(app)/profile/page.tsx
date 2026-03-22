@@ -153,6 +153,7 @@ export default function ProfilePage() {
   const [noticeDays, setNoticeDays] = useState<number | null>(null);
   const [employed, setEmployed] = useState(false);
   const [savingCareer, setSavingCareer] = useState(false);
+  const [editingCareer, setEditingCareer] = useState(false);
 
   // Edit form state
   const [displayName, setDisplayName] = useState('');
@@ -412,7 +413,7 @@ export default function ProfilePage() {
             <NotificationBell />
           </div>
           <div className="flex items-center gap-1">
-            {!editing && !isCrewHat && (
+            {!editing && (
               <Button variant="ghost" size="icon" onClick={() => router.push('/vessels')}>
                 <Ship className="h-4 w-4" />
               </Button>
@@ -488,13 +489,13 @@ export default function ProfilePage() {
         {!editing && (
           <Button
             variant="outline"
-            className="w-full gap-2"
+            className="w-fit gap-2"
             onClick={() => router.push(isCrewHat ? '/discover' : '/daywork/mine')}
           >
             {isCrewHat ? (
               <>
                 <Compass className="h-4 w-4" />
-                Find daywork
+                Browse jobs
               </>
             ) : (
               <>
@@ -560,136 +561,6 @@ export default function ProfilePage() {
           </button>
         )}
 
-        {/* Career status — crew hat only, view mode only */}
-        {profile.identity_type === 'crew' && isCrewHat && !editing && (
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Career status</h3>
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={permAvail !== null}
-                  onChange={async (e) => {
-                    const val = e.target.checked ? 'immediate' : null;
-                    setPermAvail(val);
-                    setSavingCareer(true);
-                    const result = await safeFetch('/api/profile', {
-                      method: 'PATCH',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        permanentAvailability: val,
-                        noticePeriodDays: val === null ? null : noticeDays,
-                        currentlyEmployed: val === null ? false : employed,
-                      }),
-                    });
-                    if (result.ok) showSuccess('Career status updated');
-                    else showError('Failed to update');
-                    setSavingCareer(false);
-                  }}
-                  className="h-4 w-4 rounded border-border"
-                />
-                <span className="text-sm">Open to permanent opportunities</span>
-              </label>
-
-              {permAvail !== null && (
-                <>
-                  <div className="ml-6 space-y-2">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="permAvail"
-                        checked={permAvail === 'immediate'}
-                        onChange={async () => {
-                          setPermAvail('immediate');
-                          setSavingCareer(true);
-                          const result = await safeFetch('/api/profile', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ permanentAvailability: 'immediate' }),
-                          });
-                          if (result.ok) showSuccess('Updated');
-                          else showError('Failed');
-                          setSavingCareer(false);
-                        }}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">Available immediately</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="permAvail"
-                        checked={permAvail === 'after_notice'}
-                        onChange={async () => {
-                          setPermAvail('after_notice');
-                          setSavingCareer(true);
-                          const result = await safeFetch('/api/profile', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              permanentAvailability: 'after_notice',
-                              noticePeriodDays: noticeDays || 30,
-                            }),
-                          });
-                          if (result.ok) {
-                            showSuccess('Updated');
-                            if (!noticeDays) setNoticeDays(30);
-                          } else showError('Failed');
-                          setSavingCareer(false);
-                        }}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm">After notice period</span>
-                    </label>
-                    {permAvail === 'after_notice' && (
-                      <div className="ml-6 flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={noticeDays ?? ''}
-                          onChange={(e) => setNoticeDays(parseInt(e.target.value, 10) || null)}
-                          onBlur={async () => {
-                            if (noticeDays && noticeDays > 0) {
-                              const result = await safeFetch('/api/profile', {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ noticePeriodDays: noticeDays }),
-                              });
-                              if (result.ok) showSuccess('Updated');
-                            }
-                          }}
-                          className="w-20 rounded border bg-background px-2 py-1 text-sm"
-                          min={1}
-                        />
-                        <span className="text-xs text-muted-foreground">days</span>
-                      </div>
-                    )}
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={employed}
-                        onChange={async (e) => {
-                          setEmployed(e.target.checked);
-                          const result = await safeFetch('/api/profile', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ currentlyEmployed: e.target.checked }),
-                          });
-                          if (result.ok) showSuccess('Updated');
-                        }}
-                        className="h-4 w-4 rounded border-border"
-                      />
-                      <span className="text-sm">Currently employed</span>
-                    </label>
-                  </div>
-                </>
-              )}
-              {savingCareer && <p className="text-xs text-muted-foreground">Saving...</p>}
-            </div>
-          </div>
-        )}
-
         <Separator />
 
         {/* Crew-specific fields */}
@@ -713,6 +584,164 @@ export default function ProfilePage() {
                 <p className="text-sm font-medium">
                   {profile.ports.name}, {profile.ports.cities?.name}
                 </p>
+              </div>
+            )}
+            {/* Career status — compact inline */}
+            {isCrewHat && (
+              <div>
+                <p className="text-xs text-muted-foreground">Career status</p>
+                {!editingCareer ? (
+                  <div className="flex items-center gap-1.5">
+                    {permAvail === 'immediate' ? (
+                      <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                        Available immediately
+                      </p>
+                    ) : permAvail === 'after_notice' ? (
+                      <p className="text-sm font-medium">
+                        Available after {noticeDays ?? 30} days notice
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Not open to permanent roles</p>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => setEditingCareer(true)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-1 space-y-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={permAvail !== null}
+                        onChange={async (e) => {
+                          const val = e.target.checked ? 'immediate' : null;
+                          setPermAvail(val);
+                          setSavingCareer(true);
+                          const result = await safeFetch('/api/profile', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              permanentAvailability: val,
+                              noticePeriodDays: val === null ? null : noticeDays,
+                              currentlyEmployed: val === null ? false : employed,
+                            }),
+                          });
+                          if (result.ok) showSuccess('Career status updated');
+                          else showError('Failed to update');
+                          setSavingCareer(false);
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <span className="text-sm">Open to permanent opportunities</span>
+                    </label>
+
+                    {permAvail !== null && (
+                      <div className="ml-6 space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="permAvail"
+                            checked={permAvail === 'immediate'}
+                            onChange={async () => {
+                              setPermAvail('immediate');
+                              setSavingCareer(true);
+                              const result = await safeFetch('/api/profile', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ permanentAvailability: 'immediate' }),
+                              });
+                              if (result.ok) showSuccess('Updated');
+                              else showError('Failed');
+                              setSavingCareer(false);
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm">Available immediately</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="permAvail"
+                            checked={permAvail === 'after_notice'}
+                            onChange={async () => {
+                              setPermAvail('after_notice');
+                              setSavingCareer(true);
+                              const result = await safeFetch('/api/profile', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  permanentAvailability: 'after_notice',
+                                  noticePeriodDays: noticeDays || 30,
+                                }),
+                              });
+                              if (result.ok) {
+                                showSuccess('Updated');
+                                if (!noticeDays) setNoticeDays(30);
+                              } else showError('Failed');
+                              setSavingCareer(false);
+                            }}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-sm">After notice period</span>
+                        </label>
+                        {permAvail === 'after_notice' && (
+                          <div className="ml-6 flex items-center gap-2">
+                            <input
+                              type="number"
+                              value={noticeDays ?? ''}
+                              onChange={(e) => setNoticeDays(parseInt(e.target.value, 10) || null)}
+                              onBlur={async () => {
+                                if (noticeDays && noticeDays > 0) {
+                                  const result = await safeFetch('/api/profile', {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ noticePeriodDays: noticeDays }),
+                                  });
+                                  if (result.ok) showSuccess('Updated');
+                                }
+                              }}
+                              className="w-20 rounded border bg-background px-2 py-1 text-sm"
+                              min={1}
+                            />
+                            <span className="text-xs text-muted-foreground">days</span>
+                          </div>
+                        )}
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={employed}
+                            onChange={async (e) => {
+                              setEmployed(e.target.checked);
+                              const result = await safeFetch('/api/profile', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ currentlyEmployed: e.target.checked }),
+                              });
+                              if (result.ok) showSuccess('Updated');
+                            }}
+                            className="h-4 w-4 rounded border-border"
+                          />
+                          <span className="text-sm">Currently employed</span>
+                        </label>
+                      </div>
+                    )}
+                    {savingCareer && <p className="text-xs text-muted-foreground">Saving...</p>}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1"
+                      onClick={() => setEditingCareer(false)}
+                    >
+                      <Check className="mr-1 h-3.5 w-3.5" />
+                      Done
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
             {profile.bio && (
@@ -788,28 +817,47 @@ export default function ProfilePage() {
                   <Badge variant="secondary" className="text-[10px]">
                     {(() => {
                       const now = new Date();
-                      const totalDays = experiences.reduce((sum, exp) => {
+                      let totalMonths = 0;
+                      let remainDays = 0;
+                      for (const exp of experiences) {
                         const start = new Date(exp.start_date + 'T00:00:00');
                         const end = exp.is_current
                           ? now
                           : exp.end_date
                             ? new Date(exp.end_date + 'T00:00:00')
                             : start;
+                        const months =
+                          (end.getFullYear() - start.getFullYear()) * 12 +
+                          (end.getMonth() - start.getMonth());
+                        const dayDiff = end.getDate() - start.getDate();
+                        totalMonths += months;
+                        remainDays += dayDiff;
+                      }
+                      // Convert excess days to months (>= 15 days rounds up)
+                      totalMonths += Math.floor(remainDays / 30);
+                      remainDays = remainDays % 30;
+                      if (remainDays >= 15) totalMonths += 1;
+                      if (totalMonths < 0) totalMonths = 0;
+
+                      const totalDays = experiences.reduce((sum, exp) => {
+                        const s = new Date(exp.start_date + 'T00:00:00');
+                        const e = exp.is_current
+                          ? now
+                          : exp.end_date
+                            ? new Date(exp.end_date + 'T00:00:00')
+                            : s;
                         return (
-                          sum +
-                          Math.max(
-                            0,
-                            Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
-                          )
+                          sum + Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000))
                         );
                       }, 0);
-                      if (totalDays >= 365) {
-                        const years = Math.floor(totalDays / 365);
-                        const months = Math.floor((totalDays % 365) / 30);
+
+                      if (totalMonths >= 12) {
+                        const years = Math.floor(totalMonths / 12);
+                        const months = totalMonths % 12;
                         return months > 0 ? `${years}y ${months}m` : `${years}y`;
                       }
-                      if (totalDays >= 30) {
-                        return `${Math.floor(totalDays / 30)}m`;
+                      if (totalMonths >= 1) {
+                        return `${totalMonths}m`;
                       }
                       return `${totalDays}d`;
                     })()}{' '}

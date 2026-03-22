@@ -47,13 +47,102 @@ describe('GET /api/vessels/lookup', () => {
     expect(body.error).toContain('required');
   });
 
-  it('returns 400 when imo is not 7 digits', async () => {
+  it('returns 400 when imo is fewer than 4 digits', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=123'));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain('7 digits');
+    expect(body.error).toContain('between 4 and 7 digits');
+  });
+
+  it('returns 400 when imo is more than 7 digits', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=12345678'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('between 4 and 7 digits');
+  });
+
+  it('returns partial results for 4-digit IMO prefix', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const vessels = [
+      { id: 'v1', name: 'Alpha', vessel_type: 'motor', loa_meters: 40, imo_number: '1234567' },
+      { id: 'v2', name: 'Beta', vessel_type: 'sail', loa_meters: 30, imo_number: '1234890' },
+    ];
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        ilike: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data: vessels, error: null }),
+        }),
+      }),
+    });
+
+    const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=1234'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.results).toHaveLength(2);
+    expect(body.results[0].name).toBe('Alpha');
+    expect(body.results[0].imo_number).toBe('1234567');
+    expect(body.results[1].name).toBe('Beta');
+  });
+
+  it('returns empty results array for partial with no matches', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        ilike: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      }),
+    });
+
+    const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=9999'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.results).toEqual([]);
+  });
+
+  it('returns at most 5 results for partial search', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const mockLimit = vi.fn().mockResolvedValue({
+      data: Array.from({ length: 5 }, (_, i) => ({
+        id: `v${i}`,
+        name: `Vessel ${i}`,
+        vessel_type: 'motor',
+        loa_meters: 30 + i,
+        imo_number: `5678${i}00`,
+      })),
+      error: null,
+    });
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        ilike: vi.fn().mockReturnValue({
+          limit: mockLimit,
+        }),
+      }),
+    });
+
+    const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=5678'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.results).toHaveLength(5);
+    expect(mockLimit).toHaveBeenCalledWith(5);
+  });
+
+  it('returns 500 on partial search DB error', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        ilike: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
+        }),
+      }),
+    });
+
+    const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=1234'));
+    expect(res.status).toBe(500);
   });
 
   it('returns found: false when vessel not in DB', async () => {

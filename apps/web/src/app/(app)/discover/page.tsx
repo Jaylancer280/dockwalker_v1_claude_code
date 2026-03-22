@@ -74,6 +74,7 @@ interface DayworkCard {
     name: string;
     nda_flag: boolean;
     vessel_type: string;
+    loa_meters: number | null;
     vessel_size_bands: { label: string } | null;
   } | null;
   experience_brackets: { label: string } | null;
@@ -129,6 +130,7 @@ interface MyApplication {
     experience_label: string | null;
     vessel_name: string | null;
     vessel_type: string | null;
+    vessel_loa: number | null;
     vessel_size_label: string | null;
     positions_available: number | null;
     positions_filled: number | null;
@@ -1245,8 +1247,11 @@ function JobCard({
             {card.vessels?.nda_flag
               ? 'NDA Vessel'
               : `${card.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} ${card.vessels?.name ?? 'Unknown vessel'}`}
-            {card.vessels?.vessel_size_bands?.label &&
-              ` · ${convertSizeBandLabel(card.vessels.vessel_size_bands.label, lengthUnit)}`}
+            {card.vessels?.loa_meters
+              ? ` · ${card.vessels.loa_meters}m`
+              : card.vessels?.vessel_size_bands?.label
+                ? ` · ${convertSizeBandLabel(card.vessels.vessel_size_bands.label, lengthUnit)}`
+                : ''}
           </p>
         </div>
 
@@ -1391,7 +1396,11 @@ function ApplicationCard({
             <p className="text-sm text-muted-foreground">
               {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
               {dw.vessel_name ?? 'Unknown vessel'}
-              {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
+              {dw.vessel_loa
+                ? ` · ${dw.vessel_loa}m`
+                : dw.vessel_size_label
+                  ? ` · ${dw.vessel_size_label}`
+                  : ''}
             </p>
           </div>
           {dw.poster_person_id && (
