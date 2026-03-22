@@ -196,9 +196,11 @@
 - [Stage 143] User testing fixes batch 1 — (a) working days input dynamically clamped to calendar span with helper text; (b) replacement button already correct — skipped; (c) removed 3 unused STCW certs via migration 00062; (d) back button on notifications page; (e) 3 extra daywork + 2 permanent seed postings for discover feed density; (f) fallback card in chat when job details unavailable
 - [Stage 144a-i,k] User testing fixes batch 2 — (a) career status collapsed to compact inline display; (b) "Browse jobs" button copy + w-fit; (c) sign-out redirects to splash page; (d) splash page copy updated for daywork+permanent; (e) IMO partial prefix search at 4+ digits with debounced auto-trigger + dropdown; (f) crew hat vessels button ungated; (g) LOA display on discover daywork/permanent cards + application cards; (h) sea time migration 00063 + salary/sea time private intelligence UI on experience forms; (i) experience pill calendar-month calculation fix; (k) NDA vessel info callout in VesselSelector + daywork post confirmation dialog
 
+- [Stage 144j] Auto-derived primary role + desired role — migration 00064 adds `desired_role_id` to profiles, updates `derive_experience_profile()` to auto-derive `primary_role_id` from latest experience; profile page shows "Current Role" (non-editable) + "Desired Role" (editable via RolePicker); experience bracket selector removed from edit mode (auto-derived); profile overlay shows "Seeking: {role}"; view-only profile API includes desired_role; 819 tests pass
+
 ## Current Schema Version
 
-v63 — Sea time columns on crew_experiences (63 migrations applied)
+v64 — Desired role + auto-derived primary role (64 migrations applied)
 
 ## Migrations Applied
 
@@ -267,6 +269,7 @@ v63 — Sea time columns on crew_experiences (63 migrations applied)
 | `00061_atomic_advisor_usage.sql`             | `increment_advisor_usage(uuid, text, integer)` RPC — atomic check-and-increment for free-tier Docky usage; INSERT ON CONFLICT with WHERE guard prevents concurrent requests bypassing limit                                                                                                                                                                                                                 |
 | `00062_remove_unused_stcw_certs.sql`         | Removes 3 unused STCW certifications (Survival Craft, Advanced Fire Fighting, Medical First Aid), keeping only STCW Basic Safety Training                                                                                                                                                                                                                                                                   |
 | `00063_sea_time_columns.sql`                 | Adds `sea_time_days` and `sea_time_nautical_miles` integer columns to `crew_experiences`; supplementary trigger `apply_sea_time_from_event` patches values from EXPERIENCE.ADDED/UPDATED payloads                                                                                                                                                                                                           |
+| `00064_desired_role_and_auto_primary.sql`    | Adds `desired_role_id` FK to profiles; updates `derive_experience_profile()` to auto-derive `primary_role_id` from most recent experience; supplementary trigger `apply_desired_role_from_event` writes desired_role_id from PROFILE events                                                                                                                                                                 |
 
 ## Deferred Decisions
 

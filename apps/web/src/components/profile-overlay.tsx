@@ -30,6 +30,7 @@ interface CrewProfile {
   avatar_url: string | null;
   bio: string | null;
   primary_role: { id: string; name: string; department: string } | null;
+  desired_role: { id: string; name: string } | null;
   certifications: { id: string; name: string }[];
   experience_bracket: { id: string; label: string } | null;
   vessel_size_exposure: { id: string; label: string }[];
@@ -159,6 +160,9 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
                 size="sm"
               />
             </p>
+          )}
+          {profile.desired_role && profile.desired_role.id !== profile.primary_role?.id && (
+            <p className="text-xs text-muted-foreground">Seeking: {profile.desired_role.name}</p>
           )}
         </div>
       </div>

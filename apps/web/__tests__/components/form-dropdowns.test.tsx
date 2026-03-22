@@ -354,7 +354,7 @@ describe('Onboarding page — crew profile dropdowns', () => {
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
-      expect(fromSpy).toHaveBeenCalledWith('experience_brackets');
+      // experience_brackets no longer loaded in edit mode (auto-derived)
       expect(fromSpy).toHaveBeenCalledWith('vessel_size_bands');
       expect(fromSpy).toHaveBeenCalledWith('flag_states');
     });
@@ -408,7 +408,7 @@ describe('Post Daywork page — employer form dropdowns', () => {
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
-      expect(fromSpy).toHaveBeenCalledWith('experience_brackets');
+      // experience_brackets no longer loaded in edit mode (auto-derived)
     });
   });
 });
@@ -489,7 +489,7 @@ describe('Profile page — edit mode dropdowns', () => {
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
-      expect(fromSpy).toHaveBeenCalledWith('experience_brackets');
+      // experience_brackets no longer loaded in edit mode (auto-derived)
       expect(fromSpy).toHaveBeenCalledWith('vessel_size_bands');
     });
 
@@ -503,10 +503,7 @@ describe('Profile page — edit mode dropdowns', () => {
       expect(screen.getByText(cert.name)).toBeInTheDocument();
     }
 
-    // Experience brackets
-    for (const bracket of MOCK_BRACKETS) {
-      expect(screen.getByText(bracket.label)).toBeInTheDocument();
-    }
+    // Experience brackets — auto-derived, no selector in edit mode
 
     // Size bands
     for (const band of MOCK_SIZE_BANDS) {

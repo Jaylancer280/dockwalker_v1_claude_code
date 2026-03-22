@@ -17,11 +17,12 @@ export async function GET() {
     .select(
       `
       person_id, display_name, identity_type, bio, avatar_url,
-      primary_role_id, certification_ids, experience_bracket_id,
+      primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
       permanent_availability, notice_period_days, currently_employed,
       agency_name, role_specialization_ids,
-      yacht_roles(id, name),
+      yacht_roles!profiles_primary_role_id_fkey(id, name),
+      desired_roles:yacht_roles!profiles_desired_role_id_fkey(id, name),
       experience_brackets(id, label),
       ports(id, name, cities(name, regions(name))),
       nationalities(id, name, country_code, flag_emoji)
@@ -63,6 +64,7 @@ export async function PATCH(request: Request) {
   if (body.locationPortId !== undefined) payload.location_port_id = body.locationPortId;
   if (body.nationalityId !== undefined) payload.nationality_id = body.nationalityId;
   if (body.visaIds !== undefined) payload.visa_ids = body.visaIds;
+  if (body.desiredRoleId !== undefined) payload.desired_role_id = body.desiredRoleId;
   if (body.permanentAvailability !== undefined) {
     if (
       body.permanentAvailability !== null &&

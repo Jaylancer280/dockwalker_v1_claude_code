@@ -42,10 +42,11 @@ export async function GET(
       .select(
         `
       person_id, display_name, identity_type, bio, avatar_url,
-      primary_role_id, certification_ids, experience_bracket_id,
+      primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
       agency_name, role_specialization_ids,
-      yacht_roles(id, name, department),
+      yacht_roles!profiles_primary_role_id_fkey(id, name, department),
+      desired_roles:yacht_roles!profiles_desired_role_id_fkey(id, name),
       experience_brackets(id, label),
       ports(name, cities(name, regions(name))),
       nationalities(id, name, country_code, flag_emoji)
@@ -186,6 +187,7 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     bio: profile.bio,
     avatar_url: profile.avatar_url,
     primary_role: profile.yacht_roles,
+    desired_role: profile.desired_roles ?? null,
     nationality: profile.nationalities ?? null,
     visas,
     certifications,

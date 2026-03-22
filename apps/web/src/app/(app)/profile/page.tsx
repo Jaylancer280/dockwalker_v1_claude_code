@@ -66,6 +66,7 @@ interface Profile {
   identity_type: string;
   bio: string | null;
   primary_role_id: string | null;
+  desired_role_id: string | null;
   certification_ids: string[];
   experience_bracket_id: string | null;
   vessel_size_exposure_ids: string[];
@@ -77,6 +78,7 @@ interface Profile {
   visa_ids: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
   yacht_roles: { id: string; name: string } | null;
+  desired_roles: { id: string; name: string } | null;
   experience_brackets: { id: string; label: string } | null;
   ports: { id: string; name: string; cities: { name: string; regions: { name: string } } } | null;
 }
@@ -158,9 +160,8 @@ export default function ProfilePage() {
   // Edit form state
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [primaryRoleId, setPrimaryRoleId] = useState('');
+  const [desiredRoleId, setDesiredRoleId] = useState('');
   const [locationPortId, setLocationPortId] = useState('');
-  const [experienceBracketId, setExperienceBracketId] = useState('');
   const [certificationIds, setCertificationIds] = useState<string[]>([]);
   const [vesselSizeExposureIds, setVesselSizeExposureIds] = useState<string[]>([]);
   const [agencyName, setAgencyName] = useState('');
@@ -171,7 +172,6 @@ export default function ProfilePage() {
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certs, setCerts] = useState<LookupItem[]>([]);
-  const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
   const [nationalities, setNationalities] = useState<
     { id: string; name: string; flag_emoji: string }[]
@@ -187,6 +187,8 @@ export default function ProfilePage() {
       const result = await safeFetch<{
         person?: Person;
         profile?: Profile & {
+          desired_role_id?: string | null;
+          desired_roles?: { id: string; name: string } | null;
           permanent_availability?: string;
           notice_period_days?: number;
           currently_employed?: boolean;
@@ -199,6 +201,7 @@ export default function ProfilePage() {
           if (result.data.profile.nationality_id)
             setNationalityId(result.data.profile.nationality_id);
           if (result.data.profile.visa_ids) setVisaIds(result.data.profile.visa_ids);
+          setDesiredRoleId(result.data.profile.desired_role_id ?? '');
           setPermAvail(result.data.profile.permanent_availability ?? null);
           setNoticeDays(result.data.profile.notice_period_days ?? null);
           setEmployed(result.data.profile.currently_employed ?? false);
@@ -311,9 +314,10 @@ export default function ProfilePage() {
     if (!profile) return;
     setDisplayName(profile.display_name);
     setBio(profile.bio ?? '');
-    setPrimaryRoleId(profile.primary_role_id ?? '');
+    // primary_role_id is auto-derived — not editable
+    setDesiredRoleId(profile.desired_role_id ?? '');
     setLocationPortId(profile.location_port_id ?? '');
-    setExperienceBracketId(profile.experience_bracket_id ?? '');
+    // experience_bracket_id is auto-derived — not editable
     setCertificationIds(profile.certification_ids ?? []);
     setVesselSizeExposureIds(profile.vessel_size_exposure_ids ?? []);
     setAgencyName(profile.agency_name ?? '');
@@ -327,12 +331,10 @@ export default function ProfilePage() {
     Promise.all([
       supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
       supabase.from('certifications').select('id, name, category').order('sort_order'),
-      supabase.from('experience_brackets').select('id, label').order('sort_order'),
       supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
-    ]).then(([rolesRes, certsRes, bracketsRes, sizeBandsRes]) => {
+    ]).then(([rolesRes, certsRes, sizeBandsRes]) => {
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
-      if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
       if (sizeBandsRes.data) setSizeBands(sizeBandsRes.data.map((b) => ({ ...b, name: b.label })));
     });
   }
@@ -345,9 +347,8 @@ export default function ProfilePage() {
     };
 
     if (profile?.identity_type === 'crew') {
-      body.primaryRoleId = primaryRoleId || null;
+      body.desiredRoleId = desiredRoleId || null;
       body.bio = bio || null;
-      body.experienceBracketId = experienceBracketId || null;
       body.certificationIds = certificationIds;
       body.vesselSizeExposureIds = vesselSizeExposureIds;
       body.nationalityId = nationalityId || null;
@@ -568,14 +569,72 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-3">
             {profile.yacht_roles?.name && (
               <div>
-                <p className="text-xs text-muted-foreground">Primary Role</p>
+                <p className="text-xs text-muted-foreground">Current Role</p>
                 <p className="text-sm font-medium">{profile.yacht_roles.name}</p>
               </div>
             )}
+            <div>
+              <p className="text-xs text-muted-foreground">Desired Role</p>
+              {profile.desired_roles?.name ? (
+                <p className="text-sm font-medium">{profile.desired_roles.name}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Not set</p>
+              )}
+            </div>
             {profile.experience_brackets?.label && (
               <div>
                 <p className="text-xs text-muted-foreground">Experience</p>
-                <p className="text-sm font-medium">{profile.experience_brackets.label}</p>
+                <p className="text-sm font-medium">
+                  {profile.experience_brackets.label}
+                  {experiences.length > 0 &&
+                    (() => {
+                      const now = new Date();
+                      let totalMonths = 0;
+                      let remainDays = 0;
+                      for (const exp of experiences) {
+                        const start = new Date(exp.start_date + 'T00:00:00');
+                        const end = exp.is_current
+                          ? now
+                          : exp.end_date
+                            ? new Date(exp.end_date + 'T00:00:00')
+                            : start;
+                        const months =
+                          (end.getFullYear() - start.getFullYear()) * 12 +
+                          (end.getMonth() - start.getMonth());
+                        const dayDiff = end.getDate() - start.getDate();
+                        totalMonths += months;
+                        remainDays += dayDiff;
+                      }
+                      totalMonths += Math.floor(remainDays / 30);
+                      remainDays = remainDays % 30;
+                      if (remainDays >= 15) totalMonths += 1;
+                      if (totalMonths < 0) totalMonths = 0;
+
+                      const totalDaysFallback = experiences.reduce((sum, exp) => {
+                        const s = new Date(exp.start_date + 'T00:00:00');
+                        const e = exp.is_current
+                          ? now
+                          : exp.end_date
+                            ? new Date(exp.end_date + 'T00:00:00')
+                            : s;
+                        return (
+                          sum + Math.max(0, Math.round((e.getTime() - s.getTime()) / 86_400_000))
+                        );
+                      }, 0);
+
+                      let computed: string;
+                      if (totalMonths >= 12) {
+                        const years = Math.floor(totalMonths / 12);
+                        const months = totalMonths % 12;
+                        computed = months > 0 ? `${years}y ${months}m` : `${years}y`;
+                      } else if (totalMonths >= 1) {
+                        computed = `${totalMonths}m`;
+                      } else {
+                        computed = `${totalDaysFallback}d`;
+                      }
+                      return ` (${computed})`;
+                    })()}
+                </p>
               </div>
             )}
             {profile.ports?.name && (
@@ -1015,28 +1074,12 @@ export default function ProfilePage() {
         {profile.identity_type === 'crew' && editing && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <Label>Primary Role</Label>
+              <Label>Desired Role</Label>
               <RolePicker
                 roles={roles as { id: string; name: string; department: string }[]}
-                value={primaryRoleId}
-                onValueChange={setPrimaryRoleId}
+                value={desiredRoleId}
+                onValueChange={setDesiredRoleId}
               />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>Experience</Label>
-              <Select value={experienceBracketId} onValueChange={setExperienceBracketId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select experience" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brackets.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.label ?? b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="flex flex-col gap-1.5">
