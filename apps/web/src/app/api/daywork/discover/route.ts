@@ -162,6 +162,19 @@ export async function GET(request: Request) {
       }
     }
 
+    // Resolve cert names
+    const allCertIds = [...new Set(filtered.flatMap((r) => r.required_certification_ids ?? []))];
+    const certNameMap = new Map<string, string>();
+    if (allCertIds.length > 0) {
+      const { data: certs } = await supabase
+        .from('certifications')
+        .select('id, name')
+        .in('id', allCertIds);
+      for (const c of certs ?? []) {
+        certNameMap.set(c.id, c.name);
+      }
+    }
+
     let hydrated = filtered.map((daywork) => {
       const vessel = vesselMap.get(daywork.vessel_id);
       const row = daywork as DiscoverDayworkRow & {
@@ -169,8 +182,11 @@ export async function GET(request: Request) {
         positions_filled: number;
       };
 
+      const certIds = daywork.required_certification_ids ?? [];
+
       return {
         ...daywork,
+        cert_names: certIds.map((id) => certNameMap.get(id) ?? id),
         positions_remaining: row.positions_available - row.positions_filled,
         poster_name: posterNameMap.get(daywork.poster_person_id) ?? null,
         vessels: vessel

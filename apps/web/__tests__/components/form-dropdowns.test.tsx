@@ -76,6 +76,7 @@ function createMockQueryBuilder(table: string) {
     select: vi.fn(() => builder),
     order: vi.fn(() => builder),
     eq: vi.fn(() => builder),
+    single: vi.fn(() => builder),
     then: (resolve: (v: unknown) => void) => resolve(result),
   };
   return builder;
@@ -354,9 +355,7 @@ describe('Onboarding page — crew profile dropdowns', () => {
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
-      // experience_brackets no longer loaded in edit mode (auto-derived)
-      expect(fromSpy).toHaveBeenCalledWith('vessel_size_bands');
-      expect(fromSpy).toHaveBeenCalledWith('flag_states');
+      // experience_brackets and vessel_size_bands no longer loaded in edit mode (auto-derived)
     });
   });
 });
@@ -463,8 +462,8 @@ describe('Vessels page — create vessel form dropdowns', () => {
     fireEvent.click(screen.getByText('Add vessel'));
 
     // Hardcoded vessel types
-    expect(screen.getByText('Private')).toBeInTheDocument();
-    expect(screen.getByText('Charter')).toBeInTheDocument();
+    expect(screen.getByText('Motor (M/Y)')).toBeInTheDocument();
+    expect(screen.getByText('Sail (S/Y)')).toBeInTheDocument();
 
     // LOA input field (size band auto-derived from LOA)
     expect(screen.getByLabelText(/length overall/i)).toBeInTheDocument();
@@ -489,8 +488,7 @@ describe('Profile page — edit mode dropdowns', () => {
     await waitFor(() => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
       expect(fromSpy).toHaveBeenCalledWith('certifications');
-      // experience_brackets no longer loaded in edit mode (auto-derived)
-      expect(fromSpy).toHaveBeenCalledWith('vessel_size_bands');
+      // experience_brackets and vessel_size_bands no longer loaded in edit mode (auto-derived)
     });
 
     // Roles
@@ -505,10 +503,7 @@ describe('Profile page — edit mode dropdowns', () => {
 
     // Experience brackets — auto-derived, no selector in edit mode
 
-    // Size bands
-    for (const band of MOCK_SIZE_BANDS) {
-      expect(screen.getByText(band.label)).toBeInTheDocument();
-    }
+    // Size bands — auto-derived, no selector in edit mode
 
     // Location picker — rendered as mocked component
     expect(screen.getByTestId('location-picker')).toBeInTheDocument();

@@ -163,7 +163,6 @@ export default function ProfilePage() {
   const [desiredRoleId, setDesiredRoleId] = useState('');
   const [locationPortId, setLocationPortId] = useState('');
   const [certificationIds, setCertificationIds] = useState<string[]>([]);
-  const [vesselSizeExposureIds, setVesselSizeExposureIds] = useState<string[]>([]);
   const [agencyName, setAgencyName] = useState('');
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
   const [nationalityId, setNationalityId] = useState('');
@@ -172,7 +171,6 @@ export default function ProfilePage() {
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certs, setCerts] = useState<LookupItem[]>([]);
-  const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
   const [nationalities, setNationalities] = useState<
     { id: string; name: string; flag_emoji: string }[]
   >([]);
@@ -284,6 +282,20 @@ export default function ProfilePage() {
     }
   }, [person?.identity_type, loadAvailability, loadExperiences]);
 
+  // Re-fetch profile + experiences when tab regains focus (handles stale data after navigation)
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') {
+        loadProfile();
+        if (person?.identity_type === 'crew') {
+          loadExperiences();
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [loadProfile, loadExperiences, person?.identity_type]);
+
   // Availability summary
   const availSummary = useMemo(() => {
     if (availWindows.length === 0) return null;
@@ -319,7 +331,7 @@ export default function ProfilePage() {
     setLocationPortId(profile.location_port_id ?? '');
     // experience_bracket_id is auto-derived — not editable
     setCertificationIds(profile.certification_ids ?? []);
-    setVesselSizeExposureIds(profile.vessel_size_exposure_ids ?? []);
+    // vessel_size_exposure_ids is auto-derived — not editable
     setAgencyName(profile.agency_name ?? '');
     setRoleSpecializationIds(profile.role_specialization_ids ?? []);
     setNationalityId(profile.nationality_id ?? '');
@@ -331,11 +343,9 @@ export default function ProfilePage() {
     Promise.all([
       supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
       supabase.from('certifications').select('id, name, category').order('sort_order'),
-      supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
-    ]).then(([rolesRes, certsRes, sizeBandsRes]) => {
+    ]).then(([rolesRes, certsRes]) => {
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
-      if (sizeBandsRes.data) setSizeBands(sizeBandsRes.data.map((b) => ({ ...b, name: b.label })));
     });
   }
 
@@ -350,7 +360,7 @@ export default function ProfilePage() {
       body.desiredRoleId = desiredRoleId || null;
       body.bio = bio || null;
       body.certificationIds = certificationIds;
-      body.vesselSizeExposureIds = vesselSizeExposureIds;
+      // vesselSizeExposureIds is auto-derived — not sent in PATCH
       body.nationalityId = nationalityId || null;
       body.visaIds = visaIds;
     } else {
@@ -383,6 +393,8 @@ export default function ProfilePage() {
       setExperiences((prev) => prev.filter((e) => e.id !== expId));
       if (expandedExpId === expId) setExpandedExpId(null);
       showSuccess('Experience removed');
+      // Re-fetch profile so auto-derived fields (bracket, role, size exposure) update
+      loadProfile();
     } else {
       showError(result.error);
     }
@@ -936,9 +948,6 @@ export default function ProfilePage() {
 
               {experiences.map((exp, idx) => {
                 const isExpanded = expandedExpId === exp.id || idx === 0;
-                const sizeBandLabel = exp.vessels?.vessel_size_bands
-                  ? (exp.vessels.vessel_size_bands as unknown as { label: string }).label
-                  : null;
                 const dateRange = formatDateRange(exp.start_date, exp.end_date, exp.is_current);
 
                 return (
@@ -962,7 +971,6 @@ export default function ProfilePage() {
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {exp.yacht_roles?.name ?? 'Unknown role'} · {dateRange}
-                          {sizeBandLabel && ` · ${sizeBandLabel}`}
                         </p>
                       </div>
                       {exp.yacht_roles?.name && (
@@ -1120,19 +1128,9 @@ export default function ProfilePage() {
 
             <div className="flex flex-col gap-1.5">
               <Label>Vessel Size Exposure</Label>
-              <div className="flex flex-col gap-1 rounded-md border border-border p-3">
-                {sizeBands.map((sb) => (
-                  <label key={sb.id} className="flex items-center gap-2 py-1 text-sm">
-                    <Checkbox
-                      checked={vesselSizeExposureIds.includes(sb.id)}
-                      onCheckedChange={() =>
-                        toggleArrayItem(vesselSizeExposureIds, sb.id, setVesselSizeExposureIds)
-                      }
-                    />
-                    {sb.label ?? sb.name}
-                  </label>
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground">
+                Auto-derived from your vessel experience
+              </p>
             </div>
 
             <div className="flex flex-col gap-1.5">

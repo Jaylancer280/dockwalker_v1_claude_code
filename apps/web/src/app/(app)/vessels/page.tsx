@@ -291,8 +291,8 @@ function CreateVesselForm({
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="private">Private</SelectItem>
-            <SelectItem value="charter">Charter</SelectItem>
+            <SelectItem value="motor">Motor (M/Y)</SelectItem>
+            <SelectItem value="sail">Sail (S/Y)</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -148,12 +148,26 @@ export function PermanentJobCard({
           </Badge>
         )}
         {posting.experience_label && <Badge variant="outline">{posting.experience_label}</Badge>}
-        {posting.cert_names.map((name) => (
-          <Badge key={name} variant="outline" className="text-xs">
-            <Award className="mr-0.5 h-3 w-3" />
-            {name}
-          </Badge>
-        ))}
+        {posting.cert_names.map((name, i) => {
+          const certId = posting.required_certification_ids[i];
+          const held = crewCertIds ? crewCertIds.includes(certId) : undefined;
+          return (
+            <Badge
+              key={name}
+              variant="outline"
+              className={
+                held === true
+                  ? 'border-transparent bg-emerald-100 text-emerald-800 text-xs dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : held === false
+                    ? 'border-transparent bg-amber-100 text-amber-800 text-xs dark:bg-amber-900/30 dark:text-amber-400'
+                    : 'text-xs'
+              }
+            >
+              <Award className="mr-0.5 h-3 w-3" />
+              {name}
+            </Badge>
+          );
+        })}
       </div>
 
       {/* Shortlist info */}

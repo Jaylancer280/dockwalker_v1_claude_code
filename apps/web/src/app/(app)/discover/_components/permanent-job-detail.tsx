@@ -121,12 +121,26 @@ export function PermanentJobDetail({
                   Required certifications
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
-                  {posting.cert_names.map((name) => (
-                    <Badge key={name} variant="outline">
-                      <Award className="mr-0.5 h-3 w-3" />
-                      {name}
-                    </Badge>
-                  ))}
+                  {posting.cert_names.map((name, i) => {
+                    const certId = posting.required_certification_ids[i];
+                    const held = crewCertIds ? crewCertIds.includes(certId) : undefined;
+                    return (
+                      <Badge
+                        key={name}
+                        variant="outline"
+                        className={
+                          held === true
+                            ? 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : held === false
+                              ? 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                              : undefined
+                        }
+                      >
+                        <Award className="mr-0.5 h-3 w-3" />
+                        {name}
+                      </Badge>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -84,7 +84,7 @@ export default function AddExperiencePage() {
 
   // Private intelligence fields
   const [salaryAmount, setSalaryAmount] = useState('');
-  const [salaryPeriod, setSalaryPeriod] = useState<'monthly' | 'annually'>('monthly');
+  const [salaryPeriod, setSalaryPeriod] = useState<'daily' | 'monthly' | 'annually'>('monthly');
   const [salaryCurrency, setSalaryCurrency] = useState(
     () => (typeof window !== 'undefined' && localStorage.getItem('dw-currency-pref')) || 'EUR',
   );
@@ -656,12 +656,13 @@ export default function AddExperiencePage() {
               </Select>
               <Select
                 value={salaryPeriod}
-                onValueChange={(v) => setSalaryPeriod(v as 'monthly' | 'annually')}
+                onValueChange={(v) => setSalaryPeriod(v as 'daily' | 'monthly' | 'annually')}
               >
                 <SelectTrigger className="w-28">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="daily">per day</SelectItem>
                   <SelectItem value="monthly">per month</SelectItem>
                   <SelectItem value="annually">per year</SelectItem>
                 </SelectContent>

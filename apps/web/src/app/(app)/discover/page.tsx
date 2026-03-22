@@ -79,6 +79,7 @@ interface DayworkCard {
   } | null;
   experience_brackets: { label: string } | null;
   required_certification_ids: string[] | null;
+  cert_names: string[];
   poster_person_id: string;
   poster_name: string | null;
   positions_available: number;
@@ -223,6 +224,9 @@ export default function DiscoverPage() {
   const [showAvailDialog, setShowAvailDialog] = useState(false);
   const [showAvailOverlay, setShowAvailOverlay] = useState(false);
 
+  // Crew certs for cert pill coloring
+  const [crewCertIds, setCrewCertIds] = useState<string[] | null>(null);
+
   // Lookups for filters
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certifications, setCertifications] = useState<LookupItem[]>([]);
@@ -242,6 +246,32 @@ export default function DiscoverPage() {
     } catch {
       // safeFetch never throws, but try/catch needed for React compiler lint
     }
+  }, []);
+
+  // Fetch crew certs for cert pill coloring
+  function loadCrewCerts() {
+    const supabase = createClient();
+    Promise.resolve(supabase.from('profiles').select('certification_ids').single())
+      .then(({ data }) => {
+        if (data?.certification_ids) setCrewCertIds(data.certification_ids as string[]);
+        else setCrewCertIds([]);
+      })
+      .catch(() => {
+        // Failed to load certs — keep null so pills stay neutral
+      });
+  }
+
+  useEffect(() => {
+    loadCrewCerts();
+  }, []);
+
+  // Re-fetch crew certs when tab regains focus
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') loadCrewCerts();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   // Load filter options
@@ -897,6 +927,7 @@ export default function DiscoverPage() {
                           isPreview
                           lengthUnit={prefs.lengthUnit}
                           onViewProfile={setViewProfileId}
+                          crewCertIds={crewCertIds}
                         />
                       </div>
                     )}
@@ -922,6 +953,7 @@ export default function DiscoverPage() {
                         disabled={applying}
                         lengthUnit={prefs.lengthUnit}
                         onViewProfile={setViewProfileId}
+                        crewCertIds={crewCertIds}
                       />
                     )}
                   </div>
@@ -1118,6 +1150,7 @@ const SwipeableCard = forwardRef<
     disabled: boolean;
     lengthUnit?: 'm' | 'ft';
     onViewProfile?: (personId: string) => void;
+    crewCertIds: string[] | null;
   }
 >(function SwipeableCard(
   {
@@ -1131,6 +1164,7 @@ const SwipeableCard = forwardRef<
     disabled,
     lengthUnit = 'm',
     onViewProfile,
+    crewCertIds,
   },
   ref,
 ) {
@@ -1197,6 +1231,7 @@ const SwipeableCard = forwardRef<
         onComposeMessage={composing ? undefined : onComposeMessage}
         onViewProfile={onViewProfile}
         lengthUnit={lengthUnit}
+        crewCertIds={crewCertIds}
       />
     </motion.div>
   );
@@ -1208,12 +1243,14 @@ function JobCard({
   onComposeMessage,
   onViewProfile,
   lengthUnit = 'm',
+  crewCertIds,
 }: {
   card: DayworkCard;
   isPreview?: boolean;
   onComposeMessage?: () => void;
   onViewProfile?: (personId: string) => void;
   lengthUnit?: 'm' | 'ft';
+  crewCertIds?: string[] | null;
 }) {
   return (
     <div
@@ -1306,6 +1343,32 @@ function JobCard({
             <div className="flex items-center gap-2 text-sm">
               <Award className="h-4 w-4 shrink-0 text-muted-foreground" />
               <span>{card.experience_brackets.label}</span>
+            </div>
+          )}
+
+          {/* Cert pills */}
+          {card.cert_names && card.cert_names.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {card.cert_names.map((certName, idx) => {
+                const certId = card.required_certification_ids?.[idx];
+                const held = crewCertIds != null && certId != null && crewCertIds.includes(certId);
+                const missing =
+                  crewCertIds != null && certId != null && !crewCertIds.includes(certId);
+                return (
+                  <span
+                    key={certId ?? certName}
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      held
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : missing
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                          : 'border border-muted-foreground/30 text-muted-foreground'
+                    }`}
+                  >
+                    {certName}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>

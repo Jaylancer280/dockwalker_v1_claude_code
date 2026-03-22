@@ -81,13 +81,27 @@ export function PermanentJobFeed() {
     });
 
     // Fetch crew's certs for client-side cert gate
-    supabase
-      .from('profiles')
-      .select('certification_ids')
-      .single()
+    loadCrewCerts();
+  }, []);
+
+  function loadCrewCerts() {
+    const supabase = createClient();
+    Promise.resolve(supabase.from('profiles').select('certification_ids').single())
       .then(({ data }) => {
         if (data?.certification_ids) setCrewCertIds(data.certification_ids as string[]);
+      })
+      .catch(() => {
+        // Failed to load certs — keep empty array so cert gate stays active
       });
+  }
+
+  // Re-fetch crew certs when tab regains focus (handles stale data after profile edit)
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') loadCrewCerts();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   const loadPostings = useCallback(

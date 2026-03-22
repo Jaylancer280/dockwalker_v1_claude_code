@@ -197,6 +197,7 @@
 - [Stage 144a-i,k] User testing fixes batch 2 — (a) career status collapsed to compact inline display; (b) "Browse jobs" button copy + w-fit; (c) sign-out redirects to splash page; (d) splash page copy updated for daywork+permanent; (e) IMO partial prefix search at 4+ digits with debounced auto-trigger + dropdown; (f) crew hat vessels button ungated; (g) LOA display on discover daywork/permanent cards + application cards; (h) sea time migration 00063 + salary/sea time private intelligence UI on experience forms; (i) experience pill calendar-month calculation fix; (k) NDA vessel info callout in VesselSelector + daywork post confirmation dialog
 
 - [Stage 144j] Auto-derived primary role + desired role — migration 00064 adds `desired_role_id` to profiles, updates `derive_experience_profile()` to auto-derive `primary_role_id` from latest experience; profile page shows "Current Role" (non-editable) + "Desired Role" (editable via RolePicker); experience bracket selector removed from edit mode (auto-derived); profile overlay shows "Seeking: {role}"; view-only profile API includes desired_role; 819 tests pass
+- [Fix 144-batch] User testing fixes — (1) vessel form motor/sail; (2) salary per day; (3) size band removed from exp header; (4) visibilitychange profile re-fetch; (5) cert checker error handling + re-fetch; (6) vessel size exposure read-only; (7) comprehensive reseed (4 experiences, 10 daywork, 7 permanent, templates, availability); (8) cert match/mismatch coloring on all job cards
 
 ## Current Schema Version
 
