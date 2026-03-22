@@ -522,26 +522,74 @@ This is where everything comes together. The discover page has daywork swipe car
 
 ## Stage UI-18: Image Assets Integration
 
-**Goal:** Wire photography and branding into relevant pages for visual polish.
+**Goal:** Wire photography and branding into relevant pages for visual polish. Don't force images everywhere — a clean empty state with a Lucide icon is better than a forced stock photo.
 
 **Available assets:**
 
-| Category                    | Files                                    | Usage                                      |
-| --------------------------- | ---------------------------------------- | ------------------------------------------ |
-| `assets/images/onboarding/` | 8 hero images (aerial yacht, interiors)  | Onboarding step backgrounds                |
-| `assets/images/crew/`       | 5 images (deckside, rope, teak)          | Empty states, crew-related illustrations   |
-| `assets/images/vessel/`     | 7 images (helm, drydock, shipyard)       | Vessel-related empty states                |
-| `assets/images/roles/`      | 5 images (interior, galley, engineering) | Role category headers (if needed)          |
-| `assets/branding/`          | Logo variants, app icon kit              | Bottom-nav brand mark, auth pages, landing |
+| Category                    | Files                                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `assets/images/onboarding/` | `onboarding_hero_aerial_01.jpeg`, `_aerial_02`, `_bow_01`, `_dining_01`, `_dining_02`, `_lounge_01`, `_lounge_02`, `_suite_01` |
+| `assets/images/crew/`       | `crew_deckside_01.jpeg`, `_deckside_02`, `_rope_01`, `_rope_02`, `_teak_01`                                                    |
+| `assets/images/vessel/`     | `vessel_drydock_01.jpeg`, `_drydock_02`, `_helm_01`, `_helm_02`, `_helm_chair_01`, `_shipyard_lift_01`, `_shipyard_lift_02`    |
+| `assets/images/roles/`      | `core_hospitality_01.jpeg`, `core_chef_01-03.jpeg`, `vessel_engine_01.jpeg`                                                    |
+| `assets/branding/`          | `small_128.png`, `small_256.png`, `dw_app_icon_cropped.png`, app icon kit (29–1024px)                                          |
 
-**What to do:**
+### Placement Map
 
-1. Copy needed images to `apps/web/public/images/` (Next.js public directory)
-2. Use `next/image` with proper sizing and `priority` on above-fold images
-3. Add to: onboarding steps, landing page, auth pages, empty states
-4. Optimise: ensure images are appropriately sized for mobile (not serving 1080px originals to 390px viewports)
+#### Tier 1 — First Impressions (every user sees these)
 
-**Done when:** Key pages have photography that reinforces the maritime professional brand. No placeholder or stock-photo feel.
+| Page                         | Placement                    | Asset                                                              | Treatment                                                                                                 |
+| ---------------------------- | ---------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Landing page hero**        | Full-width behind headline   | `onboarding_hero_aerial_01.jpeg`                                   | Gradient overlay: `linear-gradient(to bottom, transparent 30%, var(--background) 100%)`, max-height 400px |
+| **Landing "How it Works"**   | Step illustrations           | `crew_deckside_01` (crew step), `vessel_helm_01` (employer step)   | 200px rounded cards, `object-cover`, `saturate(0.85)` in dark mode                                        |
+| **Auth pages**               | Subtle background atmosphere | `onboarding_hero_bow_01.jpeg`                                      | Very low opacity (`0.06` dark, `0.04` light), full-bleed behind form, or side panel on wider viewports    |
+| **Onboarding welcome**       | Hero image below heading     | `onboarding_hero_lounge_01.jpeg` or `_suite_01`                    | 200px height, rounded-[14px], gradient fade to background at bottom                                       |
+| **Onboarding identity step** | Visual choice cards          | `crew_rope_01.jpeg` (crew), `vessel_helm_chair_01.jpeg` (employer) | 120px height inside selection cards, `object-cover`, border on selected                                   |
+
+#### Tier 2 — Key Empty States (users hit within first session)
+
+| Page                                | Current               | Asset                            | Treatment                                                         |
+| ----------------------------------- | --------------------- | -------------------------------- | ----------------------------------------------------------------- |
+| **Discover — "No jobs found"**      | Briefcase icon        | `crew_deckside_02.jpeg`          | 150px, rounded, centred above text. "Check back soon" feel        |
+| **Profile — "No experiences"**      | Ship icon             | `crew_teak_01.jpeg`              | 150px, rounded, centred above "Add experience" CTA                |
+| **Vessels — "No vessels yet"**      | Ship icon             | `vessel_drydock_01.jpeg`         | 150px, rounded, centred above text                                |
+| **Messages — "No active messages"** | MessageSquare icon    | `onboarding_hero_dining_01.jpeg` | 150px, rounded. Warmth = "connections happen here"                |
+| **Docky — "Ask Docky" welcome**     | LifeBuoy icon (16x16) | `vessel_helm_02.jpeg`            | 180px, rounded. Bridge/helm = "navigator" metaphor for AI advisor |
+
+#### Tier 3 — Leave As-Is (icon + text is sufficient)
+
+These empty states are low-traffic or secondary. Keep the current Lucide icon + text pattern.
+
+- Notifications — "No notifications yet" (Bell icon)
+- Applied — "No pending applications" (ClipboardList icon)
+- Invitations — "No pending invitations" (Mail icon)
+- Templates — "No saved templates" (text only)
+- Permanent mine tabs — empty tab states (text only)
+
+### Photo Treatment Rules
+
+1. **Never full-bleed on cards** — use as background behind a gradient overlay so text is readable
+2. **Max height 200px on mobile** — photos are accents, not heroes (except landing page)
+3. **Dark mode desaturation** — `filter: saturate(0.85) brightness(0.7)` so photos don't fight the dark palette
+4. **Always `object-cover` + `object-position`** — crop to the interesting part, don't stretch
+5. **`next/image` with explicit width/height** — no layout shift, lazy load below fold, `priority` on above-fold only
+6. **Empty state pattern**: image (150–200px, `rounded-[14px]`, subtle `border: 1px solid var(--border)`) centred above text + CTA, not beside it
+7. **No full-opacity photos as card backgrounds** — always overlay with gradient fade to `var(--background)` or `var(--card)`
+
+### Implementation Steps
+
+1. Copy needed images to `apps/web/public/images/` (Next.js public directory) — organise by category (`/images/onboarding/`, `/images/empty-states/`, `/images/brand/`)
+2. Resize originals for mobile: max 800px wide for hero images, max 400px for empty state images (don't serve 1080px originals to 390px viewports)
+3. Wire into pages per the placement map above
+4. Test each placement in both dark and light themes
+5. Verify no layout shift (explicit `width`/`height` on all `next/image` uses)
+
+### Missing Assets (not blocking, note for future)
+
+- **Employer/captain imagery** — no photos of someone in a leadership/hiring context. The onboarding "I'm an employer" choice card uses `vessel_helm_chair_01` as a proxy.
+- **Docky character/mascot** — the AI advisor has no visual identity beyond a Lucide icon. A branded illustration would elevate the Docky experience but is not required for launch.
+
+**Done when:** Landing page, auth pages, onboarding, and 5 key empty states have photography. Photos look intentional in both themes. No forced or stock-photo feel.
 
 ---
 

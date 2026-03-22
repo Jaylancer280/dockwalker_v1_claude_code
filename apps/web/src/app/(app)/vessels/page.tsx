@@ -274,17 +274,6 @@ function CreateVesselForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="vesselName">Vessel name</Label>
-        <Input
-          id="vesselName"
-          placeholder="M/Y Example"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
         <Label>Vessel type</Label>
         <Select value={vesselType} onValueChange={setVesselType} required>
           <SelectTrigger>
@@ -295,6 +284,23 @@ function CreateVesselForm({
             <SelectItem value="sail">Sail (S/Y)</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="vesselName">Vessel name</Label>
+        <div className="flex">
+          <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+            {vesselType === 'sail' ? 'S/Y' : 'M/Y'}
+          </span>
+          <Input
+            id="vesselName"
+            placeholder="Vessel Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-l-none"
+            required
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
