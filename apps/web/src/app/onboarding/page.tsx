@@ -34,6 +34,7 @@ import {
   Compass,
   CheckCircle2,
 } from 'lucide-react';
+import { safeFetch } from '@/lib/safe-fetch';
 
 type IdentityType = 'crew' | 'agent';
 type HatType = 'crew' | 'employer' | 'agent';
@@ -234,9 +235,11 @@ export default function OnboardingPage() {
 
     setLookingUpImo(entryKey);
     try {
-      const res = await fetch(`/api/vessels/lookup?imo=${imoClean}`);
-      const data = await res.json();
-      if (data.found && data.vessel) {
+      const result = await safeFetch<{
+        found: boolean;
+        vessel?: { name: string; vessel_type?: 'motor' | 'sail'; loa_meters: number; id: string };
+      }>(`/api/vessels/lookup?imo=${imoClean}`);
+      if (result.ok && result.data.found && result.data.vessel) {
         setExperienceEntries((prev) =>
           prev.map((e) =>
             e.key === entryKey
@@ -244,11 +247,11 @@ export default function OnboardingPage() {
                   ...e,
                   vessel: {
                     ...e.vessel,
-                    name: data.vessel.name,
-                    vesselType: data.vessel.vessel_type ?? 'motor',
-                    loaMeters: String(data.vessel.loa_meters),
+                    name: result.data.vessel!.name,
+                    vesselType: result.data.vessel!.vessel_type ?? 'motor',
+                    loaMeters: String(result.data.vessel!.loa_meters),
                     useExisting: true,
-                    existingVesselId: data.vessel.id,
+                    existingVesselId: result.data.vessel!.id,
                   },
                 }
               : e,
@@ -339,7 +342,7 @@ export default function OnboardingPage() {
               }))
           : [];
 
-      const res = await fetch('/api/onboarding', {
+      const result = await safeFetch<{ error?: string }>('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -350,16 +353,12 @@ export default function OnboardingPage() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Something went wrong');
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
 
       router.push('/profile');
-    } catch {
-      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }

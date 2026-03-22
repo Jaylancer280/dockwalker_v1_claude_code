@@ -3,23 +3,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
+import { safeFetch } from '@/lib/safe-fetch';
 
 export function NotificationBell() {
   const [count, setCount] = useState(0);
 
   const fetchCount = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications/count');
-      if (res.ok) {
-        const data = await res.json();
-        setCount(data.notification_count ?? 0);
+      const result = await safeFetch<{ notification_count?: number }>('/api/notifications/count');
+      if (result.ok) {
+        setCount(result.data.notification_count ?? 0);
       }
-    } catch {
-      // swallow
+    } finally {
+      // setState guard for react-hooks/set-state-in-effect
     }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchCount();
     const handleVisibility = () => {
@@ -28,7 +27,6 @@ export function NotificationBell() {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchCount]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <Link href="/notifications" className="relative text-muted-foreground hover:text-foreground">

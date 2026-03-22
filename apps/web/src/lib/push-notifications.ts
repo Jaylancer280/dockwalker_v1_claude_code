@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { safeFetch } from '@/lib/safe-fetch';
 
 const TOKEN_STORAGE_KEY = 'dw_push_token';
 
@@ -28,17 +29,13 @@ export async function registerPushNotifications() {
       // Only re-POST if token changed
       if (token === previousToken) return;
 
-      try {
-        const res = await fetch('/api/push-tokens', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, platform: getPlatformType() }),
-        });
-        if (res.ok) {
-          localStorage.setItem(TOKEN_STORAGE_KEY, token);
-        }
-      } catch {
-        // Silently fail — token will be re-registered on next app launch
+      const result = await safeFetch('/api/push-tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, platform: getPlatformType() }),
+      });
+      if (result.ok) {
+        localStorage.setItem(TOKEN_STORAGE_KEY, token);
       }
     });
 
@@ -87,15 +84,11 @@ export async function deregisterPushToken() {
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!token) return;
 
-  try {
-    await fetch('/api/push-tokens', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
-    });
-  } catch {
-    // Best-effort — token will expire naturally if not cleaned up
-  }
+  void safeFetch('/api/push-tokens', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
 
   localStorage.removeItem(TOKEN_STORAGE_KEY);
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRightLeft } from 'lucide-react';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface HatSwitcherProps {
   currentHat: string;
@@ -15,17 +16,20 @@ export function HatSwitcher({ currentHat, identityType }: HatSwitcherProps) {
 
   const fetchAltCount = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications/count');
-      if (res.ok) {
-        const data = await res.json();
-        setAltCount((data.alt_notification_count ?? 0) + (data.alt_message_count ?? 0));
+      const result = await safeFetch<{
+        alt_notification_count?: number;
+        alt_message_count?: number;
+      }>('/api/notifications/count');
+      if (result.ok) {
+        setAltCount(
+          (result.data.alt_notification_count ?? 0) + (result.data.alt_message_count ?? 0),
+        );
       }
-    } catch {
-      // swallow
+    } finally {
+      // setState guard for react-hooks/set-state-in-effect
     }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (identityType === 'agent') return;
     fetchAltCount();
@@ -36,7 +40,6 @@ export function HatSwitcher({ currentHat, identityType }: HatSwitcherProps) {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchAltCount, identityType]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Agents can't switch
   if (identityType === 'agent') {
@@ -51,12 +54,12 @@ export function HatSwitcher({ currentHat, identityType }: HatSwitcherProps) {
 
   async function handleSwitch() {
     setSwitching(true);
-    const res = await fetch('/api/hat', {
+    const result = await safeFetch('/api/hat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hat: otherHat }),
     });
-    if (res.ok) {
+    if (result.ok) {
       window.location.reload();
     }
     setSwitching(false);

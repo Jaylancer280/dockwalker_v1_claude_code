@@ -53,17 +53,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'File must be 2MB or smaller' }, { status: 400 });
   }
 
-  const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
-  const storagePath = `${user.id}/avatar.${ext}`;
-
-  // Remove any existing avatar files for this user (different extension)
-  const { data: existing } = await supabase.storage.from('avatars').list(user.id);
-
-  if (existing && existing.length > 0) {
-    const paths = existing.map((f) => `${user.id}/${f.name}`);
-    await supabase.storage.from('avatars').remove(paths);
-  }
-
+  // 1. Read buffer and validate magic bytes BEFORE touching storage
   const buffer = Buffer.from(await file.arrayBuffer());
 
   if (!validateMagicBytes(new Uint8Array(buffer), file.type)) {
@@ -72,6 +62,10 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+
+  // 2. Upload new file first
+  const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
+  const storagePath = `${user.id}/avatar.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from('avatars')
@@ -82,6 +76,18 @@ export async function POST(request: Request) {
 
   if (uploadError) {
     return NextResponse.json({ error: uploadError.message }, { status: 500 });
+  }
+
+  // 3. Only after upload succeeds, remove old files with different extensions
+  const { data: existing } = await supabase.storage.from('avatars').list(user.id);
+
+  if (existing && existing.length > 0) {
+    const oldPaths = existing
+      .filter((f) => `${user.id}/${f.name}` !== storagePath)
+      .map((f) => `${user.id}/${f.name}`);
+    if (oldPaths.length > 0) {
+      await supabase.storage.from('avatars').remove(oldPaths);
+    }
   }
 
   const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);

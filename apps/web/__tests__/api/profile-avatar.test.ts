@@ -151,6 +151,40 @@ describe('POST /api/profile/avatar', () => {
     expect(body.error).toContain('does not match');
   });
 
+  it('does not delete old avatar when magic bytes are invalid', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockStorageList.mockResolvedValue({ data: [{ name: 'avatar.jpg' }] });
+
+    const formData = new FormData();
+    formData.append('file', makeFileWithWrongContent('image/jpeg'));
+    const req = new Request('http://localhost/api/profile/avatar', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    expect(mockStorageRemove).not.toHaveBeenCalled();
+    expect(mockStorageUpload).not.toHaveBeenCalled();
+  });
+
+  it('does not delete old avatar when upload fails', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockStorageList.mockResolvedValue({ data: [{ name: 'avatar.png' }] });
+    mockStorageUpload.mockResolvedValue({ error: { message: 'Storage full' } });
+
+    const formData = new FormData();
+    formData.append('file', makeFile('image/jpeg', 1000));
+    const req = new Request('http://localhost/api/profile/avatar', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    expect(mockStorageRemove).not.toHaveBeenCalled();
+  });
+
   it('uploads successfully and returns avatar_url', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 

@@ -191,6 +191,8 @@
 - [Stage 138] Push-triggers decomposition — 1033-line monolith split into 9 focused modules (types, loaders, notification-mapper, daywork-handlers, permanent-handlers, event-router, email-dispatcher, broadcast, index); zero behavioral change
 - [Stage 139] NDA reveal for permanent engagements — migration 00060 extends `get_vessel_public` with permanent_postings OR branch for IMO reveal
 - [Fix 139a-f] Hardening batch — network failure try/finally on 8 pages, onboarding re-entrant retry, Stripe origin header hardening, Docky atomic usage RPC (migration 00061), integration test password fix, UUID validation on profile view param, ESLint cleanup
+- [Stage 141a] safeFetch migration — replaced all 82+ bare fetch() calls across 20 client-side page/component files with safeFetch (15s timeout, typed discriminated union, zero unhandled rejections); updated 2 test mocks for res.text() compatibility; 812 tests pass
+- [Stage 142] Client resilience fixes — (a) avatar upload reordered: validate magic bytes → upload new → delete old, preventing broken avatar_url on bad files; (b) chat realtime: reactive polling fallback that starts/stops based on connection state instead of one-shot 5s decision; (c) availability overlay: all 4 fetch calls → safeFetch with try/finally + deselected-date DELETE error handling; (d) completed safeFetch migration on remaining 13 client files (components, hooks, lib, onboarding); zero bare fetch() in client code; 814 tests pass
 
 ## Current Schema Version
 

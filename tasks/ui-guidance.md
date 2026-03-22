@@ -1,100 +1,156 @@
-# DockWalker UI Design System — Claude Code Prompt
+# DockWalker UI Design System — Implementation Guide
 
-You are implementing the UI for DockWalker — a professional superyacht crew marketplace. Before writing any component, read and internalize this entire design system. Every rule here is non-negotiable. Do not deviate without explicit instruction.
+> **Authority:** This document defines the visual design system. For product rules see `CLAUDE.md`. For build progress see `BUILD_STATE.md`.
+>
+> **How to use:** Each section is an independently-implementable stage. Apply one stage, review visually, iterate or continue. Do not combine stages without explicit instruction.
+>
+> **Decisions locked in:**
+>
+> - Layout: bottom-nav stays. No sidebar, no topbar.
+> - Theme: system-detected default. User can toggle light / dark / system in settings.
+> - Token strategy: remap spec values to shadcn variable names (e.g. `--background`, `--card`). Keep shadcn naming, replace values.
+> - Font loading: `next/font/local` (already used for Geist). Not `next/font/google`.
+> - Image assets: `assets/` directory has branding, onboarding heroes, crew/vessel/role photography. Wire into relevant pages.
+> - Tests: update any component tests broken by structural changes.
 
 ---
 
-### STACK
+## Stage UI-1: Fonts
 
-- **Framework:** Next.js + TypeScript
-- **Styling:** Tailwind CSS utility classes only — no arbitrary CSS files unless I explicitly ask
-- **Fonts:** Geist (UI text) + Geist Mono (rates, counts, timestamps, data) — import via `next/font/google`
-- **Icons:** Lucide React — use consistently, never inline SVG unless Lucide lacks the icon
-- **Motion:** Tailwind transition utilities for simple states; Framer Motion for entrance animations and staggered lists
-- **Theme:** CSS custom properties on `[data-theme]` attribute, toggled via a ThemeProvider context. Dark is the default.
+**Goal:** Load Geist Mono alongside Geist. Wire `font-mono` so it actually works.
+
+**Prerequisite:** Source Geist Mono font files (Regular + Medium + Bold at minimum). Current `assets/fonts/` has Geist only — Mono files must be added before this stage.
+
+**What to do:**
+
+1. Add Geist Mono `.ttf` files to `apps/web/public/fonts/`
+2. In `apps/web/src/app/layout.tsx`, add a second `localFont` declaration for Geist Mono with `variable: '--font-geist-mono'`
+3. Apply the CSS variable to `<body>` alongside the existing `--font-geist`
+4. Verify `globals.css` line `--font-mono: var(--font-geist-mono)` now resolves
+
+**What NOT to do:** Do not change any typography sizes, weights, or where `font-mono` is used. Just make the font load.
+
+**Done when:** `font-mono` class renders in Geist Mono in the browser. Verify on the permanent summary card (already uses `font-mono`).
 
 ---
 
-### DESIGN TOKENS
+## Stage UI-2: Design Tokens
 
-Implement these as CSS custom properties in `globals.css`. Every colour in the app must reference a token — no hardcoded hex values in components.
+**Goal:** Replace the current OKLCH colour system with the spec's hex/rgba values, scoped by `[data-theme]`.
+
+**What to do:**
+
+Rewrite `globals.css` to replace the current `:root` block with `[data-theme='dark']` and `[data-theme='light']` blocks. Map spec tokens to shadcn names:
+
+```
+Spec token        → Shadcn variable
+--c-bg            → --background
+--c-surface       → --surface  (new — used for bottom-nav bg)
+--c-card          → --card
+--c-card-hover    → --card-hover  (new)
+--c-border        → --border
+--c-border-hi     → --border-hi  (new — hover/focus borders)
+--c-text-1        → --foreground
+--c-text-2        → --muted-foreground
+--c-text-3        → --tertiary  (new — timestamps, separators)
+--c-accent        → --accent
+--c-accent-lo     → --accent-lo  (new)
+--c-accent-md     → --accent-md  (new)
+--c-green         → --success
+--c-green-lo      → --success-lo  (new)
+--c-amber         → --warning
+--c-amber-lo      → --warning-lo  (new)
+--c-red           → --destructive
+--c-red-lo        → --destructive-lo  (new)
+```
+
+Keep existing shadcn variables that components depend on (`--primary`, `--secondary`, `--muted`, `--ring`, `--input`, `--popover`, `--card-foreground`, `--primary-foreground`, etc.) and point them at appropriate values from the spec palette.
+
+Also add these spec-only tokens (not remapped, used directly):
+
+```
+--c-body-grad-a / --c-body-grad-b     (body background gradients)
+--c-num-grad                          (hero number gradient text)
+--c-icon-bg / --c-icon-border / --c-icon-color  (vessel chip)
+--c-featured-bg / --c-featured-border / --c-featured-bar  (featured cards)
+--shadow-featured                     (featured card shadow)
+```
+
+Provide both `[data-theme='dark']` and `[data-theme='light']` blocks with full values from the original spec (reproduced below for reference).
+
+Keep the DockWalker brand colors (`--color-navy`, `--color-sea`, etc.) for backwards compatibility — remove only when no component references them.
+
+Keep `--radius`, `--nav-height`, safe area handling, and Tailwind `@theme inline` block. Update `@theme inline` colour mappings to reference the new variable names.
+
+**What NOT to do:** Do not add ThemeProvider, theme toggle, or `data-theme` attribute yet. Just define the token blocks. The app will look broken until Stage UI-3 applies the attribute — that's expected.
+
+**Done when:** `globals.css` has both theme blocks defined. No runtime change yet (no `data-theme` attribute on HTML).
+
+### Token Reference Values
+
+#### Dark
 
 ```css
-/* ── DARK ──────────────────────────────────────── */
 [data-theme='dark'] {
-  --c-bg: #111a24; /* page background — visible dark navy, not black */
-  --c-surface: #162030; /* topbar, sidebar, panels */
-  --c-card: #1b2738; /* card background */
-  --c-card-hover: #1f2e40; /* card hover/selected background */
-  --c-border: rgba(255, 255, 255, 0.07);
-  --c-border-hi: rgba(74, 158, 255, 0.26); /* hover/focus border */
-
-  --c-text-1: #dce8f4; /* primary — headings, labels */
-  --c-text-2: #7a9ab8; /* secondary — vessel names, meta */
-  --c-text-3: #4a6680; /* tertiary — timestamps, separators */
-
-  --c-accent: #4a9eff;
-  --c-accent-lo: rgba(74, 158, 255, 0.1);
-  --c-accent-md: rgba(74, 158, 255, 0.2);
-
-  --c-green: #34d399;
-  --c-green-lo: rgba(52, 211, 153, 0.1);
-  --c-amber: #f59e0b;
-  --c-amber-lo: rgba(245, 158, 11, 0.1);
-  --c-red: #f87171;
-  --c-red-lo: rgba(248, 113, 113, 0.1);
-
-  /* Atmospheric background gradients — radial only, corner-anchored */
+  --background: #111a24;
+  --surface: #162030;
+  --card: #1b2738;
+  --card-hover: #1f2e40;
+  --foreground: #dce8f4;
+  --muted-foreground: #7a9ab8;
+  --tertiary: #4a6680;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-hi: rgba(74, 158, 255, 0.26);
+  --accent: #4a9eff;
+  --accent-lo: rgba(74, 158, 255, 0.1);
+  --accent-md: rgba(74, 158, 255, 0.2);
+  --success: #34d399;
+  --success-lo: rgba(52, 211, 153, 0.1);
+  --warning: #f59e0b;
+  --warning-lo: rgba(245, 158, 11, 0.1);
+  --destructive: #f87171;
+  --destructive-lo: rgba(248, 113, 113, 0.1);
   --c-body-grad-a: rgba(74, 158, 255, 0.05);
   --c-body-grad-b: rgba(20, 50, 90, 0.35);
-
-  /* Gradient text — hero numbers only (feed count, stats) */
   --c-num-grad: linear-gradient(160deg, #dce8f4 50%, #4a6680 100%);
-
-  /* Vessel icon chip */
   --c-icon-bg: linear-gradient(145deg, rgba(74, 158, 255, 0.09), rgba(27, 39, 56, 0.95));
   --c-icon-border: rgba(74, 158, 255, 0.14);
   --c-icon-color: #4a9eff;
-
-  /* Featured card */
   --c-featured-bg: #1b2738;
   --c-featured-border: rgba(74, 158, 255, 0.35);
-  --c-featured-bar: rgba(74, 158, 255, 0.6); /* left accent bar */
+  --c-featured-bar: rgba(74, 158, 255, 0.6);
   --shadow-featured: 0 0 0 1px rgba(74, 158, 255, 0.22);
 }
+```
 
-/* ── LIGHT ─────────────────────────────────────── */
+#### Light
+
+```css
 [data-theme='light'] {
-  --c-bg: #eef2f8;
-  --c-surface: #ffffff;
-  --c-card: #ffffff;
-  --c-card-hover: #f7fafd;
-  --c-border: rgba(13, 27, 42, 0.07);
-  --c-border-hi: rgba(45, 125, 224, 0.3);
-
-  --c-text-1: #0d1b2a;
-  --c-text-2: #3d5a7a;
-  --c-text-3: #7a9ab8;
-
-  --c-accent: #2d7de0;
-  --c-accent-lo: rgba(45, 125, 224, 0.08);
-  --c-accent-md: rgba(45, 125, 224, 0.15);
-
-  --c-green: #059669;
-  --c-green-lo: rgba(5, 150, 105, 0.08);
-  --c-amber: #d97706;
-  --c-amber-lo: rgba(217, 119, 6, 0.09);
-  --c-red: #dc2626;
-  --c-red-lo: rgba(220, 38, 38, 0.08);
-
+  --background: #eef2f8;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --card-hover: #f7fafd;
+  --foreground: #0d1b2a;
+  --muted-foreground: #3d5a7a;
+  --tertiary: #7a9ab8;
+  --border: rgba(13, 27, 42, 0.07);
+  --border-hi: rgba(45, 125, 224, 0.3);
+  --accent: #2d7de0;
+  --accent-lo: rgba(45, 125, 224, 0.08);
+  --accent-md: rgba(45, 125, 224, 0.15);
+  --success: #059669;
+  --success-lo: rgba(5, 150, 105, 0.08);
+  --warning: #d97706;
+  --warning-lo: rgba(217, 119, 6, 0.09);
+  --destructive: #dc2626;
+  --destructive-lo: rgba(220, 38, 38, 0.08);
   --c-body-grad-a: rgba(74, 158, 255, 0.04);
   --c-body-grad-b: rgba(74, 158, 255, 0.02);
   --c-num-grad: linear-gradient(160deg, #0d1b2a 50%, #7a9ab8 100%);
-
   --c-icon-bg: linear-gradient(145deg, rgba(45, 125, 224, 0.09), rgba(210, 225, 242, 0.6));
   --c-icon-border: rgba(45, 125, 224, 0.14);
   --c-icon-color: #2d7de0;
-
   --c-featured-bg: #f4f8ff;
   --c-featured-border: rgba(45, 125, 224, 0.28);
   --c-featured-bar: rgba(45, 125, 224, 0.55);
@@ -104,237 +160,437 @@ Implement these as CSS custom properties in `globals.css`. Every colour in the a
 
 ---
 
-### TYPOGRAPHY RULES
+## Stage UI-3: Theme Infrastructure
 
-These are hard rules. Do not override them.
+**Goal:** Make the token blocks from Stage UI-2 actually apply. System-detected default with user toggle.
 
-| Role                             | Font       | Size    | Weight  | Notes                                                 |
-| -------------------------------- | ---------- | ------- | ------- | ----------------------------------------------------- |
-| Hero numbers (feed count, stats) | Geist      | 48–56px | 800     | Gradient text via `--c-num-grad`                      |
-| Page title                       | Geist      | 24–28px | 700     | `letter-spacing: -0.5px`                              |
-| Card title                       | Geist      | 15px    | 650     | `letter-spacing: -0.3px`                              |
-| Body / labels                    | Geist      | 13–15px | 400–500 | —                                                     |
-| Rates & money                    | Geist Mono | 17px    | 700     | `letter-spacing: -0.5px`                              |
-| Rate period (`/day`)             | Geist      | 11px    | 500     | `color: var(--c-text-2); opacity: 0.6` — NOT `text-3` |
-| Timestamps, counts               | Geist Mono | 11px    | 400     | `color: var(--c-text-3)`                              |
-| Nav labels                       | Geist      | 10px    | 700     | Uppercase, `letter-spacing: 0.08em`                   |
-| Badges                           | Geist      | 11px    | 600     | `letter-spacing: 0.01em`                              |
-| Buttons                          | Geist      | 12px    | 600     | `letter-spacing: 0.01em`                              |
+**What to do:**
 
-**NEVER use:** Inter, Roboto, Arial, system-ui, or any fallback as the primary font.
+1. **Inline script in `<head>`** — before React hydrates, read `localStorage.getItem('dw-theme')`. If `'light'` or `'dark'`, set `document.documentElement.dataset.theme`. If `'system'` or absent, use `matchMedia('(prefers-color-scheme: dark)')` to decide. This prevents flash of wrong theme (FOWT).
+2. **ThemeProvider context** — `apps/web/src/components/theme-provider.tsx`. Provides `{ theme, setTheme }` where theme is `'light' | 'dark' | 'system'`. Writes to `localStorage('dw-theme')` and updates `document.documentElement.dataset.theme`. Listens to `matchMedia` changes when set to `'system'`.
+3. **Wrap in root layout** — add `ThemeProvider` to `apps/web/src/app/layout.tsx`.
+4. **Settings toggle** — add Light / Dark / System selector to the Appearance section in `apps/web/src/app/(app)/settings/page.tsx`. Use the existing settings card pattern.
+5. **Body transition** — add `transition: background-color 0.3s, color 0.3s` to `body` in `globals.css` for smooth theme switching.
+6. **Viewport theme-color** — update the `<meta name="theme-color">` to reflect current theme (dark: `#111a24`, light: `#eef2f8`).
+
+**What NOT to do:** Do not change any component styles. The app should now render in the new colour palette (whichever theme the system selects) using existing Tailwind classes that reference shadcn variables. Some things may look wrong — that's expected, fixed in later stages.
+
+**Done when:** App renders in dark or light based on system preference. Settings toggle switches between them. No FOWT on refresh.
 
 ---
 
-### BORDER RADIUS SYSTEM
+## Stage UI-4: Typography Scale
 
-This is the hierarchy. Mixing these creates visual inconsistency.
+**Goal:** Enforce the type hierarchy across all pages.
+
+**Typography rules (hard — do not override):**
+
+| Role                             | Font       | Size    | Weight  | Extra                                                             |
+| -------------------------------- | ---------- | ------- | ------- | ----------------------------------------------------------------- |
+| Hero numbers (feed count, stats) | Geist      | 48–56px | 800     | Gradient text via `--c-num-grad`                                  |
+| Page title                       | Geist      | 24–28px | 700     | `letter-spacing: -0.5px`                                          |
+| Card title                       | Geist      | 15px    | 650     | `letter-spacing: -0.3px`                                          |
+| Body / labels                    | Geist      | 13–15px | 400–500 | —                                                                 |
+| Rates & money                    | Geist Mono | 17px    | 700     | `letter-spacing: -0.5px`                                          |
+| Rate period (`/day`, `/month`)   | Geist      | 11px    | 500     | `color: var(--muted-foreground); opacity: 0.6` — NOT `--tertiary` |
+| Timestamps, counts               | Geist Mono | 11px    | 400     | `color: var(--tertiary)`                                          |
+| Nav labels                       | Geist      | 10px    | 700     | Uppercase, `letter-spacing: 0.08em`                               |
+| Badges                           | Geist      | 11px    | 600     | `letter-spacing: 0.01em`                                          |
+| Buttons                          | Geist      | 12px    | 600     | `letter-spacing: 0.01em`                                          |
+
+**NEVER use:** Inter, Roboto, Arial, system-ui, or any fallback as the primary font.
+
+**What to do:**
+
+1. Define Tailwind utility classes or CSS classes for each role (e.g. `.text-rate`, `.text-timestamp`, `.text-page-title`) in `globals.css` — or use inline Tailwind where simpler
+2. Audit every page and apply correct typography role to each text element
+3. Wire `font-mono` onto all rate displays, timestamps, counts, job references
+4. Add gradient text utility class for hero numbers
+
+**What NOT to do:** Do not change layout, spacing, or component structure. Only change font family, size, weight, letter-spacing, and colour on text elements.
+
+**Done when:** Every text element in the app uses the correct role from the table above. `font-mono` is visually distinct on rates and timestamps.
+
+---
+
+## Stage UI-5: Border Radius System
+
+**Goal:** Consistent radius hierarchy.
 
 | Element                                    | Radius         |
 | ------------------------------------------ | -------------- |
-| Cards, modals, panels                      | `14px`         |
+| Cards, modals, panels, overlays            | `14px`         |
 | Inputs, icon buttons, nav items, tags      | `8px`          |
 | Action buttons (primary, secondary, apply) | `999px` (pill) |
 | Filter pills, badges                       | `999px` (pill) |
 | Vessel icon chip                           | `10px`         |
 | Urgency ribbon label                       | `4px`          |
 
----
+**What to do:**
 
-### SHADOW & ELEVATION RULES
+1. Update `--radius` in `globals.css` and the derived `--radius-*` values to produce these sizes
+2. Update `button.tsx` — action buttons get `rounded-full`, keep `rounded-lg` for icon buttons
+3. Update `card.tsx` — change to `rounded-[14px]`
+4. Update `badge.tsx` — already `rounded-full`, verify
+5. Update `input.tsx`, `textarea.tsx`, `select.tsx` — `rounded-lg` (8px)
+6. Update `dialog.tsx` — `rounded-[14px]`
+7. Audit overlays (availability, profile, cancel, postponement, rating, checklist, crew-cancel) for consistency
 
-These rules exist to avoid AI-generated UI tells. Follow them exactly.
-
-**Dark mode — use borders and glow, never drop shadows:**
-
-- Cards at rest: `border: 1px solid var(--c-border)` only
-- Cards on hover/selected: `border-color: var(--c-border-hi)` — border change only, no shadow, no transform
-- Featured cards: `box-shadow: var(--shadow-featured)` — a subtle outer ring, not a drop shadow
-- Do NOT use `box-shadow` with large blur values on dark surfaces — glow disappears into dark backgrounds and reads as broken
-
-**Light mode — use precise shadows, not atmospheric blur:**
-
-- Cards at rest: `border: 1px solid var(--c-border)` only
-- Hover: `border-color: var(--c-border-hi)` — border change only
-- Featured: `box-shadow: var(--shadow-featured)` — 1px border ring + soft drop, max blur 8px
-- NEVER: `box-shadow: 0 20px 60px rgba(0,0,0,0.3)` — this is 2018 card design
-
-**Universal:**
-
-- No `transform: translateY(-2px)` on hover — cards are not physical objects lifting off a table
-- No gradient-fill buttons — ever
-- No decorative shadows on flat background surfaces
+**Done when:** Visual audit shows consistent radius hierarchy. No mixed values.
 
 ---
 
-### GRADIENT RULES
+## Stage UI-6: Button System
 
-Gradients simulate physics. If you cannot explain why a gradient exists in terms of light hitting a surface, remove it.
+**Goal:** Three button variants matching the spec.
 
-**Permitted:**
+| Variant          | Background         | Text                      | Border                       | Hover                                                      |
+| ---------------- | ------------------ | ------------------------- | ---------------------------- | ---------------------------------------------------------- |
+| Primary          | `var(--accent)`    | `#fff`                    | none                         | `filter: brightness(1.08)`                                 |
+| Ghost            | `var(--card)`      | `var(--muted-foreground)` | `1px solid var(--border)`    | `border-color: var(--border-hi); color: var(--foreground)` |
+| Apply (card CTA) | `var(--accent-lo)` | `var(--accent)`           | `1px solid var(--border-hi)` | flip to `background: var(--accent); color: #fff`           |
 
-- Body background: two radial gradients, corner-anchored, opacity ≤ 0.07 — atmospheric only
-- Gradient text: hero numbers and the “24 positions” display only — `background-clip: text`
-- Vessel icon chip: subtle 145deg gradient, same hue family only
-- Featured card left accent bar: vertical gradient, full opacity at top fading to transparent
+**All buttons:** `border-radius: 999px`, `font-size: 12px`, `font-weight: 600`, `letter-spacing: 0.01em`.
 
-**Forbidden:**
+**Apply button:** uppercase text, `letter-spacing: 0.03em`.
 
-- Linear gradient fills on cards
-- Gradient-fill buttons
-- Any gradient where you can clearly see where one colour ends and another begins
-- Cross-hue gradients (navy to teal, blue to purple, etc.)
-- Gradient overlays as decorative elements
+**Hard bans:** No gradient fills. No `transform` on hover. No colour-shift hover (use brightness or border change only).
+
+**What to do:**
+
+1. Rewrite `button.tsx` variants to match the three-variant system
+2. Map existing variant usage: `default` → Primary, `outline`/`secondary` → Ghost, new `apply` variant
+3. Existing `destructive` variant: keep but style as `var(--destructive)` background, `#fff` text, same pill radius
+4. Update all button usages across pages if variant names changed
+5. Update component tests if button variant props changed
+
+**Done when:** All buttons in the app match the spec. No leftover shadcn default styling.
 
 ---
 
-### CARD ANATOMY
+## Stage UI-7: Card System
 
-Every card in DockWalker follows this structure. Do not invent new card layouts — adapt this pattern.
+**Goal:** Standardised card anatomy.
+
+**Card structure:**
 
 ```
-┌─────────────────────────────────────────┐  ← border: 1px solid --c-border
-│ [feat-bar] [vessel-icon] [title+vessel] [badge] [rate] │  ← row 1
-│ [tag] [tag] [tag] [tag]                              │  ← row 2
-│ ─────────────────────────────────────────────────── │  ← divider
-│ [clock] Xh ago  [people] X applicants    [Apply btn] │  ← footer
+┌─────────────────────────────────────────┐  ← border: 1px solid var(--border), radius: 14px
+│ [vessel-chip] [title + vessel] [rate]   │  ← row 1
+│ [tag] [tag] [tag]                       │  ← row 2 (tags)
+│ ─────────────────────────────────────── │  ← border-top: 1px solid var(--border)
+│ [icon] Xh ago  [icon] X apps  [Apply]  │  ← footer
 └─────────────────────────────────────────┘
 ```
 
-- **Vessel icon chip:** 38×38px, `border-radius: 10px`, 2-letter abbreviation in Geist Mono, uses `--c-icon-*` tokens
-- **Rate:** Geist Mono 17px/700 + `/day` in Geist 11px/500 at 60% opacity — they sit on the same baseline
-- **Tags:** `background: var(--c-bg)`, `border: 1px solid var(--c-border)`, `border-radius: 8px`, emoji prefix
-- **Footer divider:** `border-top: 1px solid var(--c-border)`
-- **Featured variant:** add a `feat-bar` div — `position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--c-featured-bar) 0%, transparent 100%)`
-- **Urgent variant:** `border-color: rgba(245,158,11,0.22)` + absolute-positioned urgency ribbon top-right
-- **Hover/selected state:** `border-color: var(--c-border-hi)` only — no shadow, no lift, no background change on standard cards
-- **Expanded/selected state:** `border-color: var(--c-accent)` + `background: var(--c-card-hover)`
-- **NEVER** use `::before` or `::after` pseudo-elements for visual effects that need to respect `border-radius` — use `box-shadow` or real DOM elements instead (Safari/WebKit clips pseudo-elements inconsistently)
+**Vessel icon chip:** 38×38px, `border-radius: 10px`, 2-letter vessel type abbreviation in Geist Mono, uses `--c-icon-*` tokens. New component: `VesselChip`.
+
+**Tags:** `background: var(--background)`, `border: 1px solid var(--border)`, `border-radius: 8px`, emoji prefix.
+
+**Rate display:** Geist Mono 17px/700 + period suffix in Geist 11px/500 at 60% opacity. Same baseline.
+
+**Card states:**
+
+- Rest: `border: 1px solid var(--border)`, `background: var(--card)`
+- Hover: `border-color: var(--border-hi)` only — no shadow, no lift, no bg change
+- Selected/expanded: `border-color: var(--accent)` + `background: var(--card-hover)`
+- Featured: left accent bar (3px, gradient), `--c-featured-border`, `--c-featured-bg`
+- Urgent: `border-color: rgba(245,158,11,0.22)` + ribbon top-right
+
+**Shadow rules:**
+
+- Dark: borders and glow only, never drop shadows
+- Light: `border` only at rest, `max-blur 8px` on featured
+- Never: `translateY` on hover, `blur > 8px`, decorative shadows
+
+**What to do:**
+
+1. Update `card.tsx` base styles
+2. Create `VesselChip` component
+3. Apply card anatomy to discover page job cards (daywork + permanent)
+4. Apply to review page applicant cards
+5. Apply to mine page posting cards
+6. Apply to application cards, invitation cards
+7. Apply to messages list thread cards
+
+**What NOT to do:** Do not change data displayed on cards — only visual treatment. Keep the same information hierarchy (role, vessel, location, rate, dates).
+
+**NEVER** use `::before` or `::after` pseudo-elements for visual effects that need to respect `border-radius` — use `box-shadow` or real DOM elements (Safari/WebKit clips pseudo-elements inconsistently).
+
+**Done when:** Every card in the app follows the anatomy. Featured/urgent variants exist and can be applied where relevant.
 
 ---
 
-### STATUS BADGE SYSTEM
+## Stage UI-8: Status Badge System
 
-Three semantic states only. Do not invent new badge colours.
+**Goal:** Four semantic badge states with consistent styling.
 
-| State                  | Background      | Text         | Border                   |
-| ---------------------- | --------------- | ------------ | ------------------------ |
-| Open / Active          | `--c-green-lo`  | `--c-green`  | `rgba(52,211,153,0.18)`  |
-| Filling Fast / Pending | `--c-amber-lo`  | `--c-amber`  | `rgba(245,158,11,0.18)`  |
-| Invite Only / Closed   | `--c-accent-lo` | `--c-accent` | `--c-border-hi`          |
-| Disputed / Cancelled   | `--c-red-lo`    | `--c-red`    | `rgba(248,113,113,0.18)` |
+| State                  | Background              | Text                 | Border                   |
+| ---------------------- | ----------------------- | -------------------- | ------------------------ |
+| Open / Active          | `var(--success-lo)`     | `var(--success)`     | `rgba(52,211,153,0.18)`  |
+| Filling Fast / Pending | `var(--warning-lo)`     | `var(--warning)`     | `rgba(245,158,11,0.18)`  |
+| Invite Only / Closed   | `var(--accent-lo)`      | `var(--accent)`      | `var(--border-hi)`       |
+| Disputed / Cancelled   | `var(--destructive-lo)` | `var(--destructive)` | `rgba(248,113,113,0.18)` |
 
-- Open/Filling badges get a pulsing dot: `5px` circle, `background: currentColor`, `animation: blink 2s ease infinite`
-- Static states (Invite Only, Closed) get no dot
+**Pulsing dot:** Open and Filling badges get a 5px circle with `animation: blink 2s ease infinite`. Static states get no dot.
 
----
+```css
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+```
 
-### BUTTON SYSTEM
+**What to do:**
 
-| Variant          | Background           | Text              | Border                         |
-| ---------------- | -------------------- | ----------------- | ------------------------------ |
-| Primary          | `var(--c-accent)`    | `#fff`            | none                           |
-| Ghost            | `var(--c-card)`      | `var(--c-text-2)` | `1px solid var(--c-border)`    |
-| Apply (card CTA) | `var(--c-accent-lo)` | `var(--c-accent)` | `1px solid var(--c-border-hi)` |
+1. Add semantic variants to `badge.tsx` (`status-open`, `status-filling`, `status-closed`, `status-cancelled`)
+2. Add `PulsingDot` sub-component
+3. Replace all inline badge styling across pages with the new variants
+4. Map existing application status labels to badge variants
 
-- All buttons: `border-radius: 999px`, `font-size: 12px`, `font-weight: 600`
-- Apply button text: uppercase, `letter-spacing: 0.03em`
-- Primary hover: `filter: brightness(1.08)` — not a colour change
-- Apply hover: flip to `background: var(--c-accent); color: #fff`
-- Ghost hover: `border-color: var(--c-border-hi); color: var(--c-text-1)`
-- No gradient fills on any button, ever
-
----
-
-### NAVIGATION SYSTEM
-
-**Sidebar nav items:**
-
-- Inactive: `color: var(--c-text-2)`, transparent background
-- Hover: `background: var(--c-card)`
-- Active: `background: var(--c-accent-lo); color: var(--c-accent); font-weight: 500`
-- Active indicator: `position: absolute; left: 0; top: 20%; bottom: 20%; width: 2px; border-radius: 1px; background: var(--c-accent)` — this is the wing motif carried into nav
-- Count chips: Geist Mono, `font-size: 10px`, `border-radius: 4px`
+**Done when:** Every status indicator in the app uses one of the four badge variants. No ad-hoc colour styling on badges.
 
 ---
 
-### MOTION RULES
+## Stage UI-9: Bottom Nav Reskin
 
-- **Entrance animations:** staggered `translateY(14px) → 0` with `opacity: 0 → 1`, delay increment 60ms per item, duration 500ms, easing `cubic-bezier(0.16,1,0.3,1)`
-- **Hover transitions:** `border-color .2s`, `background .2s` — nothing else
-- **Theme toggle:** `transition: background-color .3s, color .3s` on `body`
-- **Pulsing dots:** `@keyframes blink { 0%,100% { opacity:1 } 50% { opacity:0.4 } }` — 2–2.5s, ease
-- **No bounce, no spring physics, no scale transforms on cards**
-- One well-orchestrated page load with staggered reveals beats scattered micro-interactions
+**Goal:** Restyle bottom-nav to match the new token system.
+
+**What to do:**
+
+1. Background: `var(--surface)`, `border-top: 1px solid var(--border)`
+2. Inactive items: `color: var(--muted-foreground)`, transparent background
+3. Active items: `color: var(--accent)`, `font-weight: 500`
+4. Labels: 10px, weight 700, uppercase, `letter-spacing: 0.08em`
+5. Count badges: Geist Mono, 10px, `border-radius: 4px`
+6. Safe area handling: keep existing `env(safe-area-inset-bottom)` logic
+
+**Done when:** Bottom nav looks native to the new design system in both themes.
 
 ---
 
-### BODY BACKGROUND
+## Stage UI-10: Motion System
+
+**Goal:** Standardise all animation and transition behaviour.
+
+**Entrance animations:** Staggered `translateY(14px) → 0` with `opacity: 0 → 1`, delay increment 60ms per item, duration 500ms, easing `cubic-bezier(0.16,1,0.3,1)`. One entrance animation per screen. Respect `prefers-reduced-motion`.
+
+**Hover transitions:** `border-color 0.2s`, `background 0.2s` — nothing else.
+
+**Pulsing dots:** `@keyframes blink` as defined in Stage UI-8.
+
+**Hard bans:**
+
+- No bounce, no spring physics, no scale transforms on cards
+- No `transform: translateY` on hover
+- No scattered micro-interactions
+- One well-orchestrated page load beats many small animations
+
+**What to do:**
+
+1. Define entrance animation utility (CSS class or Framer Motion wrapper component)
+2. Audit all existing Framer Motion usage — keep swipe gesture logic on discover/review, standardise entrance animations
+3. Strip any hover transforms or scale effects
+4. Add `prefers-reduced-motion` media query that disables entrance animations
+5. Verify swipe animations still work correctly with new card styles
+
+**Done when:** Page loads have a single staggered entrance. Hover states are border-only. No rogue animations.
+
+---
+
+## Stage UI-11: Body Background
+
+**Goal:** Atmospheric gradients on the page background.
 
 ```css
 body {
-  background-color: var(--c-bg);
+  background-color: var(--background);
   background-image:
     radial-gradient(ellipse 70% 50% at 15% -5%, var(--c-body-grad-a) 0%, transparent 65%),
     radial-gradient(ellipse 55% 45% at 85% 105%, var(--c-body-grad-b) 0%, transparent 60%);
 }
 ```
 
-These are the only background gradients on the page. They are radial, corner-anchored, and atmospheric — they simulate ambient light in the scene. Do not add more.
+These are the only background gradients on the page. Radial, corner-anchored, atmospheric. Do not add more.
+
+**Test on mobile viewport (390px).** If the gradients create visible colour banding or distraction at small widths, reduce opacity or remove on `max-width: 640px`.
+
+**Done when:** Subtle ambient light effect visible on page background in both themes. Not distracting on mobile.
 
 ---
 
-### LAYOUT SYSTEM
+## Stage UI-12: Page Reskin — Discover
 
-```
-┌─────────────────────────────────────────────────────┐
-│ TOPBAR (height: 52px, sticky, z-index: 200)         │
-├──────────────┬──────────────────────────────────────┤
-│ SIDEBAR      │ MAIN CONTENT                         │
-│ (width: 220px│ (max-width: 820px, padding: 28px 32px│
-│  sticky)     │  for feed screens)                   │
-└──────────────┴──────────────────────────────────────┘
-```
+**Goal:** Apply the full design system to the most important page.
 
-- Topbar: `background: var(--c-surface)`, `border-bottom: 1px solid var(--c-border)`
-- Sidebar: `background: var(--c-surface)`, `border-right: 1px solid var(--c-border)`
-- Logo area in topbar: `width: 220px` (matches sidebar), `border-right: 1px solid var(--c-border)` — creates visual column alignment
+This is where everything comes together. The discover page has daywork swipe cards, permanent scrollable feed, filter panel, tabs (Browse / Applied / Invitations), and the availability overlay.
 
----
+**What to do:**
 
-### WHAT NOT TO DO
+1. Apply card anatomy (Stage UI-7) to daywork job cards in the swipe stack
+2. Apply card anatomy to permanent job cards in the scrollable feed
+3. Apply to application cards (Applied tab)
+4. Apply to invitation cards (Invitations tab)
+5. Apply status badges (Stage UI-8) on all cards
+6. Apply typography scale to all text elements
+7. Ensure swipe gesture + Framer Motion still works with new card styles
+8. Filter panel: inputs use 8px radius, filter pills use 999px
+9. Tab system: accent colour on active tab
+10. Entrance animation on card load
 
-These are the specific patterns that make UI look AI-generated. Treat them as hard bans.
-
-1. **No purple** — anywhere, in any form. Not as accent, not as gradient, not in shadows.
-1. **No Inter or system-ui** as the display font.
-1. **No heavy drop shadows** (`blur > 8px` on cards) — especially on dark mode where they vanish.
-1. **No gradient buttons** — solid fill only.
-1. **No card lift on hover** (`transform: translateY`) — cards expand, they don’t float.
-1. **No `::before`/`::after` for border-radius-dependent visual effects** — use real DOM elements or `box-shadow`. Safari clips pseudo-elements inconsistently.
-1. **No `/day` in `--c-text-3`** — rate periods are `--c-text-2` at `opacity: 0.6`. Not invisible, just subordinate.
-1. **No evenly-distributed colour palettes** — dominant surfaces with sharp accent moments.
-1. **No decorative gradients that cross hue families.**
-1. **No scattered micro-interactions** — one entrance animation per screen, hover states are border changes only.
+**Done when:** Discover page is fully reskinned. Both daywork and permanent views match the design system.
 
 ---
 
-### REFERENCE COMPONENT — JOB CARD
+## Stage UI-13: Page Reskin — Chat & Messages
 
-When in doubt about any styling decision, refer to this component as the canonical pattern. All other components should feel like they came from the same design system as this card.
+**What to do:**
+
+1. Messages list: thread cards follow card anatomy, unread indicators use badge system
+2. Chat page: message bubbles styled with new tokens
+3. Daywork/permanent summary cards at top of chat
+4. Banners (work-started, postponement, completion, cancellation) use status colours
+5. Overlays (cancel, crew-cancel, postponement, rating, checklist) use card radius + button system
+6. Input area: 8px radius, border tokens
+
+**Done when:** Messages list and chat page match the design system.
+
+---
+
+## Stage UI-14: Page Reskin — Review Pages
+
+**What to do:**
+
+1. Daywork review: applicant cards follow card anatomy, swipe stack matches discover
+2. Available crew tab cards
+3. Permanent review: applicant list cards, shortlist tab
+4. Tab system consistency
+5. Filter panel consistency
+6. Profile overlay (already a shared component — should inherit from token changes)
+
+**Done when:** Both review pages match the design system.
+
+---
+
+## Stage UI-15: Page Reskin — Profile & Experience
+
+**What to do:**
+
+1. Profile page: experience cards, cert pills, size band pills, availability card, career status section
+2. Add/edit experience pages: form inputs, vessel creation flow
+3. Avatar display and upload
+4. Epaulette badges: verify visibility against new card backgrounds (especially dark mode)
+
+**Done when:** Profile pages match the design system. Epaulette badges readable in both themes.
+
+---
+
+## Stage UI-16: Page Reskin — Post Forms & Mine Pages
+
+**What to do:**
+
+1. Daywork post form: inputs, template management, posting type selector
+2. Permanent post form: same treatment
+3. Daywork mine page: posting cards across all tabs (Active, In Progress, Done, Templates)
+4. Permanent mine section: all tabs
+
+**Done when:** Post and mine pages match the design system.
+
+---
+
+## Stage UI-17: Page Reskin — Remaining Pages
+
+**What to do:**
+
+1. Settings page — already has the theme toggle from Stage UI-3. Ensure cards and inputs match.
+2. Billing page
+3. Vessels page + vessel edit page
+4. Notifications page
+5. Docky pages (main + conversation)
+6. Onboarding page — integrate `assets/images/onboarding/` hero images as step backgrounds or illustrations
+7. Auth pages (login, signup, forgot password, reset password) — integrate branding assets
+8. Landing page — integrate branding + photography assets
+
+**Done when:** Every page in the app uses the design system. No page looks like the old style.
+
+---
+
+## Stage UI-18: Image Assets Integration
+
+**Goal:** Wire photography and branding into relevant pages for visual polish.
+
+**Available assets:**
+
+| Category                    | Files                                    | Usage                                      |
+| --------------------------- | ---------------------------------------- | ------------------------------------------ |
+| `assets/images/onboarding/` | 8 hero images (aerial yacht, interiors)  | Onboarding step backgrounds                |
+| `assets/images/crew/`       | 5 images (deckside, rope, teak)          | Empty states, crew-related illustrations   |
+| `assets/images/vessel/`     | 7 images (helm, drydock, shipyard)       | Vessel-related empty states                |
+| `assets/images/roles/`      | 5 images (interior, galley, engineering) | Role category headers (if needed)          |
+| `assets/branding/`          | Logo variants, app icon kit              | Bottom-nav brand mark, auth pages, landing |
+
+**What to do:**
+
+1. Copy needed images to `apps/web/public/images/` (Next.js public directory)
+2. Use `next/image` with proper sizing and `priority` on above-fold images
+3. Add to: onboarding steps, landing page, auth pages, empty states
+4. Optimise: ensure images are appropriately sized for mobile (not serving 1080px originals to 390px viewports)
+
+**Done when:** Key pages have photography that reinforces the maritime professional brand. No placeholder or stock-photo feel.
+
+---
+
+## Global Rules — Apply to Every Stage
+
+### Shadows & Elevation
+
+- Dark mode: borders and glow only, never drop shadows
+- Light mode: `border` only at rest, `max-blur 8px` on featured only
+- Never: `translateY` on hover, `blur > 8px`, decorative shadows on flat surfaces
+
+### Gradients
+
+Gradients simulate physics. If you cannot explain why a gradient exists in terms of light hitting a surface, remove it.
+
+**Permitted:** body background (atmospheric), gradient text (hero numbers only), vessel icon chip (subtle same-hue), featured card accent bar (vertical fade).
+
+**Forbidden:** linear gradient fills on cards, gradient buttons, visible colour transitions, cross-hue gradients, gradient overlays as decoration.
+
+### What NOT To Do
+
+These patterns make UI look AI-generated. Hard bans across all stages.
+
+1. **No purple** — anywhere, any form.
+2. **No Inter or system-ui** as display font.
+3. **No heavy drop shadows** (`blur > 8px` on cards).
+4. **No gradient buttons** — solid fill only.
+5. **No card lift on hover** (`transform: translateY`).
+6. **No `::before`/`::after` for border-radius-dependent effects** — Safari clips inconsistently.
+7. **No `/day` in `--tertiary`** — rate periods use `--muted-foreground` at `opacity: 0.6`.
+8. **No evenly-distributed colour palettes** — dominant surfaces with sharp accent moments.
+9. **No decorative cross-hue gradients.**
+10. **No scattered micro-interactions** — one entrance animation per screen, hover = border change only.
+
+### Reference Component — Job Card
+
+When in doubt about any styling decision, refer to this component as the canonical pattern. All other components should feel like they came from the same design system.
 
 ```tsx
-// JobCard.tsx — canonical reference component
 interface JobCardProps {
   title: string;
   vesselName: string;
   vesselSize: string;
-  builder: string;
-  prefix: string; // 'MY' | 'SY' | 'GS' etc
+  prefix: string; // 'MY' | 'SY'
   rate: number;
+  currency: string;
+  ratePeriod: string; // '/day' | '/month' | '/year'
   location: string;
-  engine: string;
-  cert: string;
-  rotation: string;
+  certs: string[];
   status: 'open' | 'filling' | 'invite' | 'closed';
   postedAt: string;
   applicantCount: number;
@@ -343,9 +599,4 @@ interface JobCardProps {
 }
 ```
 
-The card renders:
-
-- Featured variant: left accent bar, `--c-featured-border`, `--c-featured-bg`
-- Urgent variant: amber border tint + urgency ribbon (absolute, top-right, `border-radius: 4px`)
-- Hover: `border-color: var(--c-border-hi)` only
-- Selected/expanded: `border-color: var(--c-accent)` + `background: var(--c-card-hover)`
+The card renders per Stage UI-7 card anatomy. Featured variant: left accent bar + border + bg. Urgent variant: amber border tint + ribbon. Hover: border-color only. Selected: accent border + hover bg.

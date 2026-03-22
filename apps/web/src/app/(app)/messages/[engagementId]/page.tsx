@@ -106,15 +106,9 @@ export default function ChatPage() {
     });
   });
 
-  const realtimeConnectedRef = useRef(realtimeConnected);
-  useEffect(() => {
-    realtimeConnectedRef.current = realtimeConnected;
-  }, [realtimeConnected]);
-
+  // Init: load data, set up context polling and visibility handler
   useEffect(() => {
     let contextInterval: ReturnType<typeof setInterval>;
-    let messageFallbackInterval: ReturnType<typeof setInterval> | undefined;
-    let fallbackTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     function markRead() {
       void safeFetch('/api/messages/' + engagementId + '/read', { method: 'POST' });
@@ -130,12 +124,6 @@ export default function ChatPage() {
       // These MUST run even if init fetches failed
       markRead();
       contextInterval = setInterval(() => void loadContext(), POLL_INTERVAL);
-      fallbackTimeoutId = setTimeout(() => {
-        if (!realtimeConnectedRef.current) {
-          messageFallbackInterval = setInterval(() => void loadMessages(), POLL_INTERVAL);
-          pollRef.current = messageFallbackInterval;
-        }
-      }, POLL_INTERVAL);
     }
 
     const handleVisibility = () => {
@@ -146,12 +134,36 @@ export default function ChatPage() {
     void init();
     return () => {
       clearInterval(contextInterval);
-      if (fallbackTimeoutId) clearTimeout(fallbackTimeoutId);
-      if (messageFallbackInterval) clearInterval(messageFallbackInterval);
-      if (pollRef.current) clearInterval(pollRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [engagementId, loadContext, loadMessages]);
+
+  // Reactive message polling: start when realtime is disconnected, stop when connected
+  useEffect(() => {
+    if (realtimeConnected) {
+      // Connected — stop polling if running
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = undefined;
+      }
+      return;
+    }
+
+    // Not connected — start polling after a short grace period
+    const fallbackTimeout = setTimeout(() => {
+      if (!pollRef.current) {
+        pollRef.current = setInterval(() => void loadMessages(), POLL_INTERVAL);
+      }
+    }, POLL_INTERVAL);
+
+    return () => {
+      clearTimeout(fallbackTimeout);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = undefined;
+      }
+    };
+  }, [realtimeConnected, loadMessages]);
 
   useEffect(() => {
     const count = messages.length;

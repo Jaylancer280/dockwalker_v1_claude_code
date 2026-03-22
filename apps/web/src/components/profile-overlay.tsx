@@ -5,6 +5,7 @@ import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase } from 'luc
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface CrewExperience {
   vessel_name: string | null;
@@ -68,21 +69,21 @@ export function ProfileOverlay({
   const loadProfile = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await fetch(`/api/profile/${personId}`);
-    if (res.ok) {
-      const data = await res.json();
-      setProfile(data);
-    } else {
-      setError('Profile unavailable');
+    try {
+      const result = await safeFetch<ProfileData>(`/api/profile/${personId}`);
+      if (result.ok) {
+        setProfile(result.data);
+      } else {
+        setError('Profile unavailable');
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [personId]);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (isOpen) loadProfile();
   }, [isOpen, loadProfile]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!isOpen) return null;
 

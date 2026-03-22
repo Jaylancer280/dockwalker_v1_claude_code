@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { safeFetch } from '@/lib/safe-fetch';
 import { LocationPicker } from '@/components/location-picker';
 import type { LocationValue } from '@/components/location-picker';
 
@@ -111,100 +112,102 @@ export function AvailabilityOverlay({
     setSubmitting(true);
     setError(null);
 
-    // Clearing all availability — delete everything and exit
-    if (isClearingAll) {
-      const res = await fetch('/api/availability', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clearAll: true }),
-      });
-      if (res.ok) {
-        onConfirm();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? 'Failed to clear availability');
-      }
-      setSubmitting(false);
-      return;
-    }
-
-    if (notAvailable) {
-      const res = await fetch('/api/availability', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          notAvailable: true,
-          cityId: locationValue?.cityId,
-          portId: locationValue?.portId,
-        }),
-      });
-      if (res.ok) {
-        onConfirm();
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? 'Failed to set availability');
-      }
-      setSubmitting(false);
-      return;
-    }
-
-    // Group selected dates into contiguous ranges to avoid filling gaps
-    // between sparse picks (e.g. Mon, Wed, Fri → three ranges, not Mon-Fri).
-    const sorted = [...selectedDates].sort();
-    const ranges: Array<{ start: string; end: string }> = [];
-    let rangeStart = sorted[0];
-    let prev = sorted[0];
-    for (let i = 1; i < sorted.length; i++) {
-      const prevMs = new Date(prev + 'T00:00:00').getTime();
-      const currMs = new Date(sorted[i] + 'T00:00:00').getTime();
-      if (currMs - prevMs > 86_400_000) {
-        ranges.push({ start: rangeStart, end: prev });
-        rangeStart = sorted[i];
-      }
-      prev = sorted[i];
-    }
-    ranges.push({ start: rangeStart, end: prev });
-
-    // POST each contiguous range
-    let failed = false;
-    let failError = '';
-    for (const range of ranges) {
-      const res = await fetch('/api/availability', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: range.start,
-          endDate: range.end,
-          cityId: locationValue?.cityId,
-          portId: locationValue?.portId,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        failError = data.error ?? 'Failed to set availability';
-        failed = true;
-        break;
-      }
-    }
-
-    // Clear dates the user deselected (were previously available but no longer picked)
-    if (!failed && existingDates?.length) {
-      const deselected = existingDates.filter((d) => !selectedDates.has(d));
-      if (deselected.length > 0) {
-        await fetch('/api/availability', {
+    try {
+      // Clearing all availability — delete everything and exit
+      if (isClearingAll) {
+        const result = await safeFetch('/api/availability', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ dates: deselected }),
+          body: JSON.stringify({ clearAll: true }),
         });
+        if (result.ok) {
+          onConfirm();
+        } else {
+          setError(result.error);
+        }
+        return;
       }
-    }
 
-    if (!failed) {
-      onConfirm();
-    } else {
-      setError(failError);
+      if (notAvailable) {
+        const result = await safeFetch('/api/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            notAvailable: true,
+            cityId: locationValue?.cityId,
+            portId: locationValue?.portId,
+          }),
+        });
+        if (result.ok) {
+          onConfirm();
+        } else {
+          setError(result.error);
+        }
+        return;
+      }
+
+      // Group selected dates into contiguous ranges to avoid filling gaps
+      // between sparse picks (e.g. Mon, Wed, Fri → three ranges, not Mon-Fri).
+      const sorted = [...selectedDates].sort();
+      const ranges: Array<{ start: string; end: string }> = [];
+      let rangeStart = sorted[0];
+      let prev = sorted[0];
+      for (let i = 1; i < sorted.length; i++) {
+        const prevMs = new Date(prev + 'T00:00:00').getTime();
+        const currMs = new Date(sorted[i] + 'T00:00:00').getTime();
+        if (currMs - prevMs > 86_400_000) {
+          ranges.push({ start: rangeStart, end: prev });
+          rangeStart = sorted[i];
+        }
+        prev = sorted[i];
+      }
+      ranges.push({ start: rangeStart, end: prev });
+
+      // POST each contiguous range
+      let failed = false;
+      let failError = '';
+      for (const range of ranges) {
+        const result = await safeFetch('/api/availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startDate: range.start,
+            endDate: range.end,
+            cityId: locationValue?.cityId,
+            portId: locationValue?.portId,
+          }),
+        });
+        if (!result.ok) {
+          failError = result.error;
+          failed = true;
+          break;
+        }
+      }
+
+      // Clear dates the user deselected (were previously available but no longer picked)
+      if (!failed && existingDates?.length) {
+        const deselected = existingDates.filter((d) => !selectedDates.has(d));
+        if (deselected.length > 0) {
+          const delResult = await safeFetch('/api/availability', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dates: deselected }),
+          });
+          if (!delResult.ok) {
+            failError = delResult.error;
+            failed = true;
+          }
+        }
+      }
+
+      if (!failed) {
+        onConfirm();
+      } else {
+        setError(failError);
+      }
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
   return (

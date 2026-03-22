@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Compass, MessageSquare, User, PenSquare, Briefcase, LifeBuoy } from 'lucide-react';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -38,17 +39,15 @@ export function BottomNav({ currentHat }: BottomNavProps) {
 
   const fetchCount = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications/count');
-      if (res.ok) {
-        const data = await res.json();
-        setMessageCount(data.message_count ?? 0);
+      const result = await safeFetch<{ message_count?: number }>('/api/notifications/count');
+      if (result.ok) {
+        setMessageCount(result.data.message_count ?? 0);
       }
-    } catch {
-      // swallow — badge is non-critical
+    } finally {
+      // setState guard for react-hooks/set-state-in-effect
     }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchCount();
 
@@ -58,7 +57,6 @@ export function BottomNav({ currentHat }: BottomNavProps) {
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [fetchCount]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">

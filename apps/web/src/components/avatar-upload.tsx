@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
 import { Button } from '@/components/ui/button';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface AvatarUploadProps {
   currentUrl: string | null;
@@ -51,35 +52,28 @@ export function AvatarUpload({ currentUrl, name, onUploaded }: AvatarUploadProps
     setError(null);
     setUploading(true);
 
-    try {
-      const resized = await resizeImage(file, 512);
-      const formData = new FormData();
-      formData.append('file', resized, file.name);
+    const resized = await resizeImage(file, 512);
+    const formData = new FormData();
+    formData.append('file', resized, file.name);
 
-      const res = await fetch('/api/profile/avatar', {
-        method: 'POST',
-        body: formData,
-      });
+    const result = await safeFetch<{ avatar_url: string }>('/api/profile/avatar', {
+      method: 'POST',
+      body: formData,
+    });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? 'Upload failed');
-      } else {
-        const data = await res.json();
-        onUploaded(data.avatar_url);
-      }
-    } catch {
-      setError('Upload failed');
-    } finally {
-      setUploading(false);
-      if (inputRef.current) inputRef.current.value = '';
+    if (result.ok) {
+      onUploaded(result.data.avatar_url);
+    } else {
+      setError(result.error);
     }
+    setUploading(false);
+    if (inputRef.current) inputRef.current.value = '';
   }
 
   async function handleRemove() {
     setUploading(true);
-    const res = await fetch('/api/profile/avatar', { method: 'DELETE' });
-    if (res.ok) onUploaded(null);
+    const result = await safeFetch('/api/profile/avatar', { method: 'DELETE' });
+    if (result.ok) onUploaded(null);
     setUploading(false);
   }
 

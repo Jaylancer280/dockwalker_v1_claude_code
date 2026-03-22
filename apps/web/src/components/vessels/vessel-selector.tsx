@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { safeFetch } from '@/lib/safe-fetch';
 
 interface VesselOption {
   id: string;
@@ -34,19 +35,21 @@ export function VesselSelector({ value, onValueChange, onRequestCreate }: Vessel
 
   useEffect(() => {
     async function load() {
-      const res = await fetch('/api/vessels');
-      const data = await res.json();
-      if (data.vessels) {
-        setVessels(
-          data.vessels.map((v: VesselOption) => ({
-            id: v.id,
-            name: v.name,
-            imo_number: v.imo_number,
-            nda_flag: v.nda_flag,
-          })),
-        );
+      try {
+        const result = await safeFetch<{ vessels: VesselOption[] }>('/api/vessels');
+        if (result.ok && result.data.vessels) {
+          setVessels(
+            result.data.vessels.map((v: VesselOption) => ({
+              id: v.id,
+              name: v.name,
+              imo_number: v.imo_number,
+              nda_flag: v.nda_flag,
+            })),
+          );
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, []);
