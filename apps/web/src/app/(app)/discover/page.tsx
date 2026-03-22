@@ -249,16 +249,13 @@ export default function DiscoverPage() {
   }, []);
 
   // Fetch crew certs for cert pill coloring
-  function loadCrewCerts() {
-    const supabase = createClient();
-    Promise.resolve(supabase.from('profiles').select('certification_ids').single())
-      .then(({ data }) => {
-        if (data?.certification_ids) setCrewCertIds(data.certification_ids as string[]);
-        else setCrewCertIds([]);
-      })
-      .catch(() => {
-        // Failed to load certs — keep null so pills stay neutral
-      });
+  async function loadCrewCerts() {
+    const result = await safeFetch<{ profile?: { certification_ids?: string[] } }>('/api/profile');
+    if (result.ok && result.data.profile?.certification_ids) {
+      setCrewCertIds(result.data.profile.certification_ids);
+    } else if (result.ok) {
+      setCrewCertIds([]);
+    }
   }
 
   useEffect(() => {

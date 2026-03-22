@@ -84,15 +84,11 @@ export function PermanentJobFeed() {
     loadCrewCerts();
   }, []);
 
-  function loadCrewCerts() {
-    const supabase = createClient();
-    Promise.resolve(supabase.from('profiles').select('certification_ids').single())
-      .then(({ data }) => {
-        if (data?.certification_ids) setCrewCertIds(data.certification_ids as string[]);
-      })
-      .catch(() => {
-        // Failed to load certs — keep empty array so cert gate stays active
-      });
+  async function loadCrewCerts() {
+    const result = await safeFetch<{ profile?: { certification_ids?: string[] } }>('/api/profile');
+    if (result.ok && result.data.profile?.certification_ids) {
+      setCrewCertIds(result.data.profile.certification_ids);
+    }
   }
 
   // Re-fetch crew certs when tab regains focus (handles stale data after profile edit)

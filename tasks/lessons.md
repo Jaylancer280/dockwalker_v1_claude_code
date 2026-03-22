@@ -77,6 +77,8 @@ After ANY session that includes a migration, before presenting changes:
 
 - **"Consistent with X" means identical layout, not just correct values:** When a fix says "make form A consistent with form B", the implementation must match field ordering, visual treatment (prefix groups, labels, spacing), and interaction patterns — not just swap dropdown values. The vessels page form was "fixed" twice by changing SelectItem values from private/charter to motor/sail, but the actual complaint was that it lacked the greyed-out M/Y/S/Y prefix on the name input and had fields in the wrong order compared to the add-experience form. **Before marking a consistency fix as done, open both screens side by side and verify they look and behave identically.**
 
+- **Client-side `.single()` on tables with permissive RLS fails silently when multiple rows exist:** The profiles table allows any authenticated user to read all active profiles. `.single()` without `.eq('person_id', ...)` returns an error when 2+ profiles exist, `.catch()` swallows it, and the state stays empty. Always filter by user ID or use the server API route (e.g., `safeFetch('/api/profile')`) which handles auth filtering server-side.
+
 ### Pre-commit aggregate_type audit (automated)
 
 Before every commit, verify all `aggregateType` values used in API routes exist in the `events_aggregate_type_check` constraint. This is automated via pre-commit script (Stage 81c).
