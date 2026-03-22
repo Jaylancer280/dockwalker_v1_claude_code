@@ -802,40 +802,43 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
-            {/* Daywork availability — compact row */}
+            {/* Daywork availability */}
             {isCrewHat && (
-              <button
-                onClick={() => setShowAvailOverlay(true)}
-                className="flex w-full items-center gap-2 rounded-md py-1 text-left transition-colors hover:bg-accent"
-              >
-                <p className="text-xs text-muted-foreground w-[100px] flex-shrink-0">Daywork</p>
-                {availStatus === 'available' && availSummary ? (
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                      Available
-                    </span>
-                    <span className="text-muted-foreground">&middot; {availSummary.dateRange}</span>
-                    {availSummary.cityName && (
-                      <span className="text-muted-foreground">
-                        &middot; {availSummary.cityName}
+              <div>
+                <p className="text-xs text-muted-foreground">Daywork availability</p>
+                <button
+                  onClick={() => setShowAvailOverlay(true)}
+                  className="flex items-center gap-1.5 text-sm"
+                >
+                  {availStatus === 'available' && availSummary ? (
+                    <>
+                      <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                        Available
                       </span>
-                    )}
-                  </div>
-                ) : availStatus === 'not_available' ? (
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="inline-block h-2 w-2 rounded-full bg-destructive flex-shrink-0" />
-                    <span className="font-medium text-destructive">Not available</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40 flex-shrink-0" />
-                    <span className="text-muted-foreground">
-                      Not set &mdash; tap to set availability
-                    </span>
-                  </div>
-                )}
-              </button>
+                      <span className="text-muted-foreground">
+                        &middot; {availSummary.dateRange}
+                      </span>
+                      {availSummary.cityName && (
+                        <span className="text-muted-foreground">
+                          &middot; {availSummary.cityName}
+                        </span>
+                      )}
+                    </>
+                  ) : availStatus === 'not_available' ? (
+                    <>
+                      <span className="inline-block h-2 w-2 rounded-full bg-destructive flex-shrink-0" />
+                      <span className="font-medium text-destructive">Not available</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/40 flex-shrink-0" />
+                      <span className="text-muted-foreground">Not set — tap to set</span>
+                    </>
+                  )}
+                  <Pencil className="ml-1 h-3 w-3 text-muted-foreground" />
+                </button>
+              </div>
             )}
 
             {/* Section 3: About */}
