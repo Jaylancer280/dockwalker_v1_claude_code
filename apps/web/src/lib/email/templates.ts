@@ -92,7 +92,7 @@ export function engagementStartingEmail(params: {
   startDate: string;
   engagementId: string;
 }): { subject: string; html: string } {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://app.dockwalker.com';
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
   return {
     subject: 'Your engagement starts tomorrow',
     html: wrap(`
