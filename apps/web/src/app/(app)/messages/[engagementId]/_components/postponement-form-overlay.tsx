@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 export function PostponementFormOverlay({
   currentStartDate,
@@ -22,6 +23,7 @@ export function PostponementFormOverlay({
   }) => Promise<{ outcome: string }>;
   onCancel: () => void;
 }) {
+  useBodyScrollLock(true);
   const [startDate, setStartDate] = useState(currentStartDate);
   const [endDate, setEndDate] = useState(currentEndDate);
   const [workingDays, setWorkingDays] = useState(currentWorkingDays);

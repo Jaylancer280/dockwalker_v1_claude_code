@@ -60,14 +60,23 @@ interface Template {
 type MealOption = 'breakfast' | 'lunch' | 'dinner';
 
 export default function PostDayworkPage() {
-  const [postingType, setPostingType] = useState<'daywork' | 'permanent' | null>(null);
+  const pageSearchParams = useSearchParams();
+  const permanentTemplateId = pageSearchParams.get('permanentTemplateId');
+  const [postingType, setPostingType] = useState<'daywork' | 'permanent' | null>(
+    permanentTemplateId ? 'permanent' : null,
+  );
 
   if (postingType === null) {
     return <PostingTypeSelector onSelect={setPostingType} />;
   }
 
   if (postingType === 'permanent') {
-    return <PermanentPostForm onBack={() => setPostingType(null)} />;
+    return (
+      <PermanentPostForm
+        onBack={() => setPostingType(null)}
+        initialTemplateId={permanentTemplateId ?? undefined}
+      />
+    );
   }
 
   return <DayworkPostForm />;

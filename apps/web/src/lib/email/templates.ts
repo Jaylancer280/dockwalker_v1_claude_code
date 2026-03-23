@@ -1,4 +1,5 @@
 function wrap(content: string): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
@@ -11,7 +12,7 @@ function wrap(content: string): string {
       ${content}
     </div>
     <div style="padding:16px 24px;text-align:center;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;">
-      DockWalker — Superyacht daywork hiring
+      DockWalker — Superyacht hiring &middot; <a href="${siteUrl}/settings" style="color:#94a3b8;">Manage notifications</a>
     </div>
   </div>
 </body>

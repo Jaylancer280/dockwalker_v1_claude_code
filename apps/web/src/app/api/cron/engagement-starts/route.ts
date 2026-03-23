@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { sendPushToUser } from '@/lib/push-delivery';
 import { getRecipientEmail } from '@/lib/push-triggers';
+import { hasPushTokens } from '@/lib/push-triggers/loaders';
 import { sendEmail } from '@/lib/email/send';
 import { engagementStartingEmail } from '@/lib/email/templates';
 
@@ -138,17 +139,28 @@ export async function GET(request: Request) {
           data: { screen: 'chat', engagementId: eng.id },
         }).catch(() => {});
 
-        // Email
-        const email = await getRecipientEmail(serviceClient, personId);
-        if (email) {
-          const { subject, html } = engagementStartingEmail({
-            recipientName,
-            otherPartyName: otherName,
-            roleName,
-            startDate: eng.start_date,
-            engagementId: eng.id,
-          });
-          sendEmail({ to: email, subject, html }).catch(() => {});
+        // Email — only if user has no push tokens and email is enabled
+        const hasTokens = await hasPushTokens(serviceClient, personId);
+        if (!hasTokens) {
+          const { data: prefs } = await serviceClient
+            .from('user_preferences')
+            .select('email_enabled')
+            .eq('person_id', personId)
+            .single();
+          const emailEnabled = !prefs || prefs.email_enabled !== false;
+          if (emailEnabled) {
+            const email = await getRecipientEmail(serviceClient, personId);
+            if (email) {
+              const { subject, html } = engagementStartingEmail({
+                recipientName,
+                otherPartyName: otherName,
+                roleName,
+                startDate: eng.start_date,
+                engagementId: eng.id,
+              });
+              sendEmail({ to: email, subject, html }).catch(() => {});
+            }
+          }
         }
 
         notified++;

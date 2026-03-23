@@ -200,9 +200,11 @@
 - [Fix 144-batch] User testing fixes — (1) vessel form motor/sail; (2) salary per day; (3) size band removed from exp header; (4) visibilitychange profile re-fetch; (5) cert checker error handling + re-fetch; (6) vessel size exposure read-only; (7) comprehensive reseed (4 experiences, 10 daywork, 7 permanent, templates, availability); (8) cert match/mismatch coloring on all job cards
 - [Stage 145] Profile restructure + deck name — migration 00065 adds `deck_name` to profiles with supplementary trigger; profile header shows flag + epaulette + deck name inline; crew view mode reorganised into 4 semantic sections (Summary, Looking for, About, Experience); availability collapsed from hero card to compact row; deck name on profile overlay, chat header, review cards; "Browse jobs" button removed; 819 tests pass
 
+- [Stage 146] Avatar crop + cache bust + permanent post wiring + scroll containment + notification strategy + profile clarity — (A) `react-easy-crop` + `ImageCropper` component for circular crop before upload; (B) `?t=Date.now()` cache-bust on avatar URL in API + event payload; (C) `permanentTemplateId` URL param auto-selects permanent posting type + pre-loads template; (D) `useBodyScrollLock` hook on 6 overlays + profile overlay max-height fix; (E) email reduced to 2 critical events (DAYWORK.ACCEPTED, PERMANENT.SELECTED) + engagement-starts cron, gated behind `hasPushTokens` + `email_enabled` preference; push gated behind per-category preferences; notification preferences migration 00066, GET/PATCH `/api/preferences`, settings page notifications section; `PushPrompt` after onboarding; email footer unsubscribe link; (F) collapsible profile sections with summaries, value-driven empty-field prompts, "How employers see you" preview button, `computeSeaTime` utility; (G) `useDockyReadiness` hook, Docky profile completeness nudge card, inline thinking indicator context; 819 tests pass
+
 ## Current Schema Version
 
-v65 — Deck name on profiles (65 migrations applied)
+v66 — Notification preferences on user_preferences (66 migrations applied)
 
 ## Migrations Applied
 
@@ -273,6 +275,7 @@ v65 — Deck name on profiles (65 migrations applied)
 | `00063_sea_time_columns.sql`                 | Adds `sea_time_days` and `sea_time_nautical_miles` integer columns to `crew_experiences`; supplementary trigger `apply_sea_time_from_event` patches values from EXPERIENCE.ADDED/UPDATED payloads                                                                                                                                                                                                           |
 | `00064_desired_role_and_auto_primary.sql`    | Adds `desired_role_id` FK to profiles; updates `derive_experience_profile()` to auto-derive `primary_role_id` from most recent experience; supplementary trigger `apply_desired_role_from_event` writes desired_role_id from PROFILE events                                                                                                                                                                 |
 | `00065_deck_name.sql`                        | Adds `deck_name VARCHAR(50)` to profiles; supplementary trigger `apply_deck_name_from_event` writes deck_name from PROFILE.CREATED/UPDATED payloads                                                                                                                                                                                                                                                         |
+| `00066_notification_preferences.sql`         | Adds `email_enabled`, `push_jobs`, `push_applications`, `push_messages`, `push_reminders` boolean columns to `user_preferences` (all default true)                                                                                                                                                                                                                                                          |
 
 ## Deferred Decisions
 

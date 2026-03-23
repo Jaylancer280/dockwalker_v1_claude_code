@@ -5,6 +5,7 @@ import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase } from 'luc
 import { Button } from '@/components/ui/button';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { safeFetch } from '@/lib/safe-fetch';
 
 interface CrewExperience {
@@ -64,6 +65,7 @@ export function ProfileOverlay({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  useBodyScrollLock(isOpen);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -97,7 +99,7 @@ export function ProfileOverlay({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="mb-2 flex max-h-[85vh] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-2xl bg-background shadow-xl">
+      <div className="mb-2 flex max-h-[calc(85vh-var(--nav-height,4rem))] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-2xl bg-background shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className="text-sm font-bold">Profile</h2>

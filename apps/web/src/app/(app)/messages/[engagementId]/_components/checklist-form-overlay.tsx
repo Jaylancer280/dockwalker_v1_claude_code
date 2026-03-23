@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 interface ChecklistItem {
   id: string;
@@ -179,6 +180,7 @@ export function ChecklistFormOverlay({
   onSubmit: (items: ChecklistItem[]) => void;
   onCancel: () => void;
 }) {
+  useBodyScrollLock(true);
   const [form, setForm] = useState<FormState>(
     existingItems ? itemsToForm(existingItems) : INITIAL_STATE,
   );

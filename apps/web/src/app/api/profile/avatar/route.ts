@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   }
 
   const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
-  const avatarUrl = urlData.publicUrl;
+  const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
   await appendEvent(serviceClient, {
     eventType: 'PROFILE.UPDATED',

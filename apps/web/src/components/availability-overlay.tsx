@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { safeFetch } from '@/lib/safe-fetch';
 import { LocationPicker } from '@/components/location-picker';
 import type { LocationValue } from '@/components/location-picker';
@@ -39,6 +40,7 @@ export function AvailabilityOverlay({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useBodyScrollLock(true);
   const [selectedDates, setSelectedDates] = useState<Set<string>>(
     new Set(existingNotAvailable ? [] : (existingDates ?? [])),
   );

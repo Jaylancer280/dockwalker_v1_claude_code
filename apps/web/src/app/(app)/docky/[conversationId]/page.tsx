@@ -6,6 +6,7 @@ import { ChevronLeft, SendHorizontal, LifeBuoy, Loader2, ChevronDown, Lock } fro
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
+import { useDockyReadiness } from '@/hooks/use-docky-readiness';
 import { safeFetch } from '@/lib/safe-fetch';
 
 interface Source {
@@ -61,6 +62,7 @@ export default function DockyConversationPage() {
   const { showError } = useToast();
 
   const suggestionChips = useProfileChips();
+  const dockyReadiness = useDockyReadiness();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -267,7 +269,9 @@ export default function DockyConversationPage() {
               <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm text-muted-foreground">
                 <span className="inline-flex items-center gap-1">
                   {thinkingPhase === 'profile'
-                    ? 'Docky is reading your profile'
+                    ? !dockyReadiness.ready
+                      ? 'Docky works best with a complete profile \u2014 add your certs and role for personalised advice'
+                      : 'Docky is reading your profile'
                     : 'Docky is thinking'}
                   <span className="inline-flex gap-0.5">
                     <span className="animate-bounce" style={{ animationDelay: '0ms' }}>

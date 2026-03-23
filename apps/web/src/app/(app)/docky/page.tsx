@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LifeBuoy, Plus, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
+import { useDockyReadiness } from '@/hooks/use-docky-readiness';
 import { safeFetch } from '@/lib/safe-fetch';
 import {
   Dialog,
@@ -43,6 +44,13 @@ export default function DockyPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const suggestionChips = useProfileChips();
+  const dockyReadiness = useDockyReadiness();
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      localStorage.getItem('dw-docky-nudge-dismissed') === dockyReadiness.missing.sort().join(',')
+    );
+  });
   const [usagePill, setUsagePill] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -162,6 +170,43 @@ export default function DockyPage() {
           {creating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
         </button>
       </div>
+
+      {/* Docky profile nudge */}
+      {dockyReadiness.loaded && !dockyReadiness.ready && !nudgeDismissed && (
+        <div className="mx-4 mt-4 rounded-xl border border-border bg-card p-4">
+          <div className="flex items-start justify-between">
+            <p className="text-sm">
+              {dockyReadiness.missing.includes('role') &&
+              dockyReadiness.missing.includes('certifications')
+                ? 'Docky gives better advice when it knows your background. Add your role and certifications to get personalised career guidance and cert gap analysis.'
+                : dockyReadiness.missing.includes('certifications')
+                  ? 'Add your certifications so Docky can identify gaps and suggest what to work on next.'
+                  : 'Set your current role so Docky can tailor career path advice to where you are now.'}
+            </p>
+            <button
+              onClick={() => {
+                const key = dockyReadiness.missing.sort().join(',');
+                localStorage.setItem('dw-docky-nudge-dismissed', key);
+                setNudgeDismissed(true);
+              }}
+              className="ml-2 shrink-0 text-muted-foreground"
+            >
+              <span className="text-lg">&times;</span>
+            </button>
+          </div>
+          <button
+            onClick={() => router.push('/profile')}
+            className="mt-2 text-sm font-medium text-primary"
+          >
+            {dockyReadiness.missing.includes('role') &&
+            dockyReadiness.missing.includes('certifications')
+              ? 'Complete your profile \u2192'
+              : dockyReadiness.missing.includes('certifications')
+                ? 'Add certifications \u2192'
+                : 'Set your role \u2192'}
+          </button>
+        </div>
+      )}
 
       {conversations.length === 0 ? (
         /* Empty state */

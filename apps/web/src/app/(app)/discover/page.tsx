@@ -49,6 +49,7 @@ import { safeFetch } from '@/lib/safe-fetch';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { NotificationBell } from '@/components/notification-bell';
+import { PushPrompt } from '@/components/push-prompt';
 import { PermanentJobFeed } from './_components/permanent-job-feed';
 import { PermanentApplicationCard } from './_components/permanent-application-card';
 
@@ -629,6 +630,8 @@ export default function DiscoverPage() {
           </button>
         </div>
       </header>
+
+      <PushPrompt />
 
       {/* ───── Invitations tab ───── */}
       {activeTab === 'invitations' && (

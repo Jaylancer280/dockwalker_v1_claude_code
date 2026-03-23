@@ -198,12 +198,12 @@ describe('POST /api/profile/avatar', () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.avatar_url).toBe('https://storage.example.com/avatars/u1/avatar.jpg');
+    expect(body.avatar_url).toMatch(/^https:\/\/storage\.example\.com\/avatars\/u1\/avatar\.jpg\?t=\d+$/);
     expect(mockAppendEvent).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         eventType: 'PROFILE.UPDATED',
-        payload: { avatar_url: 'https://storage.example.com/avatars/u1/avatar.jpg' },
+        payload: { avatar_url: expect.stringMatching(/^https:\/\/storage\.example\.com\/avatars\/u1\/avatar\.jpg\?t=\d+$/) },
       }),
     );
   });

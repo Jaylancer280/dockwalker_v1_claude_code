@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 const REASON_OPTIONS = [
   { value: 'vessel_leaving', label: 'Vessel leaving port earlier than expected' },
@@ -35,6 +36,7 @@ export function CancelFormOverlay({
   }) => void;
   onCancel: () => void;
 }) {
+  useBodyScrollLock(true);
   const [reasonCategory, setReasonCategory] = useState('');
   const [reasonText, setReasonText] = useState('');
   const [relistRequested, setRelistRequested] = useState<boolean | null>(null);

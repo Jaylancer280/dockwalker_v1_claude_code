@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Loader2, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
 type TriOption = 'yes' | 'no' | 'partial';
 type DaysOption = 'fewer' | 'as_listed' | 'more';
@@ -29,6 +30,7 @@ export function RatingFormOverlay({
   onSubmit: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
+  useBodyScrollLock(true);
   // Cancelled-context fields (crew only)
   const [noticeGiven, setNoticeGiven] = useState<TriOption | null>(null);
 

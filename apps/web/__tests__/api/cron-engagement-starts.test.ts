@@ -19,6 +19,10 @@ vi.mock('@/lib/push-triggers', () => ({
   getRecipientEmail: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock('@/lib/push-triggers/loaders', () => ({
+  hasPushTokens: vi.fn().mockResolvedValue(true),
+}));
+
 vi.mock('@/lib/email/send', () => ({
   sendEmail: vi.fn().mockResolvedValue(undefined),
 }));

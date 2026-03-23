@@ -62,6 +62,14 @@ export async function getDayworkPoster(
   return data?.poster_person_id ?? null;
 }
 
+export async function hasPushTokens(sc: SupabaseClient, personId: string): Promise<boolean> {
+  const { count } = await sc
+    .from('device_tokens')
+    .select('id', { count: 'exact', head: true })
+    .eq('person_id', personId);
+  return (count ?? 0) > 0;
+}
+
 export async function getRecipientEmail(
   sc: SupabaseClient,
   personId: string,

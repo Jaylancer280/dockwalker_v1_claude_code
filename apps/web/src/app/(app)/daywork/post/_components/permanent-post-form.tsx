@@ -49,9 +49,10 @@ interface PermanentTemplate {
 
 interface PermanentPostFormProps {
   onBack: () => void;
+  initialTemplateId?: string;
 }
 
-export function PermanentPostForm({ onBack }: PermanentPostFormProps) {
+export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFormProps) {
   const router = useRouter();
   const { showSuccess, showError: showErrorToast } = useToast();
   const { currency: preferredCurrency } = usePreferences();
@@ -101,9 +102,31 @@ export function PermanentPostForm({ onBack }: PermanentPostFormProps) {
     });
 
     safeFetch<{ templates?: PermanentTemplate[] }>('/api/permanent/templates').then((result) => {
-      if (result.ok) setTemplates(result.data.templates ?? []);
+      if (result.ok) {
+        const loaded = result.data.templates ?? [];
+        setTemplates(loaded);
+        if (initialTemplateId) {
+          const match = loaded.find((t) => t.id === initialTemplateId);
+          if (match) {
+            setSelectedTemplateId(match.id);
+            if (match.vessel_id) setVesselId(match.vessel_id);
+            if (match.role_id) setRoleId(match.role_id);
+            if (match.port_id) setLocationPortId(match.port_id);
+            if (match.start_date) setStartDate(match.start_date);
+            if (match.salary_min) setSalaryMin(String(match.salary_min));
+            if (match.salary_max) setSalaryMax(String(match.salary_max));
+            if (match.salary_currency) setSalaryCurrency(match.salary_currency as CurrencyCode);
+            if (match.salary_period) setSalaryPeriod(match.salary_period);
+            setLiveAboard(match.live_aboard);
+            setCertificationIds(match.required_certification_ids ?? []);
+            if (match.experience_bracket_id) setExperienceBracketId(match.experience_bracket_id);
+            if (match.shortlist_cap) setShortlistCap(String(match.shortlist_cap));
+            if (match.notes) setNotes(match.notes);
+          }
+        }
+      }
     });
-  }, []);
+  }, [initialTemplateId]);
 
   // Load template into form
   function loadTemplate(templateId: string) {

@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { Camera, Loader2, X } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
+import { ImageCropper } from '@/components/image-cropper';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
 
@@ -12,49 +13,30 @@ interface AvatarUploadProps {
   onUploaded: (url: string | null) => void;
 }
 
-function resizeImage(file: File, maxSize: number): Promise<Blob> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      let { width, height } = img;
-      if (width > maxSize || height > maxSize) {
-        if (width > height) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
-        }
-      }
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => resolve(blob ?? file),
-        file.type === 'image/png' ? 'image/png' : 'image/jpeg',
-        0.85,
-      );
-    };
-    img.src = URL.createObjectURL(file);
-  });
-}
-
 export function AvatarUpload({ currentUrl, name, onUploaded }: AvatarUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [selectedFileName, setSelectedFileName] = useState<string>('avatar.jpg');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
+    setSelectedFileName(file.name);
+    const objectUrl = URL.createObjectURL(file);
+    setCropSrc(objectUrl);
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
     setUploading(true);
 
-    const resized = await resizeImage(file, 512);
     const formData = new FormData();
-    formData.append('file', resized, file.name);
+    formData.append('file', blob, selectedFileName);
 
     const result = await safeFetch<{ avatar_url: string }>('/api/profile/avatar', {
       method: 'POST',
@@ -67,7 +49,11 @@ export function AvatarUpload({ currentUrl, name, onUploaded }: AvatarUploadProps
       setError(result.error);
     }
     setUploading(false);
-    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  function handleCropCancel() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
   }
 
   async function handleRemove() {
@@ -114,6 +100,13 @@ export function AvatarUpload({ currentUrl, name, onUploaded }: AvatarUploadProps
         </Button>
       )}
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {cropSrc && (
+        <ImageCropper
+          imageSrc={cropSrc}
+          onConfirm={handleCropConfirm}
+          onCancel={handleCropCancel}
+        />
+      )}
     </div>
   );
 }
