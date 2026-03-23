@@ -11,6 +11,41 @@
 
 ## Queue
 
+### Stage 148: Profile polish — both hats, persistence, sea time fix, role fallback
+
+#### 148a — `computeSeaTime` is mislabeled — it's total experience duration, not verified sea time
+
+- [ ] Rename `computeSeaTime` → `computeTotalExperience` (file, function name, all call sites)
+- [ ] Update all display labels that say "sea time" to say "total experience" or just "total"
+- [ ] Update the Stage 147C test file name and test descriptions: `compute-sea-time.test.ts` → `compute-total-experience.test.ts`
+
+#### 148b — Collapse state persistence in localStorage
+
+- [ ] On section toggle: write `expandedSections` to `localStorage`
+- [ ] On mount: read from `localStorage` and initialize state
+- [ ] Use `useEffect` to sync state → localStorage
+
+#### 148c — Employer hat profile needs structure
+
+- [ ] Employer hat: show same 4 collapsible sections (minus daywork availability)
+- [ ] Agent hat: wrap fields in collapsible section, add prompts for empty fields
+
+#### 148d — Current Role fallback when no experiences exist
+
+- [ ] Verify onboarding-set role displays when experiences.length === 0
+- [ ] Show "Add your first experience to build your profile" when Summary is empty
+- [ ] Confirm EpauletteBadge doesn't render without a role
+
+### Stage 149: Skip onboarding + deferred profile completion + onboarding data gaps
+
+#### 149a — "Skip for now" on onboarding
+
+#### 149b — Persistent profile completion nudge
+
+#### 149c — Add missing fields to full onboarding flow
+
+(See full details in git history — planning agent spec from prior session)
+
 ---
 
 ## Post-TestFlight
@@ -19,46 +54,28 @@
 
 ### Resilience Tests
 
-Component tests that verify UI recovery from network failures. safeFetch migration (141a) gives correct behavior by construction; these tests prove it.
-
-- [ ] Discover page: mock safeFetch to return `{ ok: false }` on loadCards → verify: no spinner stuck, error state shown
-- [ ] Chat page: mock safeFetch to return `{ ok: false }` on loadMessages → verify: no spinner stuck, polling still sets up
-- [ ] Apply action: mock safeFetch to return `{ ok: false }` → verify: toast shown, applying state clears
-- [ ] Post form: mock safeFetch to return `{ ok: false }` on submit → verify: toast shown, submitting state clears
-- [ ] Availability overlay close → network fail → verify: no unhandled rejection, cached state preserved
+- [ ] Discover page: mock safeFetch error → no spinner stuck
+- [ ] Chat page: mock safeFetch error → polling still sets up
+- [ ] Apply action: mock error → toast shown, state clears
+- [ ] Post form: mock error → toast shown, state clears
+- [ ] Availability overlay: network fail → no unhandled rejection
 
 ### Component Tests for Permanent UI
 
-Zero component tests exist for permanent job pages (cards, feed, review, mine, post form). API tests cover the critical paths but rendering regressions are only caught manually.
-
-- [ ] PermanentJobCard: renders salary (exact vs range), "ASAP" for past dates, cert list, disabled apply when missing certs
-- [ ] PermanentJobFeed: filter panel renders, empty state, pagination trigger
-- [ ] PermanentPostForm: required field validation, salary preview, template load/save
-- [ ] PermanentReviewPage: tab switching, shortlist cap indicator, negotiation banner
-- [ ] PermanentApplicationCard: status labels (Under review / Shortlisted / Selected / Position filled), withdraw button visibility
+- [ ] PermanentJobCard, PermanentJobFeed, PermanentPostForm, PermanentReviewPage, PermanentApplicationCard
 
 ### Push-Triggers Further Decomposition
 
-If a third domain is added (e.g., `CONTRACT.*`), decompose `daywork-handlers.ts` (320 lines) further. Currently manageable but approaching the threshold.
-
 ### Onboarding True Atomicity
-
-The re-entrant retry fix handles the failure case, but `onboard_person` + vessel/experience batch are still two DB calls. A single Postgres RPC wrapping the full onboarding flow would make it truly atomic. Build when onboarding failures appear in real data.
 
 ### App Feature Guide
 
-On-signup slideshow/overlay showing screenshotted features. General UX, not permanent-specific. Build before promoting to experienced crew.
-
 ### Negotiation Timeout
 
-Auto-revert selection after N days of no activity. Build when ghosted selections become a pattern in real data.
-
 ### Weekly Check-In Cron (Permanent)
-
-Nudge employers with active permanent engagements that have no activity. Build when abandoned permanent engagements appear in real data.
 
 ---
 
 ## Done
 
-(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a, template name cap, messages test cleanup)
