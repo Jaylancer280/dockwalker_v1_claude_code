@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { NativeInit } from '@/components/native-init';
 import { PushToast } from '@/components/push-toast';
+import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 const geist = localFont({
@@ -38,7 +39,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#0B1A2E',
+  themeColor: '#111a24',
 };
 
 export default function RootLayout({
@@ -47,13 +48,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geist.variable} font-sans antialiased`}>
-        <NativeInit />
-        <PushToast />
-        {children}
-        <Analytics />
-        <SpeedInsights />
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('dw-theme');var d=(t==='light'||t==='dark')?t:(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.dataset.theme=d;}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body
+        className={`${geist.variable} font-sans antialiased`}
+        style={{
+          ['--font-geist-mono' as string]:
+            'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace',
+        }}
+      >
+        <ThemeProvider>
+          <NativeInit />
+          <PushToast />
+          {children}
+          <Analytics />
+          <SpeedInsights />
+        </ThemeProvider>
       </body>
     </html>
   );

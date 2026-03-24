@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useTheme } from '@/components/theme-provider';
 import type { DistanceUnit, CurrencyCode } from '@/lib/units';
 
 export interface AppearanceSectionProps {
@@ -17,18 +18,53 @@ export interface AppearanceSectionProps {
   onCurrencyPrefChange: (v: CurrencyCode) => void;
 }
 
+type ThemeOption = 'light' | 'dark' | 'system';
+
+const themeOptions: { value: ThemeOption; label: string }[] = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+];
+
 export function AppearanceSection({
   distanceUnit,
   onDistanceUnitChange,
   currencyPref,
   onCurrencyPrefChange,
 }: AppearanceSectionProps) {
+  const { theme, setTheme } = useTheme();
+
   return (
     <section>
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Appearance
       </h2>
       <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+        {/* Theme */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-sm font-medium">Theme</p>
+            <p className="text-xs text-muted-foreground">Choose light, dark, or system default</p>
+          </div>
+          <div className="flex gap-1 rounded-lg border border-border bg-background p-0.5">
+            {themeOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setTheme(opt.value)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  theme === opt.value
+                    ? 'bg-accent text-white'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
         {/* Distance units */}
         <div className="flex items-center justify-between px-4 py-3">
           <div>
