@@ -80,6 +80,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'End date cannot be before start date' }, { status: 400 });
     }
 
+    // Agent-specific constraints
+    if (person.identity_type === 'agent') {
+      if (isCurrent === true) {
+        return NextResponse.json(
+          { error: 'Agents cannot mark experience as current' },
+          { status: 400 },
+        );
+      }
+      if (endDate === null) {
+        return NextResponse.json(
+          { error: 'End date is required for maritime background entries' },
+          { status: 400 },
+        );
+      }
+    }
+
     if (description && description.length > 250) {
       return NextResponse.json(
         { error: 'Description must be 250 characters or less' },

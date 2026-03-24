@@ -63,7 +63,12 @@ export async function PATCH(request: Request) {
   if (body.bio !== undefined) payload.bio = body.bio;
   if (body.deckName !== undefined)
     payload.deck_name = body.deckName ? String(body.deckName).slice(0, 50) : null;
-  if (body.agencyName !== undefined) payload.agency_name = body.agencyName;
+  if (body.agencyName !== undefined) {
+    if (person.identity_type === 'agent' && (!body.agencyName || !String(body.agencyName).trim())) {
+      return NextResponse.json({ error: 'Agency name is required for agents' }, { status: 400 });
+    }
+    payload.agency_name = body.agencyName;
+  }
   if (body.roleSpecializationIds !== undefined)
     payload.role_specialization_ids = body.roleSpecializationIds;
   if (body.locationPortId !== undefined) payload.location_port_id = body.locationPortId;

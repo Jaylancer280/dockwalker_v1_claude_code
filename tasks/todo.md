@@ -30,27 +30,27 @@ Agents are agency-employed job posters. They use DockWalker because their candid
 
 **Identity step copy change:**
 
-- [ ] Below the "I'm an Agency Agent" option, add subtext: _"You'll post jobs on behalf of vessels. This cannot be changed — agents cannot apply for jobs or switch to a crew profile."_ Muted text, same style as existing option hints
-- [ ] "Skip for now" (Stage 149a) must NOT appear for agent identity type
+- [x] Below the "I'm an Agency Agent" option, add subtext: _"You'll post jobs on behalf of vessels. This cannot be changed — agents cannot apply for jobs or switch to a crew profile."_ Muted text, same style as existing option hints
+- [x] "Skip for now" (Stage 149a) must NOT appear for agent identity type
 
 **Profile step — agent field set:**
 
-- [ ] **Display name** (required) — their real name, not the agency name
-- [ ] **Agency name** (required for agents — currently optional, make it required when `identityType === 'agent'`). Label: "Agency name". This is their commercial identity
-- [ ] **Nationality** (optional) — same dropdown as crew
-- [ ] **Deck name** (optional) — label: "Nickname (optional)". Hint: "What people in the industry call you"
-- [ ] **Avatar** (optional) — same AvatarUpload component
-- [ ] **Location** (optional) — LocationPicker, port-required mode. Where they're based
-- [ ] **Role specializations** (optional) — scrollable checkbox list of yacht roles. "Which departments do you typically place for?"
+- [x] **Display name** (required) — their real name, not the agency name
+- [x] **Agency name** (required for agents — currently optional, make it required when `identityType === 'agent'`). Label: "Agency name". This is their commercial identity
+- [x] **Nationality** (optional) — same dropdown as crew
+- [x] **Deck name** (optional) — label: "Nickname (optional)". Hint: "What people in the industry call you"
+- [x] **Avatar** (optional) — same AvatarUpload component
+- [x] **Location** (optional) — LocationPicker, port-required mode. Where they're based
+- [x] **Role specializations** (optional) — scrollable checkbox list of yacht roles. "Which departments do you typically place for?"
 
 **Fields hidden for agents (do not render):**
 
-- [ ] Primary role selector, experience bracket, vessel size exposure
-- [ ] Certifications, languages, visas
-- [ ] Bio (crew concept — agents have agency name instead)
-- [ ] Desired role, career status
-- [ ] Shore experience, motivation, available to start (green crew fields)
-- [ ] Experience fork (green vs experienced) — skip entirely
+- [x] Primary role selector, experience bracket, vessel size exposure
+- [x] Certifications, languages, visas
+- [x] Bio (crew concept — agents have agency name instead)
+- [x] Desired role, career status
+- [x] Shore experience, motivation, available to start (green crew fields)
+- [x] Experience fork (green vs experienced) — skip entirely
 
 **Hat selection:** Skipped entirely for agents. Hardcode `currentHat: 'agent'` in the onboarding submit payload. Do not show the hat selection step.
 
@@ -58,16 +58,16 @@ Agents are agency-employed job posters. They use DockWalker because their candid
 
 **API changes:**
 
-- [ ] `POST /api/onboarding`: when `identityType === 'agent'`, validate `agencyName` is non-empty (required). Currently optional — add conditional validation
-- [ ] `PATCH /api/profile`: when `identity_type === 'agent'`, reject empty/null `agencyName` with 400. Agents must always have an agency name — it's their commercial identity and cannot be cleared after onboarding
-- [ ] Verify `currentHat: 'agent'` is accepted by the API (it already should be — check the hat/identity validation logic)
+- [x] `POST /api/onboarding`: when `identityType === 'agent'`, validate `agencyName` is non-empty (required). Currently optional — add conditional validation
+- [x] `PATCH /api/profile`: when `identity_type === 'agent'`, reject empty/null `agencyName` with 400. Agents must always have an agency name — it's their commercial identity and cannot be cleared after onboarding
+- [x] Verify `currentHat: 'agent'` is accepted by the API (it already should be — check the hat/identity validation logic)
 
 **Tests:**
 
-- [ ] Add onboarding test: agent with required fields (displayName, agencyName) succeeds
-- [ ] Add onboarding test: agent without agencyName returns 400
-- [ ] Add profile PATCH test: agent clearing agencyName returns 400
-- [ ] Existing crew onboarding tests unaffected
+- [x] Add onboarding test: agent with required fields (displayName, agencyName) succeeds
+- [x] Add onboarding test: agent without agencyName returns 400
+- [x] Add profile PATCH test: agent clearing agencyName returns 400
+- [x] Existing crew onboarding tests unaffected
 
 #### 151b — Agent profile page
 
@@ -77,29 +77,29 @@ Agents are agency-employed job posters. They use DockWalker because their candid
 
 **Agent profile sections:**
 
-- [ ] **Header:** Avatar, display name, nationality flag (if set), deck name in quotes (if set), agency name badge, "Agent" identity badge
-- [ ] **"How candidates see you" button:** Same ProfileOverlay mechanic as crew's "How employers see you", but relabelled. Calls `GET /api/profile/[personId]` with the agent's own person_id. Opens the agent overlay view (see below)
-- [ ] **Agency Info section** (collapsible): agency name, location (port + city + region), role specializations as pills. Edit button opens edit mode for these fields. Empty-state prompts for missing fields: "Add your location — helps crew know where you're based", "Add role specializations — shows which departments you place for"
-- [ ] **Maritime Background section** (collapsible, initially empty): same experience card layout as crew, but with header "Maritime Background" instead of "Experience". Subtext: "Share your maritime history — helps candidates know you understand their world." Cards show vessel name, role, date range, flag state, LOA, contract type. "Add maritime background" CTA button links to `/profile/add-experience`. All entries must have end date (see 151c for `is_current` enforcement)
-- [ ] **My Vessels section** (collapsible): vessel list with M/Y S/Y prefix, LOA, size band. "My Vessels" ship icon button in header (same as employer). Links to `/vessels`
-- [ ] **Active Postings row:** count of active daywork + permanent postings. Tappable — links to `/daywork/mine`. Not a full section, just an info row. Fetch via existing mine APIs (count from response arrays) or add to profile GET response
+- [x] **Header:** Avatar, display name, nationality flag (if set), deck name in quotes (if set), agency name badge, "Agent" identity badge
+- [x] **"How candidates see you" button:** Same ProfileOverlay mechanic as crew's "How employers see you", but relabelled. Calls `GET /api/profile/[personId]` with the agent's own person_id. Opens the agent overlay view (see below)
+- [x] **Agency Info section** (collapsible): agency name, location (port + city + region), role specializations as pills. Edit button opens edit mode for these fields. Empty-state prompts for missing fields: "Add your location — helps crew know where you're based", "Add role specializations — shows which departments you place for"
+- [x] **Maritime Background section** (collapsible, initially empty): same experience card layout as crew, but with header "Maritime Background" instead of "Experience". Subtext: "Share your maritime history — helps candidates know you understand their world." Cards show vessel name, role, date range, flag state, LOA, contract type. "Add maritime background" CTA button links to `/profile/add-experience`. All entries must have end date (see 151c for `is_current` enforcement)
+- [x] **My Vessels section** (collapsible): vessel list with M/Y S/Y prefix, LOA, size band. "My Vessels" ship icon button in header (same as employer). Links to `/vessels`
+- [x] **Active Postings row:** count of active daywork + permanent postings. Tappable — links to `/daywork/mine`. Not a full section, just an info row. Fetch via existing mine APIs (count from response arrays) or add to profile GET response
 
 **Sections NOT shown for agents:**
 
-- [ ] Summary (crew: role, bracket, size exposure — not relevant)
-- [ ] Looking For (crew: desired role, availability, career status — not relevant)
-- [ ] About (crew: bio, certs, visas — not relevant)
-- [ ] Experience section with crew framing (replaced by Maritime Background)
+- [x] Summary (crew: role, bracket, size exposure — not relevant)
+- [x] Looking For (crew: desired role, availability, career status — not relevant)
+- [x] About (crew: bio, certs, visas — not relevant)
+- [x] Experience section with crew framing (replaced by Maritime Background)
 
 **Edit mode for agents:**
 
-- [ ] Display name, deck name, nationality, agency name, location, role specializations — same PATCH `/api/profile` endpoint, same fields
-- [ ] No career status, no desired role, no certs, no visas, no languages, no bio
+- [x] Display name, deck name, nationality, agency name, location, role specializations — same PATCH `/api/profile` endpoint, same fields
+- [x] No career status, no desired role, no certs, no visas, no languages, no bio
 
 **View-only profile API fix (`GET /api/profile/[personId]`):**
 
-- [ ] Currently agents fall through to `buildEmployerProfile()` which does NOT return experiences. Agent maritime background entries will be invisible in the overlay and "How candidates see you" preview. **Fix:** When `identity_type === 'agent'`, include `crew_experiences` (with vessel joins) in the response — same query as `buildCrewProfile()` uses for experiences, but framed as maritime background. Alternatively, add an explicit `buildAgentProfile()` branch that includes experiences alongside employer fields (agency name, vessels, active count)
-- [ ] Verify the profile overlay component handles the agent response shape and renders Maritime Background entries
+- [x] Currently agents fall through to `buildEmployerProfile()` which does NOT return experiences. Agent maritime background entries will be invisible in the overlay and "How candidates see you" preview. **Fix:** When `identity_type === 'agent'`, include `crew_experiences` (with vessel joins) in the response — same query as `buildCrewProfile()` uses for experiences, but framed as maritime background. Alternatively, add an explicit `buildAgentProfile()` branch that includes experiences alongside employer fields (agency name, vessels, active count)
+- [x] Verify the profile overlay component handles the agent response shape and renders Maritime Background entries
 
 **Profile overlay (what crew see when tapping "Posted by {agent name}"):**
 
@@ -124,22 +124,22 @@ Agents are agency-employed job posters. They use DockWalker because their candid
 
 **Implementation:**
 
-- [ ] `POST /api/experiences`: when the authenticated user's `identity_type === 'agent'`, reject `isCurrent: true` with 400 and message "Agents cannot mark experience as current"
-- [ ] `POST /api/experiences`: when `identity_type === 'agent'`, require `endDate` (non-null). Agent maritime history is complete — every entry must have a start and end date. Return 400 with "End date is required for maritime background entries" if missing
-- [ ] `PATCH /api/experiences/[id]`: same checks — reject `isCurrent: true` for agents, require `endDate` if being set to null
-- [ ] On the add-experience page (`/profile/add-experience`): hide the "Currently onboard" checkbox when user is an agent. **The page needs to know identity type** — fetch from profile API on mount, or read from the person record passed via layout context. The page currently does not have this data
-- [ ] On the edit-experience page (`/profile/edit-experience/[id]`): same — hide "Currently onboard" checkbox for agents. Same identity type data requirement
-- [ ] Page title: when `identityType === 'agent'`, show "Add Maritime Background" / "Edit Maritime Background" instead of "Add Experience" / "Edit Experience"
-- [ ] Verify: existing crew experience routes are unaffected
-- [ ] `derive_experience_profile()` will still run for agents after adding experience — this is fine, it auto-derives `primary_role_id` and `experience_bracket_id` which are harmless on an agent profile (they just won't be displayed)
+- [x] `POST /api/experiences`: when the authenticated user's `identity_type === 'agent'`, reject `isCurrent: true` with 400 and message "Agents cannot mark experience as current"
+- [x] `POST /api/experiences`: when `identity_type === 'agent'`, require `endDate` (non-null). Agent maritime history is complete — every entry must have a start and end date. Return 400 with "End date is required for maritime background entries" if missing
+- [x] `PATCH /api/experiences/[id]`: same checks — reject `isCurrent: true` for agents, require `endDate` if being set to null
+- [x] On the add-experience page (`/profile/add-experience`): hide the "Currently onboard" checkbox when user is an agent. **The page needs to know identity type** — fetch from profile API on mount, or read from the person record passed via layout context. The page currently does not have this data
+- [x] On the edit-experience page (`/profile/edit-experience/[id]`): same — hide "Currently onboard" checkbox for agents. Same identity type data requirement
+- [x] Page title: when `identityType === 'agent'`, show "Add Maritime Background" / "Edit Maritime Background" instead of "Add Experience" / "Edit Experience"
+- [x] Verify: existing crew experience routes are unaffected
+- [x] `derive_experience_profile()` will still run for agents after adding experience — this is fine, it auto-derives `primary_role_id` and `experience_bracket_id` which are harmless on an agent profile (they just won't be displayed)
 
 **Tests:**
 
-- [ ] Experience POST test: agent with `isCurrent: true` returns 400
-- [ ] Experience POST test: agent with `isCurrent: false` or omitted but no `endDate` returns 400
-- [ ] Experience POST test: agent with `isCurrent: false` and valid `endDate` succeeds
-- [ ] Experience PATCH test: agent cannot set `isCurrent: true`
-- [ ] Experience PATCH test: agent cannot clear `endDate` to null
+- [x] Experience POST test: agent with `isCurrent: true` returns 400
+- [x] Experience POST test: agent with `isCurrent: false` or omitted but no `endDate` returns 400
+- [x] Experience POST test: agent with `isCurrent: false` and valid `endDate` succeeds
+- [x] Experience PATCH test: agent cannot set `isCurrent: true`
+- [x] Experience PATCH test: agent cannot clear `endDate` to null
 
 #### 151d — Agent read-only market feed
 

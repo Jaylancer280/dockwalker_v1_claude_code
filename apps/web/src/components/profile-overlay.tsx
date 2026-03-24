@@ -55,6 +55,14 @@ interface EmployerProfile {
   location: { port: string; city: string; region: string } | null;
   vessels: { name: string; vessel_type: string; loa_meters: number; size_band: string | null }[];
   active_posting_count: number;
+  maritime_background?: {
+    vessel_name: string | null;
+    vessel_type: string | null;
+    role: string | null;
+    start_date: string;
+    end_date: string | null;
+    flag_state: string | null;
+  }[];
 }
 
 type ProfileData = CrewProfile | EmployerProfile;
@@ -392,6 +400,23 @@ function EmployerProfileView({ profile }: { profile: EmployerProfile }) {
                   {v.loa_meters}m{v.size_band && ` · ${v.size_band}`}
                 </p>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Maritime Background — agent only */}
+      {profile.maritime_background && profile.maritime_background.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Maritime Background
+          </p>
+          {profile.maritime_background.map((entry, idx) => (
+            <div key={idx} className="rounded-lg border border-border p-2.5">
+              <p className="text-sm font-medium">{entry.vessel_name ?? 'Vessel'}</p>
+              <p className="text-xs text-muted-foreground">
+                {entry.role ?? 'Role'} · {formatDateRange(entry.start_date, entry.end_date, false)}
+              </p>
             </div>
           ))}
         </div>

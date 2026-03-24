@@ -473,6 +473,10 @@ export default function OnboardingPage() {
               <div>
                 <p className="font-semibold">I&apos;m an Agency Agent</p>
                 <p className="text-sm text-muted-foreground">I hire crew on behalf of vessels</p>
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  You&apos;ll post jobs on behalf of vessels. This cannot be changed — agents cannot
+                  apply for jobs or switch to a crew profile.
+                </p>
               </div>
             </button>
           </div>
@@ -879,7 +883,9 @@ export default function OnboardingPage() {
             {identityType === 'agent' && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="agencyName">Agency name</Label>
+                  <Label htmlFor="agencyName">
+                    Agency name <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="agencyName"
                     placeholder="Your agency"
@@ -888,8 +894,40 @@ export default function OnboardingPage() {
                   />
                 </div>
 
+                {/* Deck name for agents — "Nickname" */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Roles you hire for</Label>
+                  <Label>
+                    Nickname <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    placeholder="What people in the industry call you"
+                    value={deckName}
+                    onChange={(e) => setDeckName(e.target.value.slice(0, 50))}
+                    maxLength={50}
+                  />
+                </div>
+
+                {/* Nationality for agents — optional */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>
+                    Nationality <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Select value={nationalityId} onValueChange={setNationalityId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select nationality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {nationalities.map((n) => (
+                        <SelectItem key={n.id} value={n.id}>
+                          {n.flag_emoji} {n.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label>Which departments do you typically place for?</Label>
                   <div className="max-h-48 overflow-y-auto rounded-md border border-border p-3">
                     {roles.map((role) => (
                       <label key={role.id} className="flex items-center gap-2 py-1.5 text-sm">
@@ -909,16 +947,18 @@ export default function OnboardingPage() {
               </>
             )}
 
-            {/* Bio — shared */}
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="bio">Short bio (optional)</Label>
-              <Input
-                id="bio"
-                placeholder="A few words about yourself"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-              />
-            </div>
+            {/* Bio — crew only */}
+            {isCrew && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="bio">Short bio (optional)</Label>
+                <Input
+                  id="bio"
+                  placeholder="A few words about yourself"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -931,6 +971,10 @@ export default function OnboardingPage() {
               }
               if (identityType === 'crew' && !nationalityId) {
                 setError('Nationality is required');
+                return;
+              }
+              if (identityType === 'agent' && !agencyName.trim()) {
+                setError('Agency name is required');
                 return;
               }
               setError(null);

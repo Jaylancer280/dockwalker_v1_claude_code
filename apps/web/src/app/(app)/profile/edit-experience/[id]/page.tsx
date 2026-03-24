@@ -62,6 +62,7 @@ export default function EditExperiencePage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isCurrent, setIsCurrent] = useState(false);
+  const [isAgent, setIsAgent] = useState(false);
   const [contractType, setContractType] = useState('');
   const [contractDetails, setContractDetails] = useState('');
   const [description, setDescription] = useState('');
@@ -78,7 +79,7 @@ export default function EditExperiencePage() {
   const loadData = useCallback(async () => {
     try {
       const supabase = createClient();
-      const [rolesRes, flagsRes, expResult] = await Promise.all([
+      const [rolesRes, flagsRes, expResult, profileRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
         supabase.from('flag_states').select('id, name').order('sort_order'),
         safeFetch<{
@@ -96,9 +97,13 @@ export default function EditExperiencePage() {
             vessels: { name: string; vessel_type: string } | null;
           }[];
         }>('/api/experiences'),
+        safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
       if (flagsRes.data) setFlagStates(flagsRes.data);
+      if (profileRes.ok && profileRes.data.person?.identity_type === 'agent') {
+        setIsAgent(true);
+      }
 
       if (expResult.ok) {
         const exp = (expResult.data.experiences ?? []).find((e) => e.id === id);
@@ -189,7 +194,9 @@ export default function EditExperiencePage() {
 
       <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Edit experience</h1>
+          <h1 className="text-xl font-bold tracking-tight">
+            {isAgent ? 'Edit Maritime Background' : 'Edit experience'}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {vesselPrefix} {vesselName || 'Unknown vessel'}
           </p>
@@ -241,16 +248,18 @@ export default function EditExperiencePage() {
             />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={isCurrent}
-            onCheckedChange={(checked) => {
-              setIsCurrent(checked === true);
-              if (checked) setEndDate('');
-            }}
-          />
-          Currently onboard
-        </label>
+        {!isAgent && (
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={isCurrent}
+              onCheckedChange={(checked) => {
+                setIsCurrent(checked === true);
+                if (checked) setEndDate('');
+              }}
+            />
+            Currently onboard
+          </label>
+        )}
 
         {/* Contract type */}
         <div className="flex flex-col gap-1.5">

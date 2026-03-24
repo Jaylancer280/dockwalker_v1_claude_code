@@ -78,6 +78,7 @@ export default function AddExperiencePage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isCurrent, setIsCurrent] = useState(false);
+  const [isAgent, setIsAgent] = useState(false);
   const [contractType, setContractType] = useState('');
   const [contractDetails, setContractDetails] = useState('');
   const [description, setDescription] = useState('');
@@ -94,12 +95,16 @@ export default function AddExperiencePage() {
   const loadLookups = useCallback(async () => {
     try {
       const supabase = createClient();
-      const [rolesRes, flagsRes] = await Promise.all([
+      const [rolesRes, flagsRes, profileRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
         supabase.from('flag_states').select('id, name').order('sort_order'),
+        safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
       if (flagsRes.data) setFlagStates(flagsRes.data);
+      if (profileRes.ok && profileRes.data.person?.identity_type === 'agent') {
+        setIsAgent(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -289,7 +294,9 @@ export default function AddExperiencePage() {
 
       <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Add experience</h1>
+          <h1 className="text-xl font-bold tracking-tight">
+            {isAgent ? 'Add Maritime Background' : 'Add experience'}
+          </h1>
           <p className="text-sm text-muted-foreground">
             Add a vessel experience entry to your profile
           </p>
@@ -473,16 +480,18 @@ export default function AddExperiencePage() {
             />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={isCurrent}
-            onCheckedChange={(checked) => {
-              setIsCurrent(checked === true);
-              if (checked) setEndDate('');
-            }}
-          />
-          Currently onboard
-        </label>
+        {!isAgent && (
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={isCurrent}
+              onCheckedChange={(checked) => {
+                setIsCurrent(checked === true);
+                if (checked) setEndDate('');
+              }}
+            />
+            Currently onboard
+          </label>
+        )}
 
         {/* Contract type */}
         <div className="flex flex-col gap-1.5">

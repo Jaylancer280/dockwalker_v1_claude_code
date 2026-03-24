@@ -153,6 +153,9 @@ describe('GET /api/profile/[personId]', () => {
     // Active posting count
     mockFrom.mockReturnValueOnce(mockChain(null, { count: 2 }));
 
+    // Maritime background (experiences) — agent profile includes this
+    mockFrom.mockReturnValueOnce(mockChain([]));
+
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -162,6 +165,7 @@ describe('GET /api/profile/[personId]', () => {
     expect(body.vessels).toHaveLength(1);
     expect(body.vessels[0].name).toBe('Yacht A');
     expect(body.active_posting_count).toBe(2);
+    expect(body.maritime_background).toEqual([]);
   });
 
   it('returns 200 via application context', async () => {

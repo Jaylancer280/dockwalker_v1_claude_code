@@ -163,4 +163,15 @@ describe('PATCH /api/profile', () => {
     const res = await PATCH(makeRequest({ bio: null }));
     expect(res.status).toBe(200);
   });
+
+  it('agent clearing agencyName returns 400', async () => {
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'agent', current_hat: 'agent' } }),
+    );
+
+    const res = await PATCH(makeRequest({ agencyName: '' }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('Agency name');
+  });
 });

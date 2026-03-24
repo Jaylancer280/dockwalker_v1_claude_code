@@ -46,6 +46,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid hat selection' }, { status: 400 });
     }
 
+    // Agent-specific validation
+    if (identityType === 'agent' && (!profile?.agencyName || !profile.agencyName.trim())) {
+      return NextResponse.json({ error: 'Agency name is required for agents' }, { status: 400 });
+    }
+
     // Check not already onboarded
     const { data: existingPerson } = await supabase
       .from('persons')

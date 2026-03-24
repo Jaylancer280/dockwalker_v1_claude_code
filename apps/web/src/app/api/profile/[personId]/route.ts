@@ -65,6 +65,10 @@ export async function GET(
       return NextResponse.json(await buildCrewProfile(supabase, profile, personId));
     }
 
+    if (profile.identity_type === 'agent') {
+      return NextResponse.json(await buildAgentProfile(supabase, profile, personId));
+    }
+
     return NextResponse.json(await buildEmployerProfile(supabase, profile, personId));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
@@ -284,5 +288,48 @@ async function buildEmployerProfile(supabase: any, profile: any, personId: strin
       size_band: (v.vessel_size_bands as { label: string } | null)?.label ?? null,
     })),
     active_posting_count: activePostingCount ?? 0,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function buildAgentProfile(supabase: any, profile: any, personId: string) {
+  // Get employer-level data
+  const employerData = await buildEmployerProfile(supabase, profile, personId);
+
+  // Also fetch maritime background (experiences) — same query as crew
+  const { data: experiences } = await supabase
+    .from('crew_experiences')
+    .select(
+      `
+      id, start_date, end_date, is_current, vessel_operation,
+      flag_state, contract_type, contract_details, description,
+      vessels(name, vessel_type, loa_meters, vessel_size_bands(label)),
+      yacht_roles(name)
+    `,
+    )
+    .eq('person_id', personId)
+    .order('start_date', { ascending: false });
+
+  return {
+    ...employerData,
+    maritime_background: (experiences ?? []).map((exp: Record<string, unknown>) => {
+      const vessel = exp.vessels as {
+        name: string;
+        vessel_type: string;
+        loa_meters: number;
+        vessel_size_bands: { label: string } | null;
+      } | null;
+      return {
+        vessel_name: vessel?.name ?? null,
+        vessel_type: vessel?.vessel_type ?? null,
+        vessel_loa_meters: vessel?.loa_meters ?? null,
+        vessel_size_band: vessel?.vessel_size_bands?.label ?? null,
+        role: (exp.yacht_roles as { name: string } | null)?.name ?? null,
+        start_date: exp.start_date,
+        end_date: exp.end_date,
+        flag_state: exp.flag_state,
+        contract_type: exp.contract_type,
+      };
+    }),
   };
 }

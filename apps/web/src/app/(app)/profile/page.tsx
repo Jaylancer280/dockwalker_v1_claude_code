@@ -9,6 +9,7 @@ import {
   Check,
   Loader2,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Plus,
   Trash2,
@@ -561,7 +562,18 @@ export default function ProfilePage() {
             How employers see you
           </Button>
         )}
-        {!editing && !isCrewHat && (
+        {!editing && !isCrewHat && person.identity_type === 'agent' && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit gap-2"
+            onClick={() => setShowPreview(true)}
+          >
+            <Eye className="h-4 w-4" />
+            How candidates see you
+          </Button>
+        )}
+        {!editing && !isCrewHat && person.identity_type !== 'agent' && (
           <Button
             variant="outline"
             className="w-fit gap-2"
@@ -1436,6 +1448,80 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
+
+            {/* Maritime Background section */}
+            <button
+              onClick={() => setExpandedSections((s) => ({ ...s, maritime: !s.maritime }))}
+              className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+            >
+              <div>
+                <p className="text-sm font-medium">Maritime Background</p>
+                {!expandedSections.maritime && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {experiences.length > 0
+                      ? `${experiences.length} entries · ${computeTotalExperience(experiences)}`
+                      : 'Share your maritime history'}
+                  </p>
+                )}
+              </div>
+              {expandedSections.maritime ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+            {expandedSections.maritime && experiences.length === 0 && (
+              <button
+                onClick={() => router.push('/profile/add-experience')}
+                className="mx-4 rounded-lg border border-dashed border-border p-3 text-center text-sm text-muted-foreground"
+              >
+                Share your maritime history — helps candidates know you understand their world
+              </button>
+            )}
+            {expandedSections.maritime && experiences.length > 0 && (
+              <>
+                <div className="flex items-center justify-between px-4">
+                  <Badge variant="secondary" className="text-[10px]">
+                    {computeTotalExperience(experiences)} total
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push('/profile/add-experience')}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
+                {experiences.map((exp) => (
+                  <div key={exp.id} className="mx-4 rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium">
+                          {exp.vessels?.name ?? 'Unknown vessel'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {exp.yacht_roles?.name} ·{' '}
+                          {formatDateRange(exp.start_date, exp.end_date, false)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
+            {/* My Vessels section */}
+            <button
+              onClick={() => router.push('/vessels')}
+              className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Ship className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">My Vessels</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
         )}
 

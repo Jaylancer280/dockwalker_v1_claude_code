@@ -384,4 +384,30 @@ describe('POST /api/onboarding', () => {
       }),
     );
   });
+
+  it('agent with required fields succeeds', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFromAuth.mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(makeRequest({
+      identityType: 'agent',
+      currentHat: 'agent',
+      profile: { displayName: 'Agent Smith', agencyName: 'Top Crew Agency' },
+    }));
+    expect(res.status).toBe(200);
+  });
+
+  it('agent without agencyName returns 400', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+
+    const res = await POST(makeRequest({
+      identityType: 'agent',
+      currentHat: 'agent',
+      profile: { displayName: 'Agent Smith' },
+    }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('Agency name');
+  });
 });

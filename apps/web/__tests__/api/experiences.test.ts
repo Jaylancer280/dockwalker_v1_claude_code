@@ -437,3 +437,121 @@ describe('DELETE /api/experiences/:id', () => {
     expect(mockAppendEvent.mock.calls[0][1].eventType).toBe('EXPERIENCE.REMOVED');
   });
 });
+
+describe('Agent maritime background constraints', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const agentGuard = () =>
+    guardOk({ person: { id: 'u1', identity_type: 'agent', current_hat: 'agent' } });
+
+  it('POST rejects isCurrent: true for agents', async () => {
+    mockRequireDomainUser.mockResolvedValue(agentGuard());
+
+    const req = new Request('http://localhost/api/experiences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vesselId: 'v1',
+        roleId: 'r1',
+        startDate: '2024-01-01',
+        endDate: '2024-06-01',
+        isCurrent: true,
+        vesselOperation: 'charter',
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('cannot mark experience as current');
+  });
+
+  it('POST rejects missing endDate for agents', async () => {
+    mockRequireDomainUser.mockResolvedValue(agentGuard());
+
+    const req = new Request('http://localhost/api/experiences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vesselId: 'v1',
+        roleId: 'r1',
+        startDate: '2024-01-01',
+        vesselOperation: 'charter',
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('End date is required');
+  });
+
+  it('POST succeeds for agent with isCurrent: false and endDate', async () => {
+    mockRequireDomainUser.mockResolvedValue(agentGuard());
+    // Overlap check — no existing experiences
+    mockServiceQuery('crew_experiences', []);
+
+    const req = new Request('http://localhost/api/experiences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vesselId: 'v1',
+        roleId: 'r1',
+        startDate: '2024-01-01',
+        endDate: '2024-06-01',
+        isCurrent: false,
+        vesselOperation: 'charter',
+      }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(201);
+  });
+
+  it('PATCH rejects isCurrent: true for agents', async () => {
+    mockRequireDomainUser.mockResolvedValue(agentGuard());
+    // Ownership check mock
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'exp1' } }),
+          }),
+        }),
+      }),
+    });
+
+    const req = new Request('http://localhost/api/experiences/exp1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isCurrent: true }),
+    });
+    const res = await PATCH(req, makeParams('exp1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('cannot mark experience as current');
+  });
+
+  it('PATCH rejects clearing endDate for agents', async () => {
+    mockRequireDomainUser.mockResolvedValue(agentGuard());
+    // Ownership check mock
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'exp1' } }),
+          }),
+        }),
+      }),
+    });
+
+    const req = new Request('http://localhost/api/experiences/exp1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endDate: null }),
+    });
+    const res = await PATCH(req, makeParams('exp1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('End date is required');
+  });
+});
