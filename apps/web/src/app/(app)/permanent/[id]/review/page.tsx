@@ -32,6 +32,8 @@ interface Applicant {
   role_name: string | null;
   role_department: string | null;
   experience_label: string | null;
+  certification_ids: string[];
+  languages: string[];
   nationality_name: string | null;
   nationality_flag: string | null;
   permanent_availability: string | null;
@@ -260,6 +262,11 @@ export default function PermanentReviewPage() {
                   <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
                     {app.experience_label && <span>{app.experience_label}</span>}
                     {app.nationality_flag && <span>{app.nationality_flag}</span>}
+                    {app.languages.length > 0 && (
+                      <span>
+                        {app.languages.length} language{app.languages.length !== 1 ? 's' : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button

@@ -38,71 +38,76 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, person, supabase, serviceClient } = guard.value;
 
-  const formData = await request.formData();
-  const file = formData.get('file') as File | null;
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
 
-  if (!file) {
-    return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-  }
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'File must be JPEG, PNG, or WebP' }, { status: 400 });
-  }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json({ error: 'File must be JPEG, PNG, or WebP' }, { status: 400 });
+    }
 
-  if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: 'File must be 2MB or smaller' }, { status: 400 });
-  }
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: 'File must be 2MB or smaller' }, { status: 400 });
+    }
 
-  // 1. Read buffer and validate magic bytes BEFORE touching storage
-  const buffer = Buffer.from(await file.arrayBuffer());
+    // 1. Read buffer and validate magic bytes BEFORE touching storage
+    const buffer = Buffer.from(await file.arrayBuffer());
 
-  if (!validateMagicBytes(new Uint8Array(buffer), file.type)) {
-    return NextResponse.json(
-      { error: 'File content does not match declared type' },
-      { status: 400 },
-    );
-  }
+    if (!validateMagicBytes(new Uint8Array(buffer), file.type)) {
+      return NextResponse.json(
+        { error: 'File content does not match declared type' },
+        { status: 400 },
+      );
+    }
 
-  // 2. Upload new file first
-  const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
-  const storagePath = `${user.id}/avatar.${ext}`;
+    // 2. Upload new file first
+    const ext = file.type.split('/')[1] === 'jpeg' ? 'jpg' : file.type.split('/')[1];
+    const storagePath = `${user.id}/avatar.${ext}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(storagePath, buffer, {
-      contentType: file.type,
-      upsert: true,
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(storagePath, buffer, {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    }
+
+    // 3. Only after upload succeeds, remove old files with different extensions
+    const { data: existing } = await supabase.storage.from('avatars').list(user.id);
+
+    if (existing && existing.length > 0) {
+      const oldPaths = existing
+        .filter((f) => `${user.id}/${f.name}` !== storagePath)
+        .map((f) => `${user.id}/${f.name}`);
+      if (oldPaths.length > 0) {
+        await supabase.storage.from('avatars').remove(oldPaths);
+      }
+    }
+
+    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
+    const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+    await appendEvent(serviceClient, {
+      eventType: 'PROFILE.UPDATED',
+      aggregateId: user.id,
+      aggregateType: 'person',
+      roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
+      payload: { avatar_url: avatarUrl },
+      personId: user.id,
     });
 
-  if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    return NextResponse.json({ avatar_url: avatarUrl });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  // 3. Only after upload succeeds, remove old files with different extensions
-  const { data: existing } = await supabase.storage.from('avatars').list(user.id);
-
-  if (existing && existing.length > 0) {
-    const oldPaths = existing
-      .filter((f) => `${user.id}/${f.name}` !== storagePath)
-      .map((f) => `${user.id}/${f.name}`);
-    if (oldPaths.length > 0) {
-      await supabase.storage.from('avatars').remove(oldPaths);
-    }
-  }
-
-  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
-  const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-  await appendEvent(serviceClient, {
-    eventType: 'PROFILE.UPDATED',
-    aggregateId: user.id,
-    aggregateType: 'person',
-    roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
-    payload: { avatar_url: avatarUrl },
-    personId: user.id,
-  });
-
-  return NextResponse.json({ avatar_url: avatarUrl });
 }
 
 /**
@@ -114,22 +119,27 @@ export async function DELETE() {
   if (!guard.ok) return guard.response;
   const { user, person, supabase, serviceClient } = guard.value;
 
-  // Remove all avatar files for this user
-  const { data: existing } = await supabase.storage.from('avatars').list(user.id);
+  try {
+    // Remove all avatar files for this user
+    const { data: existing } = await supabase.storage.from('avatars').list(user.id);
 
-  if (existing && existing.length > 0) {
-    const paths = existing.map((f) => `${user.id}/${f.name}`);
-    await supabase.storage.from('avatars').remove(paths);
+    if (existing && existing.length > 0) {
+      const paths = existing.map((f) => `${user.id}/${f.name}`);
+      await supabase.storage.from('avatars').remove(paths);
+    }
+
+    await appendEvent(serviceClient, {
+      eventType: 'PROFILE.UPDATED',
+      aggregateId: user.id,
+      aggregateType: 'person',
+      roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
+      payload: { avatar_url: null },
+      personId: user.id,
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  await appendEvent(serviceClient, {
-    eventType: 'PROFILE.UPDATED',
-    aggregateId: user.id,
-    aggregateType: 'person',
-    roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
-    payload: { avatar_url: null },
-    personId: user.id,
-  });
-
-  return NextResponse.json({ success: true });
 }

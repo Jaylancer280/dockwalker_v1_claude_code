@@ -64,7 +64,7 @@ export async function updateSession(request: NextRequest) {
   // Authenticated: check onboarding status
   if (user && !isPublicRoute && !path.startsWith('/onboarding')) {
     const [{ data: person }, { data: profile }] = await Promise.all([
-      supabase.from('persons').select('id, current_hat').eq('id', user.id).single(),
+      supabase.from('persons').select('id, current_hat, identity_type').eq('id', user.id).single(),
       supabase.from('profiles').select('person_id').eq('person_id', user.id).single(),
     ]);
 
@@ -80,13 +80,20 @@ export async function updateSession(request: NextRequest) {
       url.pathname = person.current_hat === 'crew' ? '/discover' : '/daywork/mine';
       return NextResponse.redirect(url);
     }
+
+    // Agent cannot access crew discover — redirect to market feed
+    if (person.identity_type === 'agent' && path === '/discover') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/discover/market';
+      return NextResponse.redirect(url);
+    }
   }
 
   // On onboarding page but already onboarded → redirect by hat
   if (user && path.startsWith('/onboarding')) {
     const { data: person } = await supabase
       .from('persons')
-      .select('id, current_hat')
+      .select('id, current_hat, identity_type')
       .eq('id', user.id)
       .single();
 

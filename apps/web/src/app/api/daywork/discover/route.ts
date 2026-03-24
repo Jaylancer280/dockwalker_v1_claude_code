@@ -215,10 +215,10 @@ export async function GET(request: Request) {
 
     // Strip poster identity for agents
     const results = isAgent
-      ? hydrated.map(({ poster_person_id: _p, poster_name: _n, ...rest }) => ({
-          ...rest,
-          poster_person_id: null,
-          poster_name: null,
+      ? hydrated.map((dw) => ({
+          ...dw,
+          poster_person_id: null as string | null,
+          poster_name: null as string | null,
         }))
       : hydrated;
 

@@ -16,6 +16,48 @@ export async function GET() {
   try {
     const { user, person, supabase } = guard.value;
     const currentHat = person.current_hat;
+
+    // Agent branch — single context, no alt hat
+    if (person.identity_type === 'agent') {
+      const { count: notifCount } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('person_id', user.id)
+        .eq('read', false)
+        .eq('role_context', 'agent');
+
+      // Agents are always employer_person_id on engagements
+      const { data: engagements } = await supabase
+        .from('active_engagements')
+        .select('id')
+        .eq('employer_person_id', user.id);
+
+      let msgCount = 0;
+      const engList = engagements ?? [];
+      if (engList.length > 0) {
+        const { data: unreadRows } = await supabase.rpc('get_unread_counts', {
+          p_person_id: user.id,
+        });
+        const unreadMap = new Map(
+          (unreadRows ?? []).map(
+            (r: { engagement_id: string; unread_count: number }) =>
+              [r.engagement_id, r.unread_count] as const,
+          ),
+        );
+        for (const eng of engList) {
+          if (unreadMap.has(eng.id)) msgCount += 1;
+        }
+      }
+
+      return NextResponse.json({
+        notification_count: notifCount ?? 0,
+        message_count: msgCount,
+        alt_notification_count: 0,
+        alt_message_count: 0,
+      });
+    }
+
+    // Crew/employer branch — dual hat counts
     const altHat = currentHat === 'crew' ? 'employer' : 'crew';
 
     // 1. Notification counts by hat (2 queries via Promise.all)

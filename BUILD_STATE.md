@@ -213,10 +213,11 @@
 - [Stage 150] Languages — full stack — shared `LANGUAGES` constant (`apps/web/src/lib/languages.ts`); profile API GET/PATCH/view returns and accepts languages with validation; profile page About section shows language pills (view + edit), collapsed preview includes language count; profile overlay shows language pills; migration 00069 adds `required_languages text[]` to dayworks, permanent_postings, daywork_templates, permanent_templates with supplementary trigger; daywork + permanent POST APIs accept `requiredLanguages`; template save/load includes languages; discover APIs return `required_languages`; daywork + permanent cards show green/amber language pills matching crew's declared languages; permanent detail view shows language pills; employer review APIs include crew `languages` in profile select; applicant cards show language count badge; 844 tests pass
 
 - [Stage 151] Agent identity — (A) agent onboarding: identity step subtext, agency name required, nickname/nationality/role specializations, bio hidden, hat hardcoded to `agent`; (B) agent profile: "How candidates see you" preview, Maritime Background section, My Vessels link, `buildAgentProfile` API with experiences; (C) experience constraints: `isCurrent` blocked, `endDate` required, UI checkbox hidden, page titles renamed; (D) market feed: `/discover/market` read-only mixed feed with filters + pagination, poster identity stripped server-side (Option A), "View job market" button on My Jobs, agent redirect from `/discover`; (E) activity log: migration 00070 `agent_activity_log` table with RLS, `POST /api/agent/activity` route, `logAgentActivity` client helper, debounced filter telemetry; 856 tests pass
+- [Stage 152 partial] Bug fixes + trigger consolidation — (Fix 151a) agent_activity_log RLS uses `is_admin` + agent INSERT check, migration 00071; (Fix 151b) agent notification count uses single-context branch; (Fix 151c) middleware redirects agents from /discover to /discover/market server-side; (Fix 151d) permanent review returns languages, applicant card shows language count; (152e) migration 00072 consolidates 6 supplementary triggers into apply_projection — all event→projection logic now in one function; (152i) avatar route try/catch; 856 unit tests + 47 integration tests pass
 
 ## Current Schema Version
 
-v70 — Agent activity log (70 migrations applied)
+v72 — Consolidated triggers into apply_projection (72 migrations applied)
 
 ## Migrations Applied
 
@@ -293,6 +294,8 @@ v70 — Agent activity log (70 migrations applied)
 
 | `00069_required_languages.sql` | Adds `required_languages text[]` to dayworks, permanent_postings, daywork_templates, permanent_templates; supplementary trigger `apply_required_languages_from_event` writes from DAYWORK.POSTED/PERMANENT.POSTED payloads |
 | `00070_agent_activity_log.sql` | Creates `agent_activity_log` table (UUID PK, person_id FK, action, metadata JSONB, created_at) with RLS (agent insert own, admin select all) |
+| `00071_fix_activity_log_rls.sql` | Fixes agent_activity_log RLS: INSERT restricted to agents via identity_type check, SELECT uses `is_admin` boolean instead of nonexistent `identity_type='admin'` |
+| `00072_consolidate_triggers.sql` | Consolidates 6 supplementary triggers into `apply_projection` — adds `desired_role_id`, `deck_name`, `location_city_id`, career status to PROFILE handlers; `sea_time_days/miles` to EXPERIENCE handlers; `required_languages` to DAYWORK/PERMANENT.POSTED; drops all 6 trigger functions |
 
 ## Deferred Decisions
 

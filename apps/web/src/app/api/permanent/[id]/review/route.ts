@@ -81,6 +81,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         role_department: profile?.yacht_roles?.department ?? null,
         experience_label: profile?.experience_brackets?.label ?? null,
         certification_ids: profile?.certification_ids ?? [],
+        languages: profile?.languages ?? [],
         nationality_name: profile?.nationalities?.name ?? null,
         nationality_flag: profile?.nationalities?.flag_emoji ?? null,
         port_name: profile?.ports?.name ?? null,

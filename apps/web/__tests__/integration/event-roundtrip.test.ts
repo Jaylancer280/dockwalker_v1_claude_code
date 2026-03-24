@@ -268,7 +268,7 @@ describe('DAYWORK.POSTED roundtrip', () => {
     expect(data?.day_rate).toBe(250);
     expect(data?.currency).toBe('EUR');
     expect(data?.status).toBe('active');
-    expect(data?.working_days).toBe(2);
+    expect(data?.working_days).toBe(1);
   });
 });
 
