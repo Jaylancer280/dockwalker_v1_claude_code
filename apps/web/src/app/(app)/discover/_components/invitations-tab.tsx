@@ -1,9 +1,11 @@
 'use client';
 
 import { MapPin, Calendar, DollarSign, Check, X, Loader2, Mail, User } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { currencySymbol } from '@/lib/units';
 
 export interface Invitation {
@@ -56,32 +58,21 @@ export function InvitationsTab({
 }: InvitationsTabProps) {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-4">
-      {loadingInvitations && (
-        <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <p className="text-sm">Loading invitations...</p>
-        </div>
-      )}
+      {loadingInvitations && <LoadingSpinner size="md" text="Loading invitations..." />}
 
       {invitationError && <p className="text-center text-sm text-destructive">{invitationError}</p>}
 
       {!loadingInvitations && invitations.length === 0 && (
-        <Card className="mt-8">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Mail className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">No pending invitations</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              When employers invite you to a job, it will appear here.
-            </p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={onSwitchToBrowse}>
+        <EmptyState
+          icon={Mail}
+          title="No pending invitations"
+          description="When employers invite you to daywork, invitations will appear here."
+          action={
+            <Button variant="outline" size="sm" onClick={onSwitchToBrowse}>
               Browse jobs
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       )}
 
       {!loadingInvitations &&

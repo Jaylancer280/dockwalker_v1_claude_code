@@ -9,11 +9,11 @@ import {
   Calendar,
   Check,
   X,
-  Loader2,
   User,
   MessageSquare,
   Star,
 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,12 +61,7 @@ export function ApplicantsTab({
       {/* Card stack */}
       <div className="relative flex flex-1 items-start justify-center pt-4">
         {/* Loading state */}
-        {loading && (
-          <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <p className="text-sm">Loading applicants...</p>
-          </div>
-        )}
+        {loading && <LoadingSpinner size="md" text="Loading applicants..." />}
 
         {!loading && error && (
           <div className="flex flex-col items-center gap-2 pt-20 text-center">

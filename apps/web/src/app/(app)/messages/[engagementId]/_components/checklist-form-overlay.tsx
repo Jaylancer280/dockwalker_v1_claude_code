@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 
 interface ChecklistItem {
   id: string;
@@ -180,7 +180,6 @@ export function ChecklistFormOverlay({
   onSubmit: (items: ChecklistItem[]) => void;
   onCancel: () => void;
 }) {
-  useBodyScrollLock(true);
   const [form, setForm] = useState<FormState>(
     existingItems ? itemsToForm(existingItems) : INITIAL_STATE,
   );
@@ -201,223 +200,208 @@ export function ChecklistFormOverlay({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-      style={{ bottom: 'calc(var(--nav-height) + env(safe-area-inset-bottom))' }}
-    >
-      <div className="flex w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background">
-        <div className="flex items-center justify-between px-4 pt-4 pb-3">
-          <h2 className="text-sm font-bold">Pre-arrival checklist</h2>
-          <button
-            onClick={onCancel}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Close
-          </button>
-        </div>
+    <BottomSheet open={true} onClose={onCancel} title="Pre-arrival checklist">
+      <div className="flex flex-col gap-4">
+        {/* Arrival logistics */}
+        <section>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Arrival logistics
+          </p>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              Arrival time
+              <input
+                type="time"
+                value={form.arrival_time}
+                onChange={(e) => update('arrival_time', e.target.value)}
+                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+            </label>
+            <label className="text-sm font-medium">
+              Meeting point
+              <input
+                type="text"
+                value={form.meeting_point}
+                onChange={(e) => update('meeting_point', e.target.value)}
+                placeholder="e.g. Starboard gangway, berth 14"
+                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                maxLength={200}
+              />
+            </label>
+            <label className="text-sm font-medium">
+              Contact on arrival
+              <input
+                type="text"
+                value={form.contact_person}
+                onChange={(e) => update('contact_person', e.target.value)}
+                placeholder="Name + phone number"
+                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                maxLength={200}
+              />
+            </label>
+            <label className="text-sm font-medium">
+              Access / security instructions
+              <textarea
+                value={form.access_instructions}
+                onChange={(e) => update('access_instructions', e.target.value)}
+                placeholder="Gate codes, marina access, security check-in..."
+                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                rows={2}
+                maxLength={500}
+              />
+            </label>
+            <label className="text-sm font-medium">
+              Parking notes
+              <input
+                type="text"
+                value={form.parking_notes}
+                onChange={(e) => update('parking_notes', e.target.value)}
+                placeholder="Optional"
+                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                maxLength={200}
+              />
+            </label>
+          </div>
+        </section>
 
-        <div className="flex max-h-[55vh] flex-col gap-4 overflow-y-auto px-4 pb-2">
-          {/* Arrival logistics */}
-          <section>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Arrival logistics
-            </p>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Arrival time
-                <input
-                  type="time"
-                  value={form.arrival_time}
-                  onChange={(e) => update('arrival_time', e.target.value)}
-                  className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                />
-              </label>
-              <label className="text-sm font-medium">
-                Meeting point
-                <input
-                  type="text"
-                  value={form.meeting_point}
-                  onChange={(e) => update('meeting_point', e.target.value)}
-                  placeholder="e.g. Starboard gangway, berth 14"
-                  className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  maxLength={200}
-                />
-              </label>
-              <label className="text-sm font-medium">
-                Contact on arrival
-                <input
-                  type="text"
-                  value={form.contact_person}
-                  onChange={(e) => update('contact_person', e.target.value)}
-                  placeholder="Name + phone number"
-                  className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  maxLength={200}
-                />
-              </label>
-              <label className="text-sm font-medium">
-                Access / security instructions
-                <textarea
-                  value={form.access_instructions}
-                  onChange={(e) => update('access_instructions', e.target.value)}
-                  placeholder="Gate codes, marina access, security check-in..."
-                  className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  rows={2}
-                  maxLength={500}
-                />
-              </label>
-              <label className="text-sm font-medium">
-                Parking notes
-                <input
-                  type="text"
-                  value={form.parking_notes}
-                  onChange={(e) => update('parking_notes', e.target.value)}
-                  placeholder="Optional"
-                  className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  maxLength={200}
-                />
-              </label>
-            </div>
-          </section>
-
-          {/* Documents */}
-          <section>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Documents to bring
-            </p>
-            <div className="flex flex-col gap-1.5">
-              {(
-                [
-                  ['documents_passport', 'Passport / ID'],
-                  ['documents_seafarer_book', "Seafarer's book"],
-                  ['documents_certificates', 'Relevant certificates'],
-                  ['documents_work_permit', 'Work permit / visa'],
-                ] as const
-              ).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form[key]}
-                    onChange={(e) => update(key, e.target.checked)}
-                    className="h-4 w-4 rounded border-border accent-primary"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </section>
-
-          {/* Requirements */}
-          <section>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Requirements
-            </p>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium">
-                Uniform / dress code
-                <input
-                  type="text"
-                  value={form.uniform_dress_code}
-                  onChange={(e) => update('uniform_dress_code', e.target.value)}
-                  placeholder="e.g. Whites, steel-toe boots, smart casual"
-                  className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  maxLength={200}
-                />
-              </label>
-              <label className="flex items-center gap-2 text-sm">
+        {/* Documents */}
+        <section>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Documents to bring
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {(
+              [
+                ['documents_passport', 'Passport / ID'],
+                ['documents_seafarer_book', "Seafarer's book"],
+                ['documents_certificates', 'Relevant certificates'],
+                ['documents_work_permit', 'Work permit / visa'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={form.bring_tools}
-                  onChange={(e) => update('bring_tools', e.target.checked)}
+                  checked={form[key]}
+                  onChange={(e) => update(key, e.target.checked)}
                   className="h-4 w-4 rounded border-border accent-primary"
                 />
-                Crew should bring own tools
+                {label}
               </label>
-              {form.bring_tools && (
-                <input
-                  type="text"
-                  value={form.tools_details}
-                  onChange={(e) => update('tools_details', e.target.value)}
-                  placeholder="Specify which tools (optional)"
-                  className="ml-6 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  maxLength={300}
-                />
-              )}
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={form.ppe_provided}
-                  onChange={(e) => update('ppe_provided', e.target.checked)}
-                  className="h-4 w-4 rounded border-border accent-primary"
-                />
-                PPE provided on board
-              </label>
-            </div>
-          </section>
+            ))}
+          </div>
+        </section>
 
-          {/* Vessel policies */}
-          <section>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Vessel policies
-            </p>
-            <div className="flex flex-col gap-1.5">
-              {(
-                [
-                  ['drug_alcohol_testing', 'Drug & alcohol testing on arrival'],
-                  ['nda_required', 'NDA signing required'],
-                  ['no_phones_on_deck', 'No personal phones on deck'],
-                ] as const
-              ).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={form[key]}
-                    onChange={(e) => update(key, e.target.checked)}
-                    className="h-4 w-4 rounded border-border accent-primary"
-                  />
-                  {label}
-                </label>
-              ))}
-              <label className="mt-1 text-sm font-medium">
-                Safety briefing time
-                <input
-                  type="text"
-                  value={form.safety_briefing_time}
-                  onChange={(e) => update('safety_briefing_time', e.target.value)}
-                  placeholder="If different from arrival time"
-                  className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  maxLength={100}
-                />
-              </label>
-            </div>
-          </section>
-
-          {/* Additional notes */}
-          <section>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Additional notes
-            </p>
-            <textarea
-              value={form.additional_notes}
-              onChange={(e) => update('additional_notes', e.target.value)}
-              placeholder="Anything else the crew should know before arrival"
-              className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-              rows={2}
-              maxLength={500}
-            />
-          </section>
-        </div>
-
-        <div className="border-t border-border px-4 py-3">
-          <Button className="w-full" disabled={!isValid || submitting} onClick={handleSubmit}>
-            {submitting ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <ClipboardList className="mr-1.5 h-4 w-4" />
+        {/* Requirements */}
+        <section>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Requirements
+          </p>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium">
+              Uniform / dress code
+              <input
+                type="text"
+                value={form.uniform_dress_code}
+                onChange={(e) => update('uniform_dress_code', e.target.value)}
+                placeholder="e.g. Whites, steel-toe boots, smart casual"
+                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                maxLength={200}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.bring_tools}
+                onChange={(e) => update('bring_tools', e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              Crew should bring own tools
+            </label>
+            {form.bring_tools && (
+              <input
+                type="text"
+                value={form.tools_details}
+                onChange={(e) => update('tools_details', e.target.value)}
+                placeholder="Specify which tools (optional)"
+                className="ml-6 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                maxLength={300}
+              />
             )}
-            {existingItems ? 'Update checklist' : 'Set checklist'}
-          </Button>
-        </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.ppe_provided}
+                onChange={(e) => update('ppe_provided', e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              PPE provided on board
+            </label>
+          </div>
+        </section>
+
+        {/* Vessel policies */}
+        <section>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Vessel policies
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {(
+              [
+                ['drug_alcohol_testing', 'Drug & alcohol testing on arrival'],
+                ['nda_required', 'NDA signing required'],
+                ['no_phones_on_deck', 'No personal phones on deck'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form[key]}
+                  onChange={(e) => update(key, e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                />
+                {label}
+              </label>
+            ))}
+            <label className="mt-1 text-sm font-medium">
+              Safety briefing time
+              <input
+                type="text"
+                value={form.safety_briefing_time}
+                onChange={(e) => update('safety_briefing_time', e.target.value)}
+                placeholder="If different from arrival time"
+                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                maxLength={100}
+              />
+            </label>
+          </div>
+        </section>
+
+        {/* Additional notes */}
+        <section>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Additional notes
+          </p>
+          <textarea
+            value={form.additional_notes}
+            onChange={(e) => update('additional_notes', e.target.value)}
+            placeholder="Anything else the crew should know before arrival"
+            className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+            rows={2}
+            maxLength={500}
+          />
+        </section>
       </div>
-    </div>
+
+      <div className="border-t border-border px-4 py-3">
+        <Button className="w-full" disabled={!isValid || submitting} onClick={handleSubmit}>
+          {submitting ? (
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          ) : (
+            <ClipboardList className="mr-1.5 h-4 w-4" />
+          )}
+          {existingItems ? 'Update checklist' : 'Set checklist'}
+        </Button>
+      </div>
+    </BottomSheet>
   );
 }

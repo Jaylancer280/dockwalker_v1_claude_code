@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ChevronLeft, SendHorizontal, LifeBuoy, Loader2, ChevronDown, Lock } from 'lucide-react';
+import { ChevronLeft, SendHorizontal, LifeBuoy, ChevronDown, Lock } from 'lucide-react';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
@@ -193,7 +194,7 @@ export default function DockyConversationPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center pb-[var(--nav-height)]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LoadingSpinner size="md" />
       </main>
     );
   }

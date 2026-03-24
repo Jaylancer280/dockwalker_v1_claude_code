@@ -1,7 +1,9 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+import { Briefcase, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { MarketCardView, type MarketCard } from './market-job-card';
 import { logAgentActivity } from '@/lib/agent-activity';
 
@@ -23,15 +25,13 @@ export function MarketFeed({
   onSelectCard,
 }: MarketFeedProps) {
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingSpinner size="md" />;
   }
 
   if (cards.length === 0) {
-    return <p className="py-12 text-center text-sm text-muted-foreground">No postings found</p>;
+    return (
+      <EmptyState icon={Briefcase} title="No postings found" description="Try different filters." />
+    );
   }
 
   return (

@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { MapPin, Calendar, DollarSign, ClipboardList, X, Loader2, User } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -82,30 +84,19 @@ export function AppliedTab({
 }: AppliedTabProps) {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-4">
-      {loadingApps && (
-        <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <p className="text-sm">Loading applications...</p>
-        </div>
-      )}
+      {loadingApps && <LoadingSpinner size="md" text="Loading applications..." />}
 
       {!loadingApps && applications.length === 0 && (
-        <Card className="mt-8">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">No pending applications</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Jobs you apply to will appear here until the employer responds.
-            </p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={onSwitchToBrowse}>
+        <EmptyState
+          icon={ClipboardList}
+          title="No pending applications"
+          description="Jobs you apply to will appear here."
+          action={
+            <Button variant="outline" size="sm" onClick={onSwitchToBrowse}>
               Browse jobs
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       )}
 
       {!loadingApps &&

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, SlidersHorizontal } from 'lucide-react';
+import { ChevronLeft, SlidersHorizontal } from 'lucide-react';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -227,7 +228,7 @@ export default function MarketFeedPage() {
   if (authorized === null) {
     return (
       <main className="flex min-h-svh items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LoadingSpinner size="md" />
       </main>
     );
   }

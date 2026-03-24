@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Loader2, SlidersHorizontal, X } from 'lucide-react';
+import { Briefcase, SlidersHorizontal, X } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -362,22 +364,15 @@ export function PermanentJobFeed() {
       )}
 
       {/* Loading */}
-      {loading && (
-        <div className="flex flex-1 items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {loading && <LoadingSpinner size="lg" />}
 
       {/* Empty state */}
       {!loading && postings.length === 0 && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
-          <p className="text-lg font-medium">No permanent positions found</p>
-          <p className="text-sm text-muted-foreground">
-            {hasActiveFilters
-              ? 'Try adjusting your filters'
-              : 'Check back later for new permanent positions'}
-          </p>
-        </div>
+        <EmptyState
+          icon={Briefcase}
+          title="No permanent positions found"
+          description="Try widening your filters."
+        />
       )}
 
       {/* Postings list */}
@@ -399,11 +394,7 @@ export function PermanentJobFeed() {
           {/* Scroll sentinel */}
           <div ref={sentinelRef} className="h-4" />
 
-          {loadingMore && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
+          {loadingMore && <LoadingSpinner size="md" />}
 
           {!hasMore && postings.length > 0 && (
             <p className="py-4 text-center text-xs text-muted-foreground">

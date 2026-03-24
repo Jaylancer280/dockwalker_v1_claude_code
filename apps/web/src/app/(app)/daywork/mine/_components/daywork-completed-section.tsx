@@ -1,7 +1,8 @@
 'use client';
 
-import { CheckCircle, Loader2 } from 'lucide-react';
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckCircle } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import type { DayworkPosting } from './daywork-types';
 
 export interface DayworkCompletedSectionProps {
@@ -17,21 +18,13 @@ export function DayworkCompletedSection({
 }: DayworkCompletedSectionProps) {
   return (
     <>
-      {loading && (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {loading && <LoadingSpinner size="md" />}
       {!loading && postings.length === 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">No completed postings</CardTitle>
-            </div>
-            <CardDescription>Completed and cancelled postings will appear here.</CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          icon={CheckCircle}
+          title="No completed postings"
+          description="Completed and cancelled postings will appear here."
+        />
       )}
       {postings.map((p) => renderPostingCard(p, false))}
     </>

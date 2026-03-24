@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { MessageSquare, MapPin, Calendar, Loader2, ClipboardCheck, Archive } from 'lucide-react';
+import { MessageSquare, MapPin, Calendar, ClipboardCheck, Archive } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { NotificationBell } from '@/components/notification-bell';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -112,35 +113,22 @@ export default function MessagesPage() {
           </div>
         )}
 
-        {loading && (
-          <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <p className="text-sm">Loading conversations...</p>
-          </div>
+        {loading && <LoadingSpinner size="md" text="Loading conversations..." />}
+
+        {!loading && current.length === 0 && tab === 'active' && (
+          <EmptyState
+            icon={MessageSquare}
+            title="No active messages"
+            description="Messages open after a daywork application is accepted. Once you have an active engagement, you can chat here."
+          />
         )}
 
-        {!loading && current.length === 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                {tab === 'active' ? (
-                  <MessageSquare className="h-5 w-5 text-muted-foreground" />
-                ) : (
-                  <Archive className="h-5 w-5 text-muted-foreground" />
-                )}
-                <CardTitle className="text-base">
-                  {tab === 'active' ? 'No active messages' : 'No past engagements'}
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {tab === 'active'
-                  ? 'Messages open after a daywork application is accepted. Once you have an active engagement, you can chat here.'
-                  : 'Completed and cancelled engagements will appear here.'}
-              </p>
-            </CardContent>
-          </Card>
+        {!loading && current.length === 0 && tab === 'history' && (
+          <EmptyState
+            icon={Archive}
+            title="No past engagements"
+            description="Completed and cancelled engagements will appear here."
+          />
         )}
 
         {current.map((conv) => (

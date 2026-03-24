@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { LifeBuoy, Plus, Loader2, Trash2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
 import { useDockyReadiness } from '@/hooks/use-docky-readiness';
@@ -139,7 +140,7 @@ export default function DockyPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center pb-[var(--nav-height)]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LoadingSpinner size="md" />
       </main>
     );
   }

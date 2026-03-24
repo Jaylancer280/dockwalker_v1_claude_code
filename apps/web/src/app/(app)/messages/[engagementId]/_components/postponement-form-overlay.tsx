@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Loader2, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 
 export function PostponementFormOverlay({
   currentStartDate,
@@ -23,7 +23,6 @@ export function PostponementFormOverlay({
   }) => Promise<{ outcome: string }>;
   onCancel: () => void;
 }) {
-  useBodyScrollLock(true);
   const [startDate, setStartDate] = useState(currentStartDate);
   const [endDate, setEndDate] = useState(currentEndDate);
   const [workingDays, setWorkingDays] = useState(currentWorkingDays);
@@ -61,119 +60,104 @@ export function PostponementFormOverlay({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-      style={{ bottom: 'calc(var(--nav-height) + env(safe-area-inset-bottom))' }}
-    >
-      <div className="flex w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background">
-        <div className="flex items-center justify-between px-4 pt-4 pb-3">
-          <h2 className="text-sm font-bold">Propose date change</h2>
-          <button
-            onClick={onCancel}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Close
-          </button>
-        </div>
+    <BottomSheet open={true} onClose={onCancel} title="Propose date change">
+      <div className="flex flex-col gap-4">
+        {!conflictDetected ? (
+          <>
+            <p className="text-xs text-muted-foreground">
+              This can only be used once per engagement. The crew member will be asked to approve or
+              reject the new dates.
+            </p>
 
-        <div className="flex max-h-[55vh] flex-col gap-4 overflow-y-auto px-4 pb-2">
-          {!conflictDetected ? (
-            <>
-              <p className="text-xs text-muted-foreground">
-                This can only be used once per engagement. The crew member will be asked to approve
-                or reject the new dates.
-              </p>
+            <div>
+              <label className="mb-1 block text-sm font-medium">New start date</label>
+              <input
+                type="date"
+                value={startDate}
+                min={today}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium">New start date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  min={today}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">New end date</label>
+              <input
+                type="date"
+                value={endDate}
+                min={startDate || today}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium">New end date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  min={startDate || today}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium">
-                  Working days{spanDays > 0 ? ` (max ${spanDays})` : ''}
-                </label>
-                <input
-                  type="number"
-                  value={workingDays}
-                  min={1}
-                  max={spanDays || undefined}
-                  onChange={(e) => setWorkingDays(parseInt(e.target.value, 10) || 0)}
-                  className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                <div className="text-sm">
-                  <p className="font-medium">Scheduling conflict</p>
-                  <p className="mt-1 text-muted-foreground">
-                    The crew member has another engagement during these dates. If you proceed, this
-                    engagement will be cancelled and the job will be relisted with the new dates.
-                  </p>
-                </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Working days{spanDays > 0 ? ` (max ${spanDays})` : ''}
+              </label>
+              <input
+                type="number"
+                value={workingDays}
+                min={1}
+                max={spanDays || undefined}
+                onChange={(e) => setWorkingDays(parseInt(e.target.value, 10) || 0)}
+                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div className="text-sm">
+                <p className="font-medium">Scheduling conflict</p>
+                <p className="mt-1 text-muted-foreground">
+                  The crew member has another engagement during these dates. If you proceed, this
+                  engagement will be cancelled and the job will be relisted with the new dates.
+                </p>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
 
-        <div className="border-t border-border px-4 py-3">
-          {!conflictDetected ? (
+      <div className="border-t border-border px-4 py-3">
+        {!conflictDetected ? (
+          <Button
+            className="w-full"
+            disabled={!datesValid || submitting}
+            onClick={() => handlePropose()}
+          >
+            {submitting ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Clock className="mr-1.5 h-4 w-4" />
+            )}
+            Propose new dates
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={onCancel} disabled={submitting}>
+              Cancel
+            </Button>
             <Button
-              className="w-full"
-              disabled={!datesValid || submitting}
-              onClick={() => handlePropose()}
+              variant="destructive"
+              className="flex-1"
+              disabled={submitting}
+              onClick={() => handlePropose(true)}
             >
               {submitting ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
               ) : (
-                <Clock className="mr-1.5 h-4 w-4" />
+                <XCircle className="mr-1.5 h-4 w-4" />
               )}
-              Propose new dates
+              Cancel & relist
             </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={onCancel} disabled={submitting}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                className="flex-1"
-                disabled={submitting}
-                onClick={() => handlePropose(true)}
-              >
-                {submitting ? (
-                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                ) : (
-                  <XCircle className="mr-1.5 h-4 w-4" />
-                )}
-                Cancel & relist
-              </Button>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </div>
+    </BottomSheet>
   );
 }

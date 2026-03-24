@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, MapPin, Briefcase, Ship, Trash2 } from 'lucide-react';
+import { MapPin, Briefcase, Ship, Trash2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -143,7 +144,7 @@ export function PermanentMineSection() {
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center pt-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }

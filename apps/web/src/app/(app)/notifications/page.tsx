@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Bell,
-  Loader2,
   MessageSquare,
   UserCheck,
   UserX,
@@ -17,6 +16,8 @@ import {
   Clock,
   ClipboardCheck,
 } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
 
@@ -133,17 +134,14 @@ export default function NotificationsPage() {
           </div>
         )}
 
-        {loading && (
-          <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
-          </div>
-        )}
+        {loading && <LoadingSpinner size="md" />}
 
         {!loading && notifications.length === 0 && (
-          <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-            <Bell className="h-8 w-8" />
-            <p className="text-sm">No notifications yet</p>
-          </div>
+          <EmptyState
+            icon={Bell}
+            title="No notifications yet"
+            description="You'll be notified about applications, messages, and job updates."
+          />
         )}
 
         {notifications.map((notif) => {

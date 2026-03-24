@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Loader2, Check, LifeBuoy } from 'lucide-react';
+import { ChevronLeft, Check, LifeBuoy } from 'lucide-react';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
 
@@ -67,7 +68,7 @@ export default function BillingPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center pb-[var(--nav-height)]">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <LoadingSpinner size="md" />
       </main>
     );
   }

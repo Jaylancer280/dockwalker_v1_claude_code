@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Loader2, User, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
@@ -210,19 +211,15 @@ export default function PermanentReviewPage() {
       )}
 
       {/* Tabs */}
-      <div className="mx-auto flex w-full max-w-lg border-b">
-        <button
-          onClick={() => setActiveTab('applicants')}
-          className={`flex-1 py-2 text-center text-sm font-medium ${activeTab === 'applicants' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
-        >
-          Applicants ({applied.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('shortlisted')}
-          className={`flex-1 py-2 text-center text-sm font-medium ${activeTab === 'shortlisted' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'}`}
-        >
-          Shortlisted ({shortlistCount}/{shortlistCap})
-        </button>
+      <div className="mx-auto w-full max-w-lg">
+        <UnderlineTabs
+          options={[
+            { value: 'applicants', label: `Applicants (${applied.length})` },
+            { value: 'shortlisted', label: `Shortlisted (${shortlistCount}/${shortlistCap})` },
+          ]}
+          value={activeTab}
+          onChange={(v) => setActiveTab(v as 'applicants' | 'shortlisted')}
+        />
       </div>
 
       {/* Content */}

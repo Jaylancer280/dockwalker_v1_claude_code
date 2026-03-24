@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SegmentedToggle } from '@/components/ui/segmented-toggle';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-jobs-tab';
@@ -424,25 +425,18 @@ export default function MyPostingsPage() {
       </header>
 
       {/* Daywork / Permanent toggle */}
-      <div className="mx-auto flex max-w-lg gap-1 rounded-lg bg-muted p-1 mt-2 px-4">
-        <button
-          onClick={() => {
-            setMineMode('daywork');
-            localStorage.setItem('dw-mine-mode', 'daywork');
+      <div className="mx-auto max-w-lg mt-2 px-4">
+        <SegmentedToggle
+          options={[
+            { value: 'daywork', label: 'Daywork' },
+            { value: 'permanent', label: 'Permanent' },
+          ]}
+          value={mineMode}
+          onChange={(v) => {
+            setMineMode(v as 'daywork' | 'permanent');
+            localStorage.setItem('dw-mine-mode', v);
           }}
-          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${mineMode === 'daywork' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
-        >
-          Daywork
-        </button>
-        <button
-          onClick={() => {
-            setMineMode('permanent');
-            localStorage.setItem('dw-mine-mode', 'permanent');
-          }}
-          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${mineMode === 'permanent' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
-        >
-          Permanent
-        </button>
+        />
       </div>
 
       {/* Agent market feed button */}

@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Ship, Plus, ShieldAlert, Loader2, Pencil } from 'lucide-react';
+import { Ship, Plus, ShieldAlert, Pencil } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,11 +124,7 @@ export default function VesselsPage() {
       </header>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-6">
-        {loading && (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {loading && <LoadingSpinner size="md" />}
 
         {error && (
           <div className="flex flex-col items-center gap-2 py-12 text-center">
@@ -138,17 +136,11 @@ export default function VesselsPage() {
         )}
 
         {!loading && vessels.length === 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Ship className="h-5 w-5 text-muted-foreground" />
-                <CardTitle className="text-base">No vessels yet</CardTitle>
-              </div>
-              <CardDescription>
-                Add a vessel to start posting daywork. Each vessel requires an IMO number.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <EmptyState
+            icon={Ship}
+            title="No vessels yet"
+            description="Add a vessel to start posting daywork."
+          />
         )}
 
         {vessels.map((vessel) => (

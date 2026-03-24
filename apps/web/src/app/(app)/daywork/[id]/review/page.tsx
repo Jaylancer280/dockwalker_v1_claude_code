@@ -7,6 +7,7 @@ import { safeFetch } from '@/lib/safe-fetch';
 import Link from 'next/link';
 import { ChevronLeft, SlidersHorizontal, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import {
   Dialog,
   DialogContent,
@@ -311,40 +312,20 @@ export default function ReviewApplicantsPage() {
       </header>
 
       {/* Tabs */}
-      <div className="mx-auto w-full max-w-lg border-b border-border">
-        <div className="flex">
-          <button
-            onClick={() => setTab('applicants')}
-            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === 'applicants'
-                ? 'border-b-2 border-foreground text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Applicants{applicants.length > 0 ? ` (${applicants.length})` : ''}
-          </button>
-          <button
-            onClick={() => setTab('shortlist')}
-            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === 'shortlist'
-                ? 'border-b-2 border-foreground text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Shortlist{shortlisted.length > 0 ? ` (${shortlisted.length})` : ''}
-          </button>
-          <button
-            onClick={() => setTab('available')}
-            className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === 'available'
-                ? 'border-b-2 border-foreground text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            Available
-            {availableLoaded && visibleAvailable.length > 0 ? ` (${visibleAvailable.length})` : ''}
-          </button>
-        </div>
+      <div className="mx-auto w-full max-w-lg">
+        <UnderlineTabs
+          options={[
+            { value: 'applicants', label: 'Applicants', count: applicants.length },
+            { value: 'shortlist', label: 'Shortlist', count: shortlisted.length },
+            {
+              value: 'available',
+              label: 'Available',
+              count: availableLoaded ? visibleAvailable.length : 0,
+            },
+          ]}
+          value={tab}
+          onChange={(v) => setTab(v as TabView)}
+        />
       </div>
 
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">

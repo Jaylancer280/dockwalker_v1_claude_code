@@ -1,16 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Compass,
-  SlidersHorizontal,
-  CalendarDays,
-  ClipboardList,
-  Mail,
-  Check,
-  X,
-} from 'lucide-react';
+import { SlidersHorizontal, CalendarDays, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import {
   Dialog,
   DialogContent,
@@ -488,50 +481,16 @@ export default function DiscoverPage() {
           )}
         </div>
         {/* Tabs */}
-        <div className="mx-auto flex max-w-lg border-t border-border">
-          <button
-            onClick={() => setActiveTab('browse')}
-            className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'browse'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Compass className="h-4 w-4" />
-            Browse
-          </button>
-          <button
-            onClick={() => setActiveTab('invitations')}
-            className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'invitations'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Mail className="h-4 w-4" />
-            Invitations
-            {invitations.length > 0 && (
-              <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                {invitations.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('applied')}
-            className={`flex flex-1 items-center justify-center gap-1.5 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'applied'
-                ? 'border-b-2 border-primary text-primary'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <ClipboardList className="h-4 w-4" />
-            Applied
-            {applications.length > 0 && (
-              <span className="ml-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                {applications.length}
-              </span>
-            )}
-          </button>
+        <div className="mx-auto max-w-lg border-t border-border">
+          <UnderlineTabs
+            options={[
+              { value: 'browse', label: 'Browse' },
+              { value: 'invitations', label: 'Invitations', count: invitations.length },
+              { value: 'applied', label: 'Applied', count: applications.length },
+            ]}
+            value={activeTab}
+            onChange={(v) => setActiveTab(v as 'browse' | 'invitations' | 'applied')}
+          />
         </div>
       </header>
 

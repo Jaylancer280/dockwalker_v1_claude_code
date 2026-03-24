@@ -19,15 +19,11 @@
 
 ### Agent market as discover mode (152h)
 
-Merge `/discover/market` into the main discover page as an agent-specific mode. Currently kept as separate page — middleware redirect handles the flash. Revisit if shared card components prove valuable.
+Merge `/discover/market` into the main discover page as an agent-specific mode.
 
 ### Resilience Tests
 
-- [ ] Discover page: mock safeFetch error → no spinner stuck
-- [ ] Chat page: mock safeFetch error → polling still sets up
-- [ ] Apply action: mock error → toast shown, state clears
-- [ ] Post form: mock error → toast shown, state clears
-- [ ] Availability overlay: network fail → no unhandled rejection
+- [ ] Discover, Chat, Apply, Post form, Availability overlay error handling tests
 
 ### Component Tests for Permanent UI
 
@@ -45,4 +41,4 @@ Merge `/discover/market` into the main discover page as an agent-specific mode. 
 
 ## Done
 
-(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)

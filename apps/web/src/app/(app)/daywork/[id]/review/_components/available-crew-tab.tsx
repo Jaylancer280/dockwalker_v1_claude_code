@@ -2,7 +2,8 @@
 
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
-import { MapPin, Award, Calendar, X, Loader2, User, Send, Users } from 'lucide-react';
+import { MapPin, Award, Calendar, X, User, Send, Users } from 'lucide-react';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
@@ -75,12 +76,7 @@ export function AvailableCrewTab({
       {/* Card stack area */}
       <div className="relative flex flex-1 items-start justify-center pt-4">
         {/* Loading state */}
-        {availableLoading && (
-          <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <p className="text-sm">Finding available crew...</p>
-          </div>
-        )}
+        {availableLoading && <LoadingSpinner size="md" text="Finding available crew..." />}
 
         {/* Empty state */}
         {!availableLoading && availableLoaded && visibleAvailable.length === 0 && (

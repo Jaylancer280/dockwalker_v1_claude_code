@@ -1,9 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Briefcase, Loader2, Play, Trash2 } from 'lucide-react';
+import { FileText, Play, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import { currencySymbol } from '@/lib/units';
 import type { Template } from './daywork-types';
 
@@ -24,23 +26,13 @@ export function DayworkTemplatesSection({
 
   return (
     <>
-      {loading && (
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {loading && <LoadingSpinner size="md" />}
       {!loading && templates.length === 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base">No templates</CardTitle>
-            </div>
-            <CardDescription>
-              Save a template from the post form to reuse common configurations.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          icon={FileText}
+          title="No templates"
+          description="Save a template from the post form to reuse common configurations."
+        />
       )}
       {templates.map((t) => (
         <Card key={t.id}>

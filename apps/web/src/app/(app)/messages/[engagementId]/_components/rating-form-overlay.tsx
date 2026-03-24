@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Loader2, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 
 type TriOption = 'yes' | 'no' | 'partial';
 type DaysOption = 'fewer' | 'as_listed' | 'more';
@@ -30,7 +30,6 @@ export function RatingFormOverlay({
   onSubmit: (data: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
-  useBodyScrollLock(true);
   // Cancelled-context fields (crew only)
   const [noticeGiven, setNoticeGiven] = useState<TriOption | null>(null);
 
@@ -119,150 +118,135 @@ export function RatingFormOverlay({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-      style={{ bottom: 'calc(var(--nav-height) + env(safe-area-inset-bottom))' }}
+    <BottomSheet
+      open={true}
+      onClose={onCancel}
+      title={isCancelled ? 'Rate this experience' : 'Rate this engagement'}
     >
-      <div className="flex w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background">
-        <div className="flex items-center justify-between px-4 pt-4 pb-3">
-          <h2 className="text-sm font-bold">
-            {isCancelled ? 'Rate this experience' : 'Rate this engagement'}
-          </h2>
-          <button
-            onClick={onCancel}
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Cancel
-          </button>
-        </div>
-
-        <div className="flex max-h-[55vh] flex-col gap-4 overflow-y-auto px-4 pb-2">
-          {isCancelled ? (
-            <>
-              {isCrew && (
-                <OptionGroup
-                  label="Was reasonable notice given?"
-                  options={YES_NO_PARTIAL}
-                  value={noticeGiven}
-                  onChange={(v) => setNoticeGiven(v as TriOption)}
-                />
-              )}
-            </>
-          ) : isCrew ? (
-            <>
+      <div className="flex flex-col gap-4">
+        {isCancelled ? (
+          <>
+            {isCrew && (
               <OptionGroup
-                label="Was the agreed day rate honoured?"
+                label="Was reasonable notice given?"
                 options={YES_NO_PARTIAL}
-                value={payAccuracy}
-                onChange={(v) => setPayAccuracy(v as TriOption)}
+                value={noticeGiven}
+                onChange={(v) => setNoticeGiven(v as TriOption)}
               />
+            )}
+          </>
+        ) : isCrew ? (
+          <>
+            <OptionGroup
+              label="Was the agreed day rate honoured?"
+              options={YES_NO_PARTIAL}
+              value={payAccuracy}
+              onChange={(v) => setPayAccuracy(v as TriOption)}
+            />
+            <OptionGroup
+              label="Were the listed meals provided?"
+              options={YES_NO_PARTIAL}
+              value={mealsAccuracy}
+              onChange={(v) => setMealsAccuracy(v as TriOption)}
+            />
+            <OptionGroup
+              label="Did the work match the advertised role?"
+              options={YES_NO_PARTIAL}
+              value={roleAccuracy}
+              onChange={(v) => setRoleAccuracy(v as TriOption)}
+            />
+            <OptionGroup
+              label="Did the actual days match the listing?"
+              options={[
+                { value: 'fewer', label: 'Fewer' },
+                { value: 'as_listed', label: 'As listed' },
+                { value: 'more', label: 'More' },
+              ]}
+              value={workingDaysAccuracy}
+              onChange={(v) => setWorkingDaysAccuracy(v as DaysOption)}
+            />
+            <StarRating
+              label="Vessel condition"
+              value={vesselCondition}
+              onChange={setVesselCondition}
+            />
+            <BooleanToggle
+              label="Would you work on this vessel again?"
+              value={wouldWorkAgain}
+              onChange={setWouldWorkAgain}
+            />
+            {hasPermanentOpportunity && (
               <OptionGroup
-                label="Were the listed meals provided?"
-                options={YES_NO_PARTIAL}
-                value={mealsAccuracy}
-                onChange={(v) => setMealsAccuracy(v as TriOption)}
-              />
-              <OptionGroup
-                label="Did the work match the advertised role?"
-                options={YES_NO_PARTIAL}
-                value={roleAccuracy}
-                onChange={(v) => setRoleAccuracy(v as TriOption)}
-              />
-              <OptionGroup
-                label="Did the actual days match the listing?"
-                options={[
-                  { value: 'fewer', label: 'Fewer' },
-                  { value: 'as_listed', label: 'As listed' },
-                  { value: 'more', label: 'More' },
-                ]}
-                value={workingDaysAccuracy}
-                onChange={(v) => setWorkingDaysAccuracy(v as DaysOption)}
-              />
-              <StarRating
-                label="Vessel condition"
-                value={vesselCondition}
-                onChange={setVesselCondition}
-              />
-              <BooleanToggle
-                label="Would you work on this vessel again?"
-                value={wouldWorkAgain}
-                onChange={setWouldWorkAgain}
-              />
-              {hasPermanentOpportunity && (
-                <OptionGroup
-                  label="Did the engagement lead to a permanent opportunity?"
-                  options={[
-                    { value: 'yes', label: 'Yes' },
-                    { value: 'no', label: 'No' },
-                    { value: 'not_applicable', label: 'N/A' },
-                  ]}
-                  value={permOpAccuracy}
-                  onChange={setPermOpAccuracy}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              <OptionGroup
-                label="Did the crew's abilities match their profile?"
-                options={YES_NO_PARTIAL}
-                value={skillsAsAdvertised}
-                onChange={(v) => setSkillsAsAdvertised(v as TriOption)}
-              />
-              <OptionGroup
-                label="Were claimed certifications valid?"
+                label="Did the engagement lead to a permanent opportunity?"
                 options={[
                   { value: 'yes', label: 'Yes' },
                   { value: 'no', label: 'No' },
-                  { value: 'not_checked', label: 'Not checked' },
+                  { value: 'not_applicable', label: 'N/A' },
                 ]}
-                value={certsVerified}
-                onChange={(v) => setCertsVerified(v as CertOption)}
+                value={permOpAccuracy}
+                onChange={setPermOpAccuracy}
               />
-              <OptionGroup
-                label="Was the crew member punctual?"
-                options={YES_NO_PARTIAL}
-                value={punctuality}
-                onChange={(v) => setPunctuality(v as TriOption)}
-              />
-              <BooleanToggle
-                label="Would you rehire for a similar daywork?"
-                value={wouldRehire}
-                onChange={setWouldRehire}
-              />
-            </>
-          )}
-
-          <div className="border-t border-border pt-3">
-            <BooleanToggle
-              label="Was communication clear and honest?"
-              value={commAccuracy}
-              onChange={setCommAccuracy}
+            )}
+          </>
+        ) : (
+          <>
+            <OptionGroup
+              label="Did the crew's abilities match their profile?"
+              options={YES_NO_PARTIAL}
+              value={skillsAsAdvertised}
+              onChange={(v) => setSkillsAsAdvertised(v as TriOption)}
             />
-          </div>
-          <StarRating
-            label={
-              isCancelled
-                ? 'Overall experience'
-                : 'Overall, how well did reality match the listing?'
-            }
-            value={overallMatch}
-            onChange={setOverallMatch}
+            <OptionGroup
+              label="Were claimed certifications valid?"
+              options={[
+                { value: 'yes', label: 'Yes' },
+                { value: 'no', label: 'No' },
+                { value: 'not_checked', label: 'Not checked' },
+              ]}
+              value={certsVerified}
+              onChange={(v) => setCertsVerified(v as CertOption)}
+            />
+            <OptionGroup
+              label="Was the crew member punctual?"
+              options={YES_NO_PARTIAL}
+              value={punctuality}
+              onChange={(v) => setPunctuality(v as TriOption)}
+            />
+            <BooleanToggle
+              label="Would you rehire for a similar daywork?"
+              value={wouldRehire}
+              onChange={setWouldRehire}
+            />
+          </>
+        )}
+
+        <div className="border-t border-border pt-3">
+          <BooleanToggle
+            label="Was communication clear and honest?"
+            value={commAccuracy}
+            onChange={setCommAccuracy}
           />
         </div>
-
-        <div className="border-t border-border px-4 py-3">
-          <Button className="w-full" disabled={!isValid || submitting} onClick={handleSubmit}>
-            {submitting ? (
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-            ) : (
-              <Star className="mr-1.5 h-4 w-4" />
-            )}
-            Submit rating
-          </Button>
-        </div>
+        <StarRating
+          label={
+            isCancelled ? 'Overall experience' : 'Overall, how well did reality match the listing?'
+          }
+          value={overallMatch}
+          onChange={setOverallMatch}
+        />
       </div>
-    </div>
+
+      <div className="border-t border-border px-4 py-3">
+        <Button className="w-full" disabled={!isValid || submitting} onClick={handleSubmit}>
+          {submitting ? (
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+          ) : (
+            <Star className="mr-1.5 h-4 w-4" />
+          )}
+          Submit rating
+        </Button>
+      </div>
+    </BottomSheet>
   );
 }
 

@@ -1,9 +1,12 @@
 'use client';
 
 import { type RefObject } from 'react';
-import { Briefcase, Check, X, Loader2 } from 'lucide-react';
+import { Briefcase, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SegmentedToggle } from '@/components/ui/segmented-toggle';
+import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/empty-state';
+import { LoadingSpinner } from '@/components/loading-spinner';
 import {
   Select,
   SelectContent,
@@ -157,25 +160,18 @@ export function DayworkBrowse({
       )}
 
       {/* Daywork / Permanent toggle */}
-      <div className="mx-auto flex max-w-lg gap-1 rounded-lg bg-muted p-1 mt-2 px-4">
-        <button
-          onClick={() => {
-            setBrowseMode('daywork');
-            localStorage.setItem('dw-browse-mode', 'daywork');
+      <div className="mx-auto max-w-lg mt-2 px-4">
+        <SegmentedToggle
+          options={[
+            { value: 'daywork', label: 'Daywork' },
+            { value: 'permanent', label: 'Permanent' },
+          ]}
+          value={browseMode}
+          onChange={(v) => {
+            setBrowseMode(v as 'daywork' | 'permanent');
+            localStorage.setItem('dw-browse-mode', v);
           }}
-          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${browseMode === 'daywork' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
-        >
-          Daywork
-        </button>
-        <button
-          onClick={() => {
-            setBrowseMode('permanent');
-            localStorage.setItem('dw-browse-mode', 'permanent');
-          }}
-          className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${browseMode === 'permanent' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground'}`}
-        >
-          Permanent
-        </button>
+        />
       </div>
 
       {browseMode === 'permanent' && permanentFeed}
@@ -295,31 +291,19 @@ export function DayworkBrowse({
 
           {/* Card stack */}
           <div className="relative flex flex-1 items-start justify-center pt-4">
-            {loading && (
-              <div className="flex flex-col items-center gap-2 pt-20 text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin" />
-                <p className="text-sm">Finding jobs...</p>
-              </div>
-            )}
+            {loading && <LoadingSpinner size="md" text="Finding jobs..." />}
 
             {!loading && cards.length === 0 && (
-              <Card className="w-full">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-5 w-5 text-muted-foreground" />
-                    <CardTitle className="text-base">No jobs found</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    No daywork postings match your filters right now. Try adjusting your filters or
-                    check back later.
-                  </p>
-                  <Button variant="outline" size="sm" className="mt-3" onClick={onLoadCards}>
+              <EmptyState
+                icon={Briefcase}
+                title="No jobs found"
+                description="No daywork postings match your filters. Try widening your search."
+                action={
+                  <Button variant="outline" size="sm" onClick={onLoadCards}>
                     Refresh
                   </Button>
-                </CardContent>
-              </Card>
+                }
+              />
             )}
 
             {!loading && cards.length > 0 && (
