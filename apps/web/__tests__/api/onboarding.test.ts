@@ -329,4 +329,59 @@ describe('POST /api/onboarding', () => {
     const body = await res.json();
     expect(body.error).toContain('overlap');
   });
+
+  it('passes deck name, desired role, and career status through to profile payload', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFromAuth.mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(makeRequest({
+      identityType: 'crew',
+      currentHat: 'crew',
+      profile: {
+        displayName: 'Full Profile',
+        deckName: 'Sparky',
+        desiredRoleId: 'role-123',
+        permanentAvailability: 'after_notice',
+        noticePeriodDays: 14,
+        currentlyEmployed: true,
+      },
+    }));
+    expect(res.status).toBe(200);
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'onboard_person',
+      expect.objectContaining({
+        p_profile: expect.objectContaining({
+          deck_name: 'Sparky',
+          desired_role_id: 'role-123',
+          permanent_availability: 'after_notice',
+          notice_period_days: 14,
+          currently_employed: true,
+        }),
+      }),
+    );
+  });
+
+  it('omits new optional fields gracefully when not provided', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFromAuth.mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(200);
+
+    expect(mockRpc).toHaveBeenCalledWith(
+      'onboard_person',
+      expect.objectContaining({
+        p_profile: expect.objectContaining({
+          deck_name: null,
+          desired_role_id: null,
+          permanent_availability: null,
+          notice_period_days: null,
+          currently_employed: false,
+        }),
+      }),
+    );
+  });
 });

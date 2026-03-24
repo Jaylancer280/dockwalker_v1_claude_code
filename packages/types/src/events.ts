@@ -121,6 +121,7 @@ export interface EventPayloadMap {
     visa_ids?: string[];
     desired_role_id?: string | null;
     deck_name?: string | null;
+    location_city_id?: string | null;
   };
   'PROFILE.UPDATED': {
     display_name?: string;
@@ -144,6 +145,7 @@ export interface EventPayloadMap {
     currently_employed?: boolean;
     desired_role_id?: string | null;
     deck_name?: string | null;
+    location_city_id?: string | null;
   };
   'AGENT.VERIFIED': Record<string, never>;
   'VESSEL.CREATED': {

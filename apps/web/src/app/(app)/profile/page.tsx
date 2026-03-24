@@ -50,7 +50,7 @@ import { RolePicker } from '@/components/role-picker';
 import { ProfileOverlay } from '@/components/profile-overlay';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
-import { computeSeaTime } from '@/lib/compute-sea-time';
+import { computeTotalExperience } from '@/lib/compute-total-experience';
 
 interface LookupItem {
   id: string;
@@ -71,17 +71,20 @@ interface Profile {
   experience_bracket_id: string | null;
   vessel_size_exposure_ids: string[];
   location_port_id: string | null;
+  location_city_id: string | null;
   avatar_url: string | null;
   agency_name: string | null;
   role_specialization_ids: string[];
   nationality_id: string | null;
   visa_ids: string[];
+  languages: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
   deck_name: string | null;
   yacht_roles: { id: string; name: string; department: string } | null;
   desired_roles: { id: string; name: string } | null;
   experience_brackets: { id: string; label: string } | null;
   ports: { id: string; name: string; cities: { name: string; regions: { name: string } } } | null;
+  location_cities: { id: string; name: string; regions: { name: string } } | null;
 }
 
 interface Person {
@@ -145,8 +148,24 @@ export default function ProfilePage() {
   const [confirmDeleteExpId, setConfirmDeleteExpId] = useState<string | null>(null);
 
   // Collapsible sections + preview
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {};
+    try {
+      const stored = localStorage.getItem('dw_profile_sections');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
   const [showPreview, setShowPreview] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('dw_profile_sections', JSON.stringify(expandedSections));
+    } catch {
+      /* ignore */
+    }
+  }, [expandedSections]);
 
   // Availability state
   const [availWindows, setAvailWindows] = useState<AvailabilityWindow[]>([]);
@@ -167,6 +186,7 @@ export default function ProfilePage() {
   const [bio, setBio] = useState('');
   const [desiredRoleId, setDesiredRoleId] = useState('');
   const [locationPortId, setLocationPortId] = useState('');
+  const [locationCityId, setLocationCityId] = useState('');
   const [certificationIds, setCertificationIds] = useState<string[]>([]);
   const [agencyName, setAgencyName] = useState('');
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
@@ -335,6 +355,7 @@ export default function ProfilePage() {
     // primary_role_id is auto-derived — not editable
     setDesiredRoleId(profile.desired_role_id ?? '');
     setLocationPortId(profile.location_port_id ?? '');
+    setLocationCityId(profile.location_city_id ?? '');
     // experience_bracket_id is auto-derived — not editable
     setCertificationIds(profile.certification_ids ?? []);
     // vessel_size_exposure_ids is auto-derived — not editable
@@ -361,6 +382,7 @@ export default function ProfilePage() {
     const body: Record<string, unknown> = {
       displayName,
       locationPortId: locationPortId || null,
+      locationCityId: locationCityId || null,
     };
 
     if (profile?.identity_type === 'crew') {
@@ -563,7 +585,7 @@ export default function ProfilePage() {
                 {!expandedSections.summary && (
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {profile.yacht_roles?.name
-                      ? `${profile.yacht_roles.name}${profile.experience_brackets?.label ? ` · ${profile.experience_brackets.label}` : ''}${experiences.length > 0 ? ` · ${computeSeaTime(experiences)}` : ''}`
+                      ? `${profile.yacht_roles.name}${profile.experience_brackets?.label ? ` · ${profile.experience_brackets.label}` : ''}${experiences.length > 0 ? ` · ${computeTotalExperience(experiences)}` : ''}${(profile.location_cities?.name ?? profile.ports?.cities?.name) ? ` · ${profile.location_cities?.name ?? profile.ports?.cities?.name}` : ''}`
                       : 'Tap to set up'}
                   </p>
                 )}
@@ -576,18 +598,25 @@ export default function ProfilePage() {
             </button>
             {expandedSections.summary && (
               <div className="flex flex-col gap-3 px-4 pb-2">
-                {profile.yacht_roles?.name && (
+                {profile.yacht_roles?.name ? (
                   <div>
                     <p className="text-xs text-muted-foreground">Current Role</p>
                     <p className="text-sm font-medium">{profile.yacht_roles.name}</p>
                   </div>
-                )}
+                ) : !profile.experience_brackets?.label && experiences.length === 0 ? (
+                  <button
+                    onClick={() => router.push('/profile/add-experience')}
+                    className="text-left text-sm text-muted-foreground"
+                  >
+                    Add your first experience to build your profile
+                  </button>
+                ) : null}
                 {profile.experience_brackets?.label && (
                   <div>
                     <p className="text-xs text-muted-foreground">Experience</p>
                     <p className="text-sm font-medium">
                       {profile.experience_brackets.label}
-                      {experiences.length > 0 && ` (${computeSeaTime(experiences)})`}
+                      {experiences.length > 0 && ` (${computeTotalExperience(experiences)})`}
                     </p>
                   </div>
                 )}
@@ -620,6 +649,24 @@ export default function ProfilePage() {
                     className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
                   >
                     Add your nationality — shown on your profile with your flag
+                  </button>
+                )}
+                {profile.location_cities?.name || profile.ports?.cities?.name ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Location</p>
+                    <p className="text-sm font-medium">
+                      {profile.location_cities?.name ?? profile.ports?.cities?.name}
+                      {(profile.location_cities?.regions?.name ??
+                        profile.ports?.cities?.regions?.name) &&
+                        `, ${profile.location_cities?.regions?.name ?? profile.ports?.cities?.regions?.name}`}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={enterEdit}
+                    className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
+                  >
+                    Set your location — shown on your profile
                   </button>
                 )}
               </div>
@@ -673,7 +720,7 @@ export default function ProfilePage() {
                 </div>
                 {profile.ports?.name ? (
                   <div>
-                    <p className="text-xs text-muted-foreground">Location</p>
+                    <p className="text-xs text-muted-foreground">Daywork port</p>
                     <p className="text-sm font-medium">
                       {profile.ports.name}, {profile.ports.cities?.name}
                     </p>
@@ -683,11 +730,11 @@ export default function ProfilePage() {
                     onClick={enterEdit}
                     className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
                   >
-                    Set your home port — helps employers find local crew
+                    Set your daywork port — helps employers find local crew
                   </button>
                 )}
-                {/* Career status — compact inline */}
-                {isCrewHat && (
+                {/* Career status — visible for crew and employer hats */}
+                {profile.identity_type === 'crew' && (
                   <div>
                     <p className="text-xs text-muted-foreground">Career status</p>
                     {!editingCareer ? (
@@ -1007,7 +1054,7 @@ export default function ProfilePage() {
                 {!expandedSections.experience && (
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     {experiences.length > 0
-                      ? `${experiences.length} entries · ${computeSeaTime(experiences)}`
+                      ? `${experiences.length} entries · ${computeTotalExperience(experiences)}`
                       : 'No experience added'}
                   </p>
                 )}
@@ -1031,7 +1078,7 @@ export default function ProfilePage() {
               <>
                 <div className="flex items-center justify-between px-4">
                   <Badge variant="secondary" className="text-[10px]">
-                    {computeSeaTime(experiences)} total
+                    {computeTotalExperience(experiences)} total
                   </Badge>
                   <Button
                     variant="ghost"
@@ -1183,11 +1230,22 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label>Location</Label>
+              <Label>Where are you based?</Label>
+              <LocationPicker
+                mode="port-optional"
+                value={locationCityId ? { cityId: locationCityId } : null}
+                onValueChange={(v) => setLocationCityId(v.cityId ?? '')}
+                placeholder="Select city"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Daywork port</Label>
               <LocationPicker
                 mode="port-required"
                 value={locationPortId ? { portId: locationPortId } : null}
                 onValueChange={(v) => setLocationPortId(v.portId ?? '')}
+                placeholder="Select port/marina"
               />
             </div>
 
@@ -1260,27 +1318,78 @@ export default function ProfilePage() {
 
         {/* Agent-specific fields */}
         {profile.identity_type === 'agent' && !editing && (
-          <div className="flex flex-col gap-3">
-            {profile.agency_name && (
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => setExpandedSections((s) => ({ ...s, agencyInfo: !s.agencyInfo }))}
+              className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+            >
               <div>
-                <p className="text-xs text-muted-foreground">Agency</p>
-                <p className="text-sm font-medium">{profile.agency_name}</p>
+                <p className="text-sm font-medium">Agency Info</p>
+                {!expandedSections.agencyInfo && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {[
+                      profile.agency_name,
+                      profile.ports?.name,
+                      profile.role_specialization_ids?.length > 0
+                        ? `${profile.role_specialization_ids.length} specialization(s)`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || 'Tap to set up'}
+                  </p>
+                )}
               </div>
-            )}
-            {profile.ports?.name && (
-              <div>
-                <p className="text-xs text-muted-foreground">Location</p>
-                <p className="text-sm font-medium">
-                  {profile.ports.name}, {profile.ports.cities?.name}
-                </p>
-              </div>
-            )}
-            {profile.role_specialization_ids?.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground">Role Specializations</p>
-                <p className="text-sm text-muted-foreground">
-                  {profile.role_specialization_ids.length} specialization(s)
-                </p>
+              {expandedSections.agencyInfo ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+            {expandedSections.agencyInfo && (
+              <div className="flex flex-col gap-3 px-4 pb-2">
+                {profile.agency_name ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Agency</p>
+                    <p className="text-sm font-medium">{profile.agency_name}</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="text-left text-sm text-muted-foreground"
+                  >
+                    Add your agency name — your commercial identity on DockWalker
+                  </button>
+                )}
+                {profile.ports?.name ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Location</p>
+                    <p className="text-sm font-medium">
+                      {profile.ports.name}, {profile.ports.cities?.name}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="text-left text-sm text-muted-foreground"
+                  >
+                    Add your location — helps crew know where you&apos;re based
+                  </button>
+                )}
+                {profile.role_specialization_ids?.length > 0 ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Role Specializations</p>
+                    <p className="text-sm text-muted-foreground">
+                      {profile.role_specialization_ids.length} specialization(s)
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="text-left text-sm text-muted-foreground"
+                  >
+                    Add role specializations — shows which departments you place for
+                  </button>
+                )}
               </div>
             )}
           </div>

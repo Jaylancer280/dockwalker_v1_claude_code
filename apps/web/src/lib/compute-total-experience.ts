@@ -1,14 +1,14 @@
-interface ExperienceForSeaTime {
+interface ExperienceEntry {
   start_date: string;
   end_date: string | null;
   is_current: boolean;
 }
 
 /**
- * Compute total sea time from an array of experience entries.
+ * Compute total experience duration from an array of experience entries.
  * Returns a human-readable string like "2y 3m", "11m", or "45d".
  */
-export function computeSeaTime(experiences: ExperienceForSeaTime[]): string {
+export function computeTotalExperience(experiences: ExperienceEntry[]): string {
   if (experiences.length === 0) return '0d';
 
   const now = new Date();

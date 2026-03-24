@@ -247,10 +247,34 @@ describe('GET /api/profile/[personId]', () => {
     expect(body.experiences[0].salary_period).toBeUndefined();
   });
 
-  it('returns 400 when viewing own profile', async () => {
-    mockRequireDomainUser.mockResolvedValue(guardOk());
+  it('returns 200 when viewing own profile (self-preview)', async () => {
+    const selfId = '11111111-1111-1111-1111-111111111111';
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ user: { id: selfId }, person: { id: selfId, identity_type: 'crew', current_hat: 'crew' } }),
+    );
 
-    const res = await GET(new Request('http://localhost'), makeParams('u1'));
-    expect(res.status).toBe(400);
+    // No relationship check — self-view skips it
+    // Profile fetch
+    mockFrom.mockReturnValueOnce(
+      mockChain({
+        person_id: selfId,
+        display_name: 'Self User',
+        identity_type: 'crew',
+        bio: null,
+        certification_ids: [],
+        vessel_size_exposure_ids: [],
+        role_specialization_ids: [],
+        yacht_roles: null,
+        experience_brackets: null,
+        ports: null,
+      }),
+    );
+    // Experiences
+    mockFrom.mockReturnValueOnce(mockChain([]));
+
+    const res = await GET(new Request('http://localhost'), makeParams(selfId));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.display_name).toBe('Self User');
   });
 });

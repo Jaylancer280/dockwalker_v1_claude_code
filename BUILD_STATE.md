@@ -202,9 +202,17 @@
 
 - [Stage 146] Avatar crop + cache bust + permanent post wiring + scroll containment + notification strategy + profile clarity — (A) `react-easy-crop` + `ImageCropper` component for circular crop before upload; (B) `?t=Date.now()` cache-bust on avatar URL in API + event payload; (C) `permanentTemplateId` URL param auto-selects permanent posting type + pre-loads template; (D) `useBodyScrollLock` hook on 6 overlays + profile overlay max-height fix; (E) email reduced to 2 critical events (DAYWORK.ACCEPTED, PERMANENT.SELECTED) + engagement-starts cron, gated behind `hasPushTokens` + `email_enabled` preference; push gated behind per-category preferences; notification preferences migration 00066, GET/PATCH `/api/preferences`, settings page notifications section; `PushPrompt` after onboarding; email footer unsubscribe link; (F) collapsible profile sections with summaries, value-driven empty-field prompts, "How employers see you" preview button, `computeSeaTime` utility; (G) `useDockyReadiness` hook, Docky profile completeness nudge card, inline thinking indicator context; 819 tests pass
 
+- [Fix 147a] Self-view profile fix — `GET /api/profile/[personId]` no longer rejects self-viewing; "How employers see you" preview now works by skipping the relationship context check for own person_id
+
+- [Stage 148] Profile polish — (A) `computeSeaTime` → `computeTotalExperience` rename (file, function, tests); (B) collapsible section state persisted to localStorage; (C) employer hat sees career status in Looking For section, agent profile fields wrapped in collapsible "Agency Info" section with empty-state prompts; (D) empty Summary section shows "Add your first experience" prompt
+
+- [Stage 149] Skip onboarding + profile nudge + onboarding fields — (A) "Skip for now" link on profile step (crew only), auto-derives display name from email prefix, navigates to hat selection; (B) profile completion nudge card on discover page for incomplete profiles (email-prefix name, no nationality, no role/certs); (C) deck name, desired role, career status fields added to onboarding profile step (crew only, all optional); onboarding API passes through to PROFILE.CREATED payload; migration 00067 adds supplementary trigger for career status fields on PROFILE.CREATED events; 844 tests pass
+
+- [Stage 150-pre] Split location city from daywork port — migration 00068 adds `location_city_id` FK to profiles with supplementary trigger; profile GET/PATCH/view APIs return city-level location with joined region; profile Summary shows city+region, Looking For relabelled to "Daywork port"; edit mode has separate city picker ("Where are you based?") and port picker; onboarding uses city picker for crew, port picker for agents; profile overlay shows city-level location; `EventPayloadMap` extended with `location_city_id`; 844 tests pass
+
 ## Current Schema Version
 
-v66 — Notification preferences on user_preferences (66 migrations applied)
+v68 — Location city on profiles (68 migrations applied)
 
 ## Migrations Applied
 
@@ -276,6 +284,8 @@ v66 — Notification preferences on user_preferences (66 migrations applied)
 | `00064_desired_role_and_auto_primary.sql`    | Adds `desired_role_id` FK to profiles; updates `derive_experience_profile()` to auto-derive `primary_role_id` from most recent experience; supplementary trigger `apply_desired_role_from_event` writes desired_role_id from PROFILE events                                                                                                                                                                 |
 | `00065_deck_name.sql`                        | Adds `deck_name VARCHAR(50)` to profiles; supplementary trigger `apply_deck_name_from_event` writes deck_name from PROFILE.CREATED/UPDATED payloads                                                                                                                                                                                                                                                         |
 | `00066_notification_preferences.sql`         | Adds `email_enabled`, `push_jobs`, `push_applications`, `push_messages`, `push_reminders` boolean columns to `user_preferences` (all default true)                                                                                                                                                                                                                                                          |
+| `00067_career_status_from_event.sql`         | Supplementary trigger `apply_career_status_from_event` writes `permanent_availability`, `notice_period_days`, `currently_employed` from PROFILE.CREATED/UPDATED payloads (columns already existed from 00059)                                                                                                                                                                                               |
+| `00068_location_city.sql`                    | Adds `location_city_id UUID REFERENCES cities(id)` to profiles; supplementary trigger `apply_location_city_from_event` writes location_city_id from PROFILE.CREATED/UPDATED payloads                                                                                                                                                                                                                        |
 
 ## Deferred Decisions
 
@@ -295,6 +305,7 @@ v66 — Notification preferences on user_preferences (66 migrations applied)
 - Per-user rate limiting (requires keying on user ID from auth session — adds latency since auth check must run before rate limit)
 - **Realtime messaging** — chat is currently poll-based (`setInterval`). Supabase Realtime is plug-and-play: one migration (`alter publication supabase_realtime add table public.messages`), replace polling with `supabase.channel().on('postgres_changes', ...)` subscription in `messages/[engagementId]/page.tsx`. RLS already gates access. Defer to polishing stage.
 - **Admin dashboard** — deferred to closer to launch. Scope: user lookup + deactivation, dispute viewer (ENGAGEMENT.COMPLETION_DISPUTED resolution), event log browser (read-only, filterable), crew list viewer, ability to send messages as "DockWalker Admin" (new sender identity, not tied to a person record). Option 2 approach: built-in `/admin` routes in the existing Next.js app behind a role check, using service role client. Not a quick CRUD panel — intended to be domain-aware with smart tooling.
+- **Docky for agents (market intelligence)** — Docky is currently crew-only (career guidance + MCA certs). For agents, Docky would surface aggregate market intelligence from ledger data: salary benchmarks per role/region, time-to-fill metrics, cert demand frequency, applicant-to-fill ratios. Requires significant posting volume to be statistically meaningful (hundreds of postings per region minimum). No agent-vs-agent competition metrics. No individual crew data. Monetisation: agent subscription tier. Prerequisites: platform data density, agent activity patterns from `agent_activity_log`. Do not build until post-traction phase.
 
 ## In Progress
 

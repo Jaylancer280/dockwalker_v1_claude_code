@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       role_specialization_ids: profile.roleSpecializationIds || [],
       // Shared
       location_port_id: profile.locationPortId || null,
+      location_city_id: profile.locationCityId || null,
       // Green crew fields
       shore_experience: profile.shoreExperience || null,
       motivation: profile.motivation || null,
@@ -97,6 +98,13 @@ export async function POST(request: Request) {
       ...(profile.avatarUrl ? { avatar_url: profile.avatarUrl } : {}),
       nationality_id: profile.nationalityId || null,
       visa_ids: profile.visaIds || [],
+      // Optional crew fields (149c)
+      deck_name: profile.deckName || null,
+      desired_role_id: profile.desiredRoleId || null,
+      permanent_availability: profile.permanentAvailability || null,
+      notice_period_days:
+        profile.permanentAvailability === 'after_notice' ? (profile.noticePeriodDays ?? 30) : null,
+      currently_employed: profile.currentlyEmployed ?? false,
     };
 
     // Step 1: Create person + profile atomically (skip on retry)

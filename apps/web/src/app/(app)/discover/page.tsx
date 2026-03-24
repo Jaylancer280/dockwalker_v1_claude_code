@@ -228,6 +228,9 @@ export default function DiscoverPage() {
   // Crew certs for cert pill coloring
   const [crewCertIds, setCrewCertIds] = useState<string[] | null>(null);
 
+  // Profile readiness for nudge card
+  const [profileIncomplete, setProfileIncomplete] = useState(false);
+
   // Lookups for filters
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certifications, setCertifications] = useState<LookupItem[]>([]);
@@ -249,13 +252,32 @@ export default function DiscoverPage() {
     }
   }, []);
 
-  // Fetch crew certs for cert pill coloring
+  // Fetch crew certs for cert pill coloring + profile readiness check
   async function loadCrewCerts() {
-    const result = await safeFetch<{ profile?: { certification_ids?: string[] } }>('/api/profile');
+    const result = await safeFetch<{
+      profile?: {
+        display_name?: string;
+        certification_ids?: string[];
+        nationality_id?: string | null;
+        primary_role_id?: string | null;
+      };
+      email?: string;
+    }>('/api/profile');
     if (result.ok && result.data.profile?.certification_ids) {
       setCrewCertIds(result.data.profile.certification_ids);
     } else if (result.ok) {
       setCrewCertIds([]);
+    }
+    // Profile readiness: check if key fields are missing
+    if (result.ok && result.data.profile) {
+      const p = result.data.profile;
+      const name = p.display_name ?? '';
+      const looksLikeEmailPrefix = /^[A-Za-z0-9._+-]+$/.test(name) && !name.includes(' ');
+      const incomplete =
+        looksLikeEmailPrefix ||
+        !p.nationality_id ||
+        (!p.primary_role_id && (!p.certification_ids || p.certification_ids.length === 0));
+      setProfileIncomplete(incomplete);
     }
   }
 
@@ -747,6 +769,25 @@ export default function DiscoverPage() {
       {/* ───── Browse tab ───── */}
       {activeTab === 'browse' && (
         <>
+          {/* Profile completion nudge */}
+          {profileIncomplete && (
+            <div className="mx-auto mt-2 w-full max-w-lg px-4">
+              <div className="rounded-lg border border-border bg-muted/50 p-4">
+                <p className="text-sm font-medium">Complete your profile to start applying</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Employers see your role, certifications, and experience when you apply. Add these
+                  to your profile so you can apply for jobs.
+                </p>
+                <a
+                  href="/profile"
+                  className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  Go to profile →
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* Daywork / Permanent toggle */}
           <div className="mx-auto flex max-w-lg gap-1 rounded-lg bg-muted p-1 mt-2 px-4">
             <button

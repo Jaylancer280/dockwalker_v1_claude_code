@@ -153,6 +153,7 @@ export default function OnboardingPage() {
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [locationPortId, setLocationPortId] = useState('');
+  const [locationCityId, setLocationCityId] = useState('');
   const [bio, setBio] = useState('');
   const [languages, setLanguages] = useState<string[]>([]);
 
@@ -166,6 +167,13 @@ export default function OnboardingPage() {
   const [shoreExperience, setShoreExperience] = useState('');
   const [motivation, setMotivation] = useState('');
   const [availableToStart, setAvailableToStart] = useState('');
+
+  // New optional crew fields (149c)
+  const [deckName, setDeckName] = useState('');
+  const [desiredRoleId, setDesiredRoleId] = useState('');
+  const [permanentAvailability, setPermanentAvailability] = useState<string | null>(null);
+  const [noticePeriodDays, setNoticePeriodDays] = useState(30);
+  const [currentlyEmployed, setCurrentlyEmployed] = useState(false);
 
   // Nationality & visas
   const [nationalityId, setNationalityId] = useState('');
@@ -183,6 +191,21 @@ export default function OnboardingPage() {
 
   // Hat selection
   const [hat, setHat] = useState<HatType | null>(null);
+
+  // Skip flow
+  const [skipping, setSkipping] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchEmail() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user?.email) setUserEmail(user.email);
+    }
+    fetchEmail();
+  }, []);
 
   // Lookup data
   const [roles, setRoles] = useState<LookupItem[]>([]);
@@ -288,6 +311,7 @@ export default function OnboardingPage() {
       const profileData: Record<string, unknown> = {
         displayName,
         locationPortId: locationPortId || undefined,
+        locationCityId: locationCityId || undefined,
         bio: bio || undefined,
         languages,
         onboardingVersion: 2,
@@ -299,6 +323,13 @@ export default function OnboardingPage() {
         profileData.certificationIds = certificationIds;
         profileData.nationalityId = nationalityId || null;
         profileData.visaIds = visaIds;
+        profileData.deckName = deckName || undefined;
+        profileData.desiredRoleId = desiredRoleId || undefined;
+        profileData.permanentAvailability = permanentAvailability || undefined;
+        if (permanentAvailability === 'after_notice') {
+          profileData.noticePeriodDays = noticePeriodDays;
+        }
+        profileData.currentlyEmployed = currentlyEmployed || undefined;
 
         if (isGreen) {
           profileData.experienceBracketId = experienceBracketId || undefined;
@@ -587,14 +618,44 @@ export default function OnboardingPage() {
               />
             </div>
 
-            {/* Location — shared */}
+            {/* Deck name — crew only, optional */}
+            {isCrew && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="deckName">
+                  Deck name <span className="text-xs text-muted-foreground">(optional)</span>
+                </Label>
+                <Input
+                  id="deckName"
+                  placeholder="What your crew calls you"
+                  value={deckName}
+                  onChange={(e) => setDeckName(e.target.value.slice(0, 50))}
+                  maxLength={50}
+                />
+              </div>
+            )}
+
+            {/* Location — city for crew, port for agents */}
             <div className="flex flex-col gap-1.5">
-              <Label>Current location</Label>
+              <Label>{isCrew ? 'Where are you based?' : 'Current location'}</Label>
               <LocationPicker
-                mode="port-required"
-                value={locationPortId ? { portId: locationPortId } : null}
-                onValueChange={(v) => setLocationPortId(v.portId ?? '')}
-                placeholder="Select port/marina"
+                mode={isCrew ? 'port-optional' : 'port-required'}
+                value={
+                  isCrew
+                    ? locationCityId
+                      ? { cityId: locationCityId }
+                      : null
+                    : locationPortId
+                      ? { portId: locationPortId }
+                      : null
+                }
+                onValueChange={(v) => {
+                  if (isCrew) {
+                    setLocationCityId(v.cityId ?? '');
+                  } else {
+                    setLocationPortId(v.portId ?? '');
+                  }
+                }}
+                placeholder={isCrew ? 'Select city' : 'Select port/marina'}
               />
             </div>
 
@@ -773,6 +834,65 @@ export default function OnboardingPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Desired role — optional */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>
+                    What role are you looking for?{' '}
+                    <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <RolePicker
+                    roles={roles as { id: string; name: string; department: string }[]}
+                    value={desiredRoleId}
+                    onValueChange={setDesiredRoleId}
+                    placeholder="Select desired role"
+                  />
+                </div>
+
+                {/* Career status — optional */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>
+                    Career status <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <div className="flex flex-col gap-2">
+                    {[
+                      { value: 'immediate', label: 'Available immediately' },
+                      { value: 'after_notice', label: 'Available after notice period' },
+                      { value: 'not_looking', label: 'Not looking' },
+                    ].map((opt) => (
+                      <label key={opt.value} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="radio"
+                          name="permanentAvail"
+                          checked={permanentAvailability === opt.value}
+                          onChange={() => setPermanentAvailability(opt.value)}
+                          className="accent-primary"
+                        />
+                        {opt.label}
+                      </label>
+                    ))}
+                    {permanentAvailability === 'after_notice' && (
+                      <div className="ml-6 flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={noticePeriodDays}
+                          onChange={(e) => setNoticePeriodDays(Number(e.target.value) || 30)}
+                          className="w-20"
+                        />
+                        <span className="text-sm text-muted-foreground">days</span>
+                      </div>
+                    )}
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={currentlyEmployed}
+                        onCheckedChange={(v) => setCurrentlyEmployed(v === true)}
+                      />
+                      Currently employed
+                    </label>
+                  </div>
+                </div>
               </>
             )}
 
@@ -859,6 +979,23 @@ export default function OnboardingPage() {
               </>
             )}
           </Button>
+
+          {isCrew && (
+            <button
+              onClick={() => {
+                const emailPrefix = userEmail?.split('@')[0] ?? 'User';
+                const autoName =
+                  emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1).substring(0, 99);
+                setDisplayName(autoName);
+                setSkipping(true);
+                setError(null);
+                setStep('hat');
+              }}
+              className="mx-auto text-sm text-muted-foreground hover:text-foreground"
+            >
+              Skip for now
+            </button>
+          )}
         </div>
       </main>
     );
@@ -1202,9 +1339,14 @@ export default function OnboardingPage() {
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4">
       <div className="flex w-full max-w-sm flex-col gap-6">
         <button
-          onClick={() =>
-            setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'profile')
-          }
+          onClick={() => {
+            if (skipping) {
+              setSkipping(false);
+              setStep('profile');
+            } else {
+              setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'profile');
+            }
+          }}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="h-4 w-4" />

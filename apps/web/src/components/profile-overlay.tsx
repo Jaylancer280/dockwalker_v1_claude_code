@@ -38,7 +38,9 @@ interface CrewProfile {
   vessel_size_exposure: { id: string; label: string }[];
   nationality: { id: string; name: string; country_code: string; flag_emoji: string } | null;
   visas: { id: string; name: string }[];
+  languages: string[];
   location: { port: string; city: string; region: string } | null;
+  city_location: { city: string; region: string | null } | null;
   experiences: CrewExperience[];
 }
 
@@ -174,13 +176,17 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
       </div>
 
       {/* Location */}
-      {profile.location && (
+      {(profile.city_location || profile.location) && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>
-            {[profile.location.port, profile.location.city, profile.location.region]
-              .filter(Boolean)
-              .join(', ')}
+            {profile.city_location
+              ? [profile.city_location.city, profile.city_location.region]
+                  .filter(Boolean)
+                  .join(', ')
+              : [profile.location?.port, profile.location?.city, profile.location?.region]
+                  .filter(Boolean)
+                  .join(', ')}
           </span>
         </div>
       )}

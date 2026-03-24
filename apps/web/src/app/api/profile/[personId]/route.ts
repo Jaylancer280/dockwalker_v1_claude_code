@@ -23,17 +23,17 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid person ID' }, { status: 400 });
     }
 
-    if (personId === user.id) {
-      return NextResponse.json({ error: 'Use /api/profile for your own profile' }, { status: 400 });
-    }
+    const isSelfView = personId === user.id;
 
-    // Context validation: requester must have a relationship with the target
-    const hasContext = await checkRelationshipContext(supabase, user.id, personId);
-    if (!hasContext) {
-      return NextResponse.json(
-        { error: "You don't have access to view this profile" },
-        { status: 403 },
-      );
+    if (!isSelfView) {
+      // Context validation: requester must have a relationship with the target
+      const hasContext = await checkRelationshipContext(supabase, user.id, personId);
+      if (!hasContext) {
+        return NextResponse.json(
+          { error: "You don't have access to view this profile" },
+          { status: 403 },
+        );
+      }
     }
 
     // Fetch target profile
@@ -43,12 +43,14 @@ export async function GET(
         `
       person_id, display_name, identity_type, bio, avatar_url, deck_name,
       primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
-      vessel_size_exposure_ids, location_port_id, nationality_id, visa_ids,
+      vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, visa_ids,
+      languages,
       agency_name, role_specialization_ids,
       yacht_roles!profiles_primary_role_id_fkey(id, name, department),
       desired_roles:yacht_roles!profiles_desired_role_id_fkey(id, name),
       experience_brackets(id, label),
       ports(name, cities(name, regions(name))),
+      location_cities:cities!profiles_location_city_id_fkey(id, name, regions(name)),
       nationalities(id, name, country_code, flag_emoji)
     `,
       )
@@ -180,6 +182,16 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     cities: { name: string; regions: { name: string } };
   } | null;
 
+  const locationCity = profile.location_cities as {
+    id: string;
+    name: string;
+    regions: { name: string };
+  } | null;
+
+  // Derive city from port if location_city_id is not set
+  const cityName = locationCity?.name ?? ports?.cities?.name ?? null;
+  const regionName = locationCity?.regions?.name ?? ports?.cities?.regions?.name ?? null;
+
   return {
     person_id: profile.person_id,
     display_name: profile.display_name,
@@ -191,12 +203,14 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     desired_role: profile.desired_roles ?? null,
     nationality: profile.nationalities ?? null,
     visas,
+    languages: profile.languages ?? [],
     certifications,
     experience_bracket: profile.experience_brackets,
     vessel_size_exposure: vesselSizeExposure,
     location: ports
       ? { port: ports.name, city: ports.cities?.name, region: ports.cities?.regions?.name }
       : null,
+    city_location: cityName ? { city: cityName, region: regionName } : null,
     experiences: (experiences ?? []).map((exp: Record<string, unknown>) => {
       const vessel = exp.vessels as {
         name: string;
