@@ -96,6 +96,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Career Status From Event                      | 00067     | Supplementary trigger `apply_career_status_from_event` writes career status fields from PROFILE.CREATED/UPDATED payloads                                                                                                                                                                          |
 | Location City                                 | 00068     | `location_city_id` FK on profiles; supplementary trigger `apply_location_city_from_event` writes city from PROFILE events                                                                                                                                                                         |
 | Required Languages                            | 00069     | `required_languages text[]` on dayworks, permanent_postings, templates; supplementary trigger writes from posting events                                                                                                                                                                          |
+| Agent Activity Log                            | 00070     | `agent_activity_log` table with RLS for agent telemetry (market feed usage)                                                                                                                                                                                                                       |
 
 ## Daywork Status Lifecycle
 

@@ -16,6 +16,7 @@ import {
   Loader2,
   SlidersHorizontal,
   MessageSquare,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -113,6 +114,7 @@ export default function MyPostingsPage() {
   const [filterPortId, setFilterPortId] = useState('');
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
   const [ports, setPorts] = useState<{ id: string; name: string; cities: { name: string } }[]>([]);
+  const [isAgent, setIsAgent] = useState(false);
 
   useEffect(() => {
     const storedTab = window.sessionStorage.getItem(MY_JOBS_TAB_STORAGE_KEY);
@@ -128,15 +130,19 @@ export default function MyPostingsPage() {
   useEffect(() => {
     async function loadLookups() {
       const supabase = createClient();
-      const [rolesRes, portsRes] = await Promise.all([
+      const [rolesRes, portsRes, profileRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name').order('sort_order'),
         supabase.from('ports').select('id, name, cities(name)').order('name'),
+        safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data);
       if (portsRes.data)
         setPorts(
           portsRes.data as unknown as { id: string; name: string; cities: { name: string } }[],
         );
+      if (profileRes.ok && profileRes.data.person?.identity_type === 'agent') {
+        setIsAgent(true);
+      }
     }
     loadLookups();
   }, []);
@@ -480,6 +486,21 @@ export default function MyPostingsPage() {
           Permanent
         </button>
       </div>
+
+      {/* Agent market feed button */}
+      {isAgent && (
+        <div className="mx-auto mt-2 max-w-lg px-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2 text-muted-foreground"
+            onClick={() => router.push('/discover/market')}
+          >
+            <Eye className="h-4 w-4" />
+            View job market
+          </Button>
+        </div>
+      )}
 
       {mineMode === 'permanent' && <PermanentMineSection />}
 

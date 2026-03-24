@@ -277,6 +277,14 @@ export default function DiscoverPage() {
     if (result.ok) {
       setCrewLangs(result.data.profile?.languages ?? []);
     }
+    // Redirect agents to market feed
+    if (
+      result.ok &&
+      (result.data as { person?: { identity_type?: string } }).person?.identity_type === 'agent'
+    ) {
+      window.location.href = '/discover/market';
+      return;
+    }
     // Profile readiness: check if key fields are missing
     if (result.ok && result.data.profile) {
       const p = result.data.profile;

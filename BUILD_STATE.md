@@ -212,9 +212,11 @@
 
 - [Stage 150] Languages — full stack — shared `LANGUAGES` constant (`apps/web/src/lib/languages.ts`); profile API GET/PATCH/view returns and accepts languages with validation; profile page About section shows language pills (view + edit), collapsed preview includes language count; profile overlay shows language pills; migration 00069 adds `required_languages text[]` to dayworks, permanent_postings, daywork_templates, permanent_templates with supplementary trigger; daywork + permanent POST APIs accept `requiredLanguages`; template save/load includes languages; discover APIs return `required_languages`; daywork + permanent cards show green/amber language pills matching crew's declared languages; permanent detail view shows language pills; employer review APIs include crew `languages` in profile select; applicant cards show language count badge; 844 tests pass
 
+- [Stage 151] Agent identity — (A) agent onboarding: identity step subtext, agency name required, nickname/nationality/role specializations, bio hidden, hat hardcoded to `agent`; (B) agent profile: "How candidates see you" preview, Maritime Background section, My Vessels link, `buildAgentProfile` API with experiences; (C) experience constraints: `isCurrent` blocked, `endDate` required, UI checkbox hidden, page titles renamed; (D) market feed: `/discover/market` read-only mixed feed with filters + pagination, poster identity stripped server-side (Option A), "View job market" button on My Jobs, agent redirect from `/discover`; (E) activity log: migration 00070 `agent_activity_log` table with RLS, `POST /api/agent/activity` route, `logAgentActivity` client helper, debounced filter telemetry; 856 tests pass
+
 ## Current Schema Version
 
-v69 — Required languages on postings (69 migrations applied)
+v70 — Agent activity log (70 migrations applied)
 
 ## Migrations Applied
 
@@ -290,6 +292,7 @@ v69 — Required languages on postings (69 migrations applied)
 | `00068_location_city.sql`                    | Adds `location_city_id UUID REFERENCES cities(id)` to profiles; supplementary trigger `apply_location_city_from_event` writes location_city_id from PROFILE.CREATED/UPDATED payloads                                                                                                                                                                                                                        |
 
 | `00069_required_languages.sql` | Adds `required_languages text[]` to dayworks, permanent_postings, daywork_templates, permanent_templates; supplementary trigger `apply_required_languages_from_event` writes from DAYWORK.POSTED/PERMANENT.POSTED payloads |
+| `00070_agent_activity_log.sql` | Creates `agent_activity_log` table (UUID PK, person_id FK, action, metadata JSONB, created_at) with RLS (agent insert own, admin select all) |
 
 ## Deferred Decisions
 

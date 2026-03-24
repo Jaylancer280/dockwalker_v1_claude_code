@@ -50,7 +50,8 @@ export async function GET(request: Request) {
   try {
     const { user, person, supabase } = guard.value;
 
-    if (person.current_hat !== 'crew') {
+    const isAgent = person.identity_type === 'agent';
+    if (person.current_hat !== 'crew' && !isAgent) {
       return NextResponse.json({ error: 'Only crew can discover jobs' }, { status: 403 });
     }
 
@@ -212,7 +213,16 @@ export async function GET(request: Request) {
     const nextCursor =
       hasMore && hydrated.length > 0 ? hydrated[hydrated.length - 1].created_at : null;
 
-    return NextResponse.json({ dayworks: hydrated, has_more: hasMore, next_cursor: nextCursor });
+    // Strip poster identity for agents
+    const results = isAgent
+      ? hydrated.map(({ poster_person_id: _p, poster_name: _n, ...rest }) => ({
+          ...rest,
+          poster_person_id: null,
+          poster_name: null,
+        }))
+      : hydrated;
+
+    return NextResponse.json({ dayworks: results, has_more: hasMore, next_cursor: nextCursor });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
