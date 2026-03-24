@@ -85,7 +85,7 @@ export function JobCard({
             {card.vessels?.vessel_type && (
               <VesselChip vesselType={card.vessels.vessel_type as 'motor' | 'sail'} size="sm" />
             )}
-            <h3 className="flex-1 text-lg font-bold flex items-center gap-1.5">
+            <h3 className="flex-1 text-[15px] font-semibold tracking-[-0.3px] flex items-center gap-1.5">
               {card.yacht_roles?.name ?? 'Unknown role'}
               {card.yacht_roles?.name && (
                 <EpauletteBadge roleName={card.yacht_roles.name} size="sm" />
@@ -103,7 +103,7 @@ export function JobCard({
               </button>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[13px] text-muted-foreground">
             {card.vessels?.nda_flag
               ? 'NDA Vessel'
               : `${card.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} ${card.vessels?.name ?? 'Unknown vessel'}`}
@@ -137,7 +137,7 @@ export function JobCard({
 
         {/* Details */}
         <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[13px]">
             <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span>
               {card.ports?.name ?? 'Unknown'}
@@ -146,7 +146,7 @@ export function JobCard({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[13px]">
             <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span>
               {card.start_date} — {card.end_date} ({card.working_days} working day
@@ -154,10 +154,10 @@ export function JobCard({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[13px]">
             <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span>
-              <span className="font-mono text-[17px] font-bold tracking-tight">
+              <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
                 {currencySymbol(card.currency)}
                 {card.day_rate}
               </span>
@@ -168,7 +168,7 @@ export function JobCard({
           </div>
 
           {card.experience_brackets?.label && (
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-[13px]">
               <Award className="h-4 w-4 shrink-0 text-muted-foreground" />
               <span>{card.experience_brackets.label}</span>
             </div>
@@ -255,7 +255,7 @@ export function JobCard({
                 e.stopPropagation();
                 onComposeMessage();
               }}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Apply with a message

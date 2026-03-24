@@ -10,7 +10,7 @@ export function SegmentedToggle({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex rounded-lg border border-border bg-muted p-0.5">
+    <div className="flex rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -18,8 +18,8 @@ export function SegmentedToggle({
           onClick={() => onChange(opt.value)}
           className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
             value === opt.value
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-[var(--card)] text-[var(--foreground)] shadow-sm'
+              : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
           }`}
         >
           {opt.label}

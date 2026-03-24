@@ -463,10 +463,10 @@ export default function DiscoverPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-30 border-b border-border bg-background">
+      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 pt-3 pb-2">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold tracking-tight">Discover</h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.5px]">Discover</h1>
             <NotificationBell />
           </div>
           {activeTab === 'browse' && (
@@ -481,7 +481,7 @@ export default function DiscoverPage() {
           )}
         </div>
         {/* Tabs */}
-        <div className="mx-auto max-w-lg border-t border-border">
+        <div className="mx-auto max-w-lg border-t border-[var(--border)]">
           <UnderlineTabs
             options={[
               { value: 'browse', label: 'Browse' },

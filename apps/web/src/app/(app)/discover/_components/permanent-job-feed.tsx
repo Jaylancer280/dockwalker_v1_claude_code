@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Briefcase, SlidersHorizontal, X } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
@@ -67,6 +68,14 @@ export function PermanentJobFeed() {
 
   // Scroll sentinel ref
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // Entrance animation — check reduced motion once
+  const prefersReducedMotion = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
 
   // Load lookups on mount
   useEffect(() => {
@@ -378,17 +387,23 @@ export function PermanentJobFeed() {
       {/* Postings list */}
       {!loading && postings.length > 0 && (
         <div className="flex flex-col gap-3">
-          {postings.map((posting) => (
-            <PermanentJobCard
+          {postings.map((posting, index) => (
+            <motion.div
               key={posting.id}
-              posting={posting}
-              onTap={() => setSelectedPosting(posting)}
-              onApply={handleApply}
-              onPosterTap={(pid) => setProfilePersonId(pid)}
-              crewCertIds={crewCertIds}
-              crewLangs={crewLangs}
-              applying={applying}
-            />
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
+            >
+              <PermanentJobCard
+                posting={posting}
+                onTap={() => setSelectedPosting(posting)}
+                onApply={handleApply}
+                onPosterTap={(pid) => setProfilePersonId(pid)}
+                crewCertIds={crewCertIds}
+                crewLangs={crewLangs}
+                applying={applying}
+              />
+            </motion.div>
           ))}
 
           {/* Scroll sentinel */}

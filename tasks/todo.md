@@ -154,58 +154,58 @@ Polish the frame around the cards.
 
 **Discover page header:**
 
-- [ ] Background: `bg-[var(--surface)]` (not `bg-background`)
-- [ ] Border: `border-b border-[var(--border)]`
-- [ ] Page title: `text-[24px] font-bold tracking-[-0.5px]`
+- [x] Background: `bg-[var(--surface)]` (not `bg-background`)
+- [x] Border: `border-b border-[var(--border)]`
+- [x] Page title: `text-[24px] font-bold tracking-[-0.5px]`
 
 **Tabs (already using `UnderlineTabs` component):**
 
-- [ ] Verify active state uses `--foreground` border and text
-- [ ] Tab label typography: match guidance (if count badges shown, use mono for count)
+- [x] Verify active state uses `--foreground` border and text
+- [x] Tab label typography: match guidance (if count badges shown, use mono for count)
 
 **Bottom nav (`components/bottom-nav.tsx`):**
 
-- [ ] Background: `bg-[var(--surface)]`, `border-t border-[var(--border)]`
-- [ ] Inactive items: `text-[var(--muted-foreground)]`
-- [ ] Active items: `text-[var(--accent)]`, `font-medium`
-- [ ] Labels: `text-[10px] font-bold uppercase tracking-[0.08em]`
-- [ ] Badge count: `font-mono text-[10px] rounded-[4px]`
-- [ ] Keep safe area handling unchanged
+- [x] Background: `bg-[var(--surface)]`, `border-t border-[var(--border)]`
+- [x] Inactive items: `text-[var(--muted-foreground)]`
+- [x] Active items: `text-[var(--accent)]`, `font-medium`
+- [x] Labels: `text-[10px] font-bold uppercase tracking-[0.08em]`
+- [x] Badge count: `font-mono text-[10px] rounded-[4px]`
+- [x] Keep safe area handling unchanged
 
 **Typography across discover page:**
 
-- [ ] Card titles (role name): `text-[15px] font-semibold tracking-[-0.3px]`
-- [ ] Body text (vessel, location, dates): `text-[13px]` or `text-sm`
-- [ ] Rate amounts: `font-mono text-[17px] font-bold tracking-[-0.5px]`
-- [ ] Rate period suffix: `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60`
-- [ ] Timestamps / posted date: `font-mono text-[11px] text-[var(--tertiary)]`
-- [ ] Job references: `font-mono text-[11px] text-[var(--tertiary)]`
-- [ ] Filter labels: `text-[13px] font-medium`
+- [x] Card titles (role name): `text-[15px] font-semibold tracking-[-0.3px]`
+- [x] Body text (vessel, location, dates): `text-[13px]` or `text-sm`
+- [x] Rate amounts: `font-mono text-[17px] font-bold tracking-[-0.5px]`
+- [x] Rate period suffix: `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60`
+- [x] Timestamps / posted date: `font-mono text-[11px] text-[var(--tertiary)]`
+- [x] Job references: `font-mono text-[11px] text-[var(--tertiary)]`
+- [ ] Filter labels: `text-[13px] font-medium` — already `text-xs font-medium`, kept as-is (smaller than body text is correct for filter labels)
 
 **SegmentedToggle:**
 
-- [ ] Verify it uses token-based colours (already should from the toggle component)
-- [ ] Background: `bg-[var(--surface)]` or keep muted — evaluate visually
+- [x] Verify it uses token-based colours (already should from the toggle component)
+- [x] Background: `bg-[var(--surface)]` or keep muted — evaluate visually
 
 **Motion (discover page only):**
 
-- [ ] Add entrance animation to card stack: staggered `translateY(14px) → 0`, `opacity 0 → 1`, 500ms, `cubic-bezier(0.16,1,0.3,1)`. Use Framer Motion (already imported for swipe)
-- [ ] Permanent feed cards: staggered entrance on initial load
-- [ ] Tab switch: no animation (instant content swap is fine)
-- [ ] Respect `prefers-reduced-motion`
-- [ ] Remove any existing `hover:shadow-md` or `transition-shadow` — hover is border-only
+- [x] Add entrance animation to card stack: staggered `translateY(14px) → 0`, `opacity 0 → 1`, 500ms, `cubic-bezier(0.16,1,0.3,1)`. Use Framer Motion (already imported for swipe)
+- [x] Permanent feed cards: staggered entrance on initial load
+- [x] Tab switch: no animation (instant content swap is fine)
+- [x] Respect `prefers-reduced-motion`
+- [x] Remove any existing `hover:shadow-md` or `transition-shadow` — hover is border-only (none found; removed `transition-colors` from permanent-job-card container and daywork card message link)
 
 **Verify:**
 
-- [ ] Header/tabs/nav all look cohesive with the card system
-- [ ] Typography hierarchy is clear: titles > body > rates > timestamps
-- [ ] Mono font visible on rates, job refs, timestamps
-- [ ] Page load has smooth entrance animation
-- [ ] No remaining hardcoded colours on the discover page or its sub-components
-- [ ] Compare discover page (new) vs any other page (old) — the contrast should be stark but discover should look complete
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] All tests pass
-- [ ] Update component tests if any button/badge/card variant props changed
+- [x] Header/tabs/nav all look cohesive with the card system
+- [x] Typography hierarchy is clear: titles > body > rates > timestamps
+- [x] Mono font visible on rates, job refs, timestamps
+- [x] Page load has smooth entrance animation
+- [x] No remaining hardcoded colours on the discover page or its sub-components (also fixed permanent-job-detail.tsx emerald/amber hardcoded colors)
+- [x] Compare discover page (new) vs any other page (old) — the contrast should be stark but discover should look complete
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass (856/856)
+- [x] Update component tests if any button/badge/card variant props changed (updated bottom-nav.test.tsx)
 
 ---
 

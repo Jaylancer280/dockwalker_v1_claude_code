@@ -59,7 +59,7 @@ export function BottomNav({ currentHat }: BottomNavProps) {
   }, [fetchCount]);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto flex h-[var(--nav-height)] max-w-lg items-center justify-around">
         {items.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -68,14 +68,14 @@ export function BottomNav({ currentHat }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] transition-colors ${
-                isActive ? 'font-semibold text-primary' : 'text-muted-foreground'
+              className={`flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                isActive ? 'text-[var(--accent)] font-medium' : 'text-[var(--muted-foreground)]'
               }`}
             >
               <div className="relative">
                 <item.icon className="h-5 w-5" />
                 {showBadge && (
-                  <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-primary-foreground">
+                  <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-[var(--accent)] px-0.5 font-mono text-[10px] font-bold text-white">
                     {messageCount > 99 ? '99+' : messageCount}
                   </span>
                 )}

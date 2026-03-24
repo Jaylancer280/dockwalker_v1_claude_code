@@ -119,11 +119,11 @@ function InvitationCard({
         {/* Role + vessel */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold leading-tight flex items-center gap-1.5">
+            <h3 className="text-[15px] font-semibold tracking-[-0.3px] leading-tight flex items-center gap-1.5">
               {dw.role_name ?? 'Unknown role'}
               {dw.role_name && <EpauletteBadge roleName={dw.role_name} size="sm" />}
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[13px] text-muted-foreground">
               {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}
               {dw.vessel_name ?? 'Unknown vessel'}
               {dw.vessel_size_label && ` · ${dw.vessel_size_label}`}
@@ -141,7 +141,7 @@ function InvitationCard({
 
         {/* Details */}
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[13px]">
             <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span>
               {dw.port_name ?? 'Unknown'}
@@ -150,7 +150,7 @@ function InvitationCard({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[13px]">
             <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span>
               {dw.start_date} — {dw.end_date} ({dw.working_days} day
@@ -158,10 +158,10 @@ function InvitationCard({
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-[13px]">
             <DollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span>
-              <span className="font-mono text-[17px] font-bold tracking-tight">
+              <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
                 {symbol}
                 {dw.day_rate}
               </span>

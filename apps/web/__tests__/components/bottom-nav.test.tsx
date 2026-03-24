@@ -53,10 +53,10 @@ describe('BottomNav', () => {
     render(<BottomNav currentHat="crew" identityType="crew" />);
 
     const discoverLink = screen.getByText('Discover').closest('a');
-    expect(discoverLink?.className).toContain('font-semibold');
-    expect(discoverLink?.className).toContain('text-primary');
+    expect(discoverLink?.className).toContain('font-medium');
+    expect(discoverLink?.className).toContain('text-[var(--accent)]');
 
     const messagesLink = screen.getByText('Messages').closest('a');
-    expect(messagesLink?.className).toContain('text-muted-foreground');
+    expect(messagesLink?.className).toContain('text-[var(--muted-foreground)]');
   });
 });

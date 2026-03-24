@@ -1,6 +1,7 @@
 'use client';
 
-import { type RefObject } from 'react';
+import { type RefObject, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { Briefcase, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SegmentedToggle } from '@/components/ui/segmented-toggle';
@@ -134,6 +135,14 @@ export function DayworkBrowse({
 }: DayworkBrowseProps) {
   const prefs = usePreferences();
   const lengthUnit = prefs.lengthUnit;
+
+  // Entrance animation — check reduced motion once on mount
+  const prefersReducedMotion = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
 
   const topCard = cards[0] ?? null;
   const nextCard = cards[1] ?? null;
@@ -307,7 +316,12 @@ export function DayworkBrowse({
             )}
 
             {!loading && cards.length > 0 && (
-              <div className="relative h-[420px] w-full overflow-hidden">
+              <motion.div
+                className="relative h-[420px] w-full overflow-hidden"
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              >
                 {/* Next card preview (underneath) */}
                 {nextCard && (
                   <div className="absolute inset-0 z-0">
@@ -346,7 +360,7 @@ export function DayworkBrowse({
                     crewLangs={crewLangs}
                   />
                 )}
-              </div>
+              </motion.div>
             )}
           </div>
 

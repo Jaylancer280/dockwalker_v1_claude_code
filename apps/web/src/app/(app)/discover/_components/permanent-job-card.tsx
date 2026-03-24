@@ -93,7 +93,7 @@ export function PermanentJobCard({
 
   return (
     <div
-      className="cursor-pointer rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 transition-colors"
+      className="cursor-pointer rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
       onClick={onTap}
     >
       {/* Header: role + epaulette + vessel chip + job ref */}
@@ -102,7 +102,9 @@ export function PermanentJobCard({
           {posting.vessel_type && (
             <VesselChip vesselType={posting.vessel_type as 'motor' | 'sail'} size="sm" />
           )}
-          <span className="text-lg font-semibold">{posting.role_name ?? 'Unknown Role'}</span>
+          <span className="text-[15px] font-semibold tracking-[-0.3px]">
+            {posting.role_name ?? 'Unknown Role'}
+          </span>
           {posting.role_name && <EpauletteBadge roleName={posting.role_name} size="sm" />}
         </div>
         <span className="font-mono text-[11px] text-[var(--tertiary)]">
@@ -111,7 +113,7 @@ export function PermanentJobCard({
       </div>
 
       {/* Vessel */}
-      <div className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+      <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
         <Ship className="h-3.5 w-3.5" />
         <span>{vesselDisplay}</span>
         {posting.vessel_loa ? (
@@ -122,7 +124,7 @@ export function PermanentJobCard({
       </div>
 
       {/* Location */}
-      <div className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+      <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
         <MapPin className="h-3.5 w-3.5" />
         <span>
           {[posting.port_name, posting.city_name, posting.region_name].filter(Boolean).join(', ')}
@@ -130,9 +132,9 @@ export function PermanentJobCard({
       </div>
 
       {/* Salary */}
-      <div className="mb-2 flex items-center gap-1.5 text-sm">
+      <div className="mb-2 flex items-center gap-1.5 text-[13px]">
         <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="font-mono text-[17px] font-bold">
+        <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
           {formatSalary(
             posting.salary_min,
             posting.salary_max,
@@ -143,7 +145,7 @@ export function PermanentJobCard({
       </div>
 
       {/* Start date */}
-      <div className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+      <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
         <Calendar className="h-3.5 w-3.5" />
         <span>Start: {formatStartDate(posting.start_date)}</span>
       </div>
@@ -217,7 +219,9 @@ export function PermanentJobCard({
             Posted by {posting.poster_name}
           </button>
         )}
-        <span>{daysAgo(posting.created_at)}</span>
+        <span className="font-mono text-[11px] text-[var(--tertiary)]">
+          {daysAgo(posting.created_at)}
+        </span>
       </div>
 
       {/* Apply button */}
