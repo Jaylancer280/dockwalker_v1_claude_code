@@ -123,7 +123,10 @@ export function PermanentApplicationCard({
 
       {/* Live aboard */}
       {p.live_aboard && (
-        <Badge variant="secondary" className="mt-2 bg-green-100 text-green-800 text-xs">
+        <Badge
+          variant="secondary"
+          className="mt-2 bg-[var(--success-lo)] text-[var(--success)] text-xs"
+        >
           Live aboard
         </Badge>
       )}

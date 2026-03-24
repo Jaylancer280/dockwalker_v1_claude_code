@@ -112,7 +112,7 @@ function InvitationCard({
     <Card>
       <CardContent className="flex flex-col gap-2 pt-4">
         {/* Invited by header */}
-        <p className="text-xs font-medium text-primary">
+        <p className="text-xs font-medium text-[var(--accent)]">
           Invited by {invitation.employer_name ?? 'an employer'}
         </p>
 
@@ -160,15 +160,20 @@ function InvitationCard({
 
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="font-medium">
-              {symbol}
-              {dw.day_rate}/day
+            <span>
+              <span className="font-mono text-[17px] font-bold tracking-tight">
+                {symbol}
+                {dw.day_rate}
+              </span>
+              <span className="text-[11px] font-medium text-[var(--muted-foreground)] opacity-60">
+                /day
+              </span>
             </span>
           </div>
         </div>
 
         {/* Footer: job ref */}
-        <p className="text-xs text-muted-foreground/60">
+        <p className="font-mono text-[11px] text-[var(--tertiary)]">
           DW-{String(dw.job_number).padStart(5, '0')}
         </p>
 

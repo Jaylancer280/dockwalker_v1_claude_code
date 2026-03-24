@@ -356,7 +356,7 @@ export function DayworkBrowse({
               <button
                 onClick={() => onPass(topCard.id)}
                 disabled={applying}
-                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
+                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--destructive)] text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)] hover:text-white disabled:opacity-50"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -365,7 +365,7 @@ export function DayworkBrowse({
                   if (requireAvailability()) onApply(topCard.id);
                 }}
                 disabled={applying}
-                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
+                className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--success)] text-[var(--success)] transition-colors hover:bg-[var(--success)] hover:text-white disabled:opacity-50"
               >
                 <Check className="h-6 w-6" />
               </button>

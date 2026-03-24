@@ -55,12 +55,12 @@ export interface MyApplication {
 }
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
-  applied: { label: 'Applied', className: 'bg-primary/10 text-primary' },
+  applied: { label: 'Applied', className: 'bg-[var(--accent-lo)] text-[var(--accent)]' },
   viewed: {
     label: 'Under review',
-    className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+    className: 'bg-[var(--warning-lo)] text-[var(--warning)]',
   },
-  shortlisted: { label: 'Shortlisted', className: 'bg-success/10 text-success' },
+  shortlisted: { label: 'Shortlisted', className: 'bg-[var(--success-lo)] text-[var(--success)]' },
 };
 
 interface AppliedTabProps {
@@ -197,9 +197,14 @@ function ApplicationCard({
 
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <span className="font-medium">
-              {symbol}
-              {dw.day_rate}/day
+            <span>
+              <span className="font-mono text-[17px] font-bold tracking-tight">
+                {symbol}
+                {dw.day_rate}
+              </span>
+              <span className="text-[11px] font-medium text-[var(--muted-foreground)] opacity-60">
+                /day
+              </span>
             </span>
           </div>
         </div>
@@ -207,7 +212,7 @@ function ApplicationCard({
         {/* Badges */}
         <div className="flex flex-wrap gap-1.5">
           {dw.positions_available && dw.positions_available > 1 && dw.positions_filled !== null && (
-            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+            <span className="rounded-full bg-[var(--accent-lo)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
               {dw.positions_available - dw.positions_filled}/{dw.positions_available} open
             </span>
           )}
@@ -227,7 +232,7 @@ function ApplicationCard({
 
         {/* Footer: job ref + withdraw */}
         <div className="flex items-center justify-between pt-1">
-          <span className="text-xs text-muted-foreground/60">
+          <span className="font-mono text-[11px] text-[var(--tertiary)]">
             DW-{String(dw.job_number).padStart(5, '0')} · Applied{' '}
             {new Date(application.applied_at).toLocaleDateString()}
           </span>

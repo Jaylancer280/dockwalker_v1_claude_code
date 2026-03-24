@@ -4,6 +4,7 @@ import { MapPin, Briefcase, Award, Calendar, Users, Ship } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { VesselChip } from '@/components/vessel-chip';
 import { currencySymbol } from '@/lib/units';
 import { languageLabel } from '@/lib/languages';
 
@@ -92,16 +93,19 @@ export function PermanentJobCard({
 
   return (
     <div
-      className="cursor-pointer rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+      className="cursor-pointer rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 transition-colors"
       onClick={onTap}
     >
-      {/* Header: role + epaulette + job ref */}
+      {/* Header: role + epaulette + vessel chip + job ref */}
       <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2">
+          {posting.vessel_type && (
+            <VesselChip vesselType={posting.vessel_type as 'motor' | 'sail'} size="sm" />
+          )}
           <span className="text-lg font-semibold">{posting.role_name ?? 'Unknown Role'}</span>
           {posting.role_name && <EpauletteBadge roleName={posting.role_name} size="sm" />}
         </div>
-        <span className="text-xs text-muted-foreground">
+        <span className="font-mono text-[11px] text-[var(--tertiary)]">
           PM-{String(posting.job_number).padStart(5, '0')}
         </span>
       </div>
@@ -126,9 +130,9 @@ export function PermanentJobCard({
       </div>
 
       {/* Salary */}
-      <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-primary">
-        <Briefcase className="h-3.5 w-3.5" />
-        <span>
+      <div className="mb-2 flex items-center gap-1.5 text-sm">
+        <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="font-mono text-[17px] font-bold">
           {formatSalary(
             posting.salary_min,
             posting.salary_max,
@@ -147,7 +151,7 @@ export function PermanentJobCard({
       {/* Badges row */}
       <div className="mb-3 flex flex-wrap gap-1.5">
         {posting.live_aboard && (
-          <Badge variant="secondary" className="bg-green-100 text-green-800">
+          <Badge variant="secondary" className="bg-[var(--success-lo)] text-[var(--success)]">
             Live aboard
           </Badge>
         )}
@@ -161,9 +165,9 @@ export function PermanentJobCard({
               variant="outline"
               className={
                 held === true
-                  ? 'border-transparent bg-emerald-100 text-emerald-800 text-xs dark:bg-emerald-900/30 dark:text-emerald-400'
+                  ? 'border-transparent bg-[var(--success-lo)] text-[var(--success)] text-xs'
                   : held === false
-                    ? 'border-transparent bg-amber-100 text-amber-800 text-xs dark:bg-amber-900/30 dark:text-amber-400'
+                    ? 'border-transparent bg-[var(--warning-lo)] text-[var(--warning)] text-xs'
                     : 'text-xs'
               }
             >
@@ -180,9 +184,9 @@ export function PermanentJobCard({
               variant="outline"
               className={
                 held === true
-                  ? 'border-transparent bg-emerald-100 text-emerald-800 text-xs dark:bg-emerald-900/30 dark:text-emerald-400'
+                  ? 'border-transparent bg-[var(--success-lo)] text-[var(--success)] text-xs'
                   : held === false
-                    ? 'border-transparent bg-amber-100 text-amber-800 text-xs dark:bg-amber-900/30 dark:text-amber-400'
+                    ? 'border-transparent bg-[var(--warning-lo)] text-[var(--warning)] text-xs'
                     : 'text-xs'
               }
             >

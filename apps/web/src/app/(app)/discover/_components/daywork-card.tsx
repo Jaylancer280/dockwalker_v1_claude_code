@@ -5,6 +5,7 @@ import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-m
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide-react';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { VesselChip } from '@/components/vessel-chip';
 import { Badge } from '@/components/ui/badge';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { languageLabel } from '@/lib/languages';
@@ -73,7 +74,7 @@ export function JobCard({
 }: JobCardProps) {
   return (
     <div
-      className={`h-full w-full rounded-2xl border border-border bg-background shadow-lg ${
+      className={`h-full w-full rounded-[14px] border border-[var(--border)] bg-[var(--card)] ${
         isPreview ? 'scale-[0.97] opacity-60' : ''
       }`}
     >
@@ -81,6 +82,9 @@ export function JobCard({
         {/* Role + vessel */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
+            {card.vessels?.vessel_type && (
+              <VesselChip vesselType={card.vessels.vessel_type as 'motor' | 'sail'} size="sm" />
+            )}
             <h3 className="flex-1 text-lg font-bold flex items-center gap-1.5">
               {card.yacht_roles?.name ?? 'Unknown role'}
               {card.yacht_roles?.name && (
@@ -120,8 +124,8 @@ export function JobCard({
             <span
               className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                 card.positions_remaining === 1
-                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                  ? 'bg-[var(--warning-lo)] text-[var(--warning)]'
+                  : 'bg-[var(--accent-lo)] text-[var(--accent)]'
               }`}
             >
               {card.positions_remaining === 1
@@ -152,9 +156,14 @@ export function JobCard({
 
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="font-medium">
-              {currencySymbol(card.currency)}
-              {card.day_rate}/day
+            <span>
+              <span className="font-mono text-[17px] font-bold tracking-tight">
+                {currencySymbol(card.currency)}
+                {card.day_rate}
+              </span>
+              <span className="text-[11px] font-medium text-[var(--muted-foreground)] opacity-60">
+                /day
+              </span>
             </span>
           </div>
 
@@ -178,9 +187,9 @@ export function JobCard({
                     key={certId ?? certName}
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       held
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        ? 'bg-[var(--success-lo)] text-[var(--success)]'
                         : missing
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                          ? 'bg-[var(--warning-lo)] text-[var(--warning)]'
                           : 'border border-muted-foreground/30 text-muted-foreground'
                     }`}
                   >
@@ -200,9 +209,9 @@ export function JobCard({
                     key={code}
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       held
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        ? 'bg-[var(--success-lo)] text-[var(--success)]'
                         : missing
-                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                          ? 'bg-[var(--warning-lo)] text-[var(--warning)]'
                           : 'border border-muted-foreground/30 text-muted-foreground'
                     }`}
                   >
@@ -238,8 +247,8 @@ export function JobCard({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Apply with message button + Job ref */}
-        <div className="mt-2 flex items-center justify-between">
+        {/* Footer with divider */}
+        <div className="mt-2 border-t border-[var(--border)] pt-2 flex items-center justify-between">
           {onComposeMessage ? (
             <button
               onClick={(e) => {
@@ -252,11 +261,11 @@ export function JobCard({
               Apply with a message
             </button>
           ) : (
-            <span className="text-xs text-muted-foreground/60">
+            <span className="font-mono text-[11px] text-[var(--tertiary)]">
               DW-{String(card.job_number).padStart(5, '0')}
             </span>
           )}
-          <span className="text-xs text-muted-foreground/60">
+          <span className="font-mono text-[11px] text-[var(--tertiary)]">
             {onComposeMessage
               ? `DW-${String(card.job_number).padStart(5, '0')}`
               : `Posted ${new Date(card.created_at).toLocaleDateString()}`}
