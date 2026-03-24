@@ -210,9 +210,11 @@
 
 - [Stage 150-pre] Split location city from daywork port — migration 00068 adds `location_city_id` FK to profiles with supplementary trigger; profile GET/PATCH/view APIs return city-level location with joined region; profile Summary shows city+region, Looking For relabelled to "Daywork port"; edit mode has separate city picker ("Where are you based?") and port picker; onboarding uses city picker for crew, port picker for agents; profile overlay shows city-level location; `EventPayloadMap` extended with `location_city_id`; 844 tests pass
 
+- [Stage 150] Languages — full stack — shared `LANGUAGES` constant (`apps/web/src/lib/languages.ts`); profile API GET/PATCH/view returns and accepts languages with validation; profile page About section shows language pills (view + edit), collapsed preview includes language count; profile overlay shows language pills; migration 00069 adds `required_languages text[]` to dayworks, permanent_postings, daywork_templates, permanent_templates with supplementary trigger; daywork + permanent POST APIs accept `requiredLanguages`; template save/load includes languages; discover APIs return `required_languages`; daywork + permanent cards show green/amber language pills matching crew's declared languages; permanent detail view shows language pills; employer review APIs include crew `languages` in profile select; applicant cards show language count badge; 844 tests pass
+
 ## Current Schema Version
 
-v68 — Location city on profiles (68 migrations applied)
+v69 — Required languages on postings (69 migrations applied)
 
 ## Migrations Applied
 
@@ -286,6 +288,8 @@ v68 — Location city on profiles (68 migrations applied)
 | `00066_notification_preferences.sql`         | Adds `email_enabled`, `push_jobs`, `push_applications`, `push_messages`, `push_reminders` boolean columns to `user_preferences` (all default true)                                                                                                                                                                                                                                                          |
 | `00067_career_status_from_event.sql`         | Supplementary trigger `apply_career_status_from_event` writes `permanent_availability`, `notice_period_days`, `currently_employed` from PROFILE.CREATED/UPDATED payloads (columns already existed from 00059)                                                                                                                                                                                               |
 | `00068_location_city.sql`                    | Adds `location_city_id UUID REFERENCES cities(id)` to profiles; supplementary trigger `apply_location_city_from_event` writes location_city_id from PROFILE.CREATED/UPDATED payloads                                                                                                                                                                                                                        |
+
+| `00069_required_languages.sql` | Adds `required_languages text[]` to dayworks, permanent_postings, daywork_templates, permanent_templates; supplementary trigger `apply_required_languages_from_event` writes from DAYWORK.POSTED/PERMANENT.POSTED payloads |
 
 ## Deferred Decisions
 

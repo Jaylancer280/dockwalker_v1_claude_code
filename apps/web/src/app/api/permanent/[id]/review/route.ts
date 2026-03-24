@@ -39,7 +39,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         id, crew_person_id, status, message, created_at, source,
         profiles!applications_crew_person_id_profiles_fkey(
           display_name, bio, avatar_url,
-          primary_role_id, certification_ids, experience_bracket_id,
+          primary_role_id, certification_ids, languages, experience_bracket_id,
           vessel_size_exposure_ids, nationality_id, visa_ids,
           permanent_availability, notice_period_days, currently_employed,
           yacht_roles(name, department),

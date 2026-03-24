@@ -37,8 +37,9 @@ export function PermanentJobFeed() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
 
-  // Crew certs for client-side gate
+  // Crew certs + languages for client-side pill coloring
   const [crewCertIds, setCrewCertIds] = useState<string[]>([]);
+  const [crewLangs, setCrewLangs] = useState<string[]>([]);
 
   // Detail view
   const [selectedPosting, setSelectedPosting] = useState<PermanentPosting | null>(null);
@@ -85,9 +86,14 @@ export function PermanentJobFeed() {
   }, []);
 
   async function loadCrewCerts() {
-    const result = await safeFetch<{ profile?: { certification_ids?: string[] } }>('/api/profile');
+    const result = await safeFetch<{
+      profile?: { certification_ids?: string[]; languages?: string[] };
+    }>('/api/profile');
     if (result.ok && result.data.profile?.certification_ids) {
       setCrewCertIds(result.data.profile.certification_ids);
+    }
+    if (result.ok) {
+      setCrewLangs(result.data.profile?.languages ?? []);
     }
   }
 
@@ -214,6 +220,7 @@ export function PermanentJobFeed() {
         onClose={() => setSelectedPosting(null)}
         onApply={handleApply}
         crewCertIds={crewCertIds}
+        crewLangs={crewLangs}
         applying={applying}
       />
     );
@@ -384,6 +391,7 @@ export function PermanentJobFeed() {
               onApply={handleApply}
               onPosterTap={(pid) => setProfilePersonId(pid)}
               crewCertIds={crewCertIds}
+              crewLangs={crewLangs}
               applying={applying}
             />
           ))}

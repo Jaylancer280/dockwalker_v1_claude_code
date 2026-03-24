@@ -84,7 +84,7 @@ export async function GET(request: Request) {
       yacht_roles(id, name, department),
       ports(id, name, cities(name, regions(name))),
       experience_brackets(label),
-      required_certification_ids
+      required_certification_ids, required_languages
     `,
       )
       .eq('status', 'active')

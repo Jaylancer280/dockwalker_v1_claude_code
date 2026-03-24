@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { ProfileOverlay } from '@/components/profile-overlay';
 import { currencySymbol } from '@/lib/units';
+import { languageLabel } from '@/lib/languages';
 import type { PermanentPosting } from './permanent-job-card';
 import { useState } from 'react';
 
@@ -14,6 +15,7 @@ interface PermanentJobDetailProps {
   onClose: () => void;
   onApply?: (postingId: string) => void;
   crewCertIds?: string[];
+  crewLangs?: string[];
   applying?: boolean;
 }
 
@@ -35,6 +37,7 @@ export function PermanentJobDetail({
   onClose,
   onApply,
   crewCertIds,
+  crewLangs,
   applying,
 }: PermanentJobDetailProps) {
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
@@ -138,6 +141,32 @@ export function PermanentJobDetail({
                       >
                         <Award className="mr-0.5 h-3 w-3" />
                         {name}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {posting.required_languages?.length > 0 && (
+              <div>
+                <h4 className="mb-1 text-sm font-medium text-muted-foreground">Languages</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {posting.required_languages.map((code) => {
+                    const held = crewLangs ? crewLangs.includes(code) : undefined;
+                    return (
+                      <Badge
+                        key={code}
+                        variant="outline"
+                        className={
+                          held === true
+                            ? 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : held === false
+                              ? 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                              : undefined
+                        }
+                      >
+                        {languageLabel(code)}
                       </Badge>
                     );
                   })}

@@ -51,6 +51,7 @@ import { ProfileOverlay } from '@/components/profile-overlay';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { computeTotalExperience } from '@/lib/compute-total-experience';
+import { LANGUAGES, languageLabel } from '@/lib/languages';
 
 interface LookupItem {
   id: string;
@@ -192,6 +193,7 @@ export default function ProfilePage() {
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
   const [nationalityId, setNationalityId] = useState('');
   const [visaIds, setVisaIds] = useState<string[]>([]);
+  const [profileLanguages, setProfileLanguages] = useState<string[]>([]);
   const [deckName, setDeckName] = useState('');
 
   // Lookups
@@ -363,6 +365,7 @@ export default function ProfilePage() {
     setRoleSpecializationIds(profile.role_specialization_ids ?? []);
     setNationalityId(profile.nationality_id ?? '');
     setVisaIds(profile.visa_ids ?? []);
+    setProfileLanguages(profile.languages ?? []);
     setDeckName(profile.deck_name ?? '');
     setEditing(true);
 
@@ -393,6 +396,7 @@ export default function ProfilePage() {
       // vesselSizeExposureIds is auto-derived — not sent in PATCH
       body.nationalityId = nationalityId || null;
       body.visaIds = visaIds;
+      body.languages = profileLanguages;
     } else {
       body.agencyName = agencyName || null;
       body.roleSpecializationIds = roleSpecializationIds;
@@ -951,6 +955,9 @@ export default function ProfilePage() {
                         ? `${profile.certification_ids.length} certs`
                         : null,
                       visaIds.length > 0 ? `${visaIds.length} visas` : null,
+                      profile.languages?.length > 0
+                        ? `${profile.languages.length} languages`
+                        : null,
                     ]
                       .filter(Boolean)
                       .join(' · ') || 'Add your details'}
@@ -1033,6 +1040,26 @@ export default function ProfilePage() {
                     className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
                   >
                     Add visa info — helps employers in regulated ports find qualified crew faster
+                  </button>
+                )}
+                {profile.languages?.length > 0 ? (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Languages</p>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {profile.languages.map((code) => (
+                        <Badge key={code} variant="outline">
+                          {languageLabel(code)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={enterEdit}
+                    className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
+                  >
+                    Add your languages — helps employers find crew who speak their guests&apos;
+                    languages
                   </button>
                 )}
               </div>
@@ -1309,6 +1336,23 @@ export default function ProfilePage() {
                       onCheckedChange={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
                     />
                     {v.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label>Languages</Label>
+              <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+                {LANGUAGES.map((lang) => (
+                  <label key={lang.code} className="flex items-center gap-2 py-1.5 text-sm">
+                    <Checkbox
+                      checked={profileLanguages.includes(lang.code)}
+                      onCheckedChange={() =>
+                        toggleArrayItem(profileLanguages, lang.code, setProfileLanguages)
+                      }
+                    />
+                    {lang.label}
                   </label>
                 ))}
               </div>

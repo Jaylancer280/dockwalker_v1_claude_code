@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { currencySymbol } from '@/lib/units';
+import { languageLabel } from '@/lib/languages';
 
 export interface PermanentPosting {
   id: string;
@@ -33,6 +34,7 @@ export interface PermanentPosting {
   vessel_loa: number | null;
   experience_label: string | null;
   cert_names: string[];
+  required_languages: string[];
   poster_name: string | null;
   poster_person_id: string | null;
 }
@@ -43,6 +45,7 @@ interface PermanentJobCardProps {
   onApply?: (postingId: string) => void;
   onPosterTap?: (personId: string) => void;
   crewCertIds?: string[];
+  crewLangs?: string[];
   applying?: boolean;
 }
 
@@ -72,6 +75,7 @@ export function PermanentJobCard({
   onApply,
   onPosterTap,
   crewCertIds,
+  crewLangs,
   applying,
 }: PermanentJobCardProps) {
   const missingCerts = (() => {
@@ -165,6 +169,24 @@ export function PermanentJobCard({
             >
               <Award className="mr-0.5 h-3 w-3" />
               {name}
+            </Badge>
+          );
+        })}
+        {posting.required_languages?.map((code) => {
+          const held = crewLangs ? crewLangs.includes(code) : undefined;
+          return (
+            <Badge
+              key={code}
+              variant="outline"
+              className={
+                held === true
+                  ? 'border-transparent bg-emerald-100 text-emerald-800 text-xs dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : held === false
+                    ? 'border-transparent bg-amber-100 text-amber-800 text-xs dark:bg-amber-900/30 dark:text-amber-400'
+                    : 'text-xs'
+              }
+            >
+              {languageLabel(code)}
             </Badge>
           );
         })}

@@ -17,7 +17,7 @@ export async function GET() {
       .select(
         `
         id, name, role_id, location_port_id,
-        working_days, required_certification_ids, experience_bracket_id,
+        working_days, required_certification_ids, required_languages, experience_bracket_id,
         day_rate, currency, meals, notes, positions_available, permanent_opportunity, created_at,
         yacht_roles(name),
         ports(name, cities(name, regions(name)))
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
         location_port_id: body.locationPortId || null,
         working_days: body.workingDays || null,
         required_certification_ids: body.requiredCertificationIds || [],
+        required_languages: body.requiredLanguages || [],
         experience_bracket_id: body.experienceBracketId || null,
         day_rate: body.dayRate || null,
         currency: body.currency || 'EUR',

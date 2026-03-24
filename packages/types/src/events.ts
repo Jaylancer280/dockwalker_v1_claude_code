@@ -181,6 +181,7 @@ export interface EventPayloadMap {
     notes: string | null;
     positions_available?: number;
     permanent_opportunity?: boolean;
+    required_languages?: string[];
   };
   'DAYWORK.CANCELLED_BY_EMPLOYER': Record<string, never>;
   'DAYWORK.COMPLETED': { daywork_id: string };
@@ -411,6 +412,7 @@ export interface EventPayloadMap {
     experience_bracket_id: string | null;
     shortlist_cap: number;
     notes: string | null;
+    required_languages?: string[];
   };
   'PERMANENT.APPLIED': {
     id: string;

@@ -29,6 +29,7 @@ import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
+import { LANGUAGES } from '@/lib/languages';
 import { PostingTypeSelector } from './_components/posting-type-selector';
 import { PermanentPostForm } from './_components/permanent-post-form';
 
@@ -48,6 +49,7 @@ interface Template {
   location_port_id: string | null;
   working_days: number | null;
   required_certification_ids: string[];
+  required_languages: string[];
   experience_bracket_id: string | null;
   day_rate: number | null;
   currency: string | null;
@@ -98,6 +100,7 @@ function DayworkPostForm() {
   const [endDate, setEndDate] = useState('');
   const [workingDays, setWorkingDays] = useState('');
   const [requiredCertIds, setRequiredCertIds] = useState<string[]>([]);
+  const [requiredLangs, setRequiredLangs] = useState<string[]>([]);
   const [experienceBracketId, setExperienceBracketId] = useState('');
   const [dayRate, setDayRate] = useState('');
   const [currency, setCurrency] = useState(
@@ -144,6 +147,7 @@ function DayworkPostForm() {
     setLocationPortId(t.location_port_id ?? '');
     setWorkingDays(t.working_days ? String(t.working_days) : '');
     setRequiredCertIds(t.required_certification_ids ?? []);
+    setRequiredLangs(t.required_languages ?? []);
     setExperienceBracketId(t.experience_bracket_id ?? '');
     setDayRate(t.day_rate ? String(t.day_rate) : '');
     setCurrency(t.currency ?? 'EUR');
@@ -183,7 +187,7 @@ function DayworkPostForm() {
         const { data: dw } = await supabase
           .from('dayworks')
           .select(
-            'vessel_id, role_id, location_port_id, working_days, required_certification_ids, experience_bracket_id, day_rate, currency, meals, notes, end_date',
+            'vessel_id, role_id, location_port_id, working_days, required_certification_ids, required_languages, experience_bracket_id, day_rate, currency, meals, notes, end_date',
           )
           .eq('id', fromDayworkId)
           .single();
@@ -194,6 +198,7 @@ function DayworkPostForm() {
           if (dw.working_days) setWorkingDays(String(dw.working_days));
           if (dw.required_certification_ids?.length)
             setRequiredCertIds(dw.required_certification_ids);
+          if (dw.required_languages?.length) setRequiredLangs(dw.required_languages);
           if (dw.experience_bracket_id) setExperienceBracketId(dw.experience_bracket_id);
           if (dw.day_rate) setDayRate(String(dw.day_rate));
           if (dw.currency) setCurrency(dw.currency);
@@ -247,6 +252,7 @@ function DayworkPostForm() {
         locationPortId: locationPortId || null,
         workingDays: workingDays ? parseInt(workingDays, 10) : null,
         requiredCertificationIds: requiredCertIds,
+        requiredLanguages: requiredLangs,
         experienceBracketId: experienceBracketId || null,
         dayRate: dayRate || null,
         currency,
@@ -307,6 +313,7 @@ function DayworkPostForm() {
         endDate,
         workingDays: parseInt(workingDays, 10),
         requiredCertificationIds: requiredCertIds,
+        requiredLanguages: requiredLangs,
         experienceBracketId: experienceBracketId || undefined,
         dayRate,
         currency,
@@ -490,6 +497,28 @@ function DayworkPostForm() {
                   onCheckedChange={() => toggleCert(cert.id)}
                 />
                 {cert.name}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Required languages */}
+        <div className="flex flex-col gap-1.5">
+          <Label>Languages (optional)</Label>
+          <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+            {LANGUAGES.map((lang) => (
+              <label key={lang.code} className="flex items-center gap-2 py-1.5 text-sm">
+                <Checkbox
+                  checked={requiredLangs.includes(lang.code)}
+                  onCheckedChange={() =>
+                    setRequiredLangs((prev) =>
+                      prev.includes(lang.code)
+                        ? prev.filter((c) => c !== lang.code)
+                        : [...prev, lang.code],
+                    )
+                  }
+                />
+                {lang.label}
               </label>
             ))}
           </div>

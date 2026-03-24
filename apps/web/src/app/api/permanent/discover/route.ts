@@ -71,7 +71,7 @@ export async function GET(request: Request) {
         `
         id, job_number, vessel_id, role_id, port_id, start_date,
         salary_min, salary_max, salary_currency, salary_period,
-        live_aboard, required_certification_ids, experience_bracket_id,
+        live_aboard, required_certification_ids, required_languages, experience_bracket_id,
         shortlist_cap, notes, status, created_at, employer_person_id,
         yacht_roles(id, name, department),
         ports(id, name, cities(name, regions(name))),
@@ -197,6 +197,7 @@ export async function GET(request: Request) {
         status: posting.status,
         created_at: posting.created_at,
         required_certification_ids: certIds,
+        required_languages: (posting.required_languages as string[]) ?? [],
         experience_bracket_id: posting.experience_bracket_id,
         role_name: role?.name ?? null,
         role_department: role?.department ?? null,

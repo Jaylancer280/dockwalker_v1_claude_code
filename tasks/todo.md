@@ -11,83 +11,8 @@
 
 ## Queue
 
-> **Execution order:** Top-to-bottom. 150 → 151.
-> **Dependencies:** 150c uses migration 00069. 150a must land before 150b-e (shared constant). 151a must land before 151b-e (agent profiles must exist).
-
-### Stage 150: Languages — profile display + editing + job requirements + matching
-
-Languages are collected during onboarding and stored as `text[]` on profiles, but never returned by APIs, never displayed, never editable, and job postings have no language requirements. This stage fills the full gap.
-
-Currently 20 languages are hardcoded in the onboarding page. Rather than creating a canonical DB lookup table (overkill for 20 static items), extract the language list to a shared constant used by onboarding, profile edit, and post forms.
-
-#### 150a — Shared language constant + profile API wiring
-
-- [ ] Extract the 20-language list (`{ code: string, label: string }[]`) from `onboarding/page.tsx` (lines 92-113) into a shared file: `apps/web/src/lib/languages.ts`. Export as `LANGUAGES` constant
-- [ ] Update onboarding page to import from shared constant instead of inline definition
-- [ ] Update `GET /api/profile`: add `languages` to the select statement
-- [ ] Update `PATCH /api/profile`: accept `languages` field (string array), validate each code is in the `LANGUAGES` list, map to `languages` in the PROFILE.UPDATED event payload
-- [ ] Update `GET /api/profile/[personId]` (view-only): add `languages` to the select statement for crew profiles
-- [ ] Update `apply_projection` PROFILE.UPDATED handler: it should already handle `languages` via `coalesce` — verify, and fix if not
-
-#### 150b — Profile page: display + edit languages
-
-- [ ] **View mode (About section):** add "Languages" row below Visas. Display as pills (same style as cert/visa pills). Use the shared `LANGUAGES` constant to resolve codes to labels (e.g., `'en'` → "English"). If empty, show prompt: "Add your languages — helps employers find crew who speak their guests' languages"
-- [ ] **Edit mode:** add multi-select checkbox list for languages (same pattern as certifications and visas — scrollable checkbox panel). Use shared `LANGUAGES` constant for options
-- [ ] **Collapsed About section preview:** include language count in preview text: `""Seun" · 3 certs · 2 visas · 3 languages"` or similar
-- [ ] **Profile overlay:** show language pills in the crew info section
-
-#### 150c — Job posting language requirements (optional field)
-
-Language requirements on job postings are **advisory/informational** (same as daywork certs — soft gate, not hard blocker). They help crew self-select and help employers filter.
-
-**Schema:**
-
-- [ ] Migration 00069: add `required_languages text[] not null default '{}'` to `dayworks` table
-- [ ] Same migration: add `required_languages text[] not null default '{}'` to `permanent_postings` table
-- [ ] Same migration: add `required_languages text[] not null default '{}'` to `daywork_templates` and `permanent_templates` tables
-- [ ] Rollback 00069: drop all 4 columns
-- [ ] Update `apply_projection` for `DAYWORK.POSTED` and `PERMANENT.POSTED`: write `required_languages` from payload
-- [ ] Update `EventPayloadMap` for `DAYWORK.POSTED` and `PERMANENT.POSTED`: add optional `required_languages?: string[]`
-
-**Post forms:**
-
-- [ ] Daywork post form: add "Languages (optional)" multi-select below certifications. Use shared `LANGUAGES` constant. Checkbox panel, same style as certs
-- [ ] Permanent post form: same
-- [ ] Template save/load: include `required_languages` in template data
-- [ ] POST /api/daywork: accept `requiredLanguages` (string array), validate codes against `LANGUAGES` list
-- [ ] POST /api/permanent: same
-
-#### 150d — Language display on job cards + matching colors
-
-Same green/amber pill pattern as certifications. Crew's declared languages vs job's required languages.
-
-- [ ] **Daywork discover API:** include `required_languages` in response (already a text array — no name resolution needed, just pass through)
-- [ ] **Permanent discover API:** same
-- [ ] **Daywork cards:** show language pills below cert pills. Green if crew speaks it, amber if crew doesn't. Use same coloring pattern as Fix-8 cert pills. If no required languages, show nothing
-- [ ] **Permanent cards:** same green/amber treatment
-- [ ] **Permanent detail view:** same
-- [ ] **Application cards:** show required languages if available in API response
-- [ ] Languages are **NOT a hard gate** — do not disable Apply button for missing languages on either daywork or permanent. Advisory only
-
-#### 150e — Employer review: show crew languages
-
-- [ ] Daywork applicants API: include `languages` in the profile select for applicant data
-- [ ] Permanent review API: same
-- [ ] Applicant cards (daywork review page): show crew's language pills below certs
-- [ ] Permanent review cards: same
-- [ ] Available crew cards (daywork invite tab): show language pills
-
-#### Verification
-
-- [ ] Profile page: languages display as pills in About section, editable in edit mode
-- [ ] Profile overlay: shows language pills
-- [ ] Daywork post form: languages optional multiselect works, saves to posting
-- [ ] Permanent post form: same
-- [ ] Discover cards: language pills with green/amber coloring based on crew's declared languages
-- [ ] Employer review: crew languages visible on applicant cards
-- [ ] Templates: language requirements save and load correctly
-- [ ] Onboarding: still works (imports from shared constant)
-- [ ] All tests pass, db reset clean
+> **Execution order:** Top-to-bottom. 151.
+> **Dependencies:** 151a must land before 151b-e (agent profiles must exist).
 
 ### Stage 151: Agent identity — onboarding, profile, market feed, activity log
 

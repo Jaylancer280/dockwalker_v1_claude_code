@@ -43,6 +43,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         display_name, avatar_url, deck_name,
         primary_role_id,
         certification_ids,
+        languages,
         experience_bracket_id,
         vessel_size_exposure_ids,
         bio,

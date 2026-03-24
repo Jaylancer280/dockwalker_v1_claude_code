@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
 import { currencySymbol, type CurrencyCode } from '@/lib/units';
 import { safeFetch } from '@/lib/safe-fetch';
+import { LANGUAGES } from '@/lib/languages';
 import { createClient } from '@/lib/supabase/client';
 
 interface LookupItem {
@@ -42,6 +43,7 @@ interface PermanentTemplate {
   salary_period: string | null;
   live_aboard: boolean;
   required_certification_ids: string[];
+  required_languages: string[];
   experience_bracket_id: string | null;
   shortlist_cap: number | null;
   notes: string | null;
@@ -69,6 +71,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   const [salaryPeriod, setSalaryPeriod] = useState('monthly');
   const [liveAboard, setLiveAboard] = useState(false);
   const [certificationIds, setCertificationIds] = useState<string[]>([]);
+  const [requiredLangs, setRequiredLangs] = useState<string[]>([]);
   const [experienceBracketId, setExperienceBracketId] = useState('');
   const [shortlistCap, setShortlistCap] = useState('5');
   const [notes, setNotes] = useState('');
@@ -119,6 +122,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
             if (match.salary_period) setSalaryPeriod(match.salary_period);
             setLiveAboard(match.live_aboard);
             setCertificationIds(match.required_certification_ids ?? []);
+            setRequiredLangs(match.required_languages ?? []);
             if (match.experience_bracket_id) setExperienceBracketId(match.experience_bracket_id);
             if (match.shortlist_cap) setShortlistCap(String(match.shortlist_cap));
             if (match.notes) setNotes(match.notes);
@@ -143,6 +147,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     if (t.salary_period) setSalaryPeriod(t.salary_period);
     setLiveAboard(t.live_aboard);
     setCertificationIds(t.required_certification_ids ?? []);
+    setRequiredLangs(t.required_languages ?? []);
     if (t.experience_bracket_id) setExperienceBracketId(t.experience_bracket_id);
     if (t.shortlist_cap) setShortlistCap(String(t.shortlist_cap));
     setNotes(t.notes ?? '');
@@ -183,6 +188,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         salaryPeriod,
         liveAboard,
         requiredCertificationIds: certificationIds,
+        requiredLanguages: requiredLangs,
         experienceBracketId: experienceBracketId || null,
         shortlistCap: parseInt(shortlistCap, 10) || 5,
         notes: notes || null,
@@ -214,6 +220,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           salaryPeriod,
           liveAboard,
           requiredCertificationIds: certificationIds,
+          requiredLanguages: requiredLangs,
           experienceBracketId: experienceBracketId || null,
           shortlistCap: parseInt(shortlistCap, 10) || 5,
           notes: notes || null,
@@ -395,6 +402,33 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
                 }
               >
                 {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Languages */}
+        <div>
+          <Label>Languages (optional)</Label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {LANGUAGES.map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                className={`rounded-full px-3 py-1 text-xs ${
+                  requiredLangs.includes(lang.code)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-foreground'
+                }`}
+                onClick={() =>
+                  setRequiredLangs((prev) =>
+                    prev.includes(lang.code)
+                      ? prev.filter((c) => c !== lang.code)
+                      : [...prev, lang.code],
+                  )
+                }
+              >
+                {lang.label}
               </button>
             ))}
           </div>

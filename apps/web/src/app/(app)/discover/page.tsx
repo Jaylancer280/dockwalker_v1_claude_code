@@ -47,6 +47,7 @@ import { LocationPicker } from '@/components/location-picker';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
+import { languageLabel } from '@/lib/languages';
 import { usePreferences } from '@/hooks/use-preferences';
 import { NotificationBell } from '@/components/notification-bell';
 import { PushPrompt } from '@/components/push-prompt';
@@ -80,6 +81,7 @@ interface DayworkCard {
   } | null;
   experience_brackets: { label: string } | null;
   required_certification_ids: string[] | null;
+  required_languages: string[];
   cert_names: string[];
   poster_person_id: string;
   poster_name: string | null;
@@ -228,6 +230,9 @@ export default function DiscoverPage() {
   // Crew certs for cert pill coloring
   const [crewCertIds, setCrewCertIds] = useState<string[] | null>(null);
 
+  // Crew languages for language pill coloring
+  const [crewLangs, setCrewLangs] = useState<string[] | null>(null);
+
   // Profile readiness for nudge card
   const [profileIncomplete, setProfileIncomplete] = useState(false);
 
@@ -258,6 +263,7 @@ export default function DiscoverPage() {
       profile?: {
         display_name?: string;
         certification_ids?: string[];
+        languages?: string[];
         nationality_id?: string | null;
         primary_role_id?: string | null;
       };
@@ -267,6 +273,9 @@ export default function DiscoverPage() {
       setCrewCertIds(result.data.profile.certification_ids);
     } else if (result.ok) {
       setCrewCertIds([]);
+    }
+    if (result.ok) {
+      setCrewLangs(result.data.profile?.languages ?? []);
     }
     // Profile readiness: check if key fields are missing
     if (result.ok && result.data.profile) {
@@ -969,6 +978,7 @@ export default function DiscoverPage() {
                           lengthUnit={prefs.lengthUnit}
                           onViewProfile={setViewProfileId}
                           crewCertIds={crewCertIds}
+                          crewLangs={crewLangs}
                         />
                       </div>
                     )}
@@ -995,6 +1005,7 @@ export default function DiscoverPage() {
                         lengthUnit={prefs.lengthUnit}
                         onViewProfile={setViewProfileId}
                         crewCertIds={crewCertIds}
+                        crewLangs={crewLangs}
                       />
                     )}
                   </div>
@@ -1192,6 +1203,7 @@ const SwipeableCard = forwardRef<
     lengthUnit?: 'm' | 'ft';
     onViewProfile?: (personId: string) => void;
     crewCertIds: string[] | null;
+    crewLangs: string[] | null;
   }
 >(function SwipeableCard(
   {
@@ -1206,6 +1218,7 @@ const SwipeableCard = forwardRef<
     lengthUnit = 'm',
     onViewProfile,
     crewCertIds,
+    crewLangs,
   },
   ref,
 ) {
@@ -1273,6 +1286,7 @@ const SwipeableCard = forwardRef<
         onViewProfile={onViewProfile}
         lengthUnit={lengthUnit}
         crewCertIds={crewCertIds}
+        crewLangs={crewLangs}
       />
     </motion.div>
   );
@@ -1285,6 +1299,7 @@ function JobCard({
   onViewProfile,
   lengthUnit = 'm',
   crewCertIds,
+  crewLangs,
 }: {
   card: DayworkCard;
   isPreview?: boolean;
@@ -1292,6 +1307,7 @@ function JobCard({
   onViewProfile?: (personId: string) => void;
   lengthUnit?: 'm' | 'ft';
   crewCertIds?: string[] | null;
+  crewLangs?: string[] | null;
 }) {
   return (
     <div
@@ -1407,6 +1423,28 @@ function JobCard({
                     }`}
                   >
                     {certName}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {card.required_languages && card.required_languages.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {card.required_languages.map((code) => {
+                const held = crewLangs != null && crewLangs.includes(code);
+                const missing = crewLangs != null && !crewLangs.includes(code);
+                return (
+                  <span
+                    key={code}
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                      held
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : missing
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                          : 'border border-muted-foreground/30 text-muted-foreground'
+                    }`}
+                  >
+                    {languageLabel(code)}
                   </span>
                 );
               })}

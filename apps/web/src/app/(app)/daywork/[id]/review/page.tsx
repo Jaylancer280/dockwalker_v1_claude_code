@@ -60,6 +60,7 @@ interface ApplicantProfile {
     cities: { name: string; regions: { name: string } };
   } | null;
   certification_ids: string[];
+  languages: string[];
   vessel_size_exposure_ids: string[];
   nationalities: { name: string; flag_emoji: string } | null;
 }
@@ -84,6 +85,7 @@ interface AvailableCrew {
   avatar_url: string | null;
   primary_role_id: string;
   certification_ids: string[];
+  languages: string[];
   experience_bracket_id: string;
   vessel_size_exposure_ids: string[];
   bio: string | null;
@@ -1041,6 +1043,12 @@ function AvailableCrewCard({
               {crew.vessel_size_exposure_ids.length !== 1 ? 's' : ''}
             </Badge>
           )}
+          {(crew.languages?.length ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {crew.languages.length} language
+              {crew.languages.length !== 1 ? 's' : ''}
+            </Badge>
+          )}
         </div>
 
         {/* Bio */}
@@ -1173,6 +1181,12 @@ function ApplicantCard({
             <Badge variant="secondary" className="text-xs">
               {profile!.vessel_size_exposure_ids.length} vessel size
               {profile!.vessel_size_exposure_ids.length !== 1 ? 's' : ''}
+            </Badge>
+          )}
+          {(profile?.languages?.length ?? 0) > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {profile!.languages.length} language
+              {profile!.languages.length !== 1 ? 's' : ''}
             </Badge>
           )}
         </div>

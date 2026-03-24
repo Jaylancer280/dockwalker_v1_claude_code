@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import type { EventPayloadMap } from '@dockwalker/types';
 import { appendEvent } from '@dockwalker/db';
+import { LANGUAGE_CODES } from '@/lib/languages';
 
 /**
  * GET /api/profile
@@ -69,6 +70,16 @@ export async function PATCH(request: Request) {
   if (body.locationCityId !== undefined) payload.location_city_id = body.locationCityId;
   if (body.nationalityId !== undefined) payload.nationality_id = body.nationalityId;
   if (body.visaIds !== undefined) payload.visa_ids = body.visaIds;
+  if (body.languages !== undefined) {
+    if (
+      Array.isArray(body.languages) &&
+      body.languages.every((c: unknown) => typeof c === 'string' && LANGUAGE_CODES.has(c))
+    ) {
+      payload.languages = body.languages;
+    } else {
+      return NextResponse.json({ error: 'Invalid language codes' }, { status: 400 });
+    }
+  }
   if (body.desiredRoleId !== undefined) payload.desired_role_id = body.desiredRoleId;
   if (body.permanentAvailability !== undefined) {
     if (

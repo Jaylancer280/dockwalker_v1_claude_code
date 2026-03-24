@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { languageLabel } from '@/lib/languages';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
@@ -238,6 +239,19 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
             {profile.visas.map((v) => (
               <span key={v.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">
                 {v.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {profile.languages.length > 0 && (
+        <div>
+          <p className="mb-1 text-xs text-muted-foreground">Languages</p>
+          <div className="flex flex-wrap gap-1">
+            {profile.languages.map((code) => (
+              <span key={code} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                {languageLabel(code)}
               </span>
             ))}
           </div>

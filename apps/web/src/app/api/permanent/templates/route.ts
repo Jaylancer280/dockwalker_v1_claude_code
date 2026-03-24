@@ -18,7 +18,7 @@ export async function GET() {
         `
         id, template_name, vessel_id, role_id, port_id,
         start_date, salary_min, salary_max, salary_currency, salary_period,
-        live_aboard, required_certification_ids, experience_bracket_id,
+        live_aboard, required_certification_ids, required_languages, experience_bracket_id,
         shortlist_cap, notes, created_at,
         yacht_roles(name),
         ports(name, cities(name, regions(name)))
@@ -90,6 +90,7 @@ export async function POST(request: Request) {
         salary_period: body.salaryPeriod || 'monthly',
         live_aboard: body.liveAboard === true,
         required_certification_ids: body.requiredCertificationIds || [],
+        required_languages: body.requiredLanguages || [],
         experience_bracket_id: body.experienceBracketId || null,
         shortlist_cap: body.shortlistCap || 5,
         notes: body.notes || null,
