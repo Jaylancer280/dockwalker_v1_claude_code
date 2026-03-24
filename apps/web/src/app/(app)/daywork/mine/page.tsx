@@ -5,15 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
-  Briefcase,
   Calendar,
   MapPin,
   DollarSign,
   Users,
-  CheckCircle,
-  Trash2,
-  Play,
-  Loader2,
   SlidersHorizontal,
   MessageSquare,
   Eye,
@@ -21,16 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -47,40 +33,12 @@ import { usePreferences } from '@/hooks/use-preferences';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
 import { PermanentMineSection } from './_components/permanent-mine-section';
-
-interface DayworkPosting {
-  id: string;
-  job_number: number;
-  role_context: string;
-  start_date: string;
-  end_date: string;
-  working_days: number;
-  day_rate: number;
-  currency: string;
-  meals: string[];
-  notes: string | null;
-  positions_available: number;
-  positions_filled: number;
-  permanent_opportunity: boolean;
-  status: string;
-  created_at: string;
-  yacht_roles: { name: string } | null;
-  ports: { name: string; cities: { name: string; regions: { name: string } } } | null;
-  vessels: { name: string; nda_flag: boolean; vessel_size_bands: { label: string } | null } | null;
-  experience_brackets: { label: string } | null;
-}
-
-interface Template {
-  id: string;
-  name: string;
-  yacht_roles: { name: string } | null;
-  ports: { name: string; cities: { name: string; regions: { name: string } } } | null;
-  vessels: { name: string } | null;
-  day_rate: number | null;
-  currency: string | null;
-  working_days: number | null;
-  created_at: string;
-}
+import { DayworkActiveSection } from './_components/daywork-active-section';
+import { DayworkInProgressSection } from './_components/daywork-in-progress-section';
+import { DayworkCompletedSection } from './_components/daywork-completed-section';
+import { DayworkTemplatesSection } from './_components/daywork-templates-section';
+import { EditPositionsDialog } from './_components/edit-positions-dialog';
+import type { DayworkPosting, Template } from './_components/daywork-types';
 
 export default function MyPostingsPage() {
   const router = useRouter();
@@ -582,161 +540,48 @@ export default function MyPostingsPage() {
               </TabsList>
 
               <TabsContent value="active" className="flex flex-col gap-3 pt-2">
-                {loading && (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-                {!loading && activePostings.length === 0 && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-5 w-5 text-muted-foreground" />
-                        <CardTitle className="text-base">No active postings</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Post your first daywork to start finding crew.
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                )}
-                {activePostings.map((p) => renderPostingCard(p, true))}
+                <DayworkActiveSection
+                  loading={loading}
+                  postings={activePostings}
+                  renderPostingCard={renderPostingCard}
+                />
               </TabsContent>
 
               <TabsContent value="in_progress" className="flex flex-col gap-3 pt-2">
-                {loading && (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-                {!loading && inProgressPostings.length === 0 && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Play className="h-5 w-5 text-muted-foreground" />
-                        <CardTitle className="text-base">No in-progress jobs</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Jobs move here after you accept an applicant.
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                )}
-                {inProgressPostings.map((p) => renderPostingCard(p, true))}
+                <DayworkInProgressSection
+                  loading={loading}
+                  postings={inProgressPostings}
+                  renderPostingCard={renderPostingCard}
+                />
               </TabsContent>
 
               <TabsContent value="completed" className="flex flex-col gap-3 pt-2">
-                {loading && (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-                {!loading && completedPostings.length === 0 && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5 text-muted-foreground" />
-                        <CardTitle className="text-base">No completed postings</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Completed and cancelled postings will appear here.
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                )}
-                {completedPostings.map((p) => renderPostingCard(p, false))}
+                <DayworkCompletedSection
+                  loading={loading}
+                  postings={completedPostings}
+                  renderPostingCard={renderPostingCard}
+                />
               </TabsContent>
 
               <TabsContent value="templates" className="flex flex-col gap-3 pt-2">
-                {loading && (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                )}
-                {!loading && templates.length === 0 && (
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="h-5 w-5 text-muted-foreground" />
-                        <CardTitle className="text-base">No templates</CardTitle>
-                      </div>
-                      <CardDescription>
-                        Save a template from the post form to reuse common configurations.
-                      </CardDescription>
-                    </CardHeader>
-                  </Card>
-                )}
-                {templates.map((t) => (
-                  <Card key={t.id}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{t.name}</CardTitle>
-                      <CardDescription>
-                        {[
-                          t.yacht_roles?.name,
-                          t.ports?.name,
-                          t.vessels?.name,
-                          t.day_rate
-                            ? `${currencySymbol(t.currency ?? 'EUR')}${t.day_rate}/day`
-                            : null,
-                          t.working_days ? `${t.working_days}d` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => router.push(`/daywork/post?templateId=${t.id}`)}
-                        >
-                          <Play className="mr-1 h-3.5 w-3.5" />
-                          Use
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteTemplate(t.id)}
-                          disabled={deletingTemplate === t.id}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="mr-1 h-3.5 w-3.5" />
-                          {deletingTemplate === t.id ? 'Deleting...' : 'Delete'}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                <DayworkTemplatesSection
+                  loading={loading}
+                  templates={templates}
+                  deletingTemplate={deletingTemplate}
+                  onDeleteTemplate={handleDeleteTemplate}
+                />
               </TabsContent>
             </Tabs>
           </div>
-          <Dialog open={!!editPositions} onOpenChange={() => setEditPositions(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit crew count</DialogTitle>
-                <DialogDescription>
-                  {editPositions && editPositions.filled > 0
-                    ? `${editPositions.filled} position${editPositions.filled !== 1 ? 's' : ''} already filled. Minimum is ${editPositions.filled}.`
-                    : 'How many crew do you need for this job?'}
-                </DialogDescription>
-              </DialogHeader>
-              <Input
-                type="number"
-                min={editPositions?.filled ?? 1}
-                max={20}
-                value={editPositionsValue}
-                onChange={(e) => setEditPositionsValue(e.target.value)}
-              />
-              <DialogFooter className="flex gap-2 sm:gap-0">
-                <Button variant="outline" onClick={() => setEditPositions(null)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleSavePositions} disabled={savingPositions}>
-                  {savingPositions ? 'Saving...' : 'Save'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+
+          <EditPositionsDialog
+            editPositions={editPositions}
+            editPositionsValue={editPositionsValue}
+            setEditPositionsValue={setEditPositionsValue}
+            savingPositions={savingPositions}
+            onSave={handleSavePositions}
+            onClose={() => setEditPositions(null)}
+          />
         </>
       )}
     </main>

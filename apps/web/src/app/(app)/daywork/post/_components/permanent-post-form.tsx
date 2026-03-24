@@ -14,15 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { VesselSelector } from '@/components/vessels/vessel-selector';
-import { LocationPicker } from '@/components/location-picker';
-import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
 import { currencySymbol, type CurrencyCode } from '@/lib/units';
 import { safeFetch } from '@/lib/safe-fetch';
-import { LANGUAGES } from '@/lib/languages';
 import { createClient } from '@/lib/supabase/client';
+import {
+  RoleLocationSection,
+  SalarySection,
+  RequirementsSection,
+  ContractTermsSection,
+} from './permanent-form-sections';
 
 interface LookupItem {
   id: string;
@@ -264,223 +266,50 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
       )}
 
       <div className="space-y-6">
-        {/* Vessel */}
-        <div>
-          <Label>Vessel</Label>
-          <VesselSelector
-            value={vesselId}
-            onValueChange={setVesselId}
-            onRequestCreate={() => router.push('/vessels')}
-          />
-        </div>
+        <RoleLocationSection
+          vesselId={vesselId}
+          setVesselId={setVesselId}
+          roleId={roleId}
+          setRoleId={setRoleId}
+          roles={roles}
+          locationPortId={locationPortId}
+          setLocationPortId={setLocationPortId}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          onRequestCreateVessel={() => router.push('/vessels')}
+        />
 
-        {/* Role */}
-        <div>
-          <Label className="flex items-center gap-2">
-            Role
-            {roleId && roles.find((r) => r.id === roleId)?.name && (
-              <EpauletteBadge roleName={roles.find((r) => r.id === roleId)!.name} size="sm" />
-            )}
-          </Label>
-          <Select value={roleId} onValueChange={setRoleId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select role..." />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <SalarySection
+          salaryMin={salaryMin}
+          setSalaryMin={setSalaryMin}
+          salaryMax={salaryMax}
+          setSalaryMax={setSalaryMax}
+          salaryCurrency={salaryCurrency}
+          setSalaryCurrency={setSalaryCurrency}
+          salaryPeriod={salaryPeriod}
+          setSalaryPeriod={setSalaryPeriod}
+          salaryPreview={salaryPreview}
+        />
 
-        {/* Location */}
-        <div>
-          <Label>Location (port/marina)</Label>
-          <LocationPicker
-            mode="port-required"
-            value={locationPortId ? { portId: locationPortId } : null}
-            onValueChange={(v) => setLocationPortId(v.portId ?? '')}
-          />
-        </div>
+        <ContractTermsSection
+          liveAboard={liveAboard}
+          setLiveAboard={setLiveAboard}
+          shortlistCap={shortlistCap}
+          setShortlistCap={setShortlistCap}
+          notes={notes}
+          setNotes={setNotes}
+        />
 
-        {/* Start date */}
-        <div>
-          <Label>Start date</Label>
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Past dates are allowed — they display as &quot;ASAP&quot; on cards.
-          </p>
-        </div>
-
-        {/* Salary */}
-        <div>
-          <Label>Salary range</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              placeholder="Min"
-              value={salaryMin}
-              onChange={(e) => setSalaryMin(e.target.value)}
-              className="w-28"
-            />
-            <span className="text-muted-foreground">-</span>
-            <Input
-              type="number"
-              placeholder="Max"
-              value={salaryMax}
-              onChange={(e) => setSalaryMax(e.target.value)}
-              className="w-28"
-            />
-            <Select
-              value={salaryCurrency}
-              onValueChange={(v) => setSalaryCurrency(v as CurrencyCode)}
-            >
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="EUR">EUR</SelectItem>
-                <SelectItem value="USD">USD</SelectItem>
-                <SelectItem value="GBP">GBP</SelectItem>
-                <SelectItem value="AED">AED</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1 text-sm ${salaryPeriod === 'monthly' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
-              onClick={() => setSalaryPeriod('monthly')}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              className={`rounded-full px-3 py-1 text-sm ${salaryPeriod === 'annual' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
-              onClick={() => setSalaryPeriod('annual')}
-            >
-              Annual
-            </button>
-          </div>
-          {salaryPreview && (
-            <p className="mt-1 text-sm font-medium text-primary">{salaryPreview}</p>
-          )}
-        </div>
-
-        {/* Live aboard */}
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="liveAboard"
-            checked={liveAboard}
-            onCheckedChange={(v) => setLiveAboard(v === true)}
-          />
-          <Label htmlFor="liveAboard" className="cursor-pointer">
-            Live aboard included
-          </Label>
-        </div>
-
-        {/* Certifications */}
-        <div>
-          <Label>Required certifications</Label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {certifications.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`rounded-full px-3 py-1 text-xs ${
-                  certificationIds.includes(c.id)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}
-                onClick={() =>
-                  setCertificationIds((prev) =>
-                    prev.includes(c.id) ? prev.filter((id) => id !== c.id) : [...prev, c.id],
-                  )
-                }
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Languages */}
-        <div>
-          <Label>Languages (optional)</Label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {LANGUAGES.map((lang) => (
-              <button
-                key={lang.code}
-                type="button"
-                className={`rounded-full px-3 py-1 text-xs ${
-                  requiredLangs.includes(lang.code)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
-                }`}
-                onClick={() =>
-                  setRequiredLangs((prev) =>
-                    prev.includes(lang.code)
-                      ? prev.filter((c) => c !== lang.code)
-                      : [...prev, lang.code],
-                  )
-                }
-              >
-                {lang.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Experience bracket */}
-        <div>
-          <Label>Minimum experience (optional)</Label>
-          <Select value={experienceBracketId} onValueChange={setExperienceBracketId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Any experience level" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">Any</SelectItem>
-              {experienceBrackets.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Shortlist cap */}
-        <div>
-          <Label>Shortlist cap</Label>
-          <Input
-            type="number"
-            min={1}
-            max={20}
-            value={shortlistCap}
-            onChange={(e) => setShortlistCap(e.target.value)}
-            className="w-24"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Maximum candidates on your shortlist (1-20).
-          </p>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <Label>Notes (optional)</Label>
-          <textarea
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-            rows={3}
-            maxLength={500}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Job description, requirements, benefits..."
-          />
-          <p className="text-right text-xs text-muted-foreground">{notes.length}/500</p>
-        </div>
+        <RequirementsSection
+          certifications={certifications}
+          certificationIds={certificationIds}
+          setCertificationIds={setCertificationIds}
+          requiredLangs={requiredLangs}
+          setRequiredLangs={setRequiredLangs}
+          experienceBrackets={experienceBrackets}
+          experienceBracketId={experienceBracketId}
+          setExperienceBracketId={setExperienceBracketId}
+        />
 
         {/* Save as template */}
         <div className="space-y-2 rounded-lg border p-3">

@@ -12,6 +12,8 @@
 > - Font loading: `next/font/local` (already used for Geist). Not `next/font/google`.
 > - Image assets: `assets/` directory has branding, onboarding heroes, crew/vessel/role photography. Wire into relevant pages.
 > - Tests: update any component tests broken by structural changes.
+>
+> **Pre-reskin rule:** Before any visual reskin stage begins, all pages being reskinned must be decomposed into focused sub-components (≤ 300 lines, ≤ 10 useState per component). Reskinning monolith pages (500+ lines, 20+ useState) is high-risk — structural changes get tangled with visual changes, making both harder to review and debug. Decompose first (Stage UI-0), then reskin.
 
 ---
 

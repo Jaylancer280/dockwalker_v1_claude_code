@@ -3,23 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RolePicker } from '@/components/role-picker';
-import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2 } from 'lucide-react';
+import { ExperienceDetailsSection } from '../../_components/experience-details-section';
+import { PrivateIntelligenceSection } from '../../_components/private-intelligence-section';
 
 interface RoleItem {
   id: string;
@@ -31,15 +20,6 @@ interface FlagState {
   id: string;
   name: string;
 }
-
-const CONTRACT_TYPES = [
-  { value: 'permanent', label: 'Permanent' },
-  { value: 'rotational', label: 'Rotational' },
-  { value: 'seasonal', label: 'Seasonal' },
-  { value: 'crossing', label: 'Crossing' },
-  { value: 'delivery', label: 'Delivery' },
-  { value: 'temporary', label: 'Temporary' },
-];
 
 export default function EditExperiencePage() {
   const router = useRouter();
@@ -202,279 +182,43 @@ export default function EditExperiencePage() {
           </p>
         </div>
 
-        {/* Role */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Role held</Label>
-          <RolePicker roles={roles} value={roleId} onValueChange={setRoleId} />
-        </div>
+        <ExperienceDetailsSection
+          roles={roles}
+          roleId={roleId}
+          setRoleId={setRoleId}
+          expVesselOperation={expVesselOperation}
+          setExpVesselOperation={setExpVesselOperation}
+          flagStates={flagStates}
+          flagState={flagState}
+          setFlagState={setFlagState}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          isCurrent={isCurrent}
+          setIsCurrent={setIsCurrent}
+          isAgent={isAgent}
+          contractType={contractType}
+          setContractType={setContractType}
+          contractDetails={contractDetails}
+          setContractDetails={setContractDetails}
+          description={description}
+          setDescription={setDescription}
+        />
 
-        {/* Vessel operation during tenure */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Vessel operation (during your time)</Label>
-          <Select
-            value={expVesselOperation}
-            onValueChange={(v) => setExpVesselOperation(v as 'charter' | 'private')}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="charter">Charter</SelectItem>
-              <SelectItem value="private">Private</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Flag state */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Flag state</Label>
-          <FlagStatePicker flagStates={flagStates} value={flagState} onValueChange={setFlagState} />
-        </div>
-
-        {/* Dates */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Start date</Label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>End date</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              disabled={isCurrent}
-              min={startDate || undefined}
-            />
-          </div>
-        </div>
-        {!isAgent && (
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={isCurrent}
-              onCheckedChange={(checked) => {
-                setIsCurrent(checked === true);
-                if (checked) setEndDate('');
-              }}
-            />
-            Currently onboard
-          </label>
-        )}
-
-        {/* Contract type */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Contract type</Label>
-          <Select value={contractType} onValueChange={setContractType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select contract type" />
-            </SelectTrigger>
-            <SelectContent>
-              {CONTRACT_TYPES.map((ct) => (
-                <SelectItem key={ct.value} value={ct.value}>
-                  {ct.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {contractType === 'rotational' && (
-          <div className="flex flex-col gap-2">
-            <Label>Rotation pattern</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {['2:2', '3:3', '3:1', '4:2', '5:1', '6:2', '10:10'].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => {
-                    const unit = contractDetails.includes('weeks') ? 'weeks' : 'months';
-                    setContractDetails(`${p} ${unit}`);
-                  }}
-                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                    contractDetails.startsWith(p + ' ')
-                      ? 'border-primary bg-primary/10 font-medium'
-                      : 'border-border hover:bg-accent'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={1}
-                max={12}
-                placeholder="On"
-                value={(() => {
-                  const m = contractDetails.match(/^(\d+):/);
-                  return m?.[1] ?? '';
-                })()}
-                onChange={(e) => {
-                  const off = contractDetails.match(/:(\d+)/)?.[1] ?? '';
-                  const unit = contractDetails.includes('weeks') ? 'weeks' : 'months';
-                  setContractDetails(`${e.target.value}:${off} ${unit}`);
-                }}
-                className="w-16"
-              />
-              <span className="text-sm font-medium">:</span>
-              <Input
-                type="number"
-                min={1}
-                max={12}
-                placeholder="Off"
-                value={(() => {
-                  const m = contractDetails.match(/:(\d+)/);
-                  return m?.[1] ?? '';
-                })()}
-                onChange={(e) => {
-                  const on = contractDetails.match(/^(\d+):/)?.[1] ?? '';
-                  const unit = contractDetails.includes('weeks') ? 'weeks' : 'months';
-                  setContractDetails(`${on}:${e.target.value} ${unit}`);
-                }}
-                className="w-16"
-              />
-              <Select
-                value={contractDetails.includes('weeks') ? 'weeks' : 'months'}
-                onValueChange={(v) => {
-                  const ratio = contractDetails.match(/^(\d+:\d+)/)?.[1] ?? '';
-                  setContractDetails(ratio ? `${ratio} ${v}` : v);
-                }}
-              >
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="months">months</SelectItem>
-                  <SelectItem value="weeks">weeks</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-
-        {contractType === 'permanent' && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Days leave per year</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={365}
-                placeholder="28"
-                value={(() => {
-                  const m = contractDetails.match(/^(\d+)/);
-                  return m?.[1] ?? '';
-                })()}
-                onChange={(e) =>
-                  setContractDetails(e.target.value ? `${e.target.value} days leave/year` : '')
-                }
-                className="w-24"
-              />
-              <span className="text-sm text-muted-foreground">days/year</span>
-            </div>
-          </div>
-        )}
-
-        {contractType === 'seasonal' && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Season period</Label>
-            <Input
-              placeholder="e.g. March — October"
-              value={contractDetails}
-              onChange={(e) => setContractDetails(e.target.value)}
-              maxLength={100}
-            />
-          </div>
-        )}
-
-        {/* Description */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Description (optional)</Label>
-          <Textarea
-            placeholder="Brief description of your role and responsibilities"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={250}
-            rows={3}
-          />
-        </div>
-
-        {/* Private intelligence */}
-        <div className="border-t border-border pt-4">
-          <h3 className="text-sm font-semibold">Private intelligence (optional)</h3>
-          <p className="mb-3 text-xs text-muted-foreground">
-            This data is never shown to anyone. It enhances Docky&apos;s career advice accuracy for
-            you. Previously entered data is stored securely and cannot be retrieved.
-          </p>
-
-          <div className="mb-3 flex flex-col gap-1.5">
-            <Label>Salary</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder="Amount"
-                value={salaryAmount}
-                onChange={(e) => setSalaryAmount(e.target.value)}
-                min={0}
-                className="flex-1"
-              />
-              <Select value={salaryCurrency} onValueChange={(v) => setSalaryCurrency(v)}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="AED">AED</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={salaryPeriod}
-                onValueChange={(v) => setSalaryPeriod(v as 'daily' | 'monthly' | 'annually')}
-              >
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">per day</SelectItem>
-                  <SelectItem value="monthly">per month</SelectItem>
-                  <SelectItem value="annually">per year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Verified sea time</Label>
-            <p className="text-[11px] text-muted-foreground">
-              Engineering Officer routes require days. Deck Officer routes require nautical miles.
-            </p>
-            <div className="flex gap-3">
-              <div className="flex flex-1 flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Days at sea</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={seaTimeDays}
-                  onChange={(e) => setSeaTimeDays(e.target.value)}
-                  min={0}
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Nautical miles</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={seaTimeNauticalMiles}
-                  onChange={(e) => setSeaTimeNauticalMiles(e.target.value)}
-                  min={0}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <PrivateIntelligenceSection
+          salaryAmount={salaryAmount}
+          setSalaryAmount={setSalaryAmount}
+          salaryPeriod={salaryPeriod}
+          setSalaryPeriod={setSalaryPeriod}
+          salaryCurrency={salaryCurrency}
+          setSalaryCurrency={setSalaryCurrency}
+          seaTimeDays={seaTimeDays}
+          setSeaTimeDays={setSeaTimeDays}
+          seaTimeNauticalMiles={seaTimeNauticalMiles}
+          setSeaTimeNauticalMiles={setSeaTimeNauticalMiles}
+          extraNote="Previously entered data is stored securely and cannot be retrieved."
+        />
 
         {/* Error */}
         {error && <p className="text-sm text-destructive">{error}</p>}

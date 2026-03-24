@@ -1,33 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RolePicker } from '@/components/role-picker';
-import { FlagStatePicker } from '@/components/flag-state-picker';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Loader2, Search } from 'lucide-react';
-
-interface ImoSearchResult {
-  id: string;
-  name: string;
-  vessel_type: string;
-  loa_meters: number;
-  imo_number: string;
-}
+import { ChevronLeft, Loader2 } from 'lucide-react';
+import { ImoLookupSection } from '../_components/imo-lookup-section';
+import { VesselDetailsSection } from '../_components/vessel-details-section';
+import { ExperienceDetailsSection } from '../_components/experience-details-section';
+import { PrivateIntelligenceSection } from '../_components/private-intelligence-section';
 
 interface RoleItem {
   id: string;
@@ -40,15 +23,6 @@ interface FlagState {
   name: string;
 }
 
-const CONTRACT_TYPES = [
-  { value: 'permanent', label: 'Permanent' },
-  { value: 'rotational', label: 'Rotational' },
-  { value: 'seasonal', label: 'Seasonal' },
-  { value: 'crossing', label: 'Crossing' },
-  { value: 'delivery', label: 'Delivery' },
-  { value: 'temporary', label: 'Temporary' },
-];
-
 export default function AddExperiencePage() {
   const router = useRouter();
   const { showError, showSuccess } = useToast();
@@ -59,12 +33,8 @@ export default function AddExperiencePage() {
 
   // IMO lookup
   const [imoNumber, setImoNumber] = useState('');
-  const [lookingUpImo, setLookingUpImo] = useState(false);
-  const [imoMessage, setImoMessage] = useState('');
   const [useExisting, setUseExisting] = useState(false);
   const [existingVesselId, setExistingVesselId] = useState('');
-  const [imoSearchResults, setImoSearchResults] = useState<ImoSearchResult[]>([]);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Vessel fields
   const [vesselName, setVesselName] = useState('');
@@ -113,97 +83,6 @@ export default function AddExperiencePage() {
   useEffect(() => {
     loadLookups();
   }, [loadLookups]);
-
-  // Debounced auto-search when IMO has 4+ digits
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    // Only auto-search for partial (4-6 digits); 7 digits uses manual or exact lookup
-    if (imoNumber.length >= 4 && imoNumber.length < 7 && !useExisting) {
-      debounceRef.current = setTimeout(() => {
-        async function fetchPartial() {
-          try {
-            setLookingUpImo(true);
-            const result = await safeFetch<{ results: ImoSearchResult[] }>(
-              `/api/vessels/lookup?imo=${imoNumber}`,
-            );
-            if (result.ok) {
-              setImoSearchResults(result.data.results);
-              if (result.data.results.length === 0) {
-                setImoMessage('No vessels found for this prefix');
-              } else {
-                setImoMessage('');
-              }
-            }
-          } finally {
-            setLookingUpImo(false);
-          }
-        }
-        fetchPartial();
-      }, 500);
-    } else {
-      setImoSearchResults([]);
-    }
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [imoNumber, useExisting]);
-
-  function handleSelectSearchResult(result: ImoSearchResult) {
-    setImoNumber(result.imo_number);
-    setVesselName(result.name);
-    setLoaMeters(String(result.loa_meters));
-    setVesselType(result.vessel_type as 'motor' | 'sail');
-    setExistingVesselId(result.id);
-    setUseExisting(true);
-    setImoSearchResults([]);
-    setImoMessage('');
-  }
-
-  async function handleImoLookup() {
-    if (imoNumber.length < 4) return;
-    setLookingUpImo(true);
-    setImoMessage('');
-    setImoSearchResults([]);
-
-    if (imoNumber.length === 7) {
-      // Exact lookup
-      const result = await safeFetch<{
-        found: boolean;
-        vessel?: { name: string; loa_meters: number; vessel_type: string; id: string };
-      }>(`/api/vessels/lookup?imo=${imoNumber}`);
-      if (result.ok) {
-        if (result.data.found && result.data.vessel) {
-          const prefix = result.data.vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
-          setImoMessage(
-            `Found: ${prefix} ${result.data.vessel.name} (${result.data.vessel.loa_meters}m)`,
-          );
-          setVesselName(result.data.vessel.name);
-          setLoaMeters(String(result.data.vessel.loa_meters));
-          setVesselType(result.data.vessel.vessel_type as 'motor' | 'sail');
-          setExistingVesselId(result.data.vessel.id);
-          setUseExisting(true);
-        } else {
-          setImoMessage('Not found — enter vessel details below');
-          setUseExisting(false);
-          setExistingVesselId('');
-        }
-      }
-    } else {
-      // Partial lookup (4-6 digits)
-      const result = await safeFetch<{ results: ImoSearchResult[] }>(
-        `/api/vessels/lookup?imo=${imoNumber}`,
-      );
-      if (result.ok) {
-        setImoSearchResults(result.data.results);
-        if (result.data.results.length === 0) {
-          setImoMessage('No vessels found for this prefix');
-        }
-      }
-    }
-    setLookingUpImo(false);
-  }
 
   async function handleSubmit() {
     if (!roleId || !startDate || !expVesselOperation || !imoNumber) return;
@@ -276,8 +155,6 @@ export default function AddExperiencePage() {
     );
   }
 
-  const vesselPrefix = vesselType === 'sail' ? 'S/Y' : 'M/Y';
-
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
@@ -302,413 +179,69 @@ export default function AddExperiencePage() {
           </p>
         </div>
 
-        {/* IMO lookup */}
-        <div className="relative flex flex-col gap-1.5">
-          <Label>IMO number</Label>
-          <div className="flex gap-2">
-            <Input
-              placeholder="4-7 digits"
-              value={imoNumber}
-              onChange={(e) => {
-                setImoNumber(e.target.value.replace(/\D/g, '').slice(0, 7));
-                setUseExisting(false);
-                setExistingVesselId('');
-                setImoMessage('');
-              }}
-              maxLength={7}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={imoNumber.length < 4 || lookingUpImo}
-              onClick={handleImoLookup}
-            >
-              {lookingUpImo ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-          {imoMessage && !useExisting && (
-            <p className="text-xs text-muted-foreground">{imoMessage}</p>
-          )}
-          {/* Partial search results dropdown */}
-          {imoSearchResults.length > 0 && (
-            <div className="absolute top-full z-20 mt-1 w-full rounded-md border border-border bg-background shadow-lg">
-              {imoSearchResults.map((result) => (
-                <button
-                  key={result.id}
-                  type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
-                  onClick={() => handleSelectSearchResult(result)}
-                >
-                  <span className="font-medium">
-                    {result.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} {result.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    IMO {result.imo_number} · {result.loa_meters}m
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Found vessel card */}
-        {useExisting && (
-          <div className="rounded-lg border border-success/40 bg-success/5 p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">
-                  {vesselType === 'sail' ? 'S/Y' : 'M/Y'} {vesselName}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {loaMeters}m · IMO {imoNumber}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => {
-                  setUseExisting(false);
-                  setExistingVesselId('');
-                  setImoMessage('Enter vessel details below');
-                }}
-              >
-                Enter manually
-              </Button>
-            </div>
-          </div>
-        )}
+        <ImoLookupSection
+          imoNumber={imoNumber}
+          setImoNumber={setImoNumber}
+          useExisting={useExisting}
+          setUseExisting={setUseExisting}
+          existingVesselId={existingVesselId}
+          setExistingVesselId={setExistingVesselId}
+          vesselName={vesselName}
+          setVesselName={setVesselName}
+          vesselType={vesselType}
+          setVesselType={setVesselType}
+          loaMeters={loaMeters}
+          setLoaMeters={setLoaMeters}
+        />
 
         {/* Vessel details — shown when not using existing vessel */}
         {!useExisting && (
-          <>
-            {/* Vessel type (motor/sail) + Operation (charter/private) */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>Vessel type</Label>
-                <Select
-                  value={vesselType}
-                  onValueChange={(v) => setVesselType(v as 'motor' | 'sail')}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="motor">Motor (M/Y)</SelectItem>
-                    <SelectItem value="sail">Sail (S/Y)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Vessel name with M/Y or S/Y prefix */}
-            <div className="flex flex-col gap-1.5">
-              <Label>Vessel name</Label>
-              <div className="flex">
-                <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                  {vesselPrefix}
-                </span>
-                <Input
-                  placeholder="Vessel Name"
-                  value={vesselName}
-                  onChange={(e) => setVesselName(e.target.value)}
-                  className="rounded-l-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label>LOA (meters)</Label>
-              <Input
-                type="number"
-                placeholder="45"
-                value={loaMeters}
-                onChange={(e) => setLoaMeters(e.target.value)}
-                min={1}
-              />
-            </div>
-          </>
-        )}
-
-        {/* Role — department hierarchy picker */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Role held</Label>
-          <RolePicker roles={roles} value={roleId} onValueChange={setRoleId} />
-        </div>
-
-        {/* Vessel operation during tenure */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Vessel operation (during your time)</Label>
-          <Select
-            value={expVesselOperation}
-            onValueChange={(v) => setExpVesselOperation(v as 'charter' | 'private')}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="charter">Charter</SelectItem>
-              <SelectItem value="private">Private</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Flag state — searchable picker */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Flag state</Label>
-          <FlagStatePicker flagStates={flagStates} value={flagState} onValueChange={setFlagState} />
-        </div>
-
-        {/* Dates — day-level precision */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label>Start date</Label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label>End date</Label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              disabled={isCurrent}
-              min={startDate || undefined}
-            />
-          </div>
-        </div>
-        {!isAgent && (
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={isCurrent}
-              onCheckedChange={(checked) => {
-                setIsCurrent(checked === true);
-                if (checked) setEndDate('');
-              }}
-            />
-            Currently onboard
-          </label>
-        )}
-
-        {/* Contract type */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Contract type</Label>
-          <Select value={contractType} onValueChange={setContractType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select contract type" />
-            </SelectTrigger>
-            <SelectContent>
-              {CONTRACT_TYPES.map((ct) => (
-                <SelectItem key={ct.value} value={ct.value}>
-                  {ct.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {contractType === 'rotational' && (
-          <div className="flex flex-col gap-2">
-            <Label>Rotation pattern</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {['2:2', '3:3', '3:1', '4:2', '5:1', '6:2', '10:10'].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => {
-                    const unit = contractDetails.includes('weeks') ? 'weeks' : 'months';
-                    setContractDetails(`${p} ${unit}`);
-                  }}
-                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                    contractDetails.startsWith(p + ' ')
-                      ? 'border-primary bg-primary/10 font-medium'
-                      : 'border-border hover:bg-accent'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={1}
-                max={12}
-                placeholder="On"
-                value={(() => {
-                  const m = contractDetails.match(/^(\d+):/);
-                  return m?.[1] ?? '';
-                })()}
-                onChange={(e) => {
-                  const off = contractDetails.match(/:(\d+)/)?.[1] ?? '';
-                  const unit = contractDetails.includes('weeks') ? 'weeks' : 'months';
-                  setContractDetails(`${e.target.value}:${off} ${unit}`);
-                }}
-                className="w-16"
-              />
-              <span className="text-sm font-medium">:</span>
-              <Input
-                type="number"
-                min={1}
-                max={12}
-                placeholder="Off"
-                value={(() => {
-                  const m = contractDetails.match(/:(\d+)/);
-                  return m?.[1] ?? '';
-                })()}
-                onChange={(e) => {
-                  const on = contractDetails.match(/^(\d+):/)?.[1] ?? '';
-                  const unit = contractDetails.includes('weeks') ? 'weeks' : 'months';
-                  setContractDetails(`${on}:${e.target.value} ${unit}`);
-                }}
-                className="w-16"
-              />
-              <Select
-                value={contractDetails.includes('weeks') ? 'weeks' : 'months'}
-                onValueChange={(v) => {
-                  const ratio = contractDetails.match(/^(\d+:\d+)/)?.[1] ?? '';
-                  setContractDetails(ratio ? `${ratio} ${v}` : v);
-                }}
-              >
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="months">months</SelectItem>
-                  <SelectItem value="weeks">weeks</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-
-        {contractType === 'permanent' && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Days leave per year</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min={0}
-                max={365}
-                placeholder="28"
-                value={(() => {
-                  const m = contractDetails.match(/^(\d+)/);
-                  return m?.[1] ?? '';
-                })()}
-                onChange={(e) =>
-                  setContractDetails(e.target.value ? `${e.target.value} days leave/year` : '')
-                }
-                className="w-24"
-              />
-              <span className="text-sm text-muted-foreground">days/year</span>
-            </div>
-          </div>
-        )}
-
-        {contractType === 'seasonal' && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Season period</Label>
-            <Input
-              placeholder="e.g. March — October"
-              value={contractDetails}
-              onChange={(e) => setContractDetails(e.target.value)}
-              maxLength={100}
-            />
-          </div>
-        )}
-
-        {/* Description */}
-        <div className="flex flex-col gap-1.5">
-          <Label>Description (optional)</Label>
-          <Textarea
-            placeholder="Brief description of your role and responsibilities"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={250}
-            rows={3}
+          <VesselDetailsSection
+            vesselType={vesselType}
+            setVesselType={setVesselType}
+            vesselName={vesselName}
+            setVesselName={setVesselName}
+            loaMeters={loaMeters}
+            setLoaMeters={setLoaMeters}
           />
-        </div>
+        )}
 
-        {/* Private intelligence */}
-        <div className="border-t border-border pt-4">
-          <h3 className="text-sm font-semibold">Private intelligence (optional)</h3>
-          <p className="mb-3 text-xs text-muted-foreground">
-            This data is never shown to anyone. It enhances Docky&apos;s career advice accuracy for
-            you.
-          </p>
+        <ExperienceDetailsSection
+          roles={roles}
+          roleId={roleId}
+          setRoleId={setRoleId}
+          expVesselOperation={expVesselOperation}
+          setExpVesselOperation={setExpVesselOperation}
+          flagStates={flagStates}
+          flagState={flagState}
+          setFlagState={setFlagState}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          isCurrent={isCurrent}
+          setIsCurrent={setIsCurrent}
+          isAgent={isAgent}
+          contractType={contractType}
+          setContractType={setContractType}
+          contractDetails={contractDetails}
+          setContractDetails={setContractDetails}
+          description={description}
+          setDescription={setDescription}
+        />
 
-          {/* Salary */}
-          <div className="mb-3 flex flex-col gap-1.5">
-            <Label>Salary</Label>
-            <div className="flex gap-2">
-              <Input
-                type="number"
-                placeholder="Amount"
-                value={salaryAmount}
-                onChange={(e) => setSalaryAmount(e.target.value)}
-                min={0}
-                className="flex-1"
-              />
-              <Select value={salaryCurrency} onValueChange={(v) => setSalaryCurrency(v)}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="GBP">GBP</SelectItem>
-                  <SelectItem value="AED">AED</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={salaryPeriod}
-                onValueChange={(v) => setSalaryPeriod(v as 'daily' | 'monthly' | 'annually')}
-              >
-                <SelectTrigger className="w-28">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">per day</SelectItem>
-                  <SelectItem value="monthly">per month</SelectItem>
-                  <SelectItem value="annually">per year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Verified sea time */}
-          <div className="flex flex-col gap-1.5">
-            <Label>Verified sea time</Label>
-            <p className="text-[11px] text-muted-foreground">
-              Engineering Officer routes require days. Deck Officer routes require nautical miles.
-            </p>
-            <div className="flex gap-3">
-              <div className="flex flex-1 flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Days at sea</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={seaTimeDays}
-                  onChange={(e) => setSeaTimeDays(e.target.value)}
-                  min={0}
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-1">
-                <Label className="text-xs text-muted-foreground">Nautical miles</Label>
-                <Input
-                  type="number"
-                  placeholder="0"
-                  value={seaTimeNauticalMiles}
-                  onChange={(e) => setSeaTimeNauticalMiles(e.target.value)}
-                  min={0}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        <PrivateIntelligenceSection
+          salaryAmount={salaryAmount}
+          setSalaryAmount={setSalaryAmount}
+          salaryPeriod={salaryPeriod}
+          setSalaryPeriod={setSalaryPeriod}
+          salaryCurrency={salaryCurrency}
+          setSalaryCurrency={setSalaryCurrency}
+          seaTimeDays={seaTimeDays}
+          setSeaTimeDays={setSeaTimeDays}
+          seaTimeNauticalMiles={seaTimeNauticalMiles}
+          setSeaTimeNauticalMiles={setSeaTimeNauticalMiles}
+        />
 
         {/* Submit */}
         <Button
