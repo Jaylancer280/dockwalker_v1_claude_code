@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, SlidersHorizontal, X } from 'lucide-react';
+import { Briefcase } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -19,17 +18,63 @@ import { LocationPicker, type LocationValue } from '@/components/location-picker
 import { ProfileOverlay } from '@/components/profile-overlay';
 import { PermanentJobCard, type PermanentPosting } from './permanent-job-card';
 import { PermanentJobDetail } from './permanent-job-detail';
-import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 
 interface LookupItem {
   id: string;
   name: string;
-  label?: string;
+  category?: string;
 }
 
-export function PermanentJobFeed() {
+interface LabelledItem {
+  id: string;
+  label: string;
+}
+
+interface PermanentJobFeedProps {
+  showFilters: boolean;
+  filterRoleId: string;
+  filterPortId: string;
+  filterSalaryMin: string;
+  filterLiveAboard: string;
+  filterCertId: string;
+  filterExpBracketId: string;
+  filterSizeBandId: string;
+  setFilterRoleId: (v: string) => void;
+  setFilterPortId: (v: string) => void;
+  setFilterSalaryMin: (v: string) => void;
+  setFilterLiveAboard: (v: string) => void;
+  setFilterCertId: (v: string) => void;
+  setFilterExpBracketId: (v: string) => void;
+  setFilterSizeBandId: (v: string) => void;
+  roles: LookupItem[];
+  certifications: LookupItem[];
+  experienceBrackets: LabelledItem[];
+  sizeBands: LabelledItem[];
+}
+
+export function PermanentJobFeed({
+  showFilters,
+  filterRoleId,
+  filterPortId,
+  filterSalaryMin,
+  filterLiveAboard,
+  filterCertId,
+  filterExpBracketId,
+  filterSizeBandId,
+  setFilterRoleId,
+  setFilterPortId,
+  setFilterSalaryMin,
+  setFilterLiveAboard,
+  setFilterCertId,
+  setFilterExpBracketId,
+  setFilterSizeBandId,
+  roles,
+  certifications,
+  experienceBrackets,
+  sizeBands,
+}: PermanentJobFeedProps) {
   const { showSuccess, showError } = useToast();
 
   // Data
@@ -50,22 +95,6 @@ export function PermanentJobFeed() {
   // Profile overlay
   const [profilePersonId, setProfilePersonId] = useState<string | null>(null);
 
-  // Filters
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterRoleId, setFilterRoleId] = useState('');
-  const [filterPortId, setFilterPortId] = useState('');
-  const [filterSalaryMin, setFilterSalaryMin] = useState('');
-  const [filterLiveAboard, setFilterLiveAboard] = useState('any');
-  const [filterCertId, setFilterCertId] = useState('');
-  const [filterExpBracketId, setFilterExpBracketId] = useState('');
-  const [filterSizeBandId, setFilterSizeBandId] = useState('');
-
-  // Lookups
-  const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [certs, setCerts] = useState<LookupItem[]>([]);
-  const [brackets, setBrackets] = useState<LookupItem[]>([]);
-  const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
-
   // Scroll sentinel ref
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -77,22 +106,8 @@ export function PermanentJobFeed() {
     [],
   );
 
-  // Load lookups on mount
+  // Load crew certs on mount
   useEffect(() => {
-    const supabase = createClient();
-    Promise.all([
-      supabase.from('yacht_roles').select('id, name').order('name'),
-      supabase.from('certifications').select('id, name').order('name'),
-      supabase.from('experience_brackets').select('id, label').order('id'),
-      supabase.from('vessel_size_bands').select('id, label').order('id'),
-    ]).then(([rolesRes, certsRes, bracketsRes, bandsRes]) => {
-      setRoles((rolesRes.data ?? []) as LookupItem[]);
-      setCerts((certsRes.data ?? []) as LookupItem[]);
-      setBrackets((bracketsRes.data ?? []) as LookupItem[]);
-      setSizeBands((bandsRes.data ?? []) as LookupItem[]);
-    });
-
-    // Fetch crew's certs for client-side cert gate
     loadCrewCerts();
   }, []);
 
@@ -188,16 +203,6 @@ export function PermanentJobFeed() {
     return () => observer.disconnect();
   }, [hasMore, nextCursor, loadingMore, loadPostings]);
 
-  function clearFilters() {
-    setFilterRoleId('');
-    setFilterPortId('');
-    setFilterSalaryMin('');
-    setFilterLiveAboard('any');
-    setFilterCertId('');
-    setFilterExpBracketId('');
-    setFilterSizeBandId('');
-  }
-
   async function handleApply(postingId: string) {
     setApplying(true);
     const result = await safeFetch<Record<string, unknown>>(`/api/permanent/${postingId}/apply`, {
@@ -215,15 +220,6 @@ export function PermanentJobFeed() {
     setApplying(false);
   }
 
-  const hasActiveFilters =
-    (filterRoleId && filterRoleId !== 'all') ||
-    filterPortId ||
-    filterSalaryMin ||
-    filterLiveAboard !== 'any' ||
-    (filterCertId && filterCertId !== 'all') ||
-    (filterExpBracketId && filterExpBracketId !== 'all') ||
-    (filterSizeBandId && filterSizeBandId !== 'all');
-
   if (selectedPosting) {
     return (
       <PermanentJobDetail
@@ -239,25 +235,6 @@ export function PermanentJobFeed() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-4">
-      {/* Filter toggle */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant={showFilters ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          <SlidersHorizontal className="mr-1 h-4 w-4" />
-          Filters
-          {hasActiveFilters && <span className="ml-1 text-xs">(active)</span>}
-        </Button>
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="mr-1 h-3 w-3" />
-            Clear
-          </Button>
-        )}
-      </div>
-
       {/* Filters */}
       {showFilters && (
         <Card>
@@ -326,7 +303,7 @@ export function PermanentJobFeed() {
                 <SelectContent>
                   <SelectItem value="all">Any</SelectItem>
                   <SelectItem value="none">No certs required</SelectItem>
-                  {certs.map((c) => (
+                  {certifications.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name}
                     </SelectItem>
@@ -343,9 +320,9 @@ export function PermanentJobFeed() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Any</SelectItem>
-                  {brackets.map((b) => (
+                  {experienceBrackets.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.label ?? b.name}
+                      {b.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -362,7 +339,7 @@ export function PermanentJobFeed() {
                   <SelectItem value="all">Any</SelectItem>
                   {sizeBands.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      {b.label ?? b.name}
+                      {b.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

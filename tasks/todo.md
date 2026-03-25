@@ -5,13 +5,78 @@
 
 ## Current Task
 
-Stage UI-Discover: Reference Screen Reskin
+Stage UI-D5: Discover polish fixes
 
 ---
 
 ## Queue
 
-### Stage UI-Discover: Reference Screen Reskin
+### Stage UI-D5: Discover polish fixes
+
+**Goal:** Fix 3 visual inconsistencies found during device testing of the discover page reskin.
+
+**Will touch:** `discover/page.tsx`, `daywork-browse.tsx`, `permanent-job-feed.tsx`, `applied-tab.tsx`, `permanent-application-card.tsx`
+
+**Will NOT touch:** API routes, migrations, types, business logic, non-discover pages.
+
+---
+
+#### Fix 1: Unify filter button into header (remove duplicate)
+
+Currently: header has a "Filters" button (`page.tsx:472-481`) that toggles daywork filters only. `PermanentJobFeed` (`permanent-job-feed.tsx:244-252`) has its **own** inline "Filters" button + own `showFilters` state + own filter fields. When Permanent browse is active, both buttons are visible — the header one does nothing useful.
+
+**Approach:** Lift permanent filter state + lookups out of `PermanentJobFeed` into `page.tsx` (same pattern as daywork). The header button toggles a single `showFilters` that controls whichever filter panel is active. `PermanentJobFeed` receives filter values + setters as props (same as `DayworkBrowse`). One filter button, one location (header), context-aware.
+
+- [x] Add permanent filter state to `page.tsx`: `filterPermanentRoleId`, `filterPermanentPortId`, `filterPermanentSalaryMin`, `filterPermanentLiveAboard`, `filterPermanentCertId`, `filterPermanentExpBracketId`, `filterPermanentSizeBandId` (or use a single prefix/namespace object to keep it clean)
+- [x] Load permanent filter lookups (roles, certs, brackets, sizeBands) in `page.tsx` alongside existing daywork lookups — reuse the same lookup queries since they hit the same canonical tables
+- [x] Make header "Filters" button visible on Browse tab regardless of `browseMode` (already is — but currently useless on permanent). Wire it to the shared `showFilters` state
+- [x] Add `hasActiveFilters` logic that checks daywork filters when `browseMode === 'daywork'` and permanent filters when `browseMode === 'permanent'` — show "(active)" indicator and "Clear" button in header accordingly
+- [x] Pass permanent filter state + setters + `showFilters` + lookups as props into `PermanentJobFeed`
+- [x] Update `PermanentJobFeed` props interface: accept `showFilters`, all 7 filter values, all 7 filter setters, and 4 lookup arrays as props. Remove internal `showFilters` state, filter state, lookup state, and lookup fetch `useEffect`
+- [x] Remove the inline "Filters" button and "Clear" button from `PermanentJobFeed` (lines 242-259) — the header button now controls visibility
+- [x] Keep the filter panel Card/CardContent JSX inside `PermanentJobFeed` (it renders below the toggle, same as daywork) — it just reads from props instead of local state
+- [x] When `browseMode` switches, `showFilters` can remain open (filters just swap context) OR close — user preference, but keeping it open feels more natural
+- [x] Verify: switching between Daywork/Permanent toggle with filters open shows the correct filter panel for each mode. Only one "Filters" button visible at all times, in the header
+
+---
+
+#### Fix 2: Permanent application card — job ref position consistency
+
+Currently: daywork application card has job ref (`DW-XXXXX`) in the **footer** as `font-mono text-[11px] text-[var(--tertiary)]` alongside the applied date. Permanent application card has job ref (`PM-XXXXX`) in the **header** as a Badge component, top-left.
+
+**Approach:** Move permanent job ref to footer to match daywork pattern.
+
+- [x] `permanent-application-card.tsx`: Remove the `<Badge variant="outline" className="text-xs font-mono">PM-{...}</Badge>` from the header row (line 98-100)
+- [x] `permanent-application-card.tsx`: Add a footer row matching the daywork card pattern — `font-mono text-[11px] text-[var(--tertiary)]` showing `PM-{job_number} · Applied {date}` (same format as `applied-tab.tsx:235-238`)
+- [x] Move the status badge to the header position where the job ref badge was (top-right, alongside role name) — matching the daywork card's status badge placement (line 174 of `applied-tab.tsx`)
+- [x] Verify: both daywork and permanent application cards have identical layout: role+status top, details middle, job ref+date bottom
+
+---
+
+#### Fix 3: Application message preview — replace clashing blue
+
+Currently: daywork application card message preview (`applied-tab.tsx:228`) uses `bg-accent` which is the teal/blue interactive color — too saturated for a passive text block, clashes in both themes. Permanent application card message preview (`permanent-application-card.tsx:138`) uses no background at all — just italic text.
+
+**Approach:** Use `bg-[var(--surface)]` for the message preview background on both card types. Subtle, theme-aware, non-interactive appearance.
+
+- [x] `applied-tab.tsx:228`: Change `bg-accent` to `bg-[var(--surface)]` on the message preview `<p>`. Keep `rounded-md px-2.5 py-1.5 text-xs italic`. Change `text-muted-foreground` to `text-[var(--foreground)]` so the quoted text is readable against the surface background
+- [x] `permanent-application-card.tsx:137-140`: Add `bg-[var(--surface)] rounded-md px-2.5 py-1.5` to match the daywork card message preview style. Keep `text-xs italic`. Use `text-[var(--foreground)]` for consistency
+- [x] Verify: message previews on both card types look identical — subtle surface background, readable text, no saturated accent colour
+
+---
+
+#### Verify all 3 fixes
+
+- [x] Only one "Filters" button visible on discover Browse tab (in header), works for both Daywork and Permanent
+- [x] Permanent filter panel appears below the Daywork/Permanent toggle when filters are open
+- [x] Both application card types have job ref in footer, status in header
+- [x] Message previews use `bg-[var(--surface)]`, no clashing blue, readable in both light and dark mode
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass (856/856)
+
+---
+
+### Stage UI-Discover: Reference Screen Reskin (COMPLETED)
 
 **Goal:** Apply the full design system from `tasks/ui-guidance.md` to the discover page end-to-end. This is the reference implementation — every design decision is made here first. When this page looks right, the system is proven and remaining pages are mechanical propagation.
 

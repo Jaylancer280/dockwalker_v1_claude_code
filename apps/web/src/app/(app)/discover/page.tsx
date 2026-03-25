@@ -66,6 +66,15 @@ export default function DiscoverPage() {
   const [filterExperienceBracketId, setFilterExperienceBracketId] = useState('');
   const [filterSizeBandId, setFilterSizeBandId] = useState('');
 
+  // Permanent filter state
+  const [filterPermanentRoleId, setFilterPermanentRoleId] = useState('');
+  const [filterPermanentPortId, setFilterPermanentPortId] = useState('');
+  const [filterPermanentSalaryMin, setFilterPermanentSalaryMin] = useState('');
+  const [filterPermanentLiveAboard, setFilterPermanentLiveAboard] = useState('any');
+  const [filterPermanentCertId, setFilterPermanentCertId] = useState('');
+  const [filterPermanentExpBracketId, setFilterPermanentExpBracketId] = useState('');
+  const [filterPermanentSizeBandId, setFilterPermanentSizeBandId] = useState('');
+
   // Applied tab state
   const [applications, setApplications] = useState<MyApplication[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
@@ -461,6 +470,47 @@ export default function DiscoverPage() {
     setConfirmDeclineInv(null);
   }
 
+  const hasDayworkActiveFilters =
+    (filterRoleId && filterRoleId !== 'all') ||
+    filterPortId ||
+    filterStartDate ||
+    filterEndDate ||
+    (filterCertId && filterCertId !== 'all') ||
+    (filterExperienceBracketId && filterExperienceBracketId !== 'all') ||
+    (filterSizeBandId && filterSizeBandId !== 'all');
+
+  const hasPermanentActiveFilters =
+    (filterPermanentRoleId && filterPermanentRoleId !== 'all') ||
+    filterPermanentPortId ||
+    filterPermanentSalaryMin ||
+    filterPermanentLiveAboard !== 'any' ||
+    (filterPermanentCertId && filterPermanentCertId !== 'all') ||
+    (filterPermanentExpBracketId && filterPermanentExpBracketId !== 'all') ||
+    (filterPermanentSizeBandId && filterPermanentSizeBandId !== 'all');
+
+  const hasActiveFilters =
+    browseMode === 'daywork' ? hasDayworkActiveFilters : hasPermanentActiveFilters;
+
+  function clearActiveFilters() {
+    if (browseMode === 'daywork') {
+      setFilterRoleId('');
+      setFilterPortId('');
+      setFilterStartDate('');
+      setFilterEndDate('');
+      setFilterCertId('');
+      setFilterExperienceBracketId('');
+      setFilterSizeBandId('');
+    } else {
+      setFilterPermanentRoleId('');
+      setFilterPermanentPortId('');
+      setFilterPermanentSalaryMin('');
+      setFilterPermanentLiveAboard('any');
+      setFilterPermanentCertId('');
+      setFilterPermanentExpBracketId('');
+      setFilterPermanentSizeBandId('');
+    }
+  }
+
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]">
@@ -470,14 +520,23 @@ export default function DiscoverPage() {
             <NotificationBell />
           </div>
           {activeTab === 'browse' && (
-            <Button
-              variant={showFilters ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <SlidersHorizontal className="mr-1 h-4 w-4" />
-              Filters
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearActiveFilters}>
+                  <X className="mr-1 h-3 w-3" />
+                  Clear
+                </Button>
+              )}
+              <Button
+                variant={showFilters ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <SlidersHorizontal className="mr-1 h-4 w-4" />
+                Filters
+                {hasActiveFilters && <span className="ml-1 text-xs">(active)</span>}
+              </Button>
+            </div>
           )}
         </div>
         {/* Tabs */}
@@ -572,7 +631,29 @@ export default function DiscoverPage() {
           requireAvailability={requireAvailability}
           browseMode={browseMode}
           setBrowseMode={setBrowseMode}
-          permanentFeed={<PermanentJobFeed />}
+          permanentFeed={
+            <PermanentJobFeed
+              showFilters={showFilters}
+              filterRoleId={filterPermanentRoleId}
+              filterPortId={filterPermanentPortId}
+              filterSalaryMin={filterPermanentSalaryMin}
+              filterLiveAboard={filterPermanentLiveAboard}
+              filterCertId={filterPermanentCertId}
+              filterExpBracketId={filterPermanentExpBracketId}
+              filterSizeBandId={filterPermanentSizeBandId}
+              setFilterRoleId={setFilterPermanentRoleId}
+              setFilterPortId={setFilterPermanentPortId}
+              setFilterSalaryMin={setFilterPermanentSalaryMin}
+              setFilterLiveAboard={setFilterPermanentLiveAboard}
+              setFilterCertId={setFilterPermanentCertId}
+              setFilterExpBracketId={setFilterPermanentExpBracketId}
+              setFilterSizeBandId={setFilterPermanentSizeBandId}
+              roles={roles}
+              certifications={certifications}
+              experienceBrackets={experienceBrackets}
+              sizeBands={sizeBands}
+            />
+          }
         />
       )}
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Briefcase, Ship } from 'lucide-react';
+import { MapPin, Briefcase, Ship, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -93,16 +93,25 @@ export function PermanentApplicationCard({
 
   return (
     <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4">
-      {/* Header: job ref + status */}
-      <div className="mb-2 flex items-center justify-between">
-        <Badge variant="outline" className="text-xs font-mono">
-          PM-{String(p.job_number).padStart(5, '0')}
+      {/* Header: role + profile icon + status */}
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="min-w-0 flex-1 text-[15px] font-semibold tracking-[-0.3px]">
+          {p.role_name ?? 'Unknown Role'}
+        </p>
+        {p.poster_person_id && (
+          <button
+            className="shrink-0 text-muted-foreground hover:text-primary"
+            onClick={() => {
+              if (p.poster_person_id && onViewProfile) onViewProfile(p.poster_person_id);
+            }}
+          >
+            <User className="h-4 w-4" />
+          </button>
+        )}
+        <Badge variant={statusInfo.variant} className="shrink-0">
+          {statusInfo.label}
         </Badge>
-        <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
       </div>
-
-      {/* Role + vessel */}
-      <p className="text-sm font-semibold">{p.role_name ?? 'Unknown Role'}</p>
       <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
         <Ship className="h-3 w-3" />
         <span>{vesselDisplay}</span>
@@ -135,23 +144,17 @@ export function PermanentApplicationCard({
 
       {/* Message preview */}
       {application.message && (
-        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground italic">
+        <p className="mt-2 line-clamp-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic">
           &quot;{application.message}&quot;
         </p>
       )}
 
-      {/* Footer */}
-      <div className="mt-3 flex items-center justify-between">
-        {p.poster_name && (
-          <button
-            className="text-xs text-muted-foreground hover:text-primary hover:underline"
-            onClick={() => {
-              if (p.poster_person_id && onViewProfile) onViewProfile(p.poster_person_id);
-            }}
-          >
-            Posted by {p.poster_name}
-          </button>
-        )}
+      {/* Footer: job ref + date + withdraw */}
+      <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3">
+        <span className="font-mono text-[11px] text-[var(--tertiary)]">
+          PM-{String(p.job_number).padStart(5, '0')} · Applied{' '}
+          {new Date(application.applied_at).toLocaleDateString()}
+        </span>
         {canWithdraw && (
           <Button
             variant="outline"

@@ -225,7 +225,7 @@ function ApplicationCard({
 
         {/* Application message preview */}
         {application.message && (
-          <p className="rounded-md bg-accent px-2.5 py-1.5 text-xs text-muted-foreground italic">
+          <p className="rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic">
             &ldquo;{application.message}&rdquo;
           </p>
         )}
