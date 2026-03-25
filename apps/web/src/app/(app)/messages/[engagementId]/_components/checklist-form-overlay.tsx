@@ -214,7 +214,7 @@ export function ChecklistFormOverlay({
                 type="time"
                 value={form.arrival_time}
                 onChange={(e) => update('arrival_time', e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </label>
             <label className="text-sm font-medium">
@@ -224,7 +224,7 @@ export function ChecklistFormOverlay({
                 value={form.meeting_point}
                 onChange={(e) => update('meeting_point', e.target.value)}
                 placeholder="e.g. Starboard gangway, berth 14"
-                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 maxLength={200}
               />
             </label>
@@ -235,7 +235,7 @@ export function ChecklistFormOverlay({
                 value={form.contact_person}
                 onChange={(e) => update('contact_person', e.target.value)}
                 placeholder="Name + phone number"
-                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 maxLength={200}
               />
             </label>
@@ -245,7 +245,7 @@ export function ChecklistFormOverlay({
                 value={form.access_instructions}
                 onChange={(e) => update('access_instructions', e.target.value)}
                 placeholder="Gate codes, marina access, security check-in..."
-                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 rows={2}
                 maxLength={500}
               />
@@ -257,7 +257,7 @@ export function ChecklistFormOverlay({
                 value={form.parking_notes}
                 onChange={(e) => update('parking_notes', e.target.value)}
                 placeholder="Optional"
-                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 maxLength={200}
               />
             </label>
@@ -304,7 +304,7 @@ export function ChecklistFormOverlay({
                 value={form.uniform_dress_code}
                 onChange={(e) => update('uniform_dress_code', e.target.value)}
                 placeholder="e.g. Whites, steel-toe boots, smart casual"
-                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 maxLength={200}
               />
             </label>
@@ -323,7 +323,7 @@ export function ChecklistFormOverlay({
                 value={form.tools_details}
                 onChange={(e) => update('tools_details', e.target.value)}
                 placeholder="Specify which tools (optional)"
-                className="ml-6 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="ml-6 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 maxLength={300}
               />
             )}
@@ -369,7 +369,7 @@ export function ChecklistFormOverlay({
                 value={form.safety_briefing_time}
                 onChange={(e) => update('safety_briefing_time', e.target.value)}
                 placeholder="If different from arrival time"
-                className="mt-1 block w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
                 maxLength={100}
               />
             </label>
@@ -385,7 +385,7 @@ export function ChecklistFormOverlay({
             value={form.additional_notes}
             onChange={(e) => update('additional_notes', e.target.value)}
             placeholder="Anything else the crew should know before arrival"
-            className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
             rows={2}
             maxLength={500}
           />

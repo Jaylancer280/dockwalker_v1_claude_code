@@ -76,7 +76,7 @@ export function PostponementFormOverlay({
                 value={startDate}
                 min={today}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
 
@@ -87,7 +87,7 @@ export function PostponementFormOverlay({
                 value={endDate}
                 min={startDate || today}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
 
@@ -101,7 +101,7 @@ export function PostponementFormOverlay({
                 min={1}
                 max={spanDays || undefined}
                 onChange={(e) => setWorkingDays(parseInt(e.target.value, 10) || 0)}
-                className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
           </>

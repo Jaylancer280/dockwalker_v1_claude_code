@@ -52,8 +52,8 @@ export function CrewCancelFormOverlay({
                 onClick={() => setReasonCategory(opt.value)}
                 className={`rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
                   reasonCategory === opt.value
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border bg-accent hover:bg-accent/80'
+                    ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                    : 'border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-hi)]'
                 }`}
               >
                 {opt.label}
@@ -69,7 +69,7 @@ export function CrewCancelFormOverlay({
             <textarea
               value={reasonText}
               onChange={(e) => setReasonText(e.target.value)}
-              className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
               rows={2}
               maxLength={250}
             />

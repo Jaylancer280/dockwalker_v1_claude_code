@@ -48,7 +48,7 @@ export function MessageList({
           ) : context.dayworks ? (
             <DayworkSummaryCard context={context} />
           ) : (
-            <div className="rounded-lg border border-border bg-accent/30 px-4 py-3">
+            <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3">
               <p className="text-sm font-medium">Job details unavailable</p>
               <p className="text-xs text-muted-foreground">
                 {context.start_date && context.end_date
@@ -78,7 +78,7 @@ export function MessageList({
           if (msg.is_system) {
             return (
               <div key={msg.id} className="flex justify-center py-1">
-                <div className="rounded-lg bg-muted/60 px-3 py-1.5 text-center text-xs text-muted-foreground">
+                <div className="rounded-lg bg-[var(--surface)] px-3 py-1.5 text-center text-xs text-[var(--tertiary)]">
                   {msg.content}
                 </div>
               </div>
@@ -92,14 +92,14 @@ export function MessageList({
                 <div
                   className={`rounded-2xl px-3.5 py-2 text-sm ${
                     isMine
-                      ? 'bg-primary text-primary-foreground rounded-br-md'
-                      : 'bg-accent text-foreground rounded-bl-md'
+                      ? 'bg-[var(--accent)] text-white rounded-br-md'
+                      : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-bl-md'
                   }`}
                 >
                   {msg.content}
                 </div>
                 <div className="mt-0.5">
-                  <span className="text-[10px] text-muted-foreground/60">
+                  <span className="font-mono text-[10px] text-[var(--tertiary)]">
                     {new Date(msg.created_at).toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit',

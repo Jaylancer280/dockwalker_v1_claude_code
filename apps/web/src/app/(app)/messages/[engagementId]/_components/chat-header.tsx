@@ -72,13 +72,15 @@ export function ChatHeader({
   const permPostingId = context?.permanent_postings?.id ?? null;
 
   return (
-    <header className="shrink-0 border-b border-border bg-background px-4 py-3">
+    <header className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
       <div className="mx-auto flex max-w-lg items-center gap-3">
         <Link href="/messages" className="text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-bold">{context?.other_name ?? 'Chat'}</h1>
+          <h1 className="truncate text-[15px] font-semibold tracking-[-0.3px]">
+            {context?.other_name ?? 'Chat'}
+          </h1>
         </div>
         {context && context.status === 'active' && !showCancelForm && !showCrewCancelForm && (
           <div ref={menuRef} className="relative shrink-0">
@@ -86,10 +88,10 @@ export function ChatHeader({
               <MoreVertical className="h-4 w-4" />
             </Button>
             {showActionMenu && (
-              <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-border bg-background shadow-lg">
+              <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-[14px] border border-[var(--border)] bg-[var(--card)]">
                 {/* View other party's profile */}
                 <button
-                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                   onClick={() => {
                     setShowActionMenu(false);
                     const otherPersonId = isCrew
@@ -105,7 +107,7 @@ export function ChatHeader({
                 {isPermanent && permPostingStatus === 'in_negotiation' && isEmployer && (
                   <>
                     <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                       onClick={() => {
                         setShowActionMenu(false);
                         onShowConfirmPlacement();
@@ -114,7 +116,7 @@ export function ChatHeader({
                       Confirm placement
                     </button>
                     <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                       onClick={() => {
                         setShowActionMenu(false);
                         onShowRevertSelection();
@@ -126,7 +128,7 @@ export function ChatHeader({
                 )}
                 {isPermanent && permPostingStatus === 'filled' && (
                   <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                     onClick={() => {
                       setShowActionMenu(false);
                       onShowCloseConversation();
@@ -137,7 +139,7 @@ export function ChatHeader({
                 )}
                 {isPermanent && isCrew && permPostingStatus === 'in_negotiation' && (
                   <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-accent"
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
                     onClick={() => {
                       setShowActionMenu(false);
                       onCrewWithdraw();
@@ -148,7 +150,7 @@ export function ChatHeader({
                 )}
                 {isPermanent && isEmployer && (
                   <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-accent"
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
                     onClick={() => {
                       setShowActionMenu(false);
                       if (permPostingId) onCancelPosting(permPostingId);
@@ -161,7 +163,7 @@ export function ChatHeader({
                 {/* ── Daywork-specific actions ── */}
                 {!isPermanent && context.work_started_status === null && (
                   <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                     onClick={() => {
                       setShowActionMenu(false);
                       onWorkStarted('initiate');
@@ -186,7 +188,7 @@ export function ChatHeader({
                 {!isPermanent && isEmployer && (
                   <>
                     <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                       onClick={() => {
                         setShowActionMenu(false);
                         onShowChecklistForm();
@@ -196,7 +198,7 @@ export function ChatHeader({
                       {context.checklist ? 'Edit checklist' : 'Pre-arrival checklist'}
                     </button>
                     <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                       onClick={() => {
                         setShowActionMenu(false);
                         onShowCompleteConfirm();
@@ -216,7 +218,7 @@ export function ChatHeader({
                       </div>
                     ) : context.postponement_status === null ? (
                       <button
-                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-accent"
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                         onClick={() => {
                           setShowActionMenu(false);
                           onShowPostponementForm();
@@ -235,7 +237,7 @@ export function ChatHeader({
                       </div>
                     )}
                     <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-accent"
+                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
                       onClick={() => {
                         setShowActionMenu(false);
                         onShowCancelForm();
@@ -250,7 +252,7 @@ export function ChatHeader({
                 {/* Crew-only actions */}
                 {!isPermanent && isCrew && (
                   <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-accent"
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
                     onClick={() => {
                       setShowActionMenu(false);
                       onShowCrewCancelForm();

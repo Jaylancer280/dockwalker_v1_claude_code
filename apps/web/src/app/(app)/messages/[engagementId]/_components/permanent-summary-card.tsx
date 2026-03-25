@@ -32,9 +32,11 @@ export function PermanentSummaryCard({ context }: PermanentSummaryCardProps) {
   const vesselDisplay = vessel ? `${vesselPrefix} ${vessel.name}`.trim() : 'Unknown Vessel';
 
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Permanent position</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
+          Permanent position
+        </span>
         <Badge variant="outline" className="font-mono text-[10px]">
           PM-{String(pp.job_number).padStart(5, '0')}
         </Badge>
@@ -58,10 +60,12 @@ export function PermanentSummaryCard({ context }: PermanentSummaryCardProps) {
         <span>{[pp.ports?.name, pp.ports?.cities?.name].filter(Boolean).join(', ')}</span>
       </div>
 
-      <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-primary">
-        <Briefcase className="h-3 w-3" />
+      <div className="mt-1 flex items-center gap-1.5 text-xs">
+        <Briefcase className="h-3 w-3 text-[var(--muted-foreground)]" />
         <span>
-          {formatSalary(pp.salary_min, pp.salary_max, pp.salary_currency, pp.salary_period)}
+          <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
+            {formatSalary(pp.salary_min, pp.salary_max, pp.salary_currency, pp.salary_period)}
+          </span>
         </span>
       </div>
 
@@ -72,7 +76,7 @@ export function PermanentSummaryCard({ context }: PermanentSummaryCardProps) {
 
       <div className="mt-1.5 flex flex-wrap gap-1.5">
         {pp.live_aboard && (
-          <Badge variant="secondary" className="bg-green-100 text-green-800 text-[10px]">
+          <Badge variant="status-open" className="text-[10px]">
             Live aboard
           </Badge>
         )}

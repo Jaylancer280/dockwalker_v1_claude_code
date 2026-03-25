@@ -276,8 +276,8 @@ function OptionGroup({
             onClick={() => onChange(opt.value)}
             className={`flex-1 rounded-lg border px-2 py-1.5 text-xs transition-colors ${
               value === opt.value
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border bg-accent hover:bg-accent/80'
+                ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                : 'border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-hi)]'
             }`}
           >
             {opt.label}
@@ -305,7 +305,7 @@ function StarRating({
           <button key={n} type="button" onClick={() => onChange(n)} className="p-0.5">
             <Star
               className={`h-6 w-6 ${
-                n <= value ? 'fill-primary text-primary' : 'text-muted-foreground/30'
+                n <= value ? 'fill-[var(--accent)] text-[var(--accent)]' : 'text-[var(--tertiary)]'
               }`}
             />
           </button>

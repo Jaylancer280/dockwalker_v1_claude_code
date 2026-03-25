@@ -37,7 +37,7 @@ export function WorkStartedBanner({
   // If I initiated, show waiting message
   if ((isCrew && initiatedByCrew) || (isEmployer && initiatedByEmployer)) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-accent/50 p-3 text-sm text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Waiting for the other party to confirm work has started</span>
       </div>
@@ -47,9 +47,9 @@ export function WorkStartedBanner({
   // If the other party initiated, show confirm button
   const initiator = initiatedByCrew ? 'Crew' : 'Employer';
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3">
+    <div className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
       <div className="flex items-center gap-2 text-sm">
-        <CheckCircle className="h-4 w-4 text-primary" />
+        <CheckCircle className="h-4 w-4 text-[var(--accent)]" />
         <span>{initiator} has confirmed that work has started.</span>
       </div>
       <Button size="sm" className="w-full" onClick={onConfirm} disabled={working}>
@@ -81,9 +81,9 @@ export function PostponementBanner({
 }) {
   if (isCrew) {
     return (
-      <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3">
+      <div className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
         <div className="flex items-center gap-2 text-sm">
-          <Clock className="h-4 w-4 text-primary" />
+          <Clock className="h-4 w-4 text-[var(--accent)]" />
           <span>
             Date change proposed: {context.proposed_start_date} to {context.proposed_end_date}
             {context.proposed_working_days &&
@@ -119,7 +119,7 @@ export function PostponementBanner({
   }
 
   return (
-    <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-accent/50 p-3 text-sm text-muted-foreground">
+    <div className="flex items-center justify-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3 text-sm text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" />
       <span>Waiting for crew to respond to your date change proposal</span>
     </div>
@@ -180,13 +180,13 @@ export function CancellationBanner({
   const startDatePassed = context.start_date < new Date().toISOString().split('T')[0];
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3">
+    <div className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <XCircle className="h-4 w-4 shrink-0" />
         <span>This engagement was cancelled{reasonLabel ? `: ${reasonLabel}` : ''}</span>
       </div>
       {showCrewCancelResponse && (
-        <div className="flex flex-col gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+        <div className="flex flex-col gap-2 rounded-lg border border-[var(--border-hi)] bg-[var(--accent-lo)] p-2.5">
           <p className="text-xs text-muted-foreground">
             {startDatePassed
               ? 'The crew member has cancelled and the original start date has passed. You can create a new posting with the same details.'
@@ -219,7 +219,7 @@ export function CancellationBanner({
         </div>
       )}
       {showRelistOption && (
-        <div className="flex flex-col gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+        <div className="flex flex-col gap-2 rounded-lg border border-[var(--border-hi)] bg-[var(--accent-lo)] p-2.5">
           <p className="text-xs text-muted-foreground">
             Relist this job with the proposed dates ({context.proposed_start_date} to{' '}
             {context.proposed_end_date}
@@ -279,7 +279,7 @@ export function CompletionBanner({
 }) {
   if (isCrew && userId === context.crew_person_id && context.crew_completion_status === null) {
     return (
-      <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3">
+      <div className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
         <p className="text-center text-sm text-muted-foreground">
           The employer has marked this daywork as completed. Please confirm or dispute.
         </p>
@@ -314,7 +314,7 @@ export function CompletionBanner({
 
   if (canRate) {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-accent/50 p-3">
+      <div className="flex items-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
         <CompletionStatusLine context={context} />
         <div className="flex-1" />
         <Button variant="outline" size="sm" onClick={onOpenRating}>
@@ -331,7 +331,7 @@ export function CompletionBanner({
 
   if (isEmployer && !context.crew_completion_status) {
     return (
-      <div className="flex items-center justify-center gap-2 rounded-lg border border-border bg-accent/50 p-3 text-sm text-muted-foreground">
+      <div className="flex items-center justify-center gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
         <span>Waiting for crew to confirm completion</span>
       </div>
@@ -340,7 +340,7 @@ export function CompletionBanner({
 
   if (context.crew_completion_status) {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-border bg-accent/50 p-3">
+      <div className="flex items-center justify-center rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
         <CompletionStatusLine context={context} />
       </div>
     );
@@ -376,7 +376,7 @@ function RatedBanner({ context }: { context: EngagementContext }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-accent/50 p-3">
+    <div className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
       <div className="flex items-center justify-between">
         {context.status === 'completed' ? (
           <CompletionStatusLine context={context} />
@@ -390,7 +390,7 @@ function RatedBanner({ context }: { context: EngagementContext }) {
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
         >
-          <Star className="h-4 w-4 text-primary" />
+          <Star className="h-4 w-4 fill-[var(--accent)] text-[var(--accent)]" />
           <span>{expanded ? 'Hide rating' : 'View rating'}</span>
         </button>
       </div>

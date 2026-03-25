@@ -28,7 +28,7 @@ export function ChecklistCard({
   const done = items.filter((i) => acked.has(i.id)).length;
 
   return (
-    <div className="mb-4 rounded-xl border border-border bg-accent/50 p-3.5">
+    <div className="mb-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3.5">
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <ClipboardList className="h-3.5 w-3.5 text-muted-foreground" />
@@ -43,7 +43,7 @@ export function ChecklistCard({
           {isEmployer && (
             <button
               onClick={onEdit}
-              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+              className="flex items-center gap-1 text-xs text-[var(--accent)] hover:text-[var(--accent)]/80"
             >
               <Pencil className="h-3 w-3" />
               Edit
@@ -62,8 +62,8 @@ export function ChecklistCard({
                   onClick={() => onToggle(item.id, !isChecked)}
                   className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
                     isChecked
-                      ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-background hover:border-primary/50'
+                      ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
+                      : 'border-border bg-background hover:border-[var(--accent)]/50'
                   }`}
                 >
                   {isChecked && <Check className="h-3 w-3" />}
@@ -72,7 +72,7 @@ export function ChecklistCard({
                 <div
                   className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                     isChecked
-                      ? 'border-primary bg-primary text-primary-foreground'
+                      ? 'border-[var(--accent)] bg-[var(--accent)] text-white'
                       : 'border-border bg-background'
                   }`}
                 >

@@ -5,7 +5,7 @@ export function RatingSummary({ rating }: { rating: RatingData }) {
   const isCancelled = rating.rating_context === 'cancelled';
 
   return (
-    <div className="flex flex-col gap-2 border-t border-border pt-2">
+    <div className="flex flex-col gap-2 border-t border-[var(--border)] pt-2">
       {isCancelled ? (
         <>
           {isCrew && (
@@ -59,7 +59,7 @@ export function RatingSummary({ rating }: { rating: RatingData }) {
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between text-xs">
-      <span className="text-muted-foreground">{label}</span>
+      <span className="text-[var(--muted-foreground)]">{label}</span>
       <span className="font-medium">{value}</span>
     </div>
   );

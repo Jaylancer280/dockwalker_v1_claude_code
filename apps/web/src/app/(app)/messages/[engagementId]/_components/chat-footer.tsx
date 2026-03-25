@@ -56,7 +56,7 @@ export function ChatFooter({
   onRespondCrewCancel,
 }: ChatFooterProps) {
   return (
-    <div className="shrink-0 border-t border-border bg-background px-4 py-3 pb-safe">
+    <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3 pb-safe">
       <div className="mx-auto flex max-w-lg flex-col gap-2">
         {/* Work started confirmation banner */}
         {context?.status === 'active' &&
@@ -120,7 +120,7 @@ export function ChatFooter({
                 ? 'This engagement has ended'
                 : 'Type a message...'
             }
-            className="flex-1 rounded-full border border-border bg-accent px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+            className="flex-1 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
             disabled={sending || context?.status === 'completed' || context?.status === 'cancelled'}
           />
           <Button
