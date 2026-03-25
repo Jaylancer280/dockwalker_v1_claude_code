@@ -11,31 +11,27 @@ Fix: Avatar crop buttons STILL unreachable
 
 ## Queue
 
-### Fix: Avatar crop buttons covered by react-easy-crop shadow
+### Fix: Avatar crop buttons hidden behind bottom nav + profile overlay corners clipped
 
-Previous fixes (`overflow-hidden`, `shrink-0`, `pb-safe`) did not solve the problem. Root cause identified:
+**Root cause (verified, not theorized):**
 
-`react-easy-crop`'s `.reactEasyCrop_CropArea` uses `box-shadow: 0 0 0 9999em` with `color: rgba(0,0,0,0.5)` to create the dark overlay outside the crop circle. This `9999em` shadow bleeds out of the cropper container and visually covers the button bar below, even though the buttons exist in the DOM.
+The bottom nav (`components/bottom-nav.tsx` line 62) is `fixed bottom-0 z-50`. The ImageCropper modal (`components/image-cropper.tsx` line 59) is `fixed inset-0 z-50`. **Same z-index.** The bottom nav is rendered later in the DOM (in layout.tsx), so it paints on top of the cropper's button bar. The Cancel/Confirm buttons exist in the DOM but are physically covered by the bottom nav.
 
-**Fix:** Add `z-10` (or `relative z-10`) to the button bar so it renders above the cropper's shadow overlay.
+The profile overlay (`components/profile-overlay.tsx` line 107) has the same problem — `fixed inset-0 z-50` with the bottom nav at `z-50` covering the bottom edge of the overlay. Combined with `max-w-lg` being wider than the phone screen (no horizontal inset visible), the overlay appears to have square corners because the edges are flush with the viewport.
 
-- [x] `image-cropper.tsx` line 73: add `relative z-10` to the button bar div — this lifts it above the cropper's `9999em` box-shadow overlay. Full class: `shrink-0 relative z-10 flex items-center justify-center gap-4 bg-[var(--surface)] p-4 pb-safe`
-- [x] Test on phone: after selecting a photo, crop modal shows Cancel + Confirm buttons **visible and tappable** at the bottom, not covered by the dark overlay
-- [x] Verify cropper still works: drag to reposition, pinch to zoom, circular crop area visible
+**Fix — bump both modals above the bottom nav:**
 
----
+- [x] `image-cropper.tsx` line 59: change `z-50` to `z-[60]` on the outer `fixed inset-0` div. This puts the entire crop modal (including buttons) above the bottom nav. Full: `fixed inset-0 z-[60] flex flex-col bg-black/90`
+- [x] `profile-overlay.tsx` line 107: change `z-50` to `z-[60]` on the backdrop div. Full: `fixed inset-0 z-[60] flex items-end justify-center bg-black/50`
+- [x] Keep `mx-3` on the profile overlay sheet (already applied) — horizontal inset makes rounded corners visible
+- [x] Verify on phone: crop modal buttons visible and tappable above the bottom nav
+- [x] Verify on phone: profile overlay shows rounded corners, backdrop visible on all sides, scrollable
+- [x] Check all other `z-50` modals that might have the same issue — grep for `fixed.*z-50` and verify each one should be above the nav:
 
-### Fix: Profile overlay — square top corners + scrollability
-
-The profile overlay (`components/profile-overlay.tsx`) has two visual issues on mobile:
-
-**Square corners:** The outer container (line 113) has `w-full max-w-lg` and `rounded-[14px]`. On a phone (~390px), `max-w-lg` (512px) exceeds screen width, so the overlay renders at full viewport width with no horizontal gap. The rounded corners exist in the DOM but are invisible because there's no backdrop showing on either side.
-
-**Scrollability is fine** — confirmed working with longer crew profiles. Short employer profiles just don't have enough content to scroll, which is expected.
-
-- [x] Add horizontal inset to the overlay so rounded corners are visible: add `mx-3` to the overlay sheet div (line 113). This creates ~12px horizontal gap on each side, making the rounded corners and backdrop visible. Full class: `mx-3 mb-2 flex max-h-[calc(85vh-var(--nav-height,4rem))] w-full max-w-lg ...`
-- [x] Verify on phone: overlay clearly shows rounded corners on all sides, dark backdrop visible around the edges
-- [x] Verify content still scrollable on longer crew profiles
+```
+components/availability-overlay.tsx
+components/bottom-sheet.tsx (used by chat overlays)
+```
 
 ---
 

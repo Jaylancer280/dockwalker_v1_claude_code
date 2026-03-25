@@ -104,7 +104,7 @@ export function ProfileOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50"
       style={{ bottom: 'calc(var(--nav-height, 4rem) + env(safe-area-inset-bottom))' }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
