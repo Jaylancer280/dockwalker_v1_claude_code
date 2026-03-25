@@ -43,7 +43,7 @@ export function IdentityStep({
               setIdentityType('crew');
               onSelectCrew();
             }}
-            className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent"
+            className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Anchor className="h-6 w-6" />
@@ -62,7 +62,7 @@ export function IdentityStep({
               setExperienceLevel(null);
               onSelectAgent();
             }}
-            className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent"
+            className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)]"
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
               <Building2 className="h-6 w-6" />

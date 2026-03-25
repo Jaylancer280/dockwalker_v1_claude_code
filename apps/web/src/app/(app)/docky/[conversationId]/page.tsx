@@ -202,10 +202,10 @@ export default function DockyConversationPage() {
   return (
     <main className="flex min-h-screen flex-col pb-[var(--nav-height)]">
       {/* Header */}
-      <div className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-background px-2 py-3">
+      <div className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-[var(--surface)] px-2 py-3">
         <button
           onClick={() => router.push('/docky')}
-          className="rounded-full p-1 transition-colors hover:bg-accent"
+          className="rounded-full p-1 transition-colors hover:bg-[var(--accent-lo)]"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -225,7 +225,7 @@ export default function DockyConversationPage() {
                 <button
                   key={chip}
                   onClick={() => sendMessage(chip)}
-                  className="rounded-xl border border-border bg-card px-3 py-2.5 text-left text-xs transition-colors hover:bg-accent"
+                  className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-left text-xs transition-colors hover:bg-[var(--accent-lo)]"
                 >
                   {chip}
                 </button>
@@ -239,7 +239,7 @@ export default function DockyConversationPage() {
             <div key={msg.id}>
               {msg.role === 'user' ? (
                 <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+                  <div className="max-w-[80%] rounded-2xl bg-[var(--accent)] px-4 py-2.5 text-sm text-white">
                     {msg.content}
                   </div>
                 </div>
@@ -250,7 +250,7 @@ export default function DockyConversationPage() {
                   </div>
                   <div className="flex max-w-[85%] flex-col gap-1">
                     <div
-                      className="rounded-2xl bg-muted px-4 py-2.5 text-sm"
+                      className="rounded-2xl bg-[var(--card)] border border-[var(--border)] px-4 py-2.5 text-sm"
                       dangerouslySetInnerHTML={{
                         __html: renderMarkdown(msg.content),
                       }}
@@ -267,7 +267,7 @@ export default function DockyConversationPage() {
               <div className="mt-1 shrink-0">
                 <LifeBuoy className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="rounded-2xl bg-muted px-4 py-2.5 text-sm text-muted-foreground">
+              <div className="rounded-2xl bg-[var(--card)] border border-[var(--border)] px-4 py-2.5 text-sm text-[var(--muted-foreground)]">
                 <span className="inline-flex items-center gap-1">
                   {thinkingPhase === 'profile'
                     ? !dockyReadiness.ready
@@ -317,7 +317,7 @@ export default function DockyConversationPage() {
       </div>
 
       {/* Input */}
-      <div className="sticky bottom-[var(--nav-height)] border-t border-border bg-background px-4 py-3">
+      <div className="sticky bottom-[var(--nav-height)] border-t border-border bg-[var(--surface)] px-4 py-3">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -327,12 +327,12 @@ export default function DockyConversationPage() {
             placeholder={limitReached ? 'Upgrade to continue...' : 'Ask Docky...'}
             maxLength={500}
             disabled={sending || limitReached}
-            className="flex-1 rounded-full border border-border bg-muted px-4 py-2.5 text-sm outline-none focus:border-primary disabled:opacity-50"
+            className="flex-1 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || sending || limitReached}
-            className="rounded-full bg-primary p-2.5 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+            className="rounded-full bg-[var(--accent)] p-2.5 text-white transition-colors hover:brightness-[1.08] disabled:opacity-50"
           >
             <SendHorizontal className="h-4 w-4" />
           </button>

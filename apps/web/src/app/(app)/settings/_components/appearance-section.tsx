@@ -39,7 +39,7 @@ export function AppearanceSection({
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Appearance
       </h2>
-      <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+      <div className="flex flex-col gap-1 rounded-[14px] border border-[var(--border)] bg-[var(--card)]">
         {/* Theme */}
         <div className="flex items-center justify-between px-4 py-3">
           <div>

@@ -31,9 +31,9 @@ export function ExperienceForkStep({ onBack, onSelect }: ExperienceForkStepProps
         <div className="flex flex-col gap-3">
           <button
             onClick={() => onSelect('green')}
-            className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent"
+            className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)]"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--success-lo)] text-[var(--success)]">
               <Sparkles className="h-6 w-6" />
             </div>
             <div>
@@ -46,9 +46,9 @@ export function ExperienceForkStep({ onBack, onSelect }: ExperienceForkStepProps
 
           <button
             onClick={() => onSelect('experienced')}
-            className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent"
+            className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)]"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sea text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
               <Compass className="h-6 w-6" />
             </div>
             <div>

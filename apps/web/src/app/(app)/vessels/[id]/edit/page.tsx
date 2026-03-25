@@ -141,7 +141,7 @@ export default function EditVesselPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center">
           <button
             onClick={() => router.push('/vessels')}

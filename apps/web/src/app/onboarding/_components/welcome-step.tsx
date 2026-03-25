@@ -29,7 +29,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           </p>
         </div>
 
-        <div className="flex w-full flex-col items-center gap-3 rounded-xl border border-border bg-card p-5">
+        <div className="flex w-full flex-col items-center gap-3 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-5">
           <div className="flex items-center gap-3 text-sm text-foreground">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-sea" />
             <span>Apply to daywork in seconds</span>

@@ -123,7 +123,7 @@ export function VesselExperienceStep(props: VesselExperienceStepProps) {
         {experienceEntries.map((entry, index) => (
           <div
             key={entry.key}
-            className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4"
+            className="flex flex-col gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold">Experience {index + 1}</p>
@@ -395,7 +395,7 @@ export function VesselExperienceStep(props: VesselExperienceStepProps) {
 
         <button
           onClick={addEntry}
-          className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+          className="flex items-center justify-center gap-2 rounded-[14px] border border-dashed border-border p-3 text-sm text-muted-foreground transition-colors hover:border-[var(--border-hi)] hover:text-foreground"
         >
           <Plus className="h-4 w-4" />
           Add another vessel experience

@@ -42,7 +42,7 @@ export default function LandingPage() {
       <section className="border-t border-border bg-muted/30 px-6 py-12">
         <div className="mx-auto flex max-w-lg flex-col gap-8">
           <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sea/10 text-sea">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
               <Search className="h-5 w-5" />
             </div>
             <div>
@@ -54,7 +54,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal/10 text-teal">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--success-lo)] text-[var(--success)]">
               <Briefcase className="h-5 w-5" />
             </div>
             <div>
@@ -66,7 +66,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-navy/10 text-navy">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
@@ -120,7 +120,10 @@ export default function LandingPage() {
         <p className="text-xs text-muted-foreground">
           DockWalker — Superyacht daywork and permanent hiring, all in one place
         </p>
-        <Link href="/auth/login" className="mt-2 inline-block text-xs text-sea hover:underline">
+        <Link
+          href="/auth/login"
+          className="mt-2 inline-block text-xs text-[var(--accent)] hover:underline"
+        >
           Already have an account? Log in
         </Link>
       </footer>

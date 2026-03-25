@@ -50,9 +50,9 @@ export function HatSelectionStep(props: HatSelectionStepProps) {
               onSelect('crew');
             }}
             disabled={loading}
-            className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent disabled:opacity-50"
+            className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)] disabled:opacity-50"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sea text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent)] text-white">
               {loading && hat === 'crew' ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
               ) : (
@@ -75,9 +75,9 @@ export function HatSelectionStep(props: HatSelectionStepProps) {
               onSelect('employer');
             }}
             disabled={loading}
-            className="flex w-full items-center gap-4 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary hover:bg-accent disabled:opacity-50"
+            className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)] disabled:opacity-50"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-navy-light text-white">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
               {loading && hat === 'employer' ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
               ) : (

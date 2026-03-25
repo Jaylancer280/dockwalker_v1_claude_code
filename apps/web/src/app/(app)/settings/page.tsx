@@ -101,12 +101,12 @@ export default function SettingsPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push('/profile')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-lg font-bold tracking-tight">Settings</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.5px]">Settings</h1>
         </div>
       </header>
 

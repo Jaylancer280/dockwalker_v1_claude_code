@@ -31,7 +31,7 @@ export function NotificationsSection({
         something needs your attention. We&apos;ll only send an email if push isn&apos;t available —
         and even then, only for the important stuff.
       </p>
-      <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+      <div className="flex flex-col gap-1 rounded-[14px] border border-[var(--border)] bg-[var(--card)]">
         <h3 className="px-4 pt-3 text-xs font-semibold text-muted-foreground">
           Push notifications
         </h3>
@@ -70,7 +70,7 @@ export function NotificationsSection({
                 aria-checked={notifPrefs[field]}
                 disabled={!notifLoaded}
                 onClick={() => onToggle(field)}
-                className={`relative h-6 w-11 rounded-full transition-colors ${notifPrefs[field] ? 'bg-primary' : 'bg-muted'}`}
+                className={`relative h-6 w-11 rounded-full transition-colors ${notifPrefs[field] ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`}
               >
                 <span
                   className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${notifPrefs[field] ? 'translate-x-5' : 'translate-x-0'}`}
@@ -99,7 +99,7 @@ export function NotificationsSection({
             aria-checked={notifPrefs.email_enabled}
             disabled={!notifLoaded}
             onClick={() => onToggle('email_enabled')}
-            className={`relative h-6 w-11 rounded-full transition-colors ${notifPrefs.email_enabled ? 'bg-primary' : 'bg-muted'}`}
+            className={`relative h-6 w-11 rounded-full transition-colors ${notifPrefs.email_enabled ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`}
           >
             <span
               className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${notifPrefs.email_enabled ? 'translate-x-5' : 'translate-x-0'}`}

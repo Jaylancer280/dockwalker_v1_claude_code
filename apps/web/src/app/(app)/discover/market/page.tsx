@@ -237,7 +237,7 @@ export default function MarketFeedPage() {
   if (selectedCard) {
     return (
       <main className="flex min-h-svh flex-col bg-background">
-        <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur px-4 py-3">
+        <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
           <button
             onClick={() => setSelectedCard(null)}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -255,7 +255,7 @@ export default function MarketFeedPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <button
             onClick={() => router.push('/daywork/mine')}

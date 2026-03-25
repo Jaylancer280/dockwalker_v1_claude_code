@@ -96,9 +96,9 @@ export default function VesselsPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
-          <h1 className="text-lg font-bold tracking-tight">Your Vessels</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.5px]">Your Vessels</h1>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm">

@@ -148,15 +148,15 @@ export default function DockyPage() {
   return (
     <main className="mx-auto min-h-screen max-w-lg pb-[var(--nav-height)]">
       {/* Header */}
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background px-4 py-3">
+      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-[var(--surface)] px-4 py-3">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold">Docky</h1>
           {usagePill && (
             <span
               className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                 usagePill === 'Pro'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--card)] border border-[var(--border)] text-[var(--muted-foreground)]'
               }`}
             >
               {usagePill}
@@ -166,7 +166,7 @@ export default function DockyPage() {
         <button
           onClick={createConversation}
           disabled={creating}
-          className="rounded-full p-2 transition-colors hover:bg-accent disabled:opacity-50"
+          className="rounded-full p-2 transition-colors hover:bg-[var(--accent-lo)] disabled:opacity-50"
         >
           {creating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
         </button>
@@ -174,7 +174,7 @@ export default function DockyPage() {
 
       {/* Docky profile nudge */}
       {dockyReadiness.loaded && !dockyReadiness.ready && !nudgeDismissed && (
-        <div className="mx-4 mt-4 rounded-xl border border-border bg-card p-4">
+        <div className="mx-4 mt-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4">
           <div className="flex items-start justify-between">
             <p className="text-sm">
               {dockyReadiness.missing.includes('role') &&
@@ -197,7 +197,7 @@ export default function DockyPage() {
           </div>
           <button
             onClick={() => router.push('/profile')}
-            className="mt-2 text-sm font-medium text-primary"
+            className="mt-2 text-sm font-medium text-[var(--accent)]"
           >
             {dockyReadiness.missing.includes('role') &&
             dockyReadiness.missing.includes('certifications')
@@ -224,7 +224,7 @@ export default function DockyPage() {
                 key={chip}
                 onClick={() => handleChipTap(chip)}
                 disabled={creating}
-                className="rounded-xl border border-border bg-card px-3 py-3 text-left text-sm transition-colors hover:bg-accent disabled:opacity-50"
+                className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-3 py-3 text-left text-sm transition-colors hover:bg-[var(--accent-lo)] disabled:opacity-50"
               >
                 {chip}
               </button>
@@ -238,7 +238,7 @@ export default function DockyPage() {
             <div key={conv.id} className="flex items-center border-b border-border">
               <button
                 onClick={() => router.push(`/docky/${conv.id}`)}
-                className="flex flex-1 flex-col gap-0.5 px-4 py-3 text-left transition-colors hover:bg-accent"
+                className="flex flex-1 flex-col gap-0.5 px-4 py-3 text-left transition-colors hover:bg-[var(--accent-lo)]"
               >
                 <div className="flex items-center justify-between">
                   <p className="truncate text-sm font-medium">{conv.title ?? 'New conversation'}</p>

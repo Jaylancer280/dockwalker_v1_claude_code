@@ -110,12 +110,12 @@ export default function NotificationsPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="flex-1 text-lg font-bold tracking-tight">Notifications</h1>
+          <h1 className="flex-1 text-[24px] font-bold tracking-[-0.5px]">Notifications</h1>
           {hasUnread && (
             <Button variant="ghost" size="sm" onClick={markAllRead}>
               Mark all read
@@ -156,7 +156,7 @@ export default function NotificationsPage() {
             >
               <div className="mt-0.5 shrink-0">
                 <Icon
-                  className={`h-5 w-5 ${!notif.read ? 'text-primary' : 'text-muted-foreground'}`}
+                  className={`h-5 w-5 ${!notif.read ? 'text-[var(--accent)]' : 'text-muted-foreground'}`}
                 />
               </div>
               <div className="flex-1">
@@ -168,7 +168,9 @@ export default function NotificationsPage() {
                   {relativeTime(notif.created_at)}
                 </p>
               </div>
-              {!notif.read && <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+              {!notif.read && (
+                <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
+              )}
             </button>
           );
         })}

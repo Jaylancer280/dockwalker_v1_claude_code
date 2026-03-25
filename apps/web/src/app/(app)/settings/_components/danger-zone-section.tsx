@@ -57,7 +57,7 @@ export function DangerZoneSection() {
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Privacy & Data
         </h2>
-        <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+        <div className="flex flex-col gap-1 rounded-[14px] border border-[var(--border)] bg-[var(--card)]">
           {/* Export data */}
           <button
             onClick={handleExportData}
@@ -119,7 +119,7 @@ export function DangerZoneSection() {
         <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           About
         </h2>
-        <div className="flex flex-col gap-1 rounded-xl border border-border bg-card">
+        <div className="flex flex-col gap-1 rounded-[14px] border border-[var(--border)] bg-[var(--card)]">
           <div className="flex items-center justify-between px-4 py-3">
             <p className="text-sm font-medium">App version</p>
             <Badge variant="secondary" className="font-mono text-xs">
