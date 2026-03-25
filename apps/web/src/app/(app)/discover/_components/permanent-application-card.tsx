@@ -92,7 +92,7 @@ export function PermanentApplicationCard({
   const vesselDisplay = p.vessel_name ? `${vesselPrefix} ${p.vessel_name}`.trim() : 'Unknown';
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4">
       {/* Header: job ref + status */}
       <div className="mb-2 flex items-center justify-between">
         <Badge variant="outline" className="text-xs font-mono">
@@ -117,7 +117,9 @@ export function PermanentApplicationCard({
       {/* Salary + start */}
       <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-primary">
         <Briefcase className="h-3 w-3" />
-        <span>{formatSalary(p.salary_min, p.salary_max, p.salary_currency, p.salary_period)}</span>
+        <span className="font-mono">
+          {formatSalary(p.salary_min, p.salary_max, p.salary_currency, p.salary_period)}
+        </span>
         <span className="text-muted-foreground">· Start: {formatStartDate(p.start_date)}</span>
       </div>
 

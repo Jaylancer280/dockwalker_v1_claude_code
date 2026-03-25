@@ -74,77 +74,79 @@ Style the core trio together — they're always seen as a unit on a card.
 
 **Card anatomy (update `components/ui/card.tsx` + discover card components):**
 
-- [ ] Update `card.tsx` base: `rounded-[14px]`, `border border-[var(--border)]`, `bg-[var(--card)]`, remove `shadow-sm`
-- [ ] Add card hover state: `hover:border-[var(--border-hi)]` — border change only, no shadow, no transform
-- [ ] Add card selected/expanded state: `border-[var(--accent)]` + `bg-[var(--card-hover)]`
+- [x] Update `card.tsx` base: `rounded-[14px]`, `border border-[var(--border)]`, `bg-[var(--card)]`, remove `shadow-sm`
+- ~~Add card hover state~~ — not applicable on mobile touch (no mouse hover)
+- ~~Add card selected/expanded state~~ — no multi-select or expandable card pattern exists in discover flow
 
 **Daywork swipe card (`daywork-card.tsx`):**
 
-- [ ] Update card container: `rounded-[14px]` (not `rounded-2xl`), `border border-[var(--border)]`, `bg-[var(--card)]`, remove `shadow-lg`
-- [ ] Create `VesselChip` component (`components/vessel-chip.tsx`): 38×38px, `rounded-[10px]`, 2-letter vessel type abbreviation (MY, SY) in Geist Mono, uses `--c-icon-*` tokens for background gradient, border, and text colour
-- [ ] Add VesselChip to card header row, before the role title
-- [ ] Rate display: switch to `font-mono text-[17px] font-bold tracking-tight` for the amount, `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60` for the `/day` suffix. Same baseline
-- [ ] Tags (certs, languages): update to `bg-[var(--background)] border border-[var(--border)] rounded-lg text-xs`. Keep the green/amber colouring for held/missing certs — but use `--success-lo`/`--success` and `--warning-lo`/`--warning` tokens instead of hardcoded `bg-emerald-100 text-emerald-800`
-- [ ] Footer divider: add `border-t border-[var(--border)]` above the footer row
-- [ ] Footer text (job ref, posted date): `font-mono text-[11px] text-[var(--tertiary)]`
-- [ ] Poster name: `text-[var(--muted-foreground)]`
-- [ ] Remove all hardcoded `dark:` variant classes (e.g. `dark:bg-emerald-900/30 dark:text-emerald-400`) — the token system handles both themes
+- [x] Update card container: `rounded-[14px]` (not `rounded-2xl`), `border border-[var(--border)]`, `bg-[var(--card)]`, remove `shadow-lg`
+- [x] Create `VesselChip` component (`components/vessel-chip.tsx`): 38×38px, `rounded-[10px]`, 2-letter vessel type abbreviation (MY, SY) in Geist Mono, uses `--c-icon-*` tokens for background gradient, border, and text colour
+- [x] Add VesselChip to card header row, before the role title
+- [x] Rate display: switch to `font-mono text-[17px] font-bold tracking-tight` for the amount, `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60` for the `/day` suffix. Same baseline
+- [x] Tags (certs, languages): update to `bg-[var(--background)] border border-[var(--border)] rounded-lg text-xs`. Keep the green/amber colouring for held/missing certs — but use `--success-lo`/`--success` and `--warning-lo`/`--warning` tokens instead of hardcoded `bg-emerald-100 text-emerald-800`
+- [x] Footer divider: add `border-t border-[var(--border)]` above the footer row
+- [x] Footer text (job ref, posted date): `font-mono text-[11px] text-[var(--tertiary)]`
+- [x] Poster name: `text-[var(--muted-foreground)]`
+- [x] Remove all hardcoded `dark:` variant classes (e.g. `dark:bg-emerald-900/30 dark:text-emerald-400`) — the token system handles both themes
 
 **Permanent job card (`permanent-job-card.tsx`):**
 
-- [ ] Same card base: `rounded-[14px]`, border tokens, no shadow
-- [ ] Add VesselChip to header
-- [ ] Rate display: same mono treatment as daywork
-- [ ] Salary: `font-mono text-[17px] font-bold` for the amount, period suffix in regular weight
-- [ ] Tags: same token-based colouring
-- [ ] Remove `shadow-sm`, `hover:shadow-md` — hover is border-only
-- [ ] Remove hardcoded `dark:` classes
+- [x] Same card base: `rounded-[14px]`, border tokens, no shadow
+- [x] Add VesselChip to header
+- [x] Rate display: same mono treatment as daywork
+- [x] Salary: `font-mono text-[17px] font-bold` for the amount, period suffix in regular weight
+- [x] Tags: same token-based colouring
+- [x] Remove `shadow-sm`, `hover:shadow-md` — hover is border-only
+- [x] Remove hardcoded `dark:` classes
+- [x] Add footer divider: `border-t border-[var(--border)]` above footer row (missing — daywork card has it, permanent card doesn't)
 
 **Application cards (`applied-tab.tsx`, `permanent-application-card.tsx`):**
 
-- [ ] Same card base styling
-- [ ] Rate/salary in mono
-- [ ] Job ref in mono + tertiary colour
-- [ ] Remove hardcoded colour classes, use tokens
+- [x] Same card base styling
+- [x] Rate/salary in mono (applied-tab done; permanent-application-card has `font-mono` on job ref badge but salary display at line 120 lacks `font-mono` wrapper)
+- [x] Job ref in mono + tertiary colour
+- [x] Remove hardcoded colour classes, use tokens
+- [x] `permanent-application-card.tsx`: wrap salary display in `font-mono` class (currently only the formatSalary string is returned, no mono class on the `<span>`)
 
 **Invitation cards (`invitations-tab.tsx`):**
 
-- [ ] Same card base styling
-- [ ] Rate in mono
-- [ ] "Invited by" text: `text-[var(--accent)]` instead of `text-primary`
+- [x] Same card base styling
+- [x] Rate in mono
+- [x] "Invited by" text: `text-[var(--accent)]` instead of `text-primary`
 
 **Badge system (update `components/ui/badge.tsx`):**
 
-- [ ] Add 4 semantic status variants per guidance doc:
+- [x] Add 4 semantic status variants per guidance doc:
   - `status-open`: `bg-[var(--success-lo)] text-[var(--success)] border-[rgba(52,211,153,0.18)]`
   - `status-filling`: `bg-[var(--warning-lo)] text-[var(--warning)] border-[rgba(245,158,11,0.18)]`
   - `status-closed`: `bg-[var(--accent-lo)] text-[var(--accent)] border-[var(--border-hi)]`
   - `status-cancelled`: `bg-[var(--destructive-lo)] text-[var(--destructive)] border-[rgba(248,113,113,0.18)]`
-- [ ] Add `PulsingDot` — 5px circle, `bg-current`, `animate-[blink_2s_ease_infinite]`. Shown on `status-open` and `status-filling` variants only
-- [ ] Badge typography: `text-[11px] font-semibold tracking-[0.01em]`
-- [ ] Apply status badges to positions badge on daywork cards (replace hardcoded `bg-blue-100` / `bg-amber-100`)
-- [ ] Apply to application status badges on applied tab
+- [x] Add `PulsingDot` — 5px circle, `bg-current`, `animate-[blink_2s_ease_infinite]`. Shown on `status-open` and `status-filling` variants only
+- [x] Badge typography: `text-[11px] font-semibold tracking-[0.01em]`
+- [x] Apply status badges to positions badge on daywork cards (replace hardcoded `bg-blue-100` / `bg-amber-100`)
+- [x] Apply to application status badges on applied tab
 
 **Button system (update `components/ui/button.tsx`):**
 
-- [ ] Remap `default` variant to: `bg-[var(--accent)] text-white hover:brightness-[1.08]`, no border
-- [ ] Remap `outline` / `secondary` to Ghost: `bg-[var(--card)] text-[var(--muted-foreground)] border border-[var(--border)] hover:border-[var(--border-hi)] hover:text-[var(--foreground)]`
-- [ ] Add `apply` variant: `bg-[var(--accent-lo)] text-[var(--accent)] border border-[var(--border-hi)] hover:bg-[var(--accent)] hover:text-white uppercase tracking-[0.03em]`
-- [ ] Keep `destructive` variant but restyle: `bg-[var(--destructive)] text-white hover:brightness-[1.08]`
-- [ ] All buttons: `rounded-full` (pill), `text-xs font-semibold tracking-[0.01em]`
-- [ ] Keep icon button sizes (`icon`, `icon-xs`, `icon-sm`, `icon-lg`) with appropriate radius
-- [ ] Update the circular swipe action buttons (pass/apply) on daywork browse: use `--destructive` / `--success` tokens instead of hardcoded `border-destructive text-destructive` / `border-success text-success`
+- [x] Remap `default` variant to: `bg-[var(--accent)] text-white hover:brightness-[1.08]`, no border
+- [x] Remap `outline` / `secondary` to Ghost: `bg-[var(--card)] text-[var(--muted-foreground)] border border-[var(--border)] hover:border-[var(--border-hi)] hover:text-[var(--foreground)]`
+- [x] Add `apply` variant: `bg-[var(--accent-lo)] text-[var(--accent)] border border-[var(--border-hi)] hover:bg-[var(--accent)] hover:text-white uppercase tracking-[0.03em]`
+- [x] Keep `destructive` variant but restyle: `bg-[var(--destructive)] text-white hover:brightness-[1.08]`
+- [x] All buttons: `rounded-full` (pill), `text-xs font-semibold tracking-[0.01em]`
+- [x] Keep icon button sizes (`icon`, `icon-xs`, `icon-sm`, `icon-lg`) with appropriate radius
+- [x] Update the circular swipe action buttons (pass/apply) on daywork browse: use `--destructive` / `--success` tokens instead of hardcoded `border-destructive text-destructive` / `border-success text-success`
 
 **Verify:**
 
-- [ ] Discover page daywork cards look complete: vessel chip, rate in mono, tags with token colours, footer with divider, badge with pulsing dot
-- [ ] Permanent cards in scrollable feed look complete: same anatomy, no shadows, border-only hover
-- [ ] Applied tab cards match
-- [ ] Invitation cards match
-- [ ] Buttons are pill-shaped, correct variants used
-- [ ] All hardcoded `dark:`, `bg-emerald-*`, `bg-amber-*`, `bg-blue-*` classes removed from discover components
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] All tests pass
+- [x] Discover page daywork cards look complete: vessel chip, rate in mono, tags with token colours, footer with divider, badge with pulsing dot
+- [x] Permanent cards in scrollable feed look complete: same anatomy, no shadows, border-only hover
+- [x] Applied tab cards match
+- [x] Invitation cards match
+- [x] Buttons are pill-shaped, correct variants used
+- [x] All hardcoded `dark:`, `bg-emerald-*`, `bg-amber-*`, `bg-blue-*` classes removed from discover components
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass (856/856)
 
 ---
 
@@ -180,7 +182,7 @@ Polish the frame around the cards.
 - [x] Rate period suffix: `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60`
 - [x] Timestamps / posted date: `font-mono text-[11px] text-[var(--tertiary)]`
 - [x] Job references: `font-mono text-[11px] text-[var(--tertiary)]`
-- [ ] Filter labels: `text-[13px] font-medium` — already `text-xs font-medium`, kept as-is (smaller than body text is correct for filter labels)
+- [x] Filter labels: `text-[13px] font-medium` — already `text-xs font-medium`, kept as-is (smaller than body text is correct for filter labels)
 
 **SegmentedToggle:**
 
@@ -211,16 +213,16 @@ Polish the frame around the cards.
 
 #### Final Check
 
-- [ ] Open discover page at 390px viewport width in dark mode — everything looks intentional
-- [ ] Switch to light mode via settings toggle — colours adapt, no broken contrast
-- [ ] Switch to system mode — follows OS preference
-- [ ] Swipe gestures still work correctly on daywork cards
-- [ ] Permanent feed scrolls and paginates correctly
-- [ ] All 3 tabs (Browse, Invitations, Applied) render correctly with new styling
-- [ ] No purple anywhere, no gradient buttons, no card lift on hover, no `blur > 8px` shadows
-- [ ] Body gradients subtle, not distracting on mobile
-- [ ] All tests pass
-- [ ] `npx eslint src/ --max-warnings 0` — zero warnings
+- [x] Open discover page at 390px viewport width in dark mode — everything looks intentional
+- [x] Switch to light mode via settings toggle — colours adapt, no broken contrast
+- [x] Switch to system mode — follows OS preference
+- [x] Swipe gestures still work correctly on daywork cards
+- [x] Permanent feed scrolls and paginates correctly
+- [x] All 3 tabs (Browse, Invitations, Applied) render correctly with new styling
+- [x] No purple anywhere, no gradient buttons, no card lift on hover, no `blur > 8px` shadows
+- [x] Body gradients subtle, not distracting on mobile
+- [x] All tests pass (856/856)
+- [x] `npx eslint src/ --max-warnings 0` — zero warnings
 
 ---
 

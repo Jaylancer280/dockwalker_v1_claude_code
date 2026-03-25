@@ -32,13 +32,24 @@ const badgeVariants = cva(
   },
 );
 
+function PulsingDot() {
+  return (
+    <span
+      className="inline-block h-[5px] w-[5px] rounded-full bg-current animate-[blink_2s_ease_infinite]"
+      aria-hidden="true"
+    />
+  );
+}
+
 function Badge({
   className,
   variant = 'default',
   asChild = false,
+  children,
   ...props
 }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : 'span';
+  const showDot = variant === 'status-open' || variant === 'status-filling';
 
   return (
     <Comp
@@ -46,7 +57,10 @@ function Badge({
       data-variant={variant}
       className={cn(badgeVariants({ variant }), className)}
       {...props}
-    />
+    >
+      {showDot && <PulsingDot />}
+      {children}
+    </Comp>
   );
 }
 

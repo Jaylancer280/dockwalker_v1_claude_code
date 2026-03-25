@@ -205,7 +205,7 @@ export function PermanentJobCard({
       </div>
 
       {/* Footer: poster + time */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs text-muted-foreground">
         {posting.poster_name && (
           <button
             className="hover:text-primary hover:underline"
