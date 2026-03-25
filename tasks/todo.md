@@ -58,26 +58,26 @@ At 38px photos were blobs, at 56px (current) still too small per user feedback. 
 
 **DepartmentChip component (`components/department-chip.tsx`):**
 
-- [ ] Change `md` size to 64×64: `h-16 w-16`
-- [ ] Change `sm` size to 48×48: `h-12 w-12`
-- [ ] Keep `rounded-[10px]`, `object-cover`, dark mode desaturation
-- [ ] Update `next/image` width/height props to match
+- [x] Change `md` size to 64×64: `h-16 w-16`
+- [x] Change `sm` size to 48×48: `h-12 w-12`
+- [x] Keep `rounded-[10px]`, `object-cover`, dark mode desaturation
+- [x] Update `next/image` width/height props to match
 
 **Re-resize thumbnails:**
 
-- [ ] Re-run sharp resize at 128×128px (2x retina for 64px display), overwrite existing files in `public/images/departments/`
+- [x] Re-run sharp resize at 128×128px (2x retina for 64px display), overwrite existing files in `public/images/departments/`
 
 **Card layout:**
 
-- [ ] Verify header row fits at 64px chip on 390px viewport — title needs `min-w-0 flex-1`
-- [ ] If 64px makes the header row too cramped, try the chip on its own row above the title instead of inline
+- [x] Verify header row fits at 64px chip on 390px viewport — title needs `min-w-0 flex-1`
+- [x] If 64px makes the header row too cramped, try the chip on its own row above the title instead of inline
 
 **Verify:**
 
-- [ ] Department photos clearly recognizable at 64px
-- [ ] Card layout not broken on mobile
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] All tests pass
+- [x] Department photos clearly recognizable at 64px
+- [x] Card layout not broken on mobile
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass
 
 ---
 
