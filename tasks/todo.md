@@ -5,11 +5,41 @@
 
 ## Current Task
 
-Fix: Availability model overhaul + past dates regression + UI-19 review
+Fix: Cron Trigger 1 query too broad
 
 ---
 
 ## Queue
+
+### Fix: Cron Trigger 1 — missing RPC + fallback query fires for all available crew
+
+**Problem:** `api/cron/availability-expiry/route.ts` calls `rpc('get_expiring_availability_crew')` which **doesn't exist in any migration**. The fallback query fires for anyone with any active availability — not just crew whose last date is tomorrow. This would spam all available crew with "expires tomorrow" notifications daily.
+
+**Fix options (pick one):**
+
+**Option A — Fix the fallback query (simpler, no migration):**
+
+- [x] Replace the fallback query in the cron route with a proper per-person aggregation. Use Supabase client to query:
+  ```
+  SELECT person_id FROM availability_windows
+  WHERE expires_at > now() AND not_available = false
+  GROUP BY person_id
+  HAVING max(date) = CURRENT_DATE + 1
+  ```
+  This can be done with raw SQL via `supabase.rpc()` or by fetching all non-expired windows and aggregating in JS (less efficient but no migration needed).
+
+**Option B — Create the missing RPC (cleaner, needs migration):**
+
+- [x] Add `get_expiring_availability_crew()` function to a new migration that returns person_ids whose `max(date) = CURRENT_DATE + 1`
+- [x] Keep the RPC call in the cron route, remove the broken fallback
+
+**Either way:**
+
+- [x] Remove the non-existent RPC call if going with Option A, or create it if going with Option B
+- [x] Verify: only crew whose LAST available date is tomorrow get notified — not all available crew
+- [x] Verify: crew with dates beyond tomorrow do NOT get notified
+- [x] `npx tsc --noEmit` — zero errors
+- [ ] All tests pass
 
 ### Fix: Availability model — date-based expiry, auto-shrink, notifications
 

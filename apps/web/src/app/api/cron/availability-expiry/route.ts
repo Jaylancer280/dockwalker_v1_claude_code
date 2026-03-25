@@ -23,29 +23,34 @@ export async function GET(request: Request) {
 
   try {
     // ── Trigger 1: Last available day is tomorrow ──
-    // Aggregates per person — only fires when their LAST date is expiring
-    const { data: expiringCrew, error: expError } = await serviceClient.rpc(
-      'get_expiring_availability_crew',
-    );
+    // Fetch all non-expired normal availability, aggregate per person in JS
+    const { data: activeWindows } = await serviceClient
+      .from('availability_windows')
+      .select('person_id, date')
+      .gt('expires_at', new Date().toISOString())
+      .eq('not_available', false);
 
-    if (expError) {
-      // Fallback: use raw query if RPC doesn't exist yet
-      const { data: fallbackCrew } = await serviceClient
-        .from('availability_windows')
-        .select('person_id')
-        .gt('expires_at', new Date().toISOString())
-        .eq('not_available', false);
-
-      // Deduplicate and filter — basic fallback without max(date) check
-      const personIds = [...new Set((fallbackCrew ?? []).map((w) => w.person_id as string))];
-      for (const personId of personIds) {
-        await notifyExpiringIfNeeded(serviceClient, personId);
-        notifiedExpiring++;
+    if (activeWindows && activeWindows.length > 0) {
+      // Find max(date) per person
+      const maxDateByPerson = new Map<string, string>();
+      for (const w of activeWindows) {
+        const pid = w.person_id as string;
+        const d = w.date as string;
+        const current = maxDateByPerson.get(pid);
+        if (!current || d > current) maxDateByPerson.set(pid, d);
       }
-    } else {
-      for (const row of expiringCrew ?? []) {
-        const sent = await notifyExpiringIfNeeded(serviceClient, row.person_id);
-        if (sent) notifiedExpiring++;
+
+      // Tomorrow's date string (UTC)
+      const tomorrow = new Date();
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+      // Notify crew whose last available day is tomorrow
+      for (const [personId, maxDate] of maxDateByPerson) {
+        if (maxDate === tomorrowStr) {
+          const sent = await notifyExpiringIfNeeded(serviceClient, personId);
+          if (sent) notifiedExpiring++;
+        }
       }
     }
 
