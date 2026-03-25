@@ -7,50 +7,68 @@ function colorHex(c: 'gold' | 'silver'): string {
   return c === 'gold' ? GOLD : SILVER;
 }
 
-/** Anchor icon — deck + bridge. Filled silhouette for clarity at 12px. */
-function AnchorIcon({ color, size }: { color: string; size: number }) {
+/** Helm wheel — deck + bridge. Circle with 4 spokes from centre hub. */
+function HelmIcon({ color, size }: { color: string; size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="2" fill={color} />
+      <circle cx="8" cy="8" r="6" fill="none" stroke={color} strokeWidth="1.8" />
+      <line x1="8" y1="1.5" x2="8" y2="4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <line
+        x1="8"
+        y1="12"
+        x2="8"
+        y2="14.5"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <line x1="1.5" y1="8" x2="4" y2="8" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <line
+        x1="12"
+        y1="8"
+        x2="14.5"
+        y2="8"
+        stroke={color}
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Wrench — engineering. Single spanner silhouette. */
+function WrenchIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M8 1.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm-.75 5.4V13c-2.2-.3-3.75-1.7-4-3.5h1.5a.75.75 0 0 0 0-1.5H3.1A5.5 5.5 0 0 1 7.25 4.6v2.3zm1.5 0V4.6a5.5 5.5 0 0 1 4.15 3.4h-1.65a.75.75 0 0 0 0 1.5h1.5c-.25 1.8-1.8 3.2-4 3.5V6.9z"
+        d="M13.3 2.1a4.2 4.2 0 0 0-4.8.9L5.2 6.3a4.2 4.2 0 0 0-.9 4.8l-2 2a1 1 0 0 0 0 1.4l.2.2a1 1 0 0 0 1.4 0l2-2a4.2 4.2 0 0 0 4.8-.9L14 8.5a4.2 4.2 0 0 0 .9-4.8l-2.2 2.2-1.6-.5-.5-1.6 2.2-2.2-.5.5z"
         fill={color}
       />
     </svg>
   );
 }
 
-/** Gear/cog icon — engineering. 6-tooth cog, clear at 14px. */
-function GearIcon({ color, size }: { color: string; size: number }) {
+/** Diamond — interior. Faceted gem silhouette. */
+function DiamondIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6.8 1.6l-.3 1.5c-.4.1-.7.3-1 .6L4 3.2l-1.2 2 1.1 1.1c-.1.4-.1.7 0 1.1L2.8 8.5l1.2 2 1.5-.5c.3.2.6.4 1 .6l.3 1.5h2.4l.3-1.5c.4-.1.7-.3 1-.6l1.5.5 1.2-2-1.1-1.1c.1-.4.1-.7 0-1.1l1.1-1.1-1.2-2-1.5.5c-.3-.2-.6-.4-1-.6l-.3-1.5H6.8z"
-        fill={color}
-      />
+      <path d="M3 6l2-4h6l2 4-5 8.5L3 6z" fill={color} />
+      <path d="M3 6h10" stroke={color} strokeWidth="0.5" opacity="0.5" />
+      <path d="M8 2L6.5 6 8 14.5 9.5 6 8 2z" fill={color} opacity="0.3" />
     </svg>
   );
 }
 
-/** Crescent moon icon — interior. Bold filled crescent. */
-function CrescentIcon({ color, size }: { color: string; size: number }) {
+/** Chef hat — galley. Toque silhouette with puffy top. */
+function ChefHatIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M9.5 2C6 2 3.5 4.5 3.5 8s2.5 6 6 6c1.5 0 2.8-.5 3.8-1.3C12 13.5 10.5 14 9 14 5.7 14 3 11.3 3 8s2.7-6 6-6c1.5 0 2.8.5 3.8 1.3C11.8 2.5 10.7 2 9.5 2z"
+        d="M4.5 11V9.5C3 9.5 2 8.2 2 6.8 2 5 3.3 3.5 5 3.5c.5 0 1 .1 1.4.4C7 2.7 7.5 2.5 8 2.5s1 .2 1.6.4c.4-.3.9-.4 1.4-.4 1.7 0 3 1.5 3 3.3 0 1.4-1 2.7-2.5 2.7V11h-7z"
         fill={color}
       />
-    </svg>
-  );
-}
-
-/** Chef's knife icon — galley. Blade + handle silhouette, clear at 14px. */
-function KnifeIcon({ color, size }: { color: string; size: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M13.5 2C10 2.5 5.5 5.5 4 8l-1.5 1.5c-.4.4-.4 1 0 1.4l2.6 2.6c.4.4 1 .4 1.4 0L8 12c2.5-1.5 5.5-6 6-9.5.1-.5-.3-.6-.5-.5zM5.8 12.2l-2-2L5 9l2 2-1.2 1.2z"
-        fill={color}
-      />
+      <rect x="4.5" y="11.5" width="7" height="2" rx="0.5" fill={color} />
     </svg>
   );
 }
@@ -60,13 +78,13 @@ function DeptIcon({ department, size }: { department: string; size: number }) {
   switch (department) {
     case 'deck':
     case 'bridge':
-      return <AnchorIcon color={color} size={size} />;
+      return <HelmIcon color={color} size={size} />;
     case 'engineering':
-      return <GearIcon color={color} size={size} />;
+      return <WrenchIcon color={color} size={size} />;
     case 'interior':
-      return <CrescentIcon color={color} size={size} />;
+      return <DiamondIcon color={color} size={size} />;
     case 'galley':
-      return <KnifeIcon color={color} size={size} />;
+      return <ChefHatIcon color={color} size={size} />;
     default:
       return null;
   }
@@ -86,7 +104,6 @@ export function EpauletteBadge({ roleName, department, size = 'sm' }: EpauletteB
   const h = size === 'sm' ? 'h-6' : 'h-7';
   const stripeH = size === 'sm' ? 'h-3' : 'h-3.5';
   const stripeW = size === 'sm' ? 'w-[2.5px]' : 'w-[3px]';
-  // Use first gold department's color for stripes, fallback to gold
   const stripeColor = colorHex(
     info.departments.some((d) => getDepartmentColor(d) === 'gold') ? 'gold' : 'silver',
   );
@@ -99,15 +116,17 @@ export function EpauletteBadge({ roleName, department, size = 'sm' }: EpauletteB
       {info.departments.map((dept) => (
         <DeptIcon key={dept} department={dept} size={iconSize} />
       ))}
-      <span className="flex items-center gap-px ml-0.5">
-        {Array.from({ length: info.stripes }, (_, i) => (
-          <span
-            key={i}
-            className={`${stripeH} ${stripeW} rounded-full`}
-            style={{ backgroundColor: stripeColor }}
-          />
-        ))}
-      </span>
+      {info.stripes > 0 && (
+        <span className="flex items-center gap-px ml-0.5">
+          {Array.from({ length: info.stripes }, (_, i) => (
+            <span
+              key={i}
+              className={`${stripeH} ${stripeW} rounded-full`}
+              style={{ backgroundColor: stripeColor }}
+            />
+          ))}
+        </span>
+      )}
     </span>
   );
 }

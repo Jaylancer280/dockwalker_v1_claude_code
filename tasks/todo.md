@@ -51,17 +51,27 @@ The image is constrained by the card's `px-6` padding and wrapped in its own `ro
 
 **Implementation:**
 
-- [x] Replace `KnifeIcon` SVG path with a proper filled chef's knife silhouette
-- [x] Replace `PropellerIcon` with a filled gear/cog icon
-- [x] Verify `CrescentIcon` at new size — redraw if unclear
-- [x] Bump sizes: `sm` → `h-6` (24px), `md` → `h-7` (28px). Icon sizes: `sm` 12→14px, `md` 14→16px. Stripe dimensions proportional.
-- [x] **API fix:** Add `department` to `yacht_roles(id, name, department)` select in:
-  - `apps/web/src/app/api/daywork/applications/route.ts` line 67
-  - `apps/web/src/app/api/daywork/invitations/route.ts` (find the yacht_roles select)
-  - `apps/web/src/app/api/permanent/applications/route.ts` (if it has yacht_roles select)
-- [x] **Frontend fix:** Add `department` field to the `MyApplication` interface in `applied-tab.tsx` and the invitation interface in `invitations-tab.tsx`
-- [x] **Component fix:** Pass `department` to `EpauletteBadge` on all card types: `applied-tab.tsx`, `invitations-tab.tsx`, `permanent-application-card.tsx` (add import + render), mine page cards
-- [x] Verify: every job card with a role shows an epaulette — zero silent nulls
+Previous round (API + department prop + sizes) was done in commit `2df3037`. Icons need replacing with user-chosen symbols. Stripes also not visible on experience cards — need debugging.
+
+**Replace ALL 4 department icons:**
+
+- [x] **Deck/Bridge:** Replace `AnchorIcon` with **Helm wheel** — circle with 4 spokes from centre hub, filled silhouette. Must read clearly at 14-16px.
+- [x] **Engineering:** Replace `GearIcon` with **Wrench** — spanner/wrench silhouette, filled. Single wrench shape, not crossed.
+- [x] **Interior:** Replace `CrescentIcon` with **Diamond** — faceted diamond shape (like 💎), filled silhouette. Should look like a gem, not a rhombus.
+- [x] **Galley:** Replace `KnifeIcon` with **Chef hat** — toque silhouette, puffy top with straight band at bottom, filled.
+
+**Fix stripes not visible on experience cards:**
+
+- [x] Debug why stripes don't render on profile experience cards despite `size="md"` and correct role names (e.g. Bosun = 2 stripes). Read the actual rendered HTML in browser dev tools — are the stripe `<span>` elements present? Are they 0-width? Is the colour invisible against the background? Fix the root cause.
+- [x] Verify: Bosun shows 2 gold stripes, Lead Deckhand shows 1, Captain shows 4, etc.
+
+**Verify all:**
+
+- [x] All 4 new icons visually match: helm wheel (deck), wrench (engineering), diamond (interior), chef hat (galley)
+- [x] Stripes visible on all experience cards
+- [x] Epaulettes render on every card type (discover, applied, invitations, permanent, mine, review, experience)
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass
 
 ---
 
