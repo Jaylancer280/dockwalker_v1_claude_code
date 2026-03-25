@@ -113,7 +113,7 @@ export function ExperienceDetailsSection({
       </div>
 
       {/* Dates — day-level precision */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label>Start date</Label>
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />

@@ -5,13 +5,52 @@
 
 ## Current Task
 
-Stage UI-15: Profile & Experience Reskin
+Stage UI-15b: Profile device-testing fixes
 
 ---
 
 ## Queue
 
-### Stage UI-15: Profile & Experience Reskin
+### Stage UI-15b: Profile device-testing fixes
+
+**Goal:** Fix 2 issues found during device testing of the profile reskin.
+
+**Will touch:** `components/image-cropper.tsx`, `profile/_components/experience-details-section.tsx`
+
+**Will NOT touch:** API routes, migrations, types, business logic.
+
+---
+
+#### Fix 1: Avatar crop confirm button hidden on mobile
+
+The `ImageCropper` modal (`components/image-cropper.tsx`) has Cancel + Confirm buttons in a bottom bar (`bg-black p-4`). On mobile devices with system navigation bars (iOS home indicator, Android gesture bar), the buttons are obscured because the bar lacks safe area padding.
+
+- [x] Add `pb-safe` to the button bar container (line 73): `bg-black p-4 pb-safe` — this uses the existing `pb-safe` utility that maps to `env(safe-area-inset-bottom)`
+- [x] Verify the cropper area (`flex-1`) doesn't expand to cover the buttons — the `flex flex-col` parent with `fixed inset-0` should naturally give `flex-1` to the cropper and shrink-0 to the button bar, but confirm
+- [x] Also apply token-based styling while touching this file: button bar `bg-[var(--surface)]` instead of `bg-black`, modal backdrop keep `bg-black/90`
+
+---
+
+#### Fix 2: Date inputs overlap on mobile
+
+The start/end date inputs in `experience-details-section.tsx` (line 116) use `grid grid-cols-2 gap-3`. On a 390px viewport inside `max-w-lg` with `px-4` padding, each column is ~234px — native `<input type="date">` elements render wider than this on mobile, causing visual overlap.
+
+- [x] Change `grid grid-cols-2 gap-3` to `grid grid-cols-1 gap-3 sm:grid-cols-2` — stack vertically on mobile, side-by-side on wider viewports
+- [x] Verify on 390px viewport: both date inputs fully visible, no overlap, labels clear
+
+---
+
+#### Verify
+
+- [x] Open profile page on phone (or 390px viewport), tap avatar → crop modal: Cancel and Confirm buttons visible above system nav bar
+- [x] Open add-experience page on phone: start date and end date inputs stack vertically with no overlap
+- [x] Both fixes work in light and dark mode
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass
+
+---
+
+### Stage UI-15: Profile & Experience Reskin (COMPLETED)
 
 **Goal:** Apply the design system to the profile page (collapsible sections, experience cards, cert/size pills, availability, career status), add/edit experience pages, profile overlay, and availability overlay.
 
