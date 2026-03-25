@@ -70,7 +70,7 @@ export function ImageCropper({ imageSrc, onConfirm, onCancel }: ImageCropperProp
           onCropComplete={onCropComplete}
         />
       </div>
-      <div className="shrink-0 flex items-center justify-center gap-4 bg-[var(--surface)] p-4 pb-safe">
+      <div className="shrink-0 relative z-10 flex items-center justify-center gap-4 bg-[var(--surface)] p-4 pb-safe">
         <Button
           variant="outline"
           onClick={onCancel}

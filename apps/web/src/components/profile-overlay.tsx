@@ -110,7 +110,7 @@ export function ProfileOverlay({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="mb-2 flex max-h-[calc(85vh-var(--nav-height,4rem))] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-[14px] bg-background">
+      <div className="mx-3 mb-2 flex max-h-[calc(85vh-var(--nav-height,4rem))] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-[14px] bg-background">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 rounded-t-[14px]">
           <h2 className="text-sm font-bold">Profile</h2>
