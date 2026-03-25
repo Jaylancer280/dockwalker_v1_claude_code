@@ -5,289 +5,155 @@
 
 ## Current Task
 
-Stage UI-D5: Discover polish fixes
+Stage UI-13: Chat & Messages Reskin
 
 ---
 
 ## Queue
 
-### Stage UI-D5: Discover polish fixes
+### Stage UI-13: Chat & Messages Reskin
 
-**Goal:** Fix 3 visual inconsistencies found during device testing of the discover page reskin.
+**Goal:** Apply the design system from `tasks/ui-guidance.md` to the messages list and chat pages. Same tokens, typography, card anatomy, badge system, and motion patterns proven on discover.
 
-**Will touch:** `discover/page.tsx`, `daywork-browse.tsx`, `permanent-job-feed.tsx`, `applied-tab.tsx`, `permanent-application-card.tsx`
+**Will touch:** `messages/page.tsx`, `messages/[engagementId]/page.tsx`, all `_components/` files in the chat directory.
 
-**Will NOT touch:** API routes, migrations, types, business logic, non-discover pages.
+**Will NOT touch:** API routes, migrations, types, business logic, non-messages pages.
 
----
-
-#### Fix 1: Unify filter button into header (remove duplicate)
-
-Currently: header has a "Filters" button (`page.tsx:472-481`) that toggles daywork filters only. `PermanentJobFeed` (`permanent-job-feed.tsx:244-252`) has its **own** inline "Filters" button + own `showFilters` state + own filter fields. When Permanent browse is active, both buttons are visible — the header one does nothing useful.
-
-**Approach:** Lift permanent filter state + lookups out of `PermanentJobFeed` into `page.tsx` (same pattern as daywork). The header button toggles a single `showFilters` that controls whichever filter panel is active. `PermanentJobFeed` receives filter values + setters as props (same as `DayworkBrowse`). One filter button, one location (header), context-aware.
-
-- [x] Add permanent filter state to `page.tsx`: `filterPermanentRoleId`, `filterPermanentPortId`, `filterPermanentSalaryMin`, `filterPermanentLiveAboard`, `filterPermanentCertId`, `filterPermanentExpBracketId`, `filterPermanentSizeBandId` (or use a single prefix/namespace object to keep it clean)
-- [x] Load permanent filter lookups (roles, certs, brackets, sizeBands) in `page.tsx` alongside existing daywork lookups — reuse the same lookup queries since they hit the same canonical tables
-- [x] Make header "Filters" button visible on Browse tab regardless of `browseMode` (already is — but currently useless on permanent). Wire it to the shared `showFilters` state
-- [x] Add `hasActiveFilters` logic that checks daywork filters when `browseMode === 'daywork'` and permanent filters when `browseMode === 'permanent'` — show "(active)" indicator and "Clear" button in header accordingly
-- [x] Pass permanent filter state + setters + `showFilters` + lookups as props into `PermanentJobFeed`
-- [x] Update `PermanentJobFeed` props interface: accept `showFilters`, all 7 filter values, all 7 filter setters, and 4 lookup arrays as props. Remove internal `showFilters` state, filter state, lookup state, and lookup fetch `useEffect`
-- [x] Remove the inline "Filters" button and "Clear" button from `PermanentJobFeed` (lines 242-259) — the header button now controls visibility
-- [x] Keep the filter panel Card/CardContent JSX inside `PermanentJobFeed` (it renders below the toggle, same as daywork) — it just reads from props instead of local state
-- [x] When `browseMode` switches, `showFilters` can remain open (filters just swap context) OR close — user preference, but keeping it open feels more natural
-- [x] Verify: switching between Daywork/Permanent toggle with filters open shows the correct filter panel for each mode. Only one "Filters" button visible at all times, in the header
+**Pre-reskin rule:** Chat page is 1,078 lines with 26 `useState`. Must decompose before reskinning.
 
 ---
 
-#### Fix 2: Permanent application card — job ref position consistency
+#### UI-13a: Chat page decomposition
 
-Currently: daywork application card has job ref (`DW-XXXXX`) in the **footer** as `font-mono text-[11px] text-[var(--tertiary)]` alongside the applied date. Permanent application card has job ref (`PM-XXXXX`) in the **header** as a Badge component, top-left.
+The chat page (`messages/[engagementId]/page.tsx`) is 1,078 lines with 26 `useState`. Extract logical groups into focused sub-components in the existing `_components/` directory.
 
-**Approach:** Move permanent job ref to footer to match daywork pattern.
-
-- [x] `permanent-application-card.tsx`: Remove the `<Badge variant="outline" className="text-xs font-mono">PM-{...}</Badge>` from the header row (line 98-100)
-- [x] `permanent-application-card.tsx`: Add a footer row matching the daywork card pattern — `font-mono text-[11px] text-[var(--tertiary)]` showing `PM-{job_number} · Applied {date}` (same format as `applied-tab.tsx:235-238`)
-- [x] Move the status badge to the header position where the job ref badge was (top-right, alongside role name) — matching the daywork card's status badge placement (line 174 of `applied-tab.tsx`)
-- [x] Verify: both daywork and permanent application cards have identical layout: role+status top, details middle, job ref+date bottom
-
----
-
-#### Fix 3: Application message preview — replace clashing blue
-
-Currently: daywork application card message preview (`applied-tab.tsx:228`) uses `bg-accent` which is the teal/blue interactive color — too saturated for a passive text block, clashes in both themes. Permanent application card message preview (`permanent-application-card.tsx:138`) uses no background at all — just italic text.
-
-**Approach:** Use `bg-[var(--surface)]` for the message preview background on both card types. Subtle, theme-aware, non-interactive appearance.
-
-- [x] `applied-tab.tsx:228`: Change `bg-accent` to `bg-[var(--surface)]` on the message preview `<p>`. Keep `rounded-md px-2.5 py-1.5 text-xs italic`. Change `text-muted-foreground` to `text-[var(--foreground)]` so the quoted text is readable against the surface background
-- [x] `permanent-application-card.tsx:137-140`: Add `bg-[var(--surface)] rounded-md px-2.5 py-1.5` to match the daywork card message preview style. Keep `text-xs italic`. Use `text-[var(--foreground)]` for consistency
-- [x] Verify: message previews on both card types look identical — subtle surface background, readable text, no saturated accent colour
-
----
-
-#### Verify all 3 fixes
-
-- [x] Only one "Filters" button visible on discover Browse tab (in header), works for both Daywork and Permanent
-- [x] Permanent filter panel appears below the Daywork/Permanent toggle when filters are open
-- [x] Both application card types have job ref in footer, status in header
-- [x] Message previews use `bg-[var(--surface)]`, no clashing blue, readable in both light and dark mode
+- [x] Extract **ChatHeader** component (~lines 522-726): sticky header with back link, other party name, kebab action menu (view profile, daywork actions, permanent actions, cancel). Receives `context`, `isCrew`, `isEmployer`, `isPermanent` + action callbacks
+- [x] Extract **MessageList** component (~lines 728-810): scrollable message area with summary card (daywork or permanent), checklist card, system messages, user message bubbles, timestamps. Receives `messages`, `context`, `userId`, `loading` + scroll refs
+- [x] Extract **ChatFooter** component (~lines 812-896): footer with banners (work-started, postponement, completion, cancellation) and message input form. Receives `context`, banner state, input state + handlers
+- [x] Extract **ChatDialogs** component (~lines 939-1075): complete confirmation dialog, permanent dialogs (confirm placement, revert selection, close conversation, cancel posting). Receives dialog open states + handlers
+- [x] Page.tsx reduced to: state declarations, data loading (context + messages + realtime), handler functions, and composition of the 4 extracted components + overlay conditionals
+- [x] Target: page.tsx 672 lines (handlers need state access), no extracted component > 300 lines (270, 120, 145, 129)
+- [x] Verify: zero behavioral change — all chat interactions work identically
 - [x] `npx tsc --noEmit` — zero errors
 - [x] All tests pass (856/856)
 
 ---
 
-### Stage UI-Discover: Reference Screen Reskin (COMPLETED)
+#### UI-13b: Messages list page reskin
 
-**Goal:** Apply the full design system from `tasks/ui-guidance.md` to the discover page end-to-end. This is the reference implementation — every design decision is made here first. When this page looks right, the system is proven and remaining pages are mechanical propagation.
+The messages list (`messages/page.tsx`, 219 lines) is small enough to reskin directly.
 
-**What the user will review:** Open the discover page on a phone (or 390px viewport). Dark mode should be default. Every element on screen — background, header, tabs, cards, badges, buttons, nav — should feel like one cohesive design system. Compare against any other page (e.g. profile) to see the contrast between old and new.
-
-**Will touch:** `globals.css`, `layout.tsx` (fonts + theme), theme provider, discover page + all sub-components, bottom-nav, card/badge/button primitives, settings page (theme toggle only).
-
-**Will NOT touch:** API routes, migrations, types, business logic, non-discover pages (except settings theme toggle and shared components that discover uses).
-
-**Reference:** Read `tasks/ui-guidance.md` in full before starting. Every rule in that doc applies.
-
----
-
-#### UI-D1: Tokens + Theme + Fonts
-
-This is the foundation. After this step, the app renders in the new colour palette with system theme detection.
-
-**Tokens (`globals.css`):**
-
-- [x] Replace the current `:root` block with `[data-theme='dark']` and `[data-theme='light']` blocks per `ui-guidance.md` Stage UI-2. Map spec values to shadcn variable names (see token reference table in the guidance doc)
-- [x] Keep existing shadcn variables that components depend on (`--primary`, `--secondary`, `--muted`, `--ring`, `--input`, `--popover`, `--card-foreground`, `--primary-foreground`, etc.) and point them at appropriate values from the new palette
-- [x] Add new variables: `--surface`, `--card-hover`, `--border-hi`, `--tertiary`, `--accent-lo`, `--accent-md`, `--success`, `--success-lo`, `--warning`, `--warning-lo`, `--destructive-lo`, and the spec-only tokens (`--c-body-grad-*`, `--c-num-grad`, `--c-icon-*`, `--c-featured-*`, `--shadow-featured`)
-- [x] Add body background gradients: two corner-anchored radial gradients per guidance doc
-- [x] Add body transition: `transition: background-color 0.3s, color 0.3s`
-- [x] Add pulsing dot keyframe: `@keyframes blink { 0%,100% { opacity:1 } 50% { opacity:0.4 } }`
-- [x] Update `@theme inline` block to map new colour variables to Tailwind classes
-- [x] Keep safe area handling, `--nav-height`, `pb-nav` utility unchanged
-- [x] Keep DockWalker brand colors (`--color-navy` etc.) for now — remove only when confirmed unused
-
-**Theme infrastructure:**
-
-- [x] Create `apps/web/src/components/theme-provider.tsx` — context providing `{ theme, setTheme }` where theme is `'light' | 'dark' | 'system'`. Reads from `localStorage('dw-theme')`, writes `document.documentElement.dataset.theme`. Listens to `matchMedia('prefers-color-scheme: dark')` changes when set to `'system'`
-- [x] Add inline `<script>` in `apps/web/src/app/layout.tsx` `<head>` — reads `localStorage('dw-theme')` before React hydrates, sets `data-theme` attribute to prevent flash of wrong theme (FOWT)
-- [x] Wrap root layout children in `<ThemeProvider>`
-- [x] Update `<meta name="theme-color">` to reflect current resolved theme
-- [x] Add Light / Dark / System toggle to settings page Appearance section (minimal — just the toggle, no other settings changes)
-
-**Fonts:**
-
-- [ ] Source Geist Mono font files (Regular, Medium, Bold at minimum). Add to `apps/web/public/fonts/` — DEFERRED: no mono font files available; `--font-geist-mono` set to system monospace fallback via inline style on `<body>`
-- [x] Add second `localFont` declaration in `layout.tsx` for Geist Mono with `variable: '--font-geist-mono'` — SKIPPED: no font files; fallback set via inline style
-- [x] Apply CSS variable to `<body>` alongside existing `--font-geist`
-- [x] Verify `globals.css` `--font-mono: var(--font-geist-mono)` now resolves (via system monospace fallback)
-
-**Verify:**
-
-- [x] App renders in dark mode by default (system preference or dark fallback)
-- [x] Settings toggle switches between light/dark/system
-- [x] No FOWT on page refresh (inline script in <head> sets data-theme before React hydrates)
-- [x] `font-mono` class renders in monospace (system fallback — Geist Mono font files not yet sourced)
-- [x] Body gradients visible as subtle atmospheric light in dark mode
-- [x] `npx tsc --noEmit` — zero errors
-- [x] All tests pass (856/856)
-
----
-
-#### UI-D2: Card + Badge + Button
-
-Style the core trio together — they're always seen as a unit on a card.
-
-**Card anatomy (update `components/ui/card.tsx` + discover card components):**
-
-- [x] Update `card.tsx` base: `rounded-[14px]`, `border border-[var(--border)]`, `bg-[var(--card)]`, remove `shadow-sm`
-- ~~Add card hover state~~ — not applicable on mobile touch (no mouse hover)
-- ~~Add card selected/expanded state~~ — no multi-select or expandable card pattern exists in discover flow
-
-**Daywork swipe card (`daywork-card.tsx`):**
-
-- [x] Update card container: `rounded-[14px]` (not `rounded-2xl`), `border border-[var(--border)]`, `bg-[var(--card)]`, remove `shadow-lg`
-- [x] Create `VesselChip` component (`components/vessel-chip.tsx`): 38×38px, `rounded-[10px]`, 2-letter vessel type abbreviation (MY, SY) in Geist Mono, uses `--c-icon-*` tokens for background gradient, border, and text colour
-- [x] Add VesselChip to card header row, before the role title
-- [x] Rate display: switch to `font-mono text-[17px] font-bold tracking-tight` for the amount, `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60` for the `/day` suffix. Same baseline
-- [x] Tags (certs, languages): update to `bg-[var(--background)] border border-[var(--border)] rounded-lg text-xs`. Keep the green/amber colouring for held/missing certs — but use `--success-lo`/`--success` and `--warning-lo`/`--warning` tokens instead of hardcoded `bg-emerald-100 text-emerald-800`
-- [x] Footer divider: add `border-t border-[var(--border)]` above the footer row
-- [x] Footer text (job ref, posted date): `font-mono text-[11px] text-[var(--tertiary)]`
-- [x] Poster name: `text-[var(--muted-foreground)]`
-- [x] Remove all hardcoded `dark:` variant classes (e.g. `dark:bg-emerald-900/30 dark:text-emerald-400`) — the token system handles both themes
-
-**Permanent job card (`permanent-job-card.tsx`):**
-
-- [x] Same card base: `rounded-[14px]`, border tokens, no shadow
-- [x] Add VesselChip to header
-- [x] Rate display: same mono treatment as daywork
-- [x] Salary: `font-mono text-[17px] font-bold` for the amount, period suffix in regular weight
-- [x] Tags: same token-based colouring
-- [x] Remove `shadow-sm`, `hover:shadow-md` — hover is border-only
-- [x] Remove hardcoded `dark:` classes
-- [x] Add footer divider: `border-t border-[var(--border)]` above footer row (missing — daywork card has it, permanent card doesn't)
-
-**Application cards (`applied-tab.tsx`, `permanent-application-card.tsx`):**
-
-- [x] Same card base styling
-- [x] Rate/salary in mono (applied-tab done; permanent-application-card has `font-mono` on job ref badge but salary display at line 120 lacks `font-mono` wrapper)
-- [x] Job ref in mono + tertiary colour
-- [x] Remove hardcoded colour classes, use tokens
-- [x] `permanent-application-card.tsx`: wrap salary display in `font-mono` class (currently only the formatSalary string is returned, no mono class on the `<span>`)
-
-**Invitation cards (`invitations-tab.tsx`):**
-
-- [x] Same card base styling
-- [x] Rate in mono
-- [x] "Invited by" text: `text-[var(--accent)]` instead of `text-primary`
-
-**Badge system (update `components/ui/badge.tsx`):**
-
-- [x] Add 4 semantic status variants per guidance doc:
-  - `status-open`: `bg-[var(--success-lo)] text-[var(--success)] border-[rgba(52,211,153,0.18)]`
-  - `status-filling`: `bg-[var(--warning-lo)] text-[var(--warning)] border-[rgba(245,158,11,0.18)]`
-  - `status-closed`: `bg-[var(--accent-lo)] text-[var(--accent)] border-[var(--border-hi)]`
-  - `status-cancelled`: `bg-[var(--destructive-lo)] text-[var(--destructive)] border-[rgba(248,113,113,0.18)]`
-- [x] Add `PulsingDot` — 5px circle, `bg-current`, `animate-[blink_2s_ease_infinite]`. Shown on `status-open` and `status-filling` variants only
-- [x] Badge typography: `text-[11px] font-semibold tracking-[0.01em]`
-- [x] Apply status badges to positions badge on daywork cards (replace hardcoded `bg-blue-100` / `bg-amber-100`)
-- [x] Apply to application status badges on applied tab
-
-**Button system (update `components/ui/button.tsx`):**
-
-- [x] Remap `default` variant to: `bg-[var(--accent)] text-white hover:brightness-[1.08]`, no border
-- [x] Remap `outline` / `secondary` to Ghost: `bg-[var(--card)] text-[var(--muted-foreground)] border border-[var(--border)] hover:border-[var(--border-hi)] hover:text-[var(--foreground)]`
-- [x] Add `apply` variant: `bg-[var(--accent-lo)] text-[var(--accent)] border border-[var(--border-hi)] hover:bg-[var(--accent)] hover:text-white uppercase tracking-[0.03em]`
-- [x] Keep `destructive` variant but restyle: `bg-[var(--destructive)] text-white hover:brightness-[1.08]`
-- [x] All buttons: `rounded-full` (pill), `text-xs font-semibold tracking-[0.01em]`
-- [x] Keep icon button sizes (`icon`, `icon-xs`, `icon-sm`, `icon-lg`) with appropriate radius
-- [x] Update the circular swipe action buttons (pass/apply) on daywork browse: use `--destructive` / `--success` tokens instead of hardcoded `border-destructive text-destructive` / `border-success text-success`
-
-**Verify:**
-
-- [x] Discover page daywork cards look complete: vessel chip, rate in mono, tags with token colours, footer with divider, badge with pulsing dot
-- [x] Permanent cards in scrollable feed look complete: same anatomy, no shadows, border-only hover
-- [x] Applied tab cards match
-- [x] Invitation cards match
-- [x] Buttons are pill-shaped, correct variants used
-- [x] All hardcoded `dark:`, `bg-emerald-*`, `bg-amber-*`, `bg-blue-*` classes removed from discover components
-- [x] `npx tsc --noEmit` — zero errors
-- [x] All tests pass (856/856)
-
----
-
-#### UI-D3: Header + Tabs + Nav + Typography
-
-Polish the frame around the cards.
-
-**Discover page header:**
+**Header:**
 
 - [x] Background: `bg-[var(--surface)]` (not `bg-background`)
 - [x] Border: `border-b border-[var(--border)]`
-- [x] Page title: `text-[24px] font-bold tracking-[-0.5px]`
+- [x] Page title: `text-[24px] font-bold tracking-[-0.5px]` (match discover header)
+- [x] Tab labels (Active/History): use `UnderlineTabs` component if not already, or match its styling
 
-**Tabs (already using `UnderlineTabs` component):**
+**Thread cards (conversation list items):**
 
-- [x] Verify active state uses `--foreground` border and text
-- [x] Tab label typography: match guidance (if count badges shown, use mono for count)
-
-**Bottom nav (`components/bottom-nav.tsx`):**
-
-- [x] Background: `bg-[var(--surface)]`, `border-t border-[var(--border)]`
-- [x] Inactive items: `text-[var(--muted-foreground)]`
-- [x] Active items: `text-[var(--accent)]`, `font-medium`
-- [x] Labels: `text-[10px] font-bold uppercase tracking-[0.08em]`
-- [x] Badge count: `font-mono text-[10px] rounded-[4px]`
-- [x] Keep safe area handling unchanged
-
-**Typography across discover page:**
-
-- [x] Card titles (role name): `text-[15px] font-semibold tracking-[-0.3px]`
-- [x] Body text (vessel, location, dates): `text-[13px]` or `text-sm`
-- [x] Rate amounts: `font-mono text-[17px] font-bold tracking-[-0.5px]`
-- [x] Rate period suffix: `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60`
-- [x] Timestamps / posted date: `font-mono text-[11px] text-[var(--tertiary)]`
-- [x] Job references: `font-mono text-[11px] text-[var(--tertiary)]`
-- [x] Filter labels: `text-[13px] font-medium` — already `text-xs font-medium`, kept as-is (smaller than body text is correct for filter labels)
-
-**SegmentedToggle:**
-
-- [x] Verify it uses token-based colours (already should from the toggle component)
-- [x] Background: `bg-[var(--surface)]` or keep muted — evaluate visually
-
-**Motion (discover page only):**
-
-- [x] Add entrance animation to card stack: staggered `translateY(14px) → 0`, `opacity 0 → 1`, 500ms, `cubic-bezier(0.16,1,0.3,1)`. Use Framer Motion (already imported for swipe)
-- [x] Permanent feed cards: staggered entrance on initial load
-- [x] Tab switch: no animation (instant content swap is fine)
-- [x] Respect `prefers-reduced-motion`
-- [x] Remove any existing `hover:shadow-md` or `transition-shadow` — hover is border-only (none found; removed `transition-colors` from permanent-job-card container and daywork card message link)
+- [x] Card base: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (match discover cards, replace `rounded-lg`)
+- [x] Remove `hover:bg-accent` — hover is `hover:border-[var(--border-hi)]` (border-only, no bg change)
+- [x] Other party name: `text-[15px] font-semibold tracking-[-0.3px]`
+- [x] Role/vessel subtitle: `text-[13px] text-[var(--muted-foreground)]`
+- [x] Last message preview: `text-[13px]`
+- [x] Timestamp: `font-mono text-[11px] text-[var(--tertiary)]`
+- [x] Unread indicator: use `--accent` token
+- [x] "Action needed" badge: use `status-filling` badge variant (warning colour with pulsing dot)
+- [x] "Cancelled" badge: use `status-cancelled` badge variant
+- [x] History items: keep reduced opacity treatment
+- [x] Entrance animation: staggered `translateY(14px) → 0`, `opacity 0 → 1`, 500ms — same pattern as discover feed
 
 **Verify:**
 
-- [x] Header/tabs/nav all look cohesive with the card system
-- [x] Typography hierarchy is clear: titles > body > rates > timestamps
-- [x] Mono font visible on rates, job refs, timestamps
-- [x] Page load has smooth entrance animation
-- [x] No remaining hardcoded colours on the discover page or its sub-components (also fixed permanent-job-detail.tsx emerald/amber hardcoded colors)
-- [x] Compare discover page (new) vs any other page (old) — the contrast should be stark but discover should look complete
+- [x] Messages list looks cohesive with discover page
+- [x] Both themes work
 - [x] `npx tsc --noEmit` — zero errors
 - [x] All tests pass (856/856)
-- [x] Update component tests if any button/badge/card variant props changed (updated bottom-nav.test.tsx)
 
 ---
 
-#### Final Check
+#### UI-13c: Chat page reskin
 
-- [x] Open discover page at 390px viewport width in dark mode — everything looks intentional
-- [x] Switch to light mode via settings toggle — colours adapt, no broken contrast
-- [x] Switch to system mode — follows OS preference
-- [x] Swipe gestures still work correctly on daywork cards
-- [x] Permanent feed scrolls and paginates correctly
-- [x] All 3 tabs (Browse, Invitations, Applied) render correctly with new styling
-- [x] No purple anywhere, no gradient buttons, no card lift on hover, no `blur > 8px` shadows
-- [x] Body gradients subtle, not distracting on mobile
-- [x] All tests pass (856/856)
-- [x] `npx eslint src/ --max-warnings 0` — zero warnings
+Apply tokens and typography to the decomposed chat page and all its sub-components.
+
+**Chat header (new ChatHeader component):**
+
+- [ ] Background: `bg-[var(--surface)]` (not `bg-background`)
+- [ ] Border: `border-b border-[var(--border)]`
+- [ ] Other party name: `text-[15px] font-semibold tracking-[-0.3px]`
+- [ ] Action menu dropdown: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` — remove `shadow-lg` (no shadows in dark mode per guidance)
+- [ ] Menu items: `hover:bg-[var(--accent-lo)]` (not `hover:bg-accent`)
+- [ ] Destructive menu items: keep `text-destructive`
+
+**Message bubbles:**
+
+- [ ] Sent (own): `bg-[var(--accent)] text-white rounded-2xl rounded-br-md` (replace `bg-primary text-primary-foreground`)
+- [ ] Received (other): `bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl rounded-bl-md` (replace `bg-accent text-foreground` — needs border to be visible against background)
+- [ ] System messages: `bg-[var(--surface)] text-[var(--tertiary)] rounded-lg text-xs` (replace `bg-muted/60`)
+- [ ] Timestamps: `font-mono text-[10px] text-[var(--tertiary)]` (replace `text-muted-foreground/60`)
+
+**Message input:**
+
+- [ ] Input: `rounded-full border border-[var(--border)] bg-[var(--card)] text-sm focus:ring-1 focus:ring-[var(--accent)]` (replace `bg-accent`, `focus:ring-primary`)
+- [ ] Send button: keep `rounded-full`, uses default button variant (already `bg-[var(--accent)]`)
+- [ ] Footer background: `bg-[var(--surface)]` (not `bg-background`)
+- [ ] Footer border: `border-t border-[var(--border)]`
+
+**Summary cards (daywork-summary-card.tsx, permanent-summary-card.tsx):**
+
+- [ ] Card base: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-xl bg-accent/50`)
+- [ ] Section title: `text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]`
+- [ ] Field values: `text-[13px]`
+- [ ] Rate/salary: `font-mono text-[17px] font-bold tracking-[-0.5px]`
+- [ ] Rate period suffix: `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60`
+- [ ] Job ref: `font-mono text-[11px] text-[var(--tertiary)]`
+- [ ] Icon colours: `text-[var(--muted-foreground)]` (replace raw `text-muted-foreground`)
+- [ ] Permanent summary "Live aboard" badge: use `status-open` badge variant (replace hardcoded `bg-green-100 text-green-800`)
+
+**Checklist card (checklist-card.tsx):**
+
+- [ ] Card base: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `bg-accent/50`)
+- [ ] Checkbox styling: use `--accent` for checked state
+- [ ] Completed items: keep `line-through`
+
+**Banners (banners.tsx):**
+
+- [ ] All banner containers: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-lg bg-accent/50`)
+- [ ] Advisory boxes (crew cancel response, etc.): `rounded-lg border border-[var(--border-hi)] bg-[var(--accent-lo)]` (replace `border-primary/20 bg-primary/5`)
+- [ ] Status icons: keep `text-[var(--accent)]`, `text-[var(--success)]`, `text-[var(--destructive)]`
+- [ ] Banner text: `text-[13px]`
+- [ ] Stars: `fill-[var(--accent)] text-[var(--accent)]` for active (replace `fill-primary text-primary`)
+
+**Form overlays (cancel, crew-cancel, postponement, checklist, rating):**
+
+- [ ] All overlays use `BottomSheet` — verify it already uses token-based styling from UI-0
+- [ ] Form option buttons (selected): `border-[var(--accent)] bg-[var(--accent)] text-white` (replace `border-primary bg-primary text-primary-foreground`)
+- [ ] Form option buttons (unselected): `border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-hi)]` (replace `bg-accent hover:bg-accent/80`)
+- [ ] Form text inputs: `rounded-lg border border-[var(--border)] bg-[var(--card)] focus:ring-1 focus:ring-[var(--accent)]` (replace `bg-accent focus:ring-primary`)
+- [ ] Warning box in cancel-form-overlay.tsx: replace hardcoded `border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400` with `border-[var(--warning)]/30 bg-[var(--warning-lo)] text-[var(--warning)]` — remove `dark:` class
+- [ ] Star rating: `fill-[var(--accent)] text-[var(--accent)]` for active, `text-[var(--tertiary)]` for inactive (replace `fill-primary text-primary`, `text-muted-foreground/30`)
+
+**Rating summary (rating-summary.tsx):**
+
+- [ ] Border: `border-t border-[var(--border)]`
+- [ ] Labels: `text-[var(--muted-foreground)]`
+
+**Job details unavailable fallback (chat page ~line 744):**
+
+- [ ] `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-lg bg-accent/30`)
+
+**Verify:**
+
+- [ ] Chat page looks cohesive with messages list and discover
+- [ ] Message bubbles readable in both themes — sent stands out, received has border contrast
+- [ ] Summary cards match discover card anatomy
+- [ ] Banners and overlays use token colours — no hardcoded colours remain
+- [ ] All banner interactions work (work-started, postponement, completion, cancellation, rating)
+- [ ] All overlay forms work (cancel, crew-cancel, postponement, checklist, rating)
+- [ ] Both themes work
+- [ ] `npx tsc --noEmit` — zero errors
+- [ ] All tests pass
 
 ---
 
@@ -319,4 +185,4 @@ Merge `/discover/market` into the main discover page as an agent-specific mode.
 
 ## Done
 
-(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, UI-D1, UI-D2, UI-D3, UI-D4, UI-D5, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)
