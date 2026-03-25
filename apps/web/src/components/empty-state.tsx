@@ -15,21 +15,28 @@ export function EmptyState({
   description: string;
   action?: ReactNode;
 }) {
+  if (imageSrc) {
+    return (
+      <div className="overflow-hidden rounded-[14px] border border-dashed border-[var(--border)] text-center">
+        <Image
+          src={imageSrc}
+          alt=""
+          width={400}
+          height={224}
+          className="h-[180px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
+        />
+        <div className="px-6 py-6">
+          <p className="font-medium">{title}</p>
+          <p className="text-sm text-muted-foreground">{description}</p>
+          {action && <div className="mt-3">{action}</div>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center gap-3 rounded-[14px] border border-dashed border-[var(--border)] px-6 py-10 text-center">
-      {imageSrc ? (
-        <div className="overflow-hidden rounded-[14px] border border-[var(--border)]">
-          <Image
-            src={imageSrc}
-            alt=""
-            width={400}
-            height={224}
-            className="w-full h-[150px] object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
-          />
-        </div>
-      ) : Icon ? (
-        <Icon className="h-10 w-10 text-muted-foreground/40" />
-      ) : null}
+      {Icon && <Icon className="h-10 w-10 text-muted-foreground/40" />}
       <div>
         <p className="font-medium">{title}</p>
         <p className="text-sm text-muted-foreground">{description}</p>

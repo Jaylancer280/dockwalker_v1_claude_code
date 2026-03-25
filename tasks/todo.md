@@ -5,56 +5,79 @@
 
 ## Current Task
 
-UI-18 fixes + Department Thumbnails
+Fix: Empty state image layout + Department chip size
 
 ---
 
 ## Queue
 
-### Fix: Empty state images too small
+### Fix: Empty state image not filling card width
 
-The empty state images render as narrow thumbnails (150px height, auto width) floating in the card. They should fill the card width.
+The image is constrained by the card's `px-6` padding and wrapped in its own `rounded-[14px] border` — creating a padded, double-bordered thumbnail instead of a full-width hero.
 
-- [x] `empty-state.tsx` line 27: change `h-[150px] w-auto` to `w-full h-[150px]` — image fills card width, cropped to 150px height via `object-cover`
-- [x] Verify on phone: empty state image spans the full card width, no awkward padding on sides
+**Fix:** Restructure the `EmptyState` component so the image fills edge-to-edge at the top of the card, with text padded below. No image border — the card border is enough.
+
+- [x] `empty-state.tsx`: Remove `px-6` from the outer div when `imageSrc` is present. Restructure layout:
+  - Outer card: `rounded-[14px] border border-dashed border-[var(--border)] overflow-hidden text-center` (no horizontal padding)
+  - Image: `w-full h-[180px] object-cover` directly inside the card (no wrapper div, no inner border, no inner rounded corners — the card's `overflow-hidden` + `rounded-[14px]` clips the image)
+  - Text + action section below image: `px-6 py-6` (padding only on the text area)
+  - When no `imageSrc` (icon-only): keep existing `px-6 py-10` layout with centred icon
+- [x] Dark mode desaturation: keep `dark:saturate-[0.85] dark:brightness-[0.7]` on the image
+- [x] Verify on phone: image fills full card width, rounds with the card corners at top, text is cleanly separated below on card background
 
 ---
 
-### Replace VesselChip with Department Thumbnails
+### Fix: Epaulette badges — icons wrong, too small, missing on some cards
 
-**Goal:** Replace the "MY"/"SY" VesselChip square on job cards with department-themed photography thumbnails. The vessel type designation is redundant — "M/Y Serenity" already shows below. Department photos make cards visually richer.
+**Issues found (verified against code):**
 
-**Department → image pool:**
+1. **Galley "knife" icon is a lightning bolt:** `KnifeIcon` SVG path (`M11.5 1.5L5 9.5h3l-1 5 6.5-8h-3z`) is a zigzag/lightning bolt, not a knife. Replace with a proper chef's knife or chef's hat silhouette.
 
-| Department         | Images (from `assets/images/`)                                                                                    | Count |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ----- |
-| Deck / Bridge      | `crew_deckside_01/02`, `crew_rope_01/02`, `crew_teak_01`, `vessel_helm_01/02`                                     | 7     |
-| Interior           | `core_hospitality_01`, `onboarding_hero_dining_01/02`, `onboarding_hero_lounge_01/02`, `onboarding_hero_suite_01` | 6     |
-| Galley             | `core_chef_01/02/03`                                                                                              | 3     |
-| Engineering        | `vessel_engine_01`, `vessel_drydock_01/02`, `vessel_shipyard_lift_01/02`                                          | 5     |
-| Hybrid departments | Use primary department pool (deck_engineering → deck, deck_interior → deck, galley_interior → galley)             |
+2. **Engineering "propeller" is unrecognizable:** `PropellerIcon` SVG is abstract blobs at 12px. Replace with a **gear/cog** icon — simpler, universally understood, reads clearly at small sizes.
 
-**Selection logic:** Deterministic pseudo-random per card — hash the job ID (or posting ID) to pick an index from the department's image array. Same card always shows the same image, but adjacent same-department cards show different photos.
+3. **Interior crescent needs improvement:** Current `CrescentIcon` SVG may be too thin at 12px. Verify visually at new larger size — if still unclear, redraw as a bolder crescent.
+
+4. **Applied cards sometimes missing epaulette:** `getEpaulette(roleName, department)` returns `null` when `roleName` isn't in `ROLE_EPAULETTE_MAP` AND no `department` prop is passed. The applied tab (`applied-tab.tsx`) passes `roleName` from the API but likely doesn't pass `department`. Fix: ensure all card components pass `department` alongside `roleName` to `EpauletteBadge`. Check API responses include `department` field — discover API does, verify applications/invitations APIs do too.
+
+5. **Overall too small:** Current `sm` is `h-5` (20px), `md` is `h-6` (24px). Bump both sizes up.
 
 **Implementation:**
 
-- [x] Resize department thumbnails to 80×80px (square crop, JPEG quality 85) using sharp — output to `apps/web/public/images/departments/` with naming convention `{department}_{index}.jpg` (e.g. `deck_01.jpg`, `galley_02.jpg`)
-- [x] Create `DepartmentChip` component to replace `VesselChip` — same dimensions (38×38 md, 32×32 sm), `rounded-[10px]`, `object-cover`, `next/image`. Props: `department: string`, `seed: string` (job ID for deterministic selection)
-- [x] Wire department from role data — roles already have a `department` field. Check if discover/mine/review API responses include department, add if missing
-- [x] Replace `VesselChip` in `daywork-card.tsx` and `permanent-job-card.tsx` with `DepartmentChip`
-- [x] Add `DepartmentChip` to cards that don't currently have a chip: application cards, invitation cards, mine page posting cards, review applicant cards — evaluate which benefit
-- [x] Fallback: if department unknown or no images, show a generic vessel image
-- [x] Update any component tests that reference `VesselChip`
+- [x] Replace `KnifeIcon` SVG with a proper filled chef's knife silhouette (blade + handle, recognizable at 14px)
+- [x] Replace `PropellerIcon` SVG with a filled gear/cog icon (6-8 teeth, centre hole, recognizable at 14px)
+- [x] Verify `CrescentIcon` reads clearly — if not, redraw as bolder filled crescent
+- [x] Bump badge sizes: `sm` from `h-5` to `h-6` (24px), `md` from `h-6` to `h-7` (28px). Increase icon sizes proportionally: `sm` 12→14px, `md` 14→16px. Increase stripe dimensions to match.
+- [x] Ensure all card types pass `department` to `EpauletteBadge`: check `applied-tab.tsx`, `invitations-tab.tsx`, `permanent-application-card.tsx`, mine page cards. If API doesn't return department, add it to the query (roles table has department column)
+- [x] Verify: every job card with a role shows an epaulette — no silent nulls
+
+---
+
+### Fix: Department chip larger — 56px → 64px
+
+At 38px photos were blobs, at 56px (current) still too small per user feedback. Bump to 64px md / 48px sm.
+
+**DepartmentChip component (`components/department-chip.tsx`):**
+
+- [ ] Change `md` size to 64×64: `h-16 w-16`
+- [ ] Change `sm` size to 48×48: `h-12 w-12`
+- [ ] Keep `rounded-[10px]`, `object-cover`, dark mode desaturation
+- [ ] Update `next/image` width/height props to match
+
+**Re-resize thumbnails:**
+
+- [ ] Re-run sharp resize at 128×128px (2x retina for 64px display), overwrite existing files in `public/images/departments/`
+
+**Card layout:**
+
+- [ ] Verify header row fits at 64px chip on 390px viewport — title needs `min-w-0 flex-1`
+- [ ] If 64px makes the header row too cramped, try the chip on its own row above the title instead of inline
 
 **Verify:**
 
-- [x] Discover cards show department photos instead of MY/SY
-- [x] Adjacent same-department cards show different photos
-- [x] Same card always shows the same photo (deterministic)
-- [x] Images look sharp at 38×38 — not blurry
-- [x] Dark mode desaturation on thumbnails
-- [x] `npx tsc --noEmit` — zero errors
-- [x] All tests pass
+- [ ] Department photos clearly recognizable at 64px
+- [ ] Card layout not broken on mobile
+- [ ] `npx tsc --noEmit` — zero errors
+- [ ] All tests pass
 
 ---
 

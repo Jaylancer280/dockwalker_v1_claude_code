@@ -42,13 +42,13 @@ export function DepartmentChip({ department, seed, size = 'md' }: DepartmentChip
     // Fallback: generic deck image
     return (
       <div
-        className={`${size === 'sm' ? 'h-8 w-8' : 'h-[38px] w-[38px]'} shrink-0 overflow-hidden rounded-[10px] border border-[var(--border)]`}
+        className={`${size === 'sm' ? 'h-[44px] w-[44px]' : 'h-[56px] w-[56px]'} shrink-0 overflow-hidden rounded-[10px] border border-[var(--border)]`}
       >
         <Image
           src="/images/departments/deck_01.jpg"
           alt=""
-          width={80}
-          height={80}
+          width={112}
+          height={112}
           className="h-full w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
         />
       </div>
@@ -60,7 +60,7 @@ export function DepartmentChip({ department, seed, size = 'md' }: DepartmentChip
 
   return (
     <div
-      className={`${size === 'sm' ? 'h-8 w-8' : 'h-[38px] w-[38px]'} shrink-0 overflow-hidden rounded-[10px] border border-[var(--border)]`}
+      className={`${size === 'sm' ? 'h-[44px] w-[44px]' : 'h-[56px] w-[56px]'} shrink-0 overflow-hidden rounded-[10px] border border-[var(--border)]`}
     >
       <Image
         src={src}
