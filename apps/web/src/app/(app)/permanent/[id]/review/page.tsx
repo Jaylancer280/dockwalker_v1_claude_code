@@ -44,9 +44,9 @@ interface Applicant {
 
 function availabilityLabel(a: Applicant) {
   if (a.permanent_availability === 'immediate')
-    return { text: 'Available immediately', color: 'text-green-600' };
+    return { text: 'Available immediately', color: 'text-[var(--success)]' };
   if (a.permanent_availability === 'after_notice')
-    return { text: `${a.notice_period_days ?? '?'} day notice`, color: 'text-amber-600' };
+    return { text: `${a.notice_period_days ?? '?'} day notice`, color: 'text-[var(--warning)]' };
   return { text: 'Not specified', color: 'text-muted-foreground' };
 }
 
@@ -187,19 +187,19 @@ export default function PermanentReviewPage() {
   return (
     <main className="flex min-h-screen flex-col bg-background pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-20 border-b bg-background px-4 py-3">
+      <div className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center gap-2">
           <Link href="/daywork/mine" className="rounded-full p-1 hover:bg-muted">
             <ChevronLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-lg font-bold">Review Applicants</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.5px]">Review Applicants</h1>
         </div>
       </div>
 
       {/* Negotiation banner */}
       {postingStatus === 'in_negotiation' && selectedCrewId && (
-        <div className="mx-auto w-full max-w-lg border-b bg-amber-50 px-4 py-2">
-          <div className="flex items-center gap-2 text-sm text-amber-800">
+        <div className="mx-auto w-full max-w-lg border-b border-[var(--warning)]/20 bg-[var(--warning-lo)] px-4 py-2">
+          <div className="flex items-center gap-2 text-sm text-[var(--warning)]">
             <AlertCircle className="h-4 w-4" />
             <span>
               In negotiation with{' '}
@@ -242,21 +242,26 @@ export default function PermanentReviewPage() {
 
         {!loading &&
           (activeTab === 'applicants' ? applied : shortlisted).map((app) => (
-            <div key={app.id} className="rounded-xl border bg-card p-4">
+            <div
+              key={app.id}
+              className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
+            >
               {/* Header */}
               <div className="mb-2 flex items-start gap-3">
                 <Avatar src={app.avatar_url} name={app.display_name ?? '?'} size="md" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">{app.display_name ?? 'Unknown'}</span>
+                    <span className="text-[15px] font-semibold tracking-[-0.3px]">
+                      {app.display_name ?? 'Unknown'}
+                    </span>
                     {app.role_name && <EpauletteBadge roleName={app.role_name} size="sm" />}
                     {app.status === 'selected' && (
-                      <Badge variant="default" className="text-xs">
+                      <Badge variant="status-filling" className="text-xs">
                         In negotiation
                       </Badge>
                     )}
                   </div>
-                  <div className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+                  <div className="mt-0.5 flex flex-wrap gap-1.5 text-[13px] text-[var(--muted-foreground)]">
                     {app.experience_label && <span>{app.experience_label}</span>}
                     {app.nationality_flag && <span>{app.nationality_flag}</span>}
                     {app.languages.length > 0 && (
@@ -287,13 +292,13 @@ export default function PermanentReviewPage() {
 
               {/* Message */}
               {app.message && (
-                <p className="mb-2 line-clamp-2 text-xs text-muted-foreground italic">
+                <p className="mb-2 line-clamp-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs italic text-[var(--foreground)]">
                   &quot;{app.message}&quot;
                 </p>
               )}
 
               {/* Applied date */}
-              <p className="mb-3 text-xs text-muted-foreground">
+              <p className="mb-3 font-mono text-[11px] text-[var(--tertiary)]">
                 Applied {daysAgo(app.applied_at)}
               </p>
 

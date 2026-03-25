@@ -5,152 +5,145 @@
 
 ## Current Task
 
-Stage UI-13: Chat & Messages Reskin
+Stage UI-14: Review Pages Reskin
 
 ---
 
 ## Queue
 
-### Stage UI-13: Chat & Messages Reskin
+### Stage UI-14: Review Pages Reskin
 
-**Goal:** Apply the design system from `tasks/ui-guidance.md` to the messages list and chat pages. Same tokens, typography, card anatomy, badge system, and motion patterns proven on discover.
+**Goal:** Apply the design system to the daywork review page (applicant swipe stack, shortlist tab, available crew tab) and permanent review page (applicant list, shortlist tab, negotiation banner). Same tokens, typography, card anatomy proven on discover and chat.
 
-**Will touch:** `messages/page.tsx`, `messages/[engagementId]/page.tsx`, all `_components/` files in the chat directory.
+**Will touch:** `daywork/[id]/review/page.tsx`, all `_components/` in that directory, `permanent/[id]/review/page.tsx`.
 
-**Will NOT touch:** API routes, migrations, types, business logic, non-messages pages.
+**Will NOT touch:** API routes, migrations, types, business logic, non-review pages.
 
-**Pre-reskin rule:** Chat page is 1,078 lines with 26 `useState`. Must decompose before reskinning.
-
----
-
-#### UI-13a: Chat page decomposition
-
-The chat page (`messages/[engagementId]/page.tsx`) is 1,078 lines with 26 `useState`. Extract logical groups into focused sub-components in the existing `_components/` directory.
-
-- [x] Extract **ChatHeader** component (~lines 522-726): sticky header with back link, other party name, kebab action menu (view profile, daywork actions, permanent actions, cancel). Receives `context`, `isCrew`, `isEmployer`, `isPermanent` + action callbacks
-- [x] Extract **MessageList** component (~lines 728-810): scrollable message area with summary card (daywork or permanent), checklist card, system messages, user message bubbles, timestamps. Receives `messages`, `context`, `userId`, `loading` + scroll refs
-- [x] Extract **ChatFooter** component (~lines 812-896): footer with banners (work-started, postponement, completion, cancellation) and message input form. Receives `context`, banner state, input state + handlers
-- [x] Extract **ChatDialogs** component (~lines 939-1075): complete confirmation dialog, permanent dialogs (confirm placement, revert selection, close conversation, cancel posting). Receives dialog open states + handlers
-- [x] Page.tsx reduced to: state declarations, data loading (context + messages + realtime), handler functions, and composition of the 4 extracted components + overlay conditionals
-- [x] Target: page.tsx 672 lines (handlers need state access), no extracted component > 300 lines (270, 120, 145, 129)
-- [x] Verify: zero behavioral change — all chat interactions work identically
-- [x] `npx tsc --noEmit` — zero errors
-- [x] All tests pass (856/856)
+**No decomposition needed:** Daywork review page is 453 lines with components already extracted (Stage UI-0). Permanent review is 384 lines.
 
 ---
 
-#### UI-13b: Messages list page reskin
+#### UI-14a: Daywork review page + header
 
-The messages list (`messages/page.tsx`, 219 lines) is small enough to reskin directly.
+**Review page header (`page.tsx`):**
 
-**Header:**
-
-- [x] Background: `bg-[var(--surface)]` (not `bg-background`)
+- [x] Background: `bg-[var(--surface)]` (replace `bg-background`)
 - [x] Border: `border-b border-[var(--border)]`
-- [x] Page title: `text-[24px] font-bold tracking-[-0.5px]` (match discover header)
-- [x] Tab labels (Active/History): use `UnderlineTabs` component if not already, or match its styling
+- [x] Title: `text-[24px] font-bold tracking-[-0.5px]` (replace `text-lg font-bold tracking-tight`)
+- [x] Positions badge: `bg-[var(--accent-lo)] text-[var(--accent)]` (replace `bg-muted`)
+- [x] Permanent opportunity badge: `border border-[var(--border)]` — keep as-is if already token-based
+- [x] Tab system: verify `UnderlineTabs` used, or match its styling
+- [x] Filter button: already uses Button variants — verify `(active)` indicator uses `--accent` token
 
-**Thread cards (conversation list items):**
+**Filter panel (`review-filter-panel.tsx`):**
 
-- [x] Card base: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (match discover cards, replace `rounded-lg`)
-- [x] Remove `hover:bg-accent` — hover is `hover:border-[var(--border-hi)]` (border-only, no bg change)
-- [x] Other party name: `text-[15px] font-semibold tracking-[-0.3px]`
-- [x] Role/vessel subtitle: `text-[13px] text-[var(--muted-foreground)]`
-- [x] Last message preview: `text-[13px]`
-- [x] Timestamp: `font-mono text-[11px] text-[var(--tertiary)]`
-- [x] Unread indicator: use `--accent` token
-- [x] "Action needed" badge: use `status-filling` badge variant (warning colour with pulsing dot)
-- [x] "Cancelled" badge: use `status-cancelled` badge variant
-- [x] History items: keep reduced opacity treatment
-- [x] Entrance animation: staggered `translateY(14px) → 0`, `opacity 0 → 1`, 500ms — same pattern as discover feed
-
-**Verify:**
-
-- [x] Messages list looks cohesive with discover page
-- [x] Both themes work
-- [x] `npx tsc --noEmit` — zero errors
-- [x] All tests pass (856/856)
+- [x] Uses `<Card>` component — should inherit `rounded-[14px]` from UI-D2
+- [x] Labels: `text-xs font-medium text-[var(--muted-foreground)]`
+- [x] Verify inputs inherit token-based styling
 
 ---
 
-#### UI-13c: Chat page reskin
+#### UI-14b: Applicant swipe cards
 
-Apply tokens and typography to the decomposed chat page and all its sub-components.
+The applicant card is a swipe stack identical to the discover daywork card pattern. Needs the same treatment.
 
-**Chat header (new ChatHeader component):**
+**Applicant card (`applicants-tab.tsx` ~line 277):**
 
-- [x] Background: `bg-[var(--surface)]` (not `bg-background`)
-- [x] Border: `border-b border-[var(--border)]`
-- [x] Other party name: `text-[15px] font-semibold tracking-[-0.3px]`
-- [x] Action menu dropdown: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` — remove `shadow-lg` (no shadows in dark mode per guidance)
-- [x] Menu items: `hover:bg-[var(--accent-lo)]` (not `hover:bg-accent`)
-- [x] Destructive menu items: keep `text-destructive`
+- [x] Card container: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-2xl border border-border bg-background shadow-lg` — remove shadow)
+- [x] Preview card: keep `scale-[0.97] opacity-60`
+- [x] Card name: `text-[15px] font-semibold tracking-[-0.3px]` (replace `text-lg font-bold`)
+- [x] Role subtitle: `text-[13px] text-[var(--muted-foreground)]`
+- [x] Detail rows (experience, location, certs): `text-[13px]`
+- [x] Icon colours: `text-[var(--muted-foreground)]`
+- [x] Bio: `text-[13px] text-[var(--muted-foreground)]`
+- [x] Applied date: `font-mono text-[11px] text-[var(--tertiary)]` (replace `text-xs text-muted-foreground/60`)
+- [x] Application message: `bg-[var(--surface)] rounded-md px-2.5 py-1.5 text-xs italic text-[var(--foreground)]` (replace `bg-accent` — same fix as UI-D5)
+- [x] Cert/vessel/language badges: `bg-[var(--surface)] border border-[var(--border)] text-xs` (replace `variant="secondary"`)
+- [x] "Shortlisted" star icon: `fill-[var(--warning)] text-[var(--warning)]` (replace `fill-amber-500`)
+- [x] "Invited" badge: `bg-[var(--accent-lo)] text-[var(--accent)]` (replace `bg-primary/10 text-primary`)
 
-**Message bubbles:**
+**Swipe action labels (overlays that appear during drag):**
 
-- [x] Sent (own): `bg-[var(--accent)] text-white rounded-2xl rounded-br-md` (replace `bg-primary text-primary-foreground`)
-- [x] Received (other): `bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl rounded-bl-md` (replace `bg-accent text-foreground` — needs border to be visible against background)
-- [x] System messages: `bg-[var(--surface)] text-[var(--tertiary)] rounded-lg text-xs` (replace `bg-muted/60`)
-- [x] Timestamps: `font-mono text-[10px] text-[var(--tertiary)]` (replace `text-muted-foreground/60`)
+- [x] Accept: `border-[var(--success)] bg-[var(--success-lo)] text-[var(--success)]` (replace hardcoded `border-success bg-success/10 text-success`)
+- [x] Reject: `border-[var(--destructive)] bg-[var(--destructive-lo)] text-[var(--destructive)]` (replace hardcoded `border-destructive bg-destructive/10 text-destructive`)
+- [x] Shortlist: `border-[var(--warning)] bg-[var(--warning-lo)] text-[var(--warning)]` (replace hardcoded `border-amber-500 bg-amber-500/10 text-amber-500`)
 
-**Message input:**
+**Circular action buttons (below card):**
 
-- [x] Input: `rounded-full border border-[var(--border)] bg-[var(--card)] text-sm focus:ring-1 focus:ring-[var(--accent)]` (replace `bg-accent`, `focus:ring-primary`)
-- [x] Send button: keep `rounded-full`, uses default button variant (already `bg-[var(--accent)]`)
-- [x] Footer background: `bg-[var(--surface)]` (not `bg-background`)
-- [x] Footer border: `border-t border-[var(--border)]`
+- [x] Reject: `border-[var(--destructive)] text-[var(--destructive)] hover:bg-[var(--destructive)]` (replace hardcoded `border-destructive text-destructive`)
+- [x] Shortlist: `border-[var(--warning)] text-[var(--warning)] hover:bg-[var(--warning)]` (replace hardcoded `border-amber-500 text-amber-500 hover:bg-amber-500`)
+- [x] Accept: `border-[var(--success)] text-[var(--success)] hover:bg-[var(--success)]` (replace hardcoded `border-success text-success`)
 
-**Summary cards (daywork-summary-card.tsx, permanent-summary-card.tsx):**
+---
 
-- [x] Card base: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-xl bg-accent/50`)
-- [x] Section title: `text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]`
-- [x] Field values: `text-[13px]`
-- [x] Rate/salary: `font-mono text-[17px] font-bold tracking-[-0.5px]`
-- [x] Rate period suffix: `text-[11px] font-medium text-[var(--muted-foreground)] opacity-60`
-- [x] Job ref: `font-mono text-[11px] text-[var(--tertiary)]`
-- [x] Icon colours: `text-[var(--muted-foreground)]` (replace raw `text-muted-foreground`)
-- [x] Permanent summary "Live aboard" badge: use `status-open` badge variant (replace hardcoded `bg-green-100 text-green-800`)
+#### UI-14c: Available crew tab
 
-**Checklist card (checklist-card.tsx):**
+Same swipe card pattern as applicants, but for browsing available crew to invite.
 
-- [x] Card base: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `bg-accent/50`)
-- [x] Checkbox styling: use `--accent` for checked state
-- [x] Completed items: keep `line-through`
+**Available crew card (`available-crew-tab.tsx` ~line 232):**
 
-**Banners (banners.tsx):**
+- [x] Card container: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-2xl bg-background shadow-lg` — remove shadow)
+- [x] Card name: `text-[15px] font-semibold tracking-[-0.3px]` (replace `text-lg font-bold`)
+- [x] Detail rows: `text-[13px]`
+- [x] Available days highlight: `text-[var(--success)]` (replace hardcoded `text-success` — already uses semantic token, verify it's `var()` wrapped)
+- [x] Bio: `text-[13px] text-[var(--muted-foreground)]`
+- [x] Cert/vessel/language badges: same treatment as applicant cards
+- [x] "All roles" checkbox label: `text-[var(--muted-foreground)]`
+- [x] Invitation count: `font-mono text-[11px] text-[var(--tertiary)]`
 
-- [x] All banner containers: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-lg bg-accent/50`)
-- [x] Advisory boxes (crew cancel response, etc.): `rounded-lg border border-[var(--border-hi)] bg-[var(--accent-lo)]` (replace `border-primary/20 bg-primary/5`)
-- [x] Status icons: keep `text-[var(--accent)]`, `text-[var(--success)]`, `text-[var(--destructive)]`
-- [x] Banner text: `text-[13px]`
-- [x] Stars: `fill-[var(--accent)] text-[var(--accent)]` for active (replace `fill-primary text-primary`)
+**Swipe action labels:**
 
-**Form overlays (cancel, crew-cancel, postponement, checklist, rating):**
+- [x] Invite: `border-[var(--success)] bg-[var(--success-lo)] text-[var(--success)]` (replace hardcoded)
+- [x] Pass: `border-[var(--destructive)] bg-[var(--destructive-lo)] text-[var(--destructive)]` (replace hardcoded)
 
-- [x] All overlays use `BottomSheet` — verify it already uses token-based styling from UI-0
-- [x] Form option buttons (selected): `border-[var(--accent)] bg-[var(--accent)] text-white` (replace `border-primary bg-primary text-primary-foreground`)
-- [x] Form option buttons (unselected): `border-[var(--border)] bg-[var(--card)] hover:border-[var(--border-hi)]` (replace `bg-accent hover:bg-accent/80`)
-- [x] Form text inputs: `rounded-lg border border-[var(--border)] bg-[var(--card)] focus:ring-1 focus:ring-[var(--accent)]` (replace `bg-accent focus:ring-primary`)
-- [x] Warning box in cancel-form-overlay.tsx: replace hardcoded `border-yellow-500/30 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400` with `border-[var(--warning)]/30 bg-[var(--warning-lo)] text-[var(--warning)]` — remove `dark:` class
-- [x] Star rating: `fill-[var(--accent)] text-[var(--accent)]` for active, `text-[var(--tertiary)]` for inactive (replace `fill-primary text-primary`, `text-muted-foreground/30`)
+**Circular action buttons:**
 
-**Rating summary (rating-summary.tsx):**
+- [x] Pass: `border-[var(--destructive)] text-[var(--destructive)] hover:bg-[var(--destructive)]`
+- [x] Invite: `border-[var(--success)] text-[var(--success)] hover:bg-[var(--success)]`
 
-- [x] Border: `border-t border-[var(--border)]`
-- [x] Labels: `text-[var(--muted-foreground)]`
+---
 
-**Job details unavailable fallback (chat page ~line 744):**
+#### UI-14d: Permanent review page
 
-- [x] `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-lg bg-accent/30`)
+Different UI pattern — scrollable list, not swipe stack. But same token system.
 
-**Verify:**
+**Header (`permanent/[id]/review/page.tsx`):**
 
-- [x] Chat page looks cohesive with messages list and discover
-- [x] Message bubbles readable in both themes — sent stands out, received has border contrast
-- [x] Summary cards match discover card anatomy
-- [x] Banners and overlays use token colours — no hardcoded colours remain
-- [x] All banner interactions work (work-started, postponement, completion, cancellation, rating)
-- [x] All overlay forms work (cancel, crew-cancel, postponement, checklist, rating)
+- [x] Background: `bg-[var(--surface)]` (replace `bg-background`)
+- [x] Border: `border-b border-[var(--border)]` (add explicit `border-[var(--border)]`)
+- [x] Title: `text-[24px] font-bold tracking-[-0.5px]` (replace `text-lg font-bold`)
+- [x] Tab system: verify uses token-based active state
+
+**Negotiation banner (~line 201):**
+
+- [x] `bg-[var(--warning-lo)] border-b border-[var(--warning)]/20 text-[var(--warning)]` (replace hardcoded `bg-amber-50 text-amber-800`)
+
+**Applicant cards (~line 245):**
+
+- [x] Card container: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-xl border bg-card p-4`)
+- [x] Name: `text-[15px] font-semibold tracking-[-0.3px]` (replace `font-semibold`)
+- [x] "In negotiation" badge: use `status-filling` badge variant (replace `variant="default"`)
+- [x] Availability labels: replace hardcoded colors:
+  - "Available immediately": `text-[var(--success)]` (replace `text-green-600`)
+  - "Available after notice": `text-[var(--warning)]` (replace `text-amber-600`)
+  - "Not looking": `text-[var(--muted-foreground)]` (keep)
+- [x] Detail rows (experience, nationality, languages): `text-[13px] text-[var(--muted-foreground)]`
+- [x] Application message: `bg-[var(--surface)] rounded-md px-2.5 py-1.5 text-xs italic text-[var(--foreground)]`
+- [x] Applied date: `font-mono text-[11px] text-[var(--tertiary)]` (replace `text-xs text-muted-foreground`)
+- [x] Action buttons: verify they use Button component variants (already do — `variant="outline"` for reject, default for shortlist/select)
+
+---
+
+#### Verify all fixes
+
+- [x] Daywork review: applicant swipe cards match discover card anatomy — `rounded-[14px]`, no shadows, token borders
+- [x] Swipe action labels use token colours — no hardcoded amber/success/destructive classes
+- [x] Circular action buttons use `var()` token colours
+- [x] Available crew tab matches applicant card styling
+- [x] Permanent review cards: `rounded-[14px]`, token borders, no hardcoded green/amber
+- [x] Negotiation banner uses warning tokens, no hardcoded amber-50
+- [x] Filter panel inherits card styling
+- [x] All headers use `bg-[var(--surface)]`
 - [x] Both themes work
 - [x] `npx tsc --noEmit` — zero errors
 - [x] All tests pass (856/856)
@@ -185,4 +178,4 @@ Merge `/discover/market` into the main discover page as an agent-specific mode.
 
 ## Done
 
-(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, UI-D1, UI-D2, UI-D3, UI-D4, UI-D5, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, UI-D1, UI-D2, UI-D3, UI-D4, UI-D5, UI-13a, UI-13b, UI-13c, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)

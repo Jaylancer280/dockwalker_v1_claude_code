@@ -282,15 +282,15 @@ export default function ReviewApplicantsPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center gap-3">
           <Link href="/daywork/mine" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <div className="flex flex-1 items-center gap-2">
-            <h1 className="text-lg font-bold tracking-tight">Review</h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.5px]">Review</h1>
             {positionsAvailable > 1 && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+              <span className="rounded-full bg-[var(--accent-lo)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
                 {positionsFilled}/{positionsAvailable} filled
               </span>
             )}

@@ -2,17 +2,7 @@
 
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
-import {
-  MapPin,
-  Award,
-  Briefcase,
-  Calendar,
-  Check,
-  X,
-  User,
-  MessageSquare,
-  Star,
-} from 'lucide-react';
+import { MapPin, Award, Briefcase, Calendar, Check, X, User, Star } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -142,7 +132,7 @@ export function ApplicantsTab({
           <button
             onClick={() => handleReject(topCard.crew_person_id)}
             disabled={acting}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
+            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--destructive)] text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)] hover:text-white disabled:opacity-50"
           >
             <X className="h-6 w-6" />
           </button>
@@ -150,7 +140,7 @@ export function ApplicantsTab({
             <button
               onClick={() => handleShortlist(topCard.crew_person_id)}
               disabled={acting}
-              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-amber-500 text-amber-500 transition-colors hover:bg-amber-500 hover:text-white disabled:opacity-50"
+              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[var(--warning)] text-[var(--warning)] transition-colors hover:bg-[var(--warning)] hover:text-white disabled:opacity-50"
             >
               <Star className="h-5 w-5" />
             </button>
@@ -158,7 +148,7 @@ export function ApplicantsTab({
           <button
             onClick={() => requestAccept(topCard.crew_person_id)}
             disabled={acting}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
+            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--success)] text-[var(--success)] transition-colors hover:bg-[var(--success)] hover:text-white disabled:opacity-50"
           >
             <Check className="h-6 w-6" />
           </button>
@@ -236,20 +226,20 @@ function SwipeableApplicant({
       onDragEnd={handleDragEnd}
     >
       <motion.div
-        className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border-2 border-success bg-success/10 px-3 py-1 text-sm font-bold text-success"
+        className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border-2 border-[var(--success)] bg-[var(--success-lo)] px-3 py-1 text-sm font-bold text-[var(--success)]"
         style={{ opacity: acceptOpacity }}
       >
         ACCEPT
       </motion.div>
       <motion.div
-        className="pointer-events-none absolute right-4 top-4 z-20 rounded-lg border-2 border-destructive bg-destructive/10 px-3 py-1 text-sm font-bold text-destructive"
+        className="pointer-events-none absolute right-4 top-4 z-20 rounded-lg border-2 border-[var(--destructive)] bg-[var(--destructive-lo)] px-3 py-1 text-sm font-bold text-[var(--destructive)]"
         style={{ opacity: rejectOpacity }}
       >
         REJECT
       </motion.div>
       {tab === 'applicants' && (
         <motion.div
-          className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2 rounded-lg border-2 border-amber-500 bg-amber-500/10 px-3 py-1 text-sm font-bold text-amber-500"
+          className="pointer-events-none absolute left-1/2 top-4 z-20 -translate-x-1/2 rounded-lg border-2 border-[var(--warning)] bg-[var(--warning-lo)] px-3 py-1 text-sm font-bold text-[var(--warning)]"
           style={{ opacity: shortlistOpacity }}
         >
           SHORTLIST
@@ -274,7 +264,7 @@ export function ApplicantCard({
 
   return (
     <div
-      className={`h-full w-full rounded-2xl border border-border bg-background shadow-lg ${
+      className={`h-full w-full rounded-[14px] border border-[var(--border)] bg-[var(--card)] ${
         isPreview ? 'scale-[0.97] opacity-60' : ''
       }`}
     >
@@ -284,7 +274,7 @@ export function ApplicantCard({
           <Avatar src={profile?.avatar_url ?? null} name={profile?.display_name ?? '?'} size="md" />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold">
+              <h3 className="text-[15px] font-semibold tracking-[-0.3px]">
                 {profile?.nationalities?.flag_emoji && (
                   <span className="mr-1">{profile.nationalities.flag_emoji}</span>
                 )}
@@ -298,10 +288,10 @@ export function ApplicantCard({
                 )}
               </h3>
               {applicant.status === 'shortlisted' && (
-                <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                <Star className="h-4 w-4 fill-[var(--warning)] text-[var(--warning)]" />
               )}
               {applicant.source === 'invitation' && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                <span className="rounded-full bg-[var(--accent-lo)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent)]">
                   Invited
                 </span>
               )}
@@ -399,16 +389,17 @@ export function ApplicantCard({
 
         {/* Application message */}
         {applicant.message && (
-          <div className="mt-3 flex gap-2 rounded-lg bg-accent p-3">
-            <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
-            <p className="text-sm">{applicant.message}</p>
+          <div className="mt-3 rounded-md bg-[var(--surface)] px-2.5 py-1.5">
+            <p className="text-xs italic text-[var(--foreground)]">
+              &ldquo;{applicant.message}&rdquo;
+            </p>
           </div>
         )}
 
         <div className="flex-1" />
 
         {/* Applied date */}
-        <p className="mt-2 text-xs text-muted-foreground/60">
+        <p className="mt-2 font-mono text-[11px] text-[var(--tertiary)]">
           Applied {new Date(applicant.created_at).toLocaleDateString()}
         </p>
       </div>

@@ -128,14 +128,14 @@ export function AvailableCrewTab({
           <button
             onClick={() => handlePass(topCard.person_id)}
             disabled={acting}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-destructive text-destructive transition-colors hover:bg-destructive hover:text-white disabled:opacity-50"
+            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--destructive)] text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)] hover:text-white disabled:opacity-50"
           >
             <X className="h-6 w-6" />
           </button>
           <button
             onClick={() => requestInvite(topCard)}
             disabled={acting || inviteLimitReached}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-success text-success transition-colors hover:bg-success hover:text-white disabled:opacity-50"
+            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--success)] text-[var(--success)] transition-colors hover:bg-[var(--success)] hover:text-white disabled:opacity-50"
             title={inviteLimitReached ? 'Invitation limit reached' : 'Invite'}
           >
             <Send className="h-6 w-6" />
@@ -201,13 +201,13 @@ function SwipeableAvailableCrew({
       onDragEnd={handleDragEnd}
     >
       <motion.div
-        className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border-2 border-success bg-success/10 px-3 py-1 text-sm font-bold text-success"
+        className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border-2 border-[var(--success)] bg-[var(--success-lo)] px-3 py-1 text-sm font-bold text-[var(--success)]"
         style={{ opacity: inviteOpacity }}
       >
         INVITE
       </motion.div>
       <motion.div
-        className="pointer-events-none absolute right-4 top-4 z-20 rounded-lg border-2 border-destructive bg-destructive/10 px-3 py-1 text-sm font-bold text-destructive"
+        className="pointer-events-none absolute right-4 top-4 z-20 rounded-lg border-2 border-[var(--destructive)] bg-[var(--destructive-lo)] px-3 py-1 text-sm font-bold text-[var(--destructive)]"
         style={{ opacity: passOpacity }}
       >
         PASS
@@ -229,7 +229,7 @@ export function AvailableCrewCard({
 }) {
   return (
     <div
-      className={`h-full w-full rounded-2xl border border-border bg-background shadow-lg ${
+      className={`h-full w-full rounded-[14px] border border-[var(--border)] bg-[var(--card)] ${
         isPreview ? 'scale-[0.97] opacity-60' : ''
       }`}
     >
@@ -239,7 +239,7 @@ export function AvailableCrewCard({
           <Avatar src={crew.avatar_url ?? null} name={crew.display_name ?? '?'} size="md" />
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold">
+              <h3 className="text-[15px] font-semibold tracking-[-0.3px]">
                 {crew.nationalities?.flag_emoji && (
                   <span className="mr-1">{crew.nationalities.flag_emoji}</span>
                 )}
