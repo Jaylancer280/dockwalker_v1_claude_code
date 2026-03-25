@@ -368,7 +368,7 @@ export interface EventPayloadMap {
   'AVAILABILITY.SET': {
     start_date: string;
     end_date: string;
-    expires_at: string;
+    expires_at?: string;
     city_id: string | null;
     port_id?: string | null;
     not_available?: boolean;

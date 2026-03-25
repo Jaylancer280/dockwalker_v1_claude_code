@@ -119,9 +119,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'cityId is required' }, { status: 400 });
   }
 
-  // Hard 7-day expiry
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
+  // Not-available uses 7-day TTL; normal availability uses per-date expiry (computed server-side in apply_projection)
+  const notAvailableExpiresAt = new Date();
+  notAvailableExpiresAt.setDate(notAvailableExpiresAt.getDate() + 7);
 
   // Validate portId belongs to cityId if both provided
   if (portId) {
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
         payload: {
           start_date: todayStr,
           end_date: todayStr,
-          expires_at: expiresAt.toISOString(),
+          expires_at: notAvailableExpiresAt.toISOString(),
           city_id: cityId,
           port_id: portId ?? null,
           not_available: true,
@@ -180,7 +180,6 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         notAvailable: true,
-        expiresAt: expiresAt.toISOString(),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to set availability';
@@ -243,7 +242,6 @@ export async function POST(request: Request) {
       payload: {
         start_date: startDate,
         end_date: endDate,
-        expires_at: expiresAt.toISOString(),
         city_id: cityId,
         port_id: portId ?? null,
       },
@@ -253,7 +251,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       daysSet: diffDays,
-      expiresAt: expiresAt.toISOString(),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to set availability';
@@ -288,8 +285,8 @@ export async function DELETE(request: Request) {
 
     const cityId = lastWindow?.city_id ?? null;
 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+    const clearExpiresAt = new Date();
+    clearExpiresAt.setDate(clearExpiresAt.getDate() + 7);
     const todayStr = new Date().toISOString().split('T')[0];
 
     try {
@@ -301,7 +298,7 @@ export async function DELETE(request: Request) {
         payload: {
           start_date: todayStr,
           end_date: todayStr,
-          expires_at: expiresAt.toISOString(),
+          expires_at: clearExpiresAt.toISOString(),
           city_id: cityId,
           not_available: true,
         },

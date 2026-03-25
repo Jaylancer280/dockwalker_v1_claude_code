@@ -2,10 +2,12 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { GET } from '@/app/api/cron/availability-expiry/route';
 
 const mockServiceFrom = vi.fn();
+const mockServiceRpc = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
   createServiceClient: vi.fn(async () => ({
     from: mockServiceFrom,
+    rpc: mockServiceRpc,
   })),
 }));
 
@@ -15,19 +17,14 @@ vi.mock('@/lib/push-delivery', () => ({
 
 /** Build a fluent mock where every method returns self, except the terminal resolves data */
 function fluent(terminalData: unknown) {
-  const obj: Record<string, unknown> = {};
-  const self = new Proxy(obj, {
-    get(_target, prop) {
-      if (prop === 'then') return undefined; // not thenable until terminal
-      return (..._args: unknown[]) => self;
-    },
-  });
-  // Override specific terminals
   return {
     select: vi.fn().mockReturnValue({
       gt: vi.fn().mockReturnValue({
         lte: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({ data: terminalData }),
+        }),
+        eq: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data: terminalData }),
         }),
       }),
       eq: vi.fn().mockReturnValue({
@@ -37,6 +34,7 @@ function fluent(terminalData: unknown) {
           }),
         }),
       }),
+      order: vi.fn().mockResolvedValue({ data: terminalData }),
     }),
     insert: vi.fn().mockResolvedValue({ error: null }),
   };
@@ -70,44 +68,47 @@ describe('GET /api/cron/availability-expiry', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 200 with count of notified crew', async () => {
-    // availability_windows query — 2 crew expiring
-    mockServiceFrom.mockReturnValueOnce(
-      fluent([{ person_id: 'crew-1' }, { person_id: 'crew-2' }]),
-    );
+  it('returns 200 with counts of notified crew', async () => {
+    // Trigger 1: rpc returns expiring crew
+    mockServiceRpc.mockResolvedValueOnce({ data: [{ person_id: 'crew-1' }], error: null });
     // notifications check crew-1 — no existing
     mockServiceFrom.mockReturnValueOnce(fluent([]));
     // notifications insert crew-1
     mockServiceFrom.mockReturnValueOnce(fluent(null));
-    // notifications check crew-2 — no existing
+    // Trigger 2: stale query — no stale crew
     mockServiceFrom.mockReturnValueOnce(fluent([]));
-    // notifications insert crew-2
-    mockServiceFrom.mockReturnValueOnce(fluent(null));
 
     const res = await GET(makeRequest('test-secret'));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.notified).toBe(2);
+    expect(body.notifiedExpiring).toBe(1);
+    expect(body.notifiedStale).toBe(0);
   });
 
   it('skips crew already notified in last 24h', async () => {
-    // availability_windows query — 1 crew expiring
-    mockServiceFrom.mockReturnValueOnce(fluent([{ person_id: 'crew-1' }]));
+    // Trigger 1: rpc returns expiring crew
+    mockServiceRpc.mockResolvedValueOnce({ data: [{ person_id: 'crew-1' }], error: null });
     // notifications check — already notified
     mockServiceFrom.mockReturnValueOnce(fluent([{ id: 'existing' }]));
-
-    const res = await GET(makeRequest('test-secret'));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.notified).toBe(0);
-  });
-
-  it('returns 0 when no expiring availability found', async () => {
+    // Trigger 2: stale query — no stale crew
     mockServiceFrom.mockReturnValueOnce(fluent([]));
 
     const res = await GET(makeRequest('test-secret'));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.notified).toBe(0);
+    expect(body.notifiedExpiring).toBe(0);
+  });
+
+  it('returns 0 when no expiring availability found', async () => {
+    // Trigger 1: rpc returns empty
+    mockServiceRpc.mockResolvedValueOnce({ data: [], error: null });
+    // Trigger 2: stale query — no stale crew
+    mockServiceFrom.mockReturnValueOnce(fluent([]));
+
+    const res = await GET(makeRequest('test-secret'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.notifiedExpiring).toBe(0);
+    expect(body.notifiedStale).toBe(0);
   });
 });

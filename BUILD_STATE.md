@@ -219,7 +219,7 @@
 
 ## Current Schema Version
 
-v72 — Consolidated triggers into apply_projection (72 migrations applied)
+v73 — Per-date availability expiry (73 migrations applied)
 
 ## Migrations Applied
 
