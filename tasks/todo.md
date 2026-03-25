@@ -5,11 +5,26 @@
 
 ## Current Task
 
-Fix: Empty state image layout + Department chip size
+Fix: Epaulette stripes collapsed + wrench icon unclear
 
 ---
 
 ## Queue
+
+### Fix: Epaulette stripes not showing on experience cards + wrench icon
+
+**Stripe root cause (verified):** `profile-experience-section.tsx` line 130 — the flex row is `flex w-full items-center gap-3`. The `EpauletteBadge` span has no `flex-shrink-0`, so on tight rows (ship icon + vessel name + operation badge + role text + epaulette + chevron), the stripes container collapses to 0 width. The icon SVG has a fixed width and renders, but the stripes `<span>` elements get squeezed to nothing.
+
+**Wrench icon:** The current SVG path doesn't read as a wrench at 14-16px — looks like a circular blob. Needs a clearer SVG path.
+
+- [x] `epaulette-badge.tsx` line 113: add `shrink-0` to the badge span: `inline-flex shrink-0 items-center gap-0.5 rounded-full bg-slate-900 px-1.5 ${h}` — this prevents flex compression on ALL card types, not just experience
+- [x] Replace `WrenchIcon` SVG with a simpler, more recognizable wrench path — single open-ended spanner shape, thick stroke, reads clearly at 14px. The current path is too complex and fills into an unrecognizable blob at small sizes.
+- [x] Verify on phone: experience cards show icon + stripes (Chief Stewardess = diamond + 3, Lead Deckhand = helm + 1, Deckhand = helm + 1)
+- [x] Verify wrench is recognizable on applied cards (Chief Engineer = wrench + 4 stripes)
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass
+
+---
 
 ### Fix: Empty state image not filling card width
 

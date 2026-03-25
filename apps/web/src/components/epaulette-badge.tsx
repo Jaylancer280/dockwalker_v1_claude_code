@@ -37,12 +37,12 @@ function HelmIcon({ color, size }: { color: string; size: number }) {
   );
 }
 
-/** Wrench — engineering. Single spanner silhouette. */
+/** Wrench — engineering. Open-ended spanner, thick stroke for clarity at 14px. */
 function WrenchIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M13.3 2.1a4.2 4.2 0 0 0-4.8.9L5.2 6.3a4.2 4.2 0 0 0-.9 4.8l-2 2a1 1 0 0 0 0 1.4l.2.2a1 1 0 0 0 1.4 0l2-2a4.2 4.2 0 0 0 4.8-.9L14 8.5a4.2 4.2 0 0 0 .9-4.8l-2.2 2.2-1.6-.5-.5-1.6 2.2-2.2-.5.5z"
+        d="M14 4.5a4 4 0 0 0-3-3.8l.5 2.3-1.5 1.5-2.3-.5a4 4 0 0 0 3.8 5L5.2 15.2a1.5 1.5 0 0 1-2.1 0l-.3-.3a1.5 1.5 0 0 1 0-2.1L9 6.5a4 4 0 0 0 5-2z"
         fill={color}
       />
     </svg>
@@ -110,7 +110,7 @@ export function EpauletteBadge({ roleName, department, size = 'sm' }: EpauletteB
 
   return (
     <span
-      className={`inline-flex items-center gap-0.5 rounded-full bg-slate-900 px-1.5 ${h}`}
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full bg-slate-900 px-1.5 ${h}`}
       title={roleName}
     >
       {info.departments.map((dept) => (
