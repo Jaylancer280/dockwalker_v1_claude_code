@@ -38,10 +38,10 @@ export function ProfileAboutSection({
     <>
       <button
         onClick={() => toggleSection('about')}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+        className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
       >
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
             About
           </p>
           {!expandedSections.about && (
@@ -100,7 +100,10 @@ export function ProfileAboutSection({
                 {profile.certification_ids.map((certId) => {
                   const cn = certNames[certId];
                   return (
-                    <span key={certId} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                    <span
+                      key={certId}
+                      className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"
+                    >
                       {cn ?? certId.slice(0, 8)}
                     </span>
                   );

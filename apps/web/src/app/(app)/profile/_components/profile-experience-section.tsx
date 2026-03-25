@@ -70,10 +70,10 @@ export function ProfileExperienceSection({
       <div className="flex flex-col gap-2">
         <button
           onClick={() => toggleSection('experience')}
-          className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+          className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
         >
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
               Experience
             </p>
             {!expandedSections.experience && (
@@ -121,12 +121,15 @@ export function ProfileExperienceSection({
               const dateRange = formatDateRange(exp.start_date, exp.end_date, exp.is_current);
 
               return (
-                <div key={exp.id} className="rounded-lg border border-border bg-card">
+                <div
+                  key={exp.id}
+                  className="rounded-[14px] border border-[var(--border)] bg-[var(--card)]"
+                >
                   <button
                     onClick={() => setExpandedExpId(isExpanded && idx !== 0 ? null : exp.id)}
                     className="flex w-full items-center gap-3 p-3 text-left"
                   >
-                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md bg-[var(--accent-lo)] text-[var(--accent)]">
                       <Ship className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">

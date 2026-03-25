@@ -69,10 +69,10 @@ export function ProfileLookingForSection({
     <>
       <button
         onClick={() => toggleSection('looking')}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+        className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
       >
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
             Looking for
           </p>
           {!expandedSections.looking && (
@@ -134,7 +134,7 @@ export function ProfileLookingForSection({
               {!editingCareer ? (
                 <div className="flex items-center gap-1.5">
                   {permAvail === 'immediate' ? (
-                    <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+                    <p className="text-sm font-medium text-[var(--success)]">
                       Available immediately
                     </p>
                   ) : permAvail === 'after_notice' ? (
@@ -293,10 +293,8 @@ export function ProfileLookingForSection({
               >
                 {availStatus === 'available' && availSummary ? (
                   <>
-                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                      Available
-                    </span>
+                    <span className="inline-block h-2 w-2 rounded-full bg-[var(--success)] flex-shrink-0" />
+                    <span className="font-medium text-[var(--success)]">Available</span>
                     <span className="text-muted-foreground">&middot; {availSummary.dateRange}</span>
                     {availSummary.cityName && (
                       <span className="text-muted-foreground">

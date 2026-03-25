@@ -174,12 +174,12 @@ export function ImoLookupSection({
         )}
         {/* Partial search results dropdown */}
         {imoSearchResults.length > 0 && (
-          <div className="absolute top-full z-20 mt-1 w-full rounded-md border border-border bg-background shadow-lg">
+          <div className="absolute top-full z-20 mt-1 w-full rounded-[14px] border border-[var(--border)] bg-[var(--card)]">
             {imoSearchResults.map((result) => (
               <button
                 key={result.id}
                 type="button"
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-accent"
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-[var(--accent-lo)]"
                 onClick={() => handleSelectSearchResult(result)}
               >
                 <span className="font-medium">
@@ -196,7 +196,7 @@ export function ImoLookupSection({
 
       {/* Found vessel card */}
       {useExisting && (
-        <div className="rounded-lg border border-success/40 bg-success/5 p-3">
+        <div className="rounded-[14px] border border-[var(--success)]/40 bg-[var(--success-lo)] p-3">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">

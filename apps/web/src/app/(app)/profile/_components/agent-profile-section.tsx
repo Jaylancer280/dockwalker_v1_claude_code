@@ -49,7 +49,7 @@ export function AgentProfileSection({
     <div className="flex flex-col gap-2">
       <button
         onClick={() => toggleSection('agencyInfo')}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+        className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
       >
         <div>
           <p className="text-sm font-medium">Agency Info</p>
@@ -115,7 +115,7 @@ export function AgentProfileSection({
       {/* Maritime Background section */}
       <button
         onClick={() => toggleSection('maritime')}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+        className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
       >
         <div>
           <p className="text-sm font-medium">Maritime Background</p>
@@ -153,7 +153,10 @@ export function AgentProfileSection({
             </Button>
           </div>
           {experiences.map((exp) => (
-            <div key={exp.id} className="mx-4 rounded-lg border border-border bg-card p-3">
+            <div
+              key={exp.id}
+              className="mx-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3"
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-medium">{exp.vessels?.name ?? 'Unknown vessel'}</p>
@@ -170,7 +173,7 @@ export function AgentProfileSection({
       {/* My Vessels section */}
       <button
         onClick={onNavigateVessels}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+        className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
       >
         <div className="flex items-center gap-2">
           <Ship className="h-4 w-4 text-muted-foreground" />

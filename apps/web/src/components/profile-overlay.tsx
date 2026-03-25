@@ -110,9 +110,9 @@ export function ProfileOverlay({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="mb-2 flex max-h-[calc(85vh-var(--nav-height,4rem))] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-2xl bg-background shadow-xl">
+      <div className="mb-2 flex max-h-[calc(85vh-var(--nav-height,4rem))] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-[14px] bg-background">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 rounded-t-[14px]">
           <h2 className="text-sm font-bold">Profile</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
@@ -217,7 +217,10 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
           <p className="mb-1 text-xs text-muted-foreground">Certifications</p>
           <div className="flex flex-wrap gap-1">
             {profile.certifications.map((c) => (
-              <span key={c.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+              <span
+                key={c.id}
+                className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"
+              >
                 {c.name}
               </span>
             ))}
@@ -231,7 +234,10 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
           <p className="mb-1 text-xs text-muted-foreground">Vessel Size Exposure</p>
           <div className="flex flex-wrap gap-1">
             {profile.vessel_size_exposure.map((s) => (
-              <span key={s.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+              <span
+                key={s.id}
+                className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"
+              >
                 {s.label}
               </span>
             ))}
@@ -245,7 +251,10 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
           <p className="mb-1 text-xs text-muted-foreground">Visas</p>
           <div className="flex flex-wrap gap-1">
             {profile.visas.map((v) => (
-              <span key={v.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+              <span
+                key={v.id}
+                className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"
+              >
                 {v.name}
               </span>
             ))}
@@ -258,7 +267,10 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
           <p className="mb-1 text-xs text-muted-foreground">Languages</p>
           <div className="flex flex-wrap gap-1">
             {profile.languages.map((code) => (
-              <span key={code} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+              <span
+                key={code}
+                className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"
+              >
                 {languageLabel(code)}
               </span>
             ))}
@@ -375,7 +387,10 @@ function EmployerProfileView({ profile }: { profile: EmployerProfile }) {
           <p className="mb-1 text-xs text-muted-foreground">Role Specializations</p>
           <div className="flex flex-wrap gap-1">
             {profile.role_specializations.map((r) => (
-              <span key={r.id} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+              <span
+                key={r.id}
+                className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"
+              >
                 {r.name}
               </span>
             ))}

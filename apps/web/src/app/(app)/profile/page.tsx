@@ -425,10 +425,10 @@ export default function ProfilePage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold tracking-tight">Profile</h1>
+            <h1 className="text-[24px] font-bold tracking-[-0.5px]">Profile</h1>
             <NotificationBell />
           </div>
           <div className="flex items-center gap-1">

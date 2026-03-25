@@ -217,7 +217,7 @@ export function AvailabilityOverlay({
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
       style={{ bottom: 'calc(var(--nav-height, 0px) + env(safe-area-inset-bottom))' }}
     >
-      <div className="flex w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background">
+      <div className="flex w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-[14px] bg-background">
         <div className="flex items-center justify-between px-4 pt-4 pb-3">
           <h2 className="text-sm font-bold">Set availability</h2>
           <button
@@ -269,7 +269,7 @@ export function AvailabilityOverlay({
               className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
                 notAvailable
                   ? 'border-destructive bg-destructive/5'
-                  : 'border-border hover:bg-accent'
+                  : 'border-[var(--border)] hover:bg-[var(--accent-lo)]'
               }`}
             >
               <div
@@ -370,8 +370,8 @@ export function AvailabilityOverlay({
                         key={dateStr}
                         onClick={() => toggleDate(dateStr)}
                         className={`relative flex h-10 items-center justify-center rounded-lg text-sm transition-colors
-                          ${isToday ? 'ring-1 ring-primary' : ''}
-                          ${isSelected ? 'bg-success text-white font-medium' : 'hover:bg-accent cursor-pointer'}
+                          ${isToday ? 'ring-1 ring-[var(--accent)]' : ''}
+                          ${isSelected ? 'bg-[var(--success)] text-white font-medium' : 'hover:bg-[var(--accent-lo)] cursor-pointer'}
                         `}
                       >
                         {day.getUTCDate()}

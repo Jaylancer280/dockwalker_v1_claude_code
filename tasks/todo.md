@@ -5,145 +5,146 @@
 
 ## Current Task
 
-Stage UI-14: Review Pages Reskin
+Stage UI-15: Profile & Experience Reskin
 
 ---
 
 ## Queue
 
-### Stage UI-14: Review Pages Reskin
+### Stage UI-15: Profile & Experience Reskin
 
-**Goal:** Apply the design system to the daywork review page (applicant swipe stack, shortlist tab, available crew tab) and permanent review page (applicant list, shortlist tab, negotiation banner). Same tokens, typography, card anatomy proven on discover and chat.
+**Goal:** Apply the design system to the profile page (collapsible sections, experience cards, cert/size pills, availability, career status), add/edit experience pages, profile overlay, and availability overlay.
 
-**Will touch:** `daywork/[id]/review/page.tsx`, all `_components/` in that directory, `permanent/[id]/review/page.tsx`.
+**Will touch:** `profile/page.tsx`, all `profile/_components/`, `profile/add-experience/`, `profile/edit-experience/`, `components/profile-overlay.tsx`, `components/availability-overlay.tsx`, `components/epaulette-badge.tsx`.
 
-**Will NOT touch:** API routes, migrations, types, business logic, non-review pages.
+**Will NOT touch:** API routes, migrations, types, business logic, non-profile pages.
 
-**No decomposition needed:** Daywork review page is 453 lines with components already extracted (Stage UI-0). Permanent review is 384 lines.
+**No decomposition needed:** Profile page is 702 lines but already delegates to 11 sub-components (Stage UI-0). All under 330 lines.
 
 ---
 
-#### UI-14a: Daywork review page + header
+#### UI-15a: Profile page header + section containers
 
-**Review page header (`page.tsx`):**
+**Header (`page.tsx` ~line 428):**
 
 - [x] Background: `bg-[var(--surface)]` (replace `bg-background`)
 - [x] Border: `border-b border-[var(--border)]`
 - [x] Title: `text-[24px] font-bold tracking-[-0.5px]` (replace `text-lg font-bold tracking-tight`)
-- [x] Positions badge: `bg-[var(--accent-lo)] text-[var(--accent)]` (replace `bg-muted`)
-- [x] Permanent opportunity badge: `border border-[var(--border)]` — keep as-is if already token-based
-- [x] Tab system: verify `UnderlineTabs` used, or match its styling
-- [x] Filter button: already uses Button variants — verify `(active)` indicator uses `--accent` token
 
-**Filter panel (`review-filter-panel.tsx`):**
+**Collapsible section buttons (throughout page.tsx and sub-components):**
 
-- [x] Uses `<Card>` component — should inherit `rounded-[14px]` from UI-D2
-- [x] Labels: `text-xs font-medium text-[var(--muted-foreground)]`
-- [x] Verify inputs inherit token-based styling
+- [x] Section containers: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-lg border border-border bg-card`)
+- [x] Section title labels: `text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]` (replace `text-xs font-semibold uppercase tracking-wider`)
+- [x] Collapsed preview text: `text-[13px] text-[var(--muted-foreground)]`
 
 ---
 
-#### UI-14b: Applicant swipe cards
+#### UI-15b: Profile sections content
 
-The applicant card is a swipe stack identical to the discover daywork card pattern. Needs the same treatment.
+**Summary section (`profile-summary-section.tsx`):**
 
-**Applicant card (`applicants-tab.tsx` ~line 277):**
+- [x] Auto-derived labels: `text-[13px]`
+- [x] Experience icon container: `bg-[var(--accent-lo)] text-[var(--accent)]` (replace `bg-primary/10 text-primary`)
 
-- [x] Card container: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-2xl border border-border bg-background shadow-lg` — remove shadow)
-- [x] Preview card: keep `scale-[0.97] opacity-60`
-- [x] Card name: `text-[15px] font-semibold tracking-[-0.3px]` (replace `text-lg font-bold`)
-- [x] Role subtitle: `text-[13px] text-[var(--muted-foreground)]`
-- [x] Detail rows (experience, location, certs): `text-[13px]`
-- [x] Icon colours: `text-[var(--muted-foreground)]`
-- [x] Bio: `text-[13px] text-[var(--muted-foreground)]`
-- [x] Applied date: `font-mono text-[11px] text-[var(--tertiary)]` (replace `text-xs text-muted-foreground/60`)
-- [x] Application message: `bg-[var(--surface)] rounded-md px-2.5 py-1.5 text-xs italic text-[var(--foreground)]` (replace `bg-accent` — same fix as UI-D5)
-- [x] Cert/vessel/language badges: `bg-[var(--surface)] border border-[var(--border)] text-xs` (replace `variant="secondary"`)
-- [x] "Shortlisted" star icon: `fill-[var(--warning)] text-[var(--warning)]` (replace `fill-amber-500`)
-- [x] "Invited" badge: `bg-[var(--accent-lo)] text-[var(--accent)]` (replace `bg-primary/10 text-primary`)
+**Experience section (`profile-experience-section.tsx`):**
 
-**Swipe action labels (overlays that appear during drag):**
+- [x] Experience cards: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-lg border border-border bg-card`)
+- [x] Vessel name / role: `text-[15px] font-semibold tracking-[-0.3px]`
+- [x] Detail grid labels: `text-[11px] text-[var(--tertiary)]` (replace `text-[11px] text-muted-foreground`)
+- [x] Detail values: `text-[13px]`
+- [x] Total experience badge: `font-mono text-[11px]` — verify uses token colours
+- [x] Delete button: keep `variant="destructive"`
+- [x] Epaulette badges: preserve — gold/silver colours are intentional insignia, not design tokens
 
-- [x] Accept: `border-[var(--success)] bg-[var(--success-lo)] text-[var(--success)]` (replace hardcoded `border-success bg-success/10 text-success`)
-- [x] Reject: `border-[var(--destructive)] bg-[var(--destructive-lo)] text-[var(--destructive)]` (replace hardcoded `border-destructive bg-destructive/10 text-destructive`)
-- [x] Shortlist: `border-[var(--warning)] bg-[var(--warning-lo)] text-[var(--warning)]` (replace hardcoded `border-amber-500 bg-amber-500/10 text-amber-500`)
+**Looking For section (`profile-looking-for-section.tsx`):**
 
-**Circular action buttons (below card):**
+- [x] Availability status — replace hardcoded emerald:
+  - "Available immediately" dot: `bg-[var(--success)]` (replace `bg-emerald-500`)
+  - "Available immediately" text: `text-[var(--success)]` (replace `text-emerald-600 dark:text-emerald-400` — remove `dark:` class)
+  - "Not available" dot/text: keep `text-destructive` (already token-based)
+  - "Not set" text: keep `text-[var(--muted-foreground)]`
+- [x] Career status labels: `text-[13px]`
+- [x] Desired role / port: `text-[13px]`
 
-- [x] Reject: `border-[var(--destructive)] text-[var(--destructive)] hover:bg-[var(--destructive)]` (replace hardcoded `border-destructive text-destructive`)
-- [x] Shortlist: `border-[var(--warning)] text-[var(--warning)] hover:bg-[var(--warning)]` (replace hardcoded `border-amber-500 text-amber-500 hover:bg-amber-500`)
-- [x] Accept: `border-[var(--success)] text-[var(--success)] hover:bg-[var(--success)]` (replace hardcoded `border-success text-success`)
+**About section (`profile-about-section.tsx`):**
 
----
+- [x] Bio: `text-[13px]`
+- [x] Cert pills: `bg-[var(--surface)] border border-[var(--border)] rounded-full px-2 py-0.5 text-xs` (replace `bg-muted`)
+- [x] Visa pills: same treatment
+- [x] Language pills: same treatment
+- [x] Size band pills: same treatment
 
-#### UI-14c: Available crew tab
+**Agent section (`agent-profile-section.tsx`):**
 
-Same swipe card pattern as applicants, but for browsing available crew to invite.
-
-**Available crew card (`available-crew-tab.tsx` ~line 232):**
-
-- [x] Card container: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-2xl bg-background shadow-lg` — remove shadow)
-- [x] Card name: `text-[15px] font-semibold tracking-[-0.3px]` (replace `text-lg font-bold`)
-- [x] Detail rows: `text-[13px]`
-- [x] Available days highlight: `text-[var(--success)]` (replace hardcoded `text-success` — already uses semantic token, verify it's `var()` wrapped)
-- [x] Bio: `text-[13px] text-[var(--muted-foreground)]`
-- [x] Cert/vessel/language badges: same treatment as applicant cards
-- [x] "All roles" checkbox label: `text-[var(--muted-foreground)]`
-- [x] Invitation count: `font-mono text-[11px] text-[var(--tertiary)]`
-
-**Swipe action labels:**
-
-- [x] Invite: `border-[var(--success)] bg-[var(--success-lo)] text-[var(--success)]` (replace hardcoded)
-- [x] Pass: `border-[var(--destructive)] bg-[var(--destructive-lo)] text-[var(--destructive)]` (replace hardcoded)
-
-**Circular action buttons:**
-
-- [x] Pass: `border-[var(--destructive)] text-[var(--destructive)] hover:bg-[var(--destructive)]`
-- [x] Invite: `border-[var(--success)] text-[var(--success)] hover:bg-[var(--success)]`
+- [x] Same section container and label patterns as crew sections
 
 ---
 
-#### UI-14d: Permanent review page
+#### UI-15c: Add/edit experience pages
 
-Different UI pattern — scrollable list, not swipe stack. But same token system.
-
-**Header (`permanent/[id]/review/page.tsx`):**
+**Headers (`add-experience/page.tsx`, `edit-experience/[id]/page.tsx`):**
 
 - [x] Background: `bg-[var(--surface)]` (replace `bg-background`)
-- [x] Border: `border-b border-[var(--border)]` (add explicit `border-[var(--border)]`)
-- [x] Title: `text-[24px] font-bold tracking-[-0.5px]` (replace `text-lg font-bold`)
-- [x] Tab system: verify uses token-based active state
+- [x] Border: `border-b border-[var(--border)]`
+- [x] Back link: `text-[var(--muted-foreground)] hover:text-[var(--foreground)]`
 
-**Negotiation banner (~line 201):**
+**IMO lookup section (`imo-lookup-section.tsx`):**
 
-- [x] `bg-[var(--warning-lo)] border-b border-[var(--warning)]/20 text-[var(--warning)]` (replace hardcoded `bg-amber-50 text-amber-800`)
+- [x] Found vessel card: `rounded-[14px] border border-[var(--success)]/40 bg-[var(--success-lo)]` (replace `border-success/40 bg-success/5` — use token)
+- [x] Dropdown menu: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-md bg-background shadow-lg` — remove shadow)
 
-**Applicant cards (~line 245):**
+**Vessel details section (`vessel-details-section.tsx`):**
 
-- [x] Card container: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]` (replace `rounded-xl border bg-card p-4`)
-- [x] Name: `text-[15px] font-semibold tracking-[-0.3px]` (replace `font-semibold`)
-- [x] "In negotiation" badge: use `status-filling` badge variant (replace `variant="default"`)
-- [x] Availability labels: replace hardcoded colors:
-  - "Available immediately": `text-[var(--success)]` (replace `text-green-600`)
-  - "Available after notice": `text-[var(--warning)]` (replace `text-amber-600`)
-  - "Not looking": `text-[var(--muted-foreground)]` (keep)
-- [x] Detail rows (experience, nationality, languages): `text-[13px] text-[var(--muted-foreground)]`
-- [x] Application message: `bg-[var(--surface)] rounded-md px-2.5 py-1.5 text-xs italic text-[var(--foreground)]`
-- [x] Applied date: `font-mono text-[11px] text-[var(--tertiary)]` (replace `text-xs text-muted-foreground`)
-- [x] Action buttons: verify they use Button component variants (already do — `variant="outline"` for reject, default for shortlist/select)
+- [x] Vessel name prefix (M/Y, S/Y): verify uses token text colour
+
+**Experience details section (`experience-details-section.tsx`):**
+
+- [x] Form labels: `text-[var(--muted-foreground)]`
+- [x] Form containers: verify `rounded-lg` inputs (8px per guidance)
+
+**Private intelligence section (`private-intelligence-section.tsx`):**
+
+- [x] Section hint text: `text-[var(--muted-foreground)]`
+- [x] Left border accent: `border-l-2 border-[var(--border)]` (replace `border-muted` if hardcoded)
+
+---
+
+#### UI-15d: Profile overlay + availability overlay
+
+**Profile overlay (`components/profile-overlay.tsx`):**
+
+- [x] Overlay sheet: `rounded-[14px]` (replace `rounded-2xl`) — match card system radius
+- [x] Remove `shadow-xl` (no shadows per guidance)
+- [x] Header: `bg-[var(--surface)] border-b border-[var(--border)]`
+- [x] Section headers: `text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]`
+- [x] Experience cards within overlay: `rounded-[14px] border border-[var(--border)] bg-[var(--card)]`
+- [x] Detail grid: `text-[13px]`
+- [x] Cert/size pills: same token treatment as profile page
+- [x] Availability status: same `--success` token fix as profile-looking-for
+
+**Availability overlay (`components/availability-overlay.tsx`):**
+
+- [x] Overlay sheet: `rounded-t-[14px]` (replace `rounded-t-2xl`)
+- [x] Calendar today ring: `ring-1 ring-[var(--accent)]` (replace `ring-primary`)
+- [x] Selected day: `bg-[var(--success)] text-white` — verify already token-based
+- [x] Hover state: `hover:bg-[var(--accent-lo)]` (replace `hover:bg-accent`)
+- [x] "Not available" toggle: `border-[var(--destructive)]` — verify already token-based
+- [x] Month labels: `text-[var(--muted-foreground)]`
+- [x] Confirm button: uses Button default variant — should inherit `--accent`
 
 ---
 
 #### Verify all fixes
 
-- [x] Daywork review: applicant swipe cards match discover card anatomy — `rounded-[14px]`, no shadows, token borders
-- [x] Swipe action labels use token colours — no hardcoded amber/success/destructive classes
-- [x] Circular action buttons use `var()` token colours
-- [x] Available crew tab matches applicant card styling
-- [x] Permanent review cards: `rounded-[14px]`, token borders, no hardcoded green/amber
-- [x] Negotiation banner uses warning tokens, no hardcoded amber-50
-- [x] Filter panel inherits card styling
-- [x] All headers use `bg-[var(--surface)]`
+- [x] Profile header uses `bg-[var(--surface)]`
+- [x] All section containers: `rounded-[14px]`, token borders and backgrounds
+- [x] Experience cards match discover card anatomy
+- [x] No hardcoded emerald/green anywhere — availability uses `--success` token
+- [x] Cert/visa/language/size pills use `bg-[var(--surface)]` + border tokens
+- [x] Profile overlay: no shadow, token-based throughout
+- [x] Availability calendar: token-based ring and selection colours
+- [x] Epaulette badges: gold/silver/slate preserved (intentional insignia)
+- [x] Add/edit experience forms: headers use `--surface`, IMO dropdown no shadow
 - [x] Both themes work
 - [x] `npx tsc --noEmit` — zero errors
 - [x] All tests pass (856/856)
@@ -178,4 +179,4 @@ Merge `/discover/market` into the main discover page as an agent-specific mode.
 
 ## Done
 
-(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, UI-D1, UI-D2, UI-D3, UI-D4, UI-D5, UI-13a, UI-13b, UI-13c, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, UI-D1, UI-D2, UI-D3, UI-D4, UI-D5, UI-13a, UI-13b, UI-13c, UI-14, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)

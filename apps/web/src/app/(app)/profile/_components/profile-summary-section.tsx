@@ -66,10 +66,10 @@ export function ProfileSummarySection({
     <>
       <button
         onClick={() => toggleSection('summary')}
-        className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3 text-left"
+        className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
       >
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
             Summary
           </p>
           {!expandedSections.summary && (
@@ -114,7 +114,10 @@ export function ProfileSummarySection({
                 {profile.vessel_size_exposure_ids.map((sbId) => {
                   const sbLabel = sizeBandNames[sbId];
                   return (
-                    <span key={sbId} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                    <span
+                      key={sbId}
+                      className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"
+                    >
                       {sbLabel ?? sbId.slice(0, 8)}
                     </span>
                   );

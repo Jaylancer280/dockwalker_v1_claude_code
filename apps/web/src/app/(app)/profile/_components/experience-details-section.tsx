@@ -173,8 +173,8 @@ export function ExperienceDetailsSection({
                 }}
                 className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
                   contractDetails.startsWith(p + ' ')
-                    ? 'border-primary bg-primary/10 font-medium'
-                    : 'border-border hover:bg-accent'
+                    ? 'border-[var(--accent)] bg-[var(--accent-lo)] font-medium'
+                    : 'border-[var(--border)] hover:border-[var(--border-hi)]'
                 }`}
               >
                 {p}
