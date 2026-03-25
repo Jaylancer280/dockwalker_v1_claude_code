@@ -20,12 +20,6 @@ WHERE not_available = false;
 -- instead of (p_payload->>'expires_at')::timestamptz.
 
 -- See rollback file for reversal.
--- Triggers being absorbed: trg_sea_time_from_event (00063), trg_desired_role_from_event (00064),
--- trg_deck_name_from_event (00065), trg_career_status_from_event (00067),
--- trg_location_city_from_event (00068), trg_required_languages_from_event (00069).
---
--- Each handler is copied character-for-character from 00059_permanent_jobs.sql with only
--- the new columns appended at the end of the relevant INSERT/UPDATE statements.
 create or replace function public.apply_projection(
   p_event_type text,
   p_aggregate_id text,
@@ -536,16 +530,3 @@ begin
   end case;
 end;
 $$;
--- Drop the 6 supplementary triggers and their functions, now consolidated into apply_projection
-drop trigger trg_sea_time_from_event on public.events;
-drop function apply_sea_time_from_event();
-drop trigger trg_desired_role_from_event on public.events;
-drop function apply_desired_role_from_event();
-drop trigger trg_deck_name_from_event on public.events;
-drop function apply_deck_name_from_event();
-drop trigger trg_career_status_from_event on public.events;
-drop function apply_career_status_from_event();
-drop trigger trg_location_city_from_event on public.events;
-drop function apply_location_city_from_event();
-drop trigger trg_required_languages_from_event on public.events;
-drop function apply_required_languages_from_event();
