@@ -11,16 +11,26 @@ Fix: Epaulette stripes collapsed + wrench icon unclear
 
 ## Queue
 
-### Fix: Epaulette stripes not showing on experience cards + wrench icon
+### Fix: Epaulette stripes STILL not showing on experience cards
 
-**Stripe root cause (verified):** `profile-experience-section.tsx` line 130 — the flex row is `flex w-full items-center gap-3`. The `EpauletteBadge` span has no `flex-shrink-0`, so on tight rows (ship icon + vessel name + operation badge + role text + epaulette + chevron), the stripes container collapses to 0 width. The icon SVG has a fixed width and renders, but the stripes `<span>` elements get squeezed to nothing.
+`shrink-0` was added in commit `1e69aed` but stripes still not visible on device after pull-down refresh. The code looks correct on paper — `shrink-0` is on the badge span, role names match the map, stripe count > 0.
 
-**Wrench icon:** The current SVG path doesn't read as a wrench at 14-16px — looks like a circular blob. Needs a clearer SVG path.
+**User clarification:** Stripes disappear after editing ANY experience and saving. This affects ALL experience cards, not just the edited one. The stripes may also not work on initial load at `size="md"` — previous screenshots showed no stripes on experience cards even before editing.
 
-- [x] `epaulette-badge.tsx` line 113: add `shrink-0` to the badge span: `inline-flex shrink-0 items-center gap-0.5 rounded-full bg-slate-900 px-1.5 ${h}` — this prevents flex compression on ALL card types, not just experience
-- [x] Replace `WrenchIcon` SVG with a simpler, more recognizable wrench path — single open-ended spanner shape, thick stroke, reads clearly at 14px. The current path is too complex and fills into an unrecognizable blob at small sizes.
-- [x] Verify on phone: experience cards show icon + stripes (Chief Stewardess = diamond + 3, Lead Deckhand = helm + 1, Deckhand = helm + 1)
-- [x] Verify wrench is recognizable on applied cards (Chief Engineer = wrench + 4 stripes)
+**STOP GUESSING. The implementation agent MUST do the following to diagnose:**
+
+1. Run `npx next dev` and open `http://localhost:3000/profile` in Chrome desktop (not phone)
+2. Open DevTools → Elements panel
+3. Find an experience card's `EpauletteBadge` span (the dark pill with the department icon)
+4. **Before any edit:** Check: are stripe `<span>` elements present in the DOM? What is their computed width, height, background-color? Is the badge span's computed width large enough to contain icon + stripes?
+5. If stripes are NOT in the DOM: add `console.log('getEpaulette result:', roleName, department, info)` inside `EpauletteBadge` component before the return. What does it log for the experience card roles?
+6. **Then edit an experience, change role, save, return to profile.** Do the same inspection. Did the stripe elements disappear from the DOM? Did the `getEpaulette` result change?
+
+**Report the exact findings. Do NOT propose a fix until root cause is confirmed.**
+
+- [x] Diagnose via DevTools as described above — report findings
+- [x] Fix the actual root cause (whatever it turns out to be)
+- [x] Verify on phone: experience cards show icon + stripes on initial load AND after editing
 - [x] `npx tsc --noEmit` — zero errors
 - [x] All tests pass
 

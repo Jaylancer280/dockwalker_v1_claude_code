@@ -101,28 +101,29 @@ export function EpauletteBadge({ roleName, department, size = 'sm' }: EpauletteB
   if (!info) return null;
 
   const iconSize = size === 'sm' ? 14 : 16;
-  const h = size === 'sm' ? 'h-6' : 'h-7';
-  const stripeH = size === 'sm' ? 'h-3' : 'h-3.5';
-  const stripeW = size === 'sm' ? 'w-[2.5px]' : 'w-[3px]';
+  const badgeH = size === 'sm' ? 24 : 28;
+  const stripeH = size === 'sm' ? 12 : 14;
+  const stripeW = size === 'sm' ? 2.5 : 3;
   const stripeColor = colorHex(
     info.departments.some((d) => getDepartmentColor(d) === 'gold') ? 'gold' : 'silver',
   );
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full bg-slate-900 px-1.5 ${h}`}
+      className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-slate-900 px-1.5"
+      style={{ height: badgeH }}
       title={roleName}
     >
       {info.departments.map((dept) => (
         <DeptIcon key={dept} department={dept} size={iconSize} />
       ))}
       {info.stripes > 0 && (
-        <span className="flex items-center gap-px ml-0.5">
+        <span className="flex items-center ml-0.5" style={{ gap: 1 }}>
           {Array.from({ length: info.stripes }, (_, i) => (
             <span
               key={i}
-              className={`${stripeH} ${stripeW} rounded-full`}
-              style={{ backgroundColor: stripeColor }}
+              className="rounded-full"
+              style={{ width: stripeW, height: stripeH, backgroundColor: stripeColor }}
             />
           ))}
         </span>
