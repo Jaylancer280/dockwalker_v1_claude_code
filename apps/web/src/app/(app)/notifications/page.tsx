@@ -164,7 +164,7 @@ export default function NotificationsPage() {
                   {notif.title}
                 </p>
                 <p className="text-xs text-muted-foreground">{notif.body}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground/60">
+                <p className="mt-0.5 font-mono text-[11px] text-[var(--tertiary)]">
                   {relativeTime(notif.created_at)}
                 </p>
               </div>

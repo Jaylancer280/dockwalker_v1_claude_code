@@ -82,7 +82,7 @@ export function DangerZoneSection() {
           {showDeleteConfirm && (
             <div className="border-t border-border px-4 py-3">
               <div className="flex flex-col gap-3">
-                <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3">
+                <div className="flex items-start gap-2 rounded-lg bg-[var(--destructive-lo)] p-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                   <div className="text-xs text-destructive">
                     <p className="font-semibold">This action cannot be undone.</p>
