@@ -2,7 +2,7 @@
 
 import { type RefObject, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, Check, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SegmentedToggle } from '@/components/ui/segmented-toggle';
 import { Card, CardContent } from '@/components/ui/card';
@@ -304,7 +304,7 @@ export function DayworkBrowse({
 
             {!loading && cards.length === 0 && (
               <EmptyState
-                icon={Briefcase}
+                imageSrc="/images/empty-states/discover.jpg"
                 title="No jobs found"
                 description="No daywork postings match your filters. Try widening your search."
                 action={

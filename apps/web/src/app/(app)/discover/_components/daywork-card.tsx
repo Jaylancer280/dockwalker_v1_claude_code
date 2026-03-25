@@ -5,7 +5,7 @@ import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-m
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide-react';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { VesselChip } from '@/components/vessel-chip';
+import { DepartmentChip } from '@/components/department-chip';
 import { Badge } from '@/components/ui/badge';
 import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
 import { languageLabel } from '@/lib/languages';
@@ -82,9 +82,7 @@ export function JobCard({
         {/* Role + vessel */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
-            {card.vessels?.vessel_type && (
-              <VesselChip vesselType={card.vessels.vessel_type as 'motor' | 'sail'} size="sm" />
-            )}
+            <DepartmentChip department={card.yacht_roles?.department} seed={card.id} size="sm" />
             <h3 className="flex-1 text-[15px] font-semibold tracking-[-0.3px] flex items-center gap-1.5">
               {card.yacht_roles?.name ?? 'Unknown role'}
               {card.yacht_roles?.name && (

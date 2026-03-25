@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { MessageSquare, MapPin, Calendar, ClipboardCheck, Archive } from 'lucide-react';
+import { MapPin, Calendar, ClipboardCheck, Archive } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Badge } from '@/components/ui/badge';
@@ -110,7 +110,7 @@ export default function MessagesPage() {
 
         {!loading && current.length === 0 && tab === 'active' && (
           <EmptyState
-            icon={MessageSquare}
+            imageSrc="/images/empty-states/messages.jpg"
             title="No active messages"
             description="Messages open after a daywork application is accepted. Once you have an active engagement, you can chat here."
           />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Ship, Plus, ShieldAlert, Pencil } from 'lucide-react';
+import { Plus, ShieldAlert, Pencil } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import Link from 'next/link';
@@ -137,7 +137,7 @@ export default function VesselsPage() {
 
         {!loading && vessels.length === 0 && (
           <EmptyState
-            icon={Ship}
+            imageSrc="/images/empty-states/vessels.jpg"
             title="No vessels yet"
             description="Add a vessel to start posting daywork."
           />

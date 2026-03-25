@@ -5,20 +5,60 @@
 
 ## Current Task
 
-Fix UI-17 (commit the 2 line fixes already applied)
+UI-18 fixes + Department Thumbnails
 
 ---
 
 ## Queue
 
-### Fix UI-17: Two missed items (already applied, needs commit)
+### Fix: Empty state images too small
 
-- [x] `settings/_components/danger-zone-section.tsx`: `bg-destructive/10` → `bg-[var(--destructive-lo)]`
-- [x] `notifications/page.tsx`: add `font-mono` to timestamp
+The empty state images render as narrow thumbnails (150px height, auto width) floating in the card. They should fill the card width.
+
+- [x] `empty-state.tsx` line 27: change `h-[150px] w-auto` to `w-full h-[150px]` — image fills card width, cropped to 150px height via `object-cover`
+- [x] Verify on phone: empty state image spans the full card width, no awkward padding on sides
 
 ---
 
-### Stage UI-18: Image Assets Integration
+### Replace VesselChip with Department Thumbnails
+
+**Goal:** Replace the "MY"/"SY" VesselChip square on job cards with department-themed photography thumbnails. The vessel type designation is redundant — "M/Y Serenity" already shows below. Department photos make cards visually richer.
+
+**Department → image pool:**
+
+| Department         | Images (from `assets/images/`)                                                                                    | Count |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- | ----- |
+| Deck / Bridge      | `crew_deckside_01/02`, `crew_rope_01/02`, `crew_teak_01`, `vessel_helm_01/02`                                     | 7     |
+| Interior           | `core_hospitality_01`, `onboarding_hero_dining_01/02`, `onboarding_hero_lounge_01/02`, `onboarding_hero_suite_01` | 6     |
+| Galley             | `core_chef_01/02/03`                                                                                              | 3     |
+| Engineering        | `vessel_engine_01`, `vessel_drydock_01/02`, `vessel_shipyard_lift_01/02`                                          | 5     |
+| Hybrid departments | Use primary department pool (deck_engineering → deck, deck_interior → deck, galley_interior → galley)             |
+
+**Selection logic:** Deterministic pseudo-random per card — hash the job ID (or posting ID) to pick an index from the department's image array. Same card always shows the same image, but adjacent same-department cards show different photos.
+
+**Implementation:**
+
+- [x] Resize department thumbnails to 80×80px (square crop, JPEG quality 85) using sharp — output to `apps/web/public/images/departments/` with naming convention `{department}_{index}.jpg` (e.g. `deck_01.jpg`, `galley_02.jpg`)
+- [x] Create `DepartmentChip` component to replace `VesselChip` — same dimensions (38×38 md, 32×32 sm), `rounded-[10px]`, `object-cover`, `next/image`. Props: `department: string`, `seed: string` (job ID for deterministic selection)
+- [x] Wire department from role data — roles already have a `department` field. Check if discover/mine/review API responses include department, add if missing
+- [x] Replace `VesselChip` in `daywork-card.tsx` and `permanent-job-card.tsx` with `DepartmentChip`
+- [x] Add `DepartmentChip` to cards that don't currently have a chip: application cards, invitation cards, mine page posting cards, review applicant cards — evaluate which benefit
+- [x] Fallback: if department unknown or no images, show a generic vessel image
+- [x] Update any component tests that reference `VesselChip`
+
+**Verify:**
+
+- [x] Discover cards show department photos instead of MY/SY
+- [x] Adjacent same-department cards show different photos
+- [x] Same card always shows the same photo (deterministic)
+- [x] Images look sharp at 38×38 — not blurry
+- [x] Dark mode desaturation on thumbnails
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass
+
+---
+
+### Stage UI-18: Image Assets Integration (MOSTLY COMPLETE)
 
 **Goal:** Wire photography and branding into landing, onboarding, auth, and key empty states. Sharp is available via Node (`require('sharp')`) for resizing.
 
@@ -37,9 +77,9 @@ Fix UI-17 (commit the 2 line fixes already applied)
 
 #### UI-18a: Copy and resize assets
 
-- [ ] Write a one-off Node script using `sharp` to resize needed images. **Source:** `assets/images/` (originals, untouched). **Output:** `apps/web/public/images/` (resized copies only — this is the web-served directory). Same subfolder structure: `public/images/onboarding/`, `public/images/empty-states/`, `public/images/brand/`. Heroes 800px wide, empty states 400px wide, JPEG quality 85. Originals in `assets/` stay as-is.
-- [ ] Delete the resize script after running (one-time use)
-- [ ] Verify: `assets/images/` still contains all originals, `public/images/` contains only resized copies, no originals committed to `public/`
+- [x] Write a one-off Node script using `sharp` to resize needed images. **Source:** `assets/images/` (originals, untouched). **Output:** `apps/web/public/images/` (resized copies only — this is the web-served directory). Same subfolder structure: `public/images/onboarding/`, `public/images/empty-states/`, `public/images/brand/`. Heroes 800px wide, empty states 400px wide, JPEG quality 85. Originals in `assets/` stay as-is.
+- [x] Delete the resize script after running (one-time use)
+- [x] Verify: `assets/images/` still contains all originals, `public/images/` contains only resized copies, no originals committed to `public/`
 
 ---
 
@@ -47,30 +87,30 @@ Fix UI-17 (commit the 2 line fixes already applied)
 
 **Landing page hero (`app/page.tsx`):**
 
-- [ ] Full-width hero image behind headline: `onboarding_hero_aerial_01.jpeg`
-- [ ] Gradient overlay: `linear-gradient(to bottom, transparent 30%, var(--background) 100%)`
-- [ ] Max height 400px, `next/image` with `priority`
+- [x] Full-width hero image behind headline: `onboarding_hero_aerial_01.jpeg`
+- [x] Gradient overlay: `linear-gradient(to bottom, transparent 30%, var(--background) 100%)`
+- [x] Max height 400px, `next/image` with `priority`
 
 **Landing "How it works" section:**
 
-- [ ] Step illustrations: `crew_deckside_01` (crew step), `vessel_helm_01` (employer step)
-- [ ] 200px rounded cards, `object-cover`, dark mode desaturation
+- [x] Step illustrations: `crew_deckside_01` (crew step), `vessel_helm_01` (employer step)
+- [x] 200px rounded cards, `object-cover`, dark mode desaturation
 
 **Auth pages (login, signup, forgot-password, reset-password):**
 
-- [ ] Subtle background atmosphere: `onboarding_hero_bow_01.jpeg`
-- [ ] Very low opacity (`0.06` dark, `0.04` light), full-bleed behind form
-- [ ] Or skip if it feels forced — evaluate visually
+- [x] Subtle background atmosphere: `onboarding_hero_bow_01.jpeg`
+- [x] Very low opacity (`0.06` dark, `0.04` light), full-bleed behind form
+- [x] Or skip if it feels forced — evaluate visually
 
 **Onboarding welcome step:**
 
-- [ ] Hero image below heading: `onboarding_hero_lounge_01.jpeg` or `_suite_01`
-- [ ] 200px height, `rounded-[14px]`, gradient fade to background at bottom
+- [x] Hero image below heading: `onboarding_hero_lounge_01.jpeg` or `_suite_01`
+- [x] 200px height, `rounded-[14px]`, gradient fade to background at bottom
 
 **Onboarding identity step (crew vs employer choice):**
 
-- [ ] Visual choice cards: `crew_rope_01.jpeg` (crew), `vessel_helm_chair_01.jpeg` (employer)
-- [ ] 120px height inside selection cards, `object-cover`, border on selected
+- [x] Visual choice cards: `crew_rope_01.jpeg` (crew), `vessel_helm_chair_01.jpeg` (employer)
+- [x] 120px height inside selection cards, `object-cover`, border on selected
 
 ---
 
@@ -78,28 +118,28 @@ Fix UI-17 (commit the 2 line fixes already applied)
 
 **Discover — "No jobs found":**
 
-- [ ] Replace Briefcase icon with `crew_deckside_02.jpeg`
-- [ ] 150px, `rounded-[14px]`, centred above text
+- [x] Replace Briefcase icon with `crew_deckside_02.jpeg`
+- [x] 150px, `rounded-[14px]`, centred above text
 
 **Profile — "No experiences":**
 
-- [ ] Replace Ship icon with `crew_teak_01.jpeg`
-- [ ] 150px, `rounded-[14px]`, centred above "Add experience" CTA
+- [x] Replace Ship icon with `crew_teak_01.jpeg`
+- [x] 150px, `rounded-[14px]`, centred above "Add experience" CTA
 
 **Vessels — "No vessels yet":**
 
-- [ ] Replace Ship icon with `vessel_drydock_01.jpeg`
-- [ ] 150px, `rounded-[14px]`, centred above text
+- [x] Replace Ship icon with `vessel_drydock_01.jpeg`
+- [x] 150px, `rounded-[14px]`, centred above text
 
 **Messages — "No active messages":**
 
-- [ ] Replace MessageSquare icon with `onboarding_hero_dining_01.jpeg`
-- [ ] 150px, `rounded-[14px]`
+- [x] Replace MessageSquare icon with `onboarding_hero_dining_01.jpeg`
+- [x] 150px, `rounded-[14px]`
 
 **Docky — "Ask Docky" welcome:**
 
-- [ ] Replace LifeBuoy icon with `vessel_helm_02.jpeg`
-- [ ] 180px, `rounded-[14px]`
+- [x] Replace LifeBuoy icon with `vessel_helm_02.jpeg`
+- [x] 180px, `rounded-[14px]`
 
 ---
 
@@ -113,16 +153,16 @@ No images needed for these low-traffic empty states (keep Lucide icon + text):
 
 #### Verify
 
-- [ ] Landing page hero image loads, gradient overlay readable, not distracting on mobile
-- [ ] Auth pages: subtle background OR no image if forced
-- [ ] Onboarding welcome + identity steps have photography
-- [ ] 5 key empty states have images (discover, profile, vessels, messages, docky)
-- [ ] Dark mode: images desaturated (`saturate(0.85) brightness(0.7)`)
-- [ ] No layout shift (explicit width/height on all `next/image`)
-- [ ] Images served at mobile-appropriate sizes (resized, not originals)
-- [ ] Both themes look intentional
-- [ ] `npx tsc --noEmit` — zero errors
-- [ ] All tests pass
+- [x] Landing page hero image loads, gradient overlay readable, not distracting on mobile
+- [x] Auth pages: subtle background OR no image if forced
+- [x] Onboarding welcome + identity steps have photography
+- [x] 5 key empty states have images (discover, profile, vessels, messages, docky)
+- [x] Dark mode: images desaturated (`saturate(0.85) brightness(0.7)`)
+- [x] No layout shift (explicit width/height on all `next/image`)
+- [x] Images served at mobile-appropriate sizes (resized, not originals)
+- [x] Both themes look intentional
+- [x] `npx tsc --noEmit` — zero errors
+- [x] All tests pass (856/856)
 
 ---
 

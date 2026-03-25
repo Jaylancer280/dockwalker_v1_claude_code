@@ -1,6 +1,7 @@
 'use client';
 
-import { ChevronLeft, Loader2, Ship, User } from 'lucide-react';
+import Image from 'next/image';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 
 type HatType = 'crew' | 'employer' | 'agent';
 
@@ -52,11 +53,19 @@ export function HatSelectionStep(props: HatSelectionStepProps) {
             disabled={loading}
             className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)] disabled:opacity-50"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent)] text-white">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
               {loading && hat === 'crew' ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex h-full w-full items-center justify-center bg-[var(--accent)]">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
               ) : (
-                <User className="h-6 w-6" />
+                <Image
+                  src="/images/onboarding/crew-rope.jpg"
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
+                />
               )}
             </div>
             <div>
@@ -77,11 +86,19 @@ export function HatSelectionStep(props: HatSelectionStepProps) {
             disabled={loading}
             className="flex w-full items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4 text-left transition-colors hover:border-[var(--border-hi)] disabled:opacity-50"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
+            <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg">
               {loading && hat === 'employer' ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="flex h-full w-full items-center justify-center bg-[var(--accent)]">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
               ) : (
-                <Ship className="h-6 w-6" />
+                <Image
+                  src="/images/onboarding/vessel-helm-chair.jpg"
+                  alt=""
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
+                />
               )}
             </div>
             <div>

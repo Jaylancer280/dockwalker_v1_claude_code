@@ -4,7 +4,7 @@ import { MapPin, Briefcase, Award, Calendar, Users, Ship } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { VesselChip } from '@/components/vessel-chip';
+import { DepartmentChip } from '@/components/department-chip';
 import { currencySymbol } from '@/lib/units';
 import { languageLabel } from '@/lib/languages';
 
@@ -99,9 +99,7 @@ export function PermanentJobCard({
       {/* Header: role + epaulette + vessel chip + job ref */}
       <div className="mb-3 flex items-start justify-between">
         <div className="flex items-center gap-2">
-          {posting.vessel_type && (
-            <VesselChip vesselType={posting.vessel_type as 'motor' | 'sail'} size="sm" />
-          )}
+          <DepartmentChip department={posting.role_department} seed={posting.id} size="sm" />
           <span className="text-[15px] font-semibold tracking-[-0.3px]">
             {posting.role_name ?? 'Unknown Role'}
           </span>

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { LifeBuoy, Plus, Loader2, Trash2 } from 'lucide-react';
+import Image from 'next/image';
+import { Plus, Loader2, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
@@ -212,7 +213,15 @@ export default function DockyPage() {
       {conversations.length === 0 ? (
         /* Empty state */
         <div className="flex flex-col items-center px-6 pt-20 text-center">
-          <LifeBuoy className="mb-4 h-16 w-16 text-muted-foreground" />
+          <div className="mb-4 overflow-hidden rounded-[14px] border border-[var(--border)]">
+            <Image
+              src="/images/empty-states/docky.jpg"
+              alt=""
+              width={400}
+              height={267}
+              className="h-[180px] w-auto object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
+            />
+          </div>
           <h2 className="mb-2 text-xl font-semibold">Ask Docky</h2>
           <p className="mb-8 text-sm text-muted-foreground">
             Your maritime career advisor. Ask about certifications, career paths, and training

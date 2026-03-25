@@ -6,7 +6,22 @@ export default function LandingPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       {/* Hero */}
-      <section className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+      <section className="relative flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+        <div className="absolute inset-0 -z-10 overflow-hidden">
+          <Image
+            src="/images/onboarding/hero-aerial.jpg"
+            alt=""
+            fill
+            className="object-cover object-center dark:saturate-[0.85] dark:brightness-[0.7]"
+            priority
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background: 'linear-gradient(to bottom, transparent 30%, var(--background) 100%)',
+            }}
+          />
+        </div>
         <Image
           src="/images/brand/dw_app_icon_cropped.png"
           alt="DockWalker"
@@ -86,6 +101,32 @@ export default function LandingPage() {
       <section className="border-t border-border px-6 py-12">
         <div className="mx-auto max-w-lg">
           <h2 className="mb-6 text-center text-lg font-semibold text-foreground">How it works</h2>
+          <div className="mb-6 grid grid-cols-2 gap-3">
+            <div className="overflow-hidden rounded-[14px] border border-[var(--border)]">
+              <Image
+                src="/images/onboarding/crew-deckside.jpg"
+                alt="Crew on deck"
+                width={400}
+                height={224}
+                className="h-[120px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
+              />
+              <p className="px-2.5 py-2 text-center text-xs text-[var(--muted-foreground)]">
+                For crew
+              </p>
+            </div>
+            <div className="overflow-hidden rounded-[14px] border border-[var(--border)]">
+              <Image
+                src="/images/onboarding/vessel-helm.jpg"
+                alt="Vessel bridge"
+                width={400}
+                height={224}
+                className="h-[120px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
+              />
+              <p className="px-2.5 py-2 text-center text-xs text-[var(--muted-foreground)]">
+                For employers
+              </p>
+            </div>
+          </div>
           <ol className="flex flex-col gap-4">
             <li className="flex items-start gap-3">
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">

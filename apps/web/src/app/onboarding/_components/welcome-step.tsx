@@ -20,6 +20,16 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
           className="rounded-2xl"
         />
 
+        <div className="w-full overflow-hidden rounded-[14px] border border-[var(--border)]">
+          <Image
+            src="/images/onboarding/hero-lounge.jpg"
+            alt="Yacht interior"
+            width={800}
+            height={448}
+            className="h-[200px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
+          />
+        </div>
+
         <div className="flex flex-col items-center gap-3 text-center">
           <h1 className="text-2xl font-bold tracking-tight">Welcome to DockWalker</h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
