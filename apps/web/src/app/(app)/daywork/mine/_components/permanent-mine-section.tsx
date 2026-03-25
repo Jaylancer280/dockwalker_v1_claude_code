@@ -158,7 +158,9 @@ export function PermanentMineSection() {
             key={t.key}
             onClick={() => switchTab(t.key)}
             className={`shrink-0 px-3 py-2 text-xs font-medium ${
-              tab === t.key ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground'
+              tab === t.key
+                ? 'border-b-2 border-[var(--foreground)] text-[var(--foreground)]'
+                : 'text-[var(--muted-foreground)]'
             }`}
           >
             {t.label}
@@ -176,7 +178,10 @@ export function PermanentMineSection() {
             </p>
           )}
           {templates.map((t: Template) => (
-            <div key={t.id} className="rounded-xl border bg-card p-4">
+            <div
+              key={t.id}
+              className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
+            >
               <p className="font-semibold">{t.template_name}</p>
               <p className="text-xs text-muted-foreground">
                 {t.yacht_roles?.name} · {t.ports?.name}
@@ -216,7 +221,10 @@ export function PermanentMineSection() {
             </p>
           )}
           {currentPostings.map((p: Posting) => (
-            <div key={p.id} className="rounded-xl border bg-card p-4">
+            <div
+              key={p.id}
+              className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
+            >
               {/* Header */}
               <div className="mb-2 flex items-center justify-between">
                 <Badge variant="outline" className="font-mono text-xs">
@@ -277,7 +285,7 @@ export function PermanentMineSection() {
 
               {/* In negotiation banner */}
               {p.status === 'in_negotiation' && p.selected_crew_name && (
-                <div className="mt-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                <div className="mt-2 rounded bg-[var(--warning-lo)] px-2 py-1 text-xs text-[var(--warning)]">
                   In negotiation with {p.selected_crew_name}
                 </div>
               )}

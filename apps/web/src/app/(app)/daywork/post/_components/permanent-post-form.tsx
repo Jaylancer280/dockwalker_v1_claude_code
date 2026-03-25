@@ -243,7 +243,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         <button onClick={onBack} className="rounded-full p-2 hover:bg-muted">
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-xl font-bold">Post Permanent Position</h1>
+        <h1 className="text-[24px] font-bold tracking-[-0.5px]">Post Permanent Position</h1>
       </div>
 
       {/* Load template */}

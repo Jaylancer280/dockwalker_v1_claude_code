@@ -57,7 +57,7 @@ export function ImageCropper({ imageSrc, onConfirm, onCancel }: ImageCropperProp
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/90">
-      <div className="relative flex-1">
+      <div className="relative flex-1 overflow-hidden">
         <Cropper
           image={imageSrc}
           crop={crop}
@@ -70,7 +70,7 @@ export function ImageCropper({ imageSrc, onConfirm, onCancel }: ImageCropperProp
           onCropComplete={onCropComplete}
         />
       </div>
-      <div className="flex items-center justify-center gap-4 bg-[var(--surface)] p-4 pb-safe">
+      <div className="shrink-0 flex items-center justify-center gap-4 bg-[var(--surface)] p-4 pb-safe">
         <Button
           variant="outline"
           onClick={onCancel}

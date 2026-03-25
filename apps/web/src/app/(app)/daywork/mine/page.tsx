@@ -257,11 +257,14 @@ export default function MyPostingsPage() {
     setDeletingTemplate(null);
   }
 
-  const statusColor: Record<string, string> = {
-    active: 'bg-success text-white',
-    in_progress: 'bg-primary text-primary-foreground',
-    cancelled: 'bg-muted text-muted-foreground',
-    completed: 'bg-sea text-white',
+  const statusVariant: Record<
+    string,
+    'status-open' | 'status-filling' | 'status-cancelled' | 'status-closed'
+  > = {
+    active: 'status-open',
+    in_progress: 'status-filling',
+    cancelled: 'status-cancelled',
+    completed: 'status-closed',
   };
 
   const statusLabel: Record<string, string> = {
@@ -273,13 +276,13 @@ export default function MyPostingsPage() {
       <Card key={posting.id}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-1.5">
+            <CardTitle className="text-[15px] font-semibold tracking-[-0.3px] flex items-center gap-1.5">
               {posting.yacht_roles?.name ?? 'Unknown role'}
               {posting.yacht_roles?.name && (
                 <EpauletteBadge roleName={posting.yacht_roles.name} size="sm" />
               )}
             </CardTitle>
-            <Badge className={statusColor[posting.status] ?? ''}>
+            <Badge variant={statusVariant[posting.status] ?? 'outline'}>
               {statusLabel[posting.status] ?? posting.status}
             </Badge>
           </div>
@@ -291,7 +294,7 @@ export default function MyPostingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-[var(--muted-foreground)]">
             <span className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5" />
               {posting.ports?.name ?? 'Unknown'}
@@ -303,8 +306,11 @@ export default function MyPostingsPage() {
             </span>
             <span className="flex items-center gap-1">
               <DollarSign className="h-3.5 w-3.5" />
-              {currencySymbol(posting.currency)}
-              {posting.day_rate}/day
+              <span className="font-mono text-[17px] font-bold tracking-[-0.5px] text-[var(--foreground)]">
+                {currencySymbol(posting.currency)}
+                {posting.day_rate}
+              </span>
+              <span className="text-[11px] font-medium opacity-60">/day</span>
             </span>
           </div>
 
@@ -402,9 +408,9 @@ export default function MyPostingsPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
+      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
-          <h1 className="text-lg font-bold tracking-tight">My Jobs</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.5px]">My Jobs</h1>
           <div className="flex gap-2">
             <Button
               variant={showFilters ? 'default' : 'outline'}

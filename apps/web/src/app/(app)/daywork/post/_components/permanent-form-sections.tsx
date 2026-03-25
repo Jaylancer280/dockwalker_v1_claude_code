@@ -158,7 +158,7 @@ export function ContractTermsSection({
       <div>
         <Label>Notes (optional)</Label>
         <textarea
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          className="w-full rounded-md border bg-[var(--card)] px-3 py-2 text-sm"
           rows={3}
           maxLength={500}
           value={notes}
@@ -230,20 +230,22 @@ export function SalarySection({
       <div className="mt-2 flex gap-2">
         <button
           type="button"
-          className={`rounded-full px-3 py-1 text-sm ${salaryPeriod === 'monthly' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+          className={`rounded-full px-3 py-1 text-sm ${salaryPeriod === 'monthly' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--card)] border border-[var(--border)]'}`}
           onClick={() => setSalaryPeriod('monthly')}
         >
           Monthly
         </button>
         <button
           type="button"
-          className={`rounded-full px-3 py-1 text-sm ${salaryPeriod === 'annual' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
+          className={`rounded-full px-3 py-1 text-sm ${salaryPeriod === 'annual' ? 'bg-[var(--accent)] text-white' : 'bg-[var(--card)] border border-[var(--border)]'}`}
           onClick={() => setSalaryPeriod('annual')}
         >
           Annual
         </button>
       </div>
-      {salaryPreview && <p className="mt-1 text-sm font-medium text-primary">{salaryPreview}</p>}
+      {salaryPreview && (
+        <p className="mt-1 text-sm font-medium text-[var(--accent)]">{salaryPreview}</p>
+      )}
     </div>
   );
 }
@@ -283,8 +285,8 @@ export function RequirementsSection({
               type="button"
               className={`rounded-full px-3 py-1 text-xs ${
                 certificationIds.includes(c.id)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)]'
               }`}
               onClick={() =>
                 setCertificationIds((prev) =>
@@ -308,8 +310,8 @@ export function RequirementsSection({
               type="button"
               className={`rounded-full px-3 py-1 text-xs ${
                 requiredLangs.includes(lang.code)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)]'
               }`}
               onClick={() =>
                 setRequiredLangs((prev) =>
