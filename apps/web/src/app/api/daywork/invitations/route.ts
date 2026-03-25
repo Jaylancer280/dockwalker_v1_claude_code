@@ -51,7 +51,7 @@ export async function GET() {
         `
       id, job_number, start_date, end_date, working_days,
       day_rate, currency, meals, notes, status, vessel_id, positions_available, positions_filled,
-      yacht_roles(id, name),
+      yacht_roles(id, name, department),
       ports(id, name, cities(name, regions(name))),
       experience_brackets(label)
     `,
@@ -119,7 +119,11 @@ export async function GET() {
       const dw = dayworkMap.get(inv.daywork_id) as Record<string, unknown> | undefined;
       const vesselId = dw?.vessel_id as string | undefined;
       const vessel = vesselId ? vesselMap.get(vesselId) : null;
-      const roles = dw?.yacht_roles as { id: string; name: string } | null;
+      const roles = dw?.yacht_roles as {
+        id: string;
+        name: string;
+        department: string | null;
+      } | null;
       const ports = dw?.ports as {
         id: string;
         name: string;
@@ -145,6 +149,7 @@ export async function GET() {
               notes: dw.notes as string | null,
               daywork_status: dw.status as string,
               role_name: roles?.name ?? null,
+              role_department: roles?.department ?? null,
               port_name: ports?.name ?? null,
               city_name: ports?.cities?.name ?? null,
               region_name: ports?.cities?.regions?.name ?? null,

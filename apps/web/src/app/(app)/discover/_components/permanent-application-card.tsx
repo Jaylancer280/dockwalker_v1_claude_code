@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MapPin, Briefcase, Ship, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -25,6 +26,7 @@ interface PermanentApplicationPosting {
   poster_person_id: string | null;
   poster_name: string | null;
   role_name: string | null;
+  role_department: string | null;
   port_name: string | null;
   city_name: string | null;
   vessel_name: string | null;
@@ -95,8 +97,15 @@ export function PermanentApplicationCard({
     <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4">
       {/* Header: role + profile icon + status */}
       <div className="mb-2 flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 text-[15px] font-semibold tracking-[-0.3px]">
+        <p className="min-w-0 flex-1 text-[15px] font-semibold tracking-[-0.3px] flex items-center gap-1">
           {p.role_name ?? 'Unknown Role'}
+          {p.role_name && (
+            <EpauletteBadge
+              roleName={p.role_name}
+              department={p.role_department ?? undefined}
+              size="sm"
+            />
+          )}
         </p>
         {p.poster_person_id && (
           <button

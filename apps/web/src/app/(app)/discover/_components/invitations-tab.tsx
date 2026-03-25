@@ -25,6 +25,7 @@ export interface Invitation {
     notes: string | null;
     daywork_status: string;
     role_name: string | null;
+    role_department: string | null;
     port_name: string | null;
     city_name: string | null;
     region_name: string | null;
@@ -121,7 +122,13 @@ function InvitationCard({
           <div className="min-w-0 flex-1">
             <h3 className="text-[15px] font-semibold tracking-[-0.3px] leading-tight flex items-center gap-1.5">
               {dw.role_name ?? 'Unknown role'}
-              {dw.role_name && <EpauletteBadge roleName={dw.role_name} size="sm" />}
+              {dw.role_name && (
+                <EpauletteBadge
+                  roleName={dw.role_name}
+                  department={dw.role_department ?? undefined}
+                  size="sm"
+                />
+              )}
             </h3>
             <p className="text-[13px] text-muted-foreground">
               {dw.vessel_type ? (dw.vessel_type === 'sail' ? 'S/Y' : 'M/Y') + ' ' : ''}

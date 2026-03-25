@@ -19,13 +19,12 @@ function AnchorIcon({ color, size }: { color: string; size: number }) {
   );
 }
 
-/** Propeller icon — engineering. Filled 3-blade propeller. */
-function PropellerIcon({ color, size }: { color: string; size: number }) {
+/** Gear/cog icon — engineering. 6-tooth cog, clear at 14px. */
+function GearIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="8" cy="8" r="1.8" fill={color} />
       <path
-        d="M8 6.2C7.2 4.5 6 2 7 1.5c1-.5 2 1.5 2.2 3.2.1.8-.4 1.5-1.2 1.5zM9.6 9C11.2 9.8 13.5 11 13.5 10c0-1-2-2-3.7-2.2-.8-.1-1.3.5-1 1.2zM6.4 9C4.8 9.8 2.5 11 2.5 10c0-1 2-2 3.7-2.2.8-.1 1.3.5 1 1.2z"
+        d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM6.8 1.6l-.3 1.5c-.4.1-.7.3-1 .6L4 3.2l-1.2 2 1.1 1.1c-.1.4-.1.7 0 1.1L2.8 8.5l1.2 2 1.5-.5c.3.2.6.4 1 .6l.3 1.5h2.4l.3-1.5c.4-.1.7-.3 1-.6l1.5.5 1.2-2-1.1-1.1c.1-.4.1-.7 0-1.1l1.1-1.1-1.2-2-1.5.5c-.3-.2-.6-.4-1-.6l-.3-1.5H6.8z"
         fill={color}
       />
     </svg>
@@ -44,12 +43,12 @@ function CrescentIcon({ color, size }: { color: string; size: number }) {
   );
 }
 
-/** Knife icon — galley. Filled chef's knife silhouette. */
+/** Chef's knife icon — galley. Blade + handle silhouette, clear at 14px. */
 function KnifeIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M11.5 1.5L5 9.5h3l-1 5 6.5-8h-3z"
+        d="M13.5 2C10 2.5 5.5 5.5 4 8l-1.5 1.5c-.4.4-.4 1 0 1.4l2.6 2.6c.4.4 1 .4 1.4 0L8 12c2.5-1.5 5.5-6 6-9.5.1-.5-.3-.6-.5-.5zM5.8 12.2l-2-2L5 9l2 2-1.2 1.2z"
         fill={color}
       />
     </svg>
@@ -63,7 +62,7 @@ function DeptIcon({ department, size }: { department: string; size: number }) {
     case 'bridge':
       return <AnchorIcon color={color} size={size} />;
     case 'engineering':
-      return <PropellerIcon color={color} size={size} />;
+      return <GearIcon color={color} size={size} />;
     case 'interior':
       return <CrescentIcon color={color} size={size} />;
     case 'galley':
@@ -83,10 +82,10 @@ export function EpauletteBadge({ roleName, department, size = 'sm' }: EpauletteB
   const info = getEpaulette(roleName, department);
   if (!info) return null;
 
-  const iconSize = size === 'sm' ? 12 : 14;
-  const h = size === 'sm' ? 'h-5' : 'h-6';
-  const stripeH = size === 'sm' ? 'h-2.5' : 'h-3';
-  const stripeW = size === 'sm' ? 'w-[2px]' : 'w-[2.5px]';
+  const iconSize = size === 'sm' ? 14 : 16;
+  const h = size === 'sm' ? 'h-6' : 'h-7';
+  const stripeH = size === 'sm' ? 'h-3' : 'h-3.5';
+  const stripeW = size === 'sm' ? 'w-[2.5px]' : 'w-[3px]';
   // Use first gold department's color for stripes, fallback to gold
   const stripeColor = colorHex(
     info.departments.some((d) => getDepartmentColor(d) === 'gold') ? 'gold' : 'silver',

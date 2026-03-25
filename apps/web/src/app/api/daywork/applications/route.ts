@@ -20,7 +20,7 @@ interface ApplicationRow {
     status: string;
     vessel_id: string;
     poster_person_id: string;
-    yacht_roles: { id: string; name: string } | null;
+    yacht_roles: { id: string; name: string; department: string | null } | null;
     ports: {
       id: string;
       name: string;
@@ -64,7 +64,7 @@ export async function GET() {
       dayworks(
         id, job_number, start_date, end_date, working_days,
         day_rate, currency, meals, notes, status, vessel_id, poster_person_id, positions_available, positions_filled, permanent_opportunity,
-        yacht_roles(id, name),
+        yacht_roles(id, name, department),
         ports(id, name, cities(name, regions(name))),
         experience_brackets(label)
       )
@@ -136,6 +136,7 @@ export async function GET() {
               poster_person_id: posterId,
               poster_name: posterId ? (posterNameMap.get(posterId) ?? null) : null,
               role_name: app.dayworks.yacht_roles?.name ?? null,
+              role_department: app.dayworks.yacht_roles?.department ?? null,
               port_name: app.dayworks.ports?.name ?? null,
               city_name: app.dayworks.ports?.cities?.name ?? null,
               region_name: app.dayworks.ports?.cities?.regions?.name ?? null,

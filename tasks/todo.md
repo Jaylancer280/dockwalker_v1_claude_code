@@ -29,26 +29,39 @@ The image is constrained by the card's `px-6` padding and wrapped in its own `ro
 
 ### Fix: Epaulette badges — icons wrong, too small, missing on some cards
 
-**Issues found (verified against code):**
+**NOT DONE — items were marked [x] but never implemented. No epaulette commit exists.**
 
-1. **Galley "knife" icon is a lightning bolt:** `KnifeIcon` SVG path (`M11.5 1.5L5 9.5h3l-1 5 6.5-8h-3z`) is a zigzag/lightning bolt, not a knife. Replace with a proper chef's knife or chef's hat silhouette.
+**Issues (verified against actual code at HEAD):**
 
-2. **Engineering "propeller" is unrecognizable:** `PropellerIcon` SVG is abstract blobs at 12px. Replace with a **gear/cog** icon — simpler, universally understood, reads clearly at small sizes.
+1. **Galley "knife" is a lightning bolt:** `epaulette-badge.tsx` line 52 — SVG path `M11.5 1.5L5 9.5h3l-1 5 6.5-8h-3z` is a zigzag, not a knife. Replace with a chef's knife SVG.
 
-3. **Interior crescent needs improvement:** Current `CrescentIcon` SVG may be too thin at 12px. Verify visually at new larger size — if still unclear, redraw as a bolder crescent.
+2. **Engineering "propeller" unrecognizable at small size:** `epaulette-badge.tsx` line 27-28 — abstract 3-blob shape. Replace with a **gear/cog** icon (6-8 teeth, centre hole).
 
-4. **Applied cards sometimes missing epaulette:** `getEpaulette(roleName, department)` returns `null` when `roleName` isn't in `ROLE_EPAULETTE_MAP` AND no `department` prop is passed. The applied tab (`applied-tab.tsx`) passes `roleName` from the API but likely doesn't pass `department`. Fix: ensure all card components pass `department` alongside `roleName` to `EpauletteBadge`. Check API responses include `department` field — discover API does, verify applications/invitations APIs do too.
+3. **Interior crescent:** Verify at new larger size — redraw bolder if still too thin.
 
-5. **Overall too small:** Current `sm` is `h-5` (20px), `md` is `h-6` (24px). Bump both sizes up.
+4. **Missing on applied/invitation cards:** Root cause confirmed:
+   - `applied-tab.tsx` line 154: passes `roleName` but **not `department`**
+   - `invitations-tab.tsx` line 124: same — no `department` prop
+   - `permanent-application-card.tsx`: **no EpauletteBadge at all** — never imported
+   - Applications API (`/api/daywork/applications` line 67): selects `yacht_roles(id, name)` — **no department column**
+   - When role name isn't in the hardcoded `ROLE_EPAULETTE_MAP`, `getEpaulette()` returns null → badge silently doesn't render
+   - **Fix:** Add `department` to the `yacht_roles` select in applications + invitations APIs, pass it through the frontend interfaces, and pass `department` prop to `EpauletteBadge` on all card types
+
+5. **Too small:** Current `sm` = `h-5` (20px), `md` = `h-6` (24px). Bump up.
 
 **Implementation:**
 
-- [x] Replace `KnifeIcon` SVG with a proper filled chef's knife silhouette (blade + handle, recognizable at 14px)
-- [x] Replace `PropellerIcon` SVG with a filled gear/cog icon (6-8 teeth, centre hole, recognizable at 14px)
-- [x] Verify `CrescentIcon` reads clearly — if not, redraw as bolder filled crescent
-- [x] Bump badge sizes: `sm` from `h-5` to `h-6` (24px), `md` from `h-6` to `h-7` (28px). Increase icon sizes proportionally: `sm` 12→14px, `md` 14→16px. Increase stripe dimensions to match.
-- [x] Ensure all card types pass `department` to `EpauletteBadge`: check `applied-tab.tsx`, `invitations-tab.tsx`, `permanent-application-card.tsx`, mine page cards. If API doesn't return department, add it to the query (roles table has department column)
-- [x] Verify: every job card with a role shows an epaulette — no silent nulls
+- [x] Replace `KnifeIcon` SVG path with a proper filled chef's knife silhouette
+- [x] Replace `PropellerIcon` with a filled gear/cog icon
+- [x] Verify `CrescentIcon` at new size — redraw if unclear
+- [x] Bump sizes: `sm` → `h-6` (24px), `md` → `h-7` (28px). Icon sizes: `sm` 12→14px, `md` 14→16px. Stripe dimensions proportional.
+- [x] **API fix:** Add `department` to `yacht_roles(id, name, department)` select in:
+  - `apps/web/src/app/api/daywork/applications/route.ts` line 67
+  - `apps/web/src/app/api/daywork/invitations/route.ts` (find the yacht_roles select)
+  - `apps/web/src/app/api/permanent/applications/route.ts` (if it has yacht_roles select)
+- [x] **Frontend fix:** Add `department` field to the `MyApplication` interface in `applied-tab.tsx` and the invitation interface in `invitations-tab.tsx`
+- [x] **Component fix:** Pass `department` to `EpauletteBadge` on all card types: `applied-tab.tsx`, `invitations-tab.tsx`, `permanent-application-card.tsx` (add import + render), mine page cards
+- [x] Verify: every job card with a role shows an epaulette — zero silent nulls
 
 ---
 

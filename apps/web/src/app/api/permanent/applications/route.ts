@@ -34,7 +34,7 @@ export async function GET() {
           id, job_number, start_date, salary_min, salary_max, salary_currency, salary_period,
           live_aboard, shortlist_cap, notes, status, vessel_id, employer_person_id,
           required_certification_ids,
-          yacht_roles(id, name),
+          yacht_roles(id, name, department),
           ports(id, name, cities(name, regions(name))),
           experience_brackets(label)
         )
@@ -131,6 +131,7 @@ export async function GET() {
               poster_person_id: posterId,
               poster_name: posterId ? (posterNameMap.get(posterId) ?? null) : null,
               role_name: pp.yacht_roles?.name ?? null,
+              role_department: pp.yacht_roles?.department ?? null,
               port_name: pp.ports?.name ?? null,
               city_name: pp.ports?.cities?.name ?? null,
               region_name: pp.ports?.cities?.regions?.name ?? null,
