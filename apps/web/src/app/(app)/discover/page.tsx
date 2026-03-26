@@ -180,14 +180,17 @@ export default function DiscoverPage() {
     loadCrewCerts();
   }, []);
 
-  // Re-fetch crew certs when tab regains focus
+  // Re-fetch crew certs and availability when tab regains focus
   useEffect(() => {
     function handleVisibility() {
-      if (document.visibilityState === 'visible') loadCrewCerts();
+      if (document.visibilityState === 'visible') {
+        loadCrewCerts();
+        checkAvailability();
+      }
     }
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
+  }, [checkAvailability]);
 
   // Load filter options
   useEffect(() => {

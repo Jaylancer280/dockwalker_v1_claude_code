@@ -64,51 +64,22 @@ UI bug fixes and UX improvements (5 items)
 
 ### Fix: Availability overlay — LocationPicker z-index + save not reflecting
 
-**LocationPicker dropdown renders behind the overlay:**
-The availability overlay uses `z-[60]` (line 217 of `availability-overlay.tsx`). The `PopoverContent` in `popover.tsx` uses `z-50`. Radix portals the Popover to the document root, so it renders at z-50 — behind the z-60 overlay. The screenshot confirms the dropdown list appears behind/outside the overlay card.
+**LocationPicker dropdown z-index:**
 
-- [ ] Fix: either bump PopoverContent z-index to `z-[70]` globally (but check side effects on other Popover usages), OR pass a higher z-index className to LocationPicker's PopoverContent specifically when used inside the availability overlay
-- [ ] Verify the fix works in both contexts: availability overlay (z-60) and normal page forms (z-auto)
+- [x] Bumped PopoverContent from z-50 to z-[70] globally (renders above z-60 overlay)
 
-**Save doesn't reflect on profile:**
-The code path looks correct: POST → `appendEvent` → `apply_projection` inserts rows → `onConfirm` calls `loadAvailability()` → GET fetches non-expired rows. The implementation agent must test this against the real local DB (`npx supabase db reset` first) to determine if it's:
+**Save doesn't reflect on profile — needs real DB testing:**
 
-- A timezone mismatch: overlay generates dates in UTC, server compares with `new Date().toISOString()` — if the server/client clocks differ or the per-date expiry (`d::date + interval '1 day'`, migration 00073) causes rows to expire prematurely
-- The `appendEvent` call failing silently (check if `safeFetch` response is actually `ok`)
-- An RLS issue preventing the insert
-
-- [ ] After `npx supabase db reset`, manually test: set availability via the overlay → check if the API POST returns success → check if GET `/api/availability` returns the saved windows → check if the profile page renders them
-- [ ] If the POST succeeds but GET returns empty, check the `expires_at` values in `availability_windows` table directly — they should be `date + 1 day` for normal rows
-- [ ] If the issue is timezone-related (e.g., saving at 23:00 UTC+2 where server UTC date is already tomorrow), the fix is in `apply_projection`'s expiry calculation or the GET filter
+- [ ] After `npx supabase db reset`, manually test availability save flow
+- [ ] Check `expires_at` values if GET returns empty
+- [ ] If timezone-related, fix in `apply_projection`'s expiry calculation or GET filter
 
 ### Fix: Vessel creation form freezing and LOA input issues
 
-The "Add vessel" form is a `CreateVesselForm` component inside a Radix `Dialog` in `vessels/page.tsx`. Two problems:
-
-**Problem 1: Form freezing / LOA not accepting input**
-
-Root cause: Radix `Select` (vessel type) portals its dropdown outside the `Dialog`. On mobile/Capacitor (especially iOS), after opening and closing the Select, the Dialog's focus trap interferes with subsequent inputs. The LOA `type="number"` field is most affected because iOS number keyboards fight with portal focus management. Symptom: LOA works if filled first (before Select interaction) but freezes after.
-
-Fix approach: Replace the `Dialog` with a dedicated full-page route or inline expandable form. Dialogs with nested portaled components are a known Capacitor pain point (see `tasks/lessons.md` — modals need z-[60]+, and the `BottomSheet` component exists as an alternative).
-
-- [ ] Replace the `Dialog`-based vessel creation form with either: (a) a `BottomSheet` (already exists as shared component), or (b) an inline expandable section on the vessels page that shows/hides the form. Either approach avoids nested Radix portals entirely
-- [ ] If using BottomSheet: move `CreateVesselForm` into the BottomSheet content, ensure the Select for vessel type works inside it (BottomSheet doesn't use Dialog's focus trap)
-- [ ] If using inline form: toggle visibility with a state flag, render the form fields directly on the page below the "Add vessel" button
-- [ ] Remove the `Dialog`/`DialogTrigger`/`DialogContent` imports and wrapper from `vessels/page.tsx`
-- [ ] Change LOA input from `type="number"` to `type="text" inputMode="decimal"` — this still triggers numeric keyboard on mobile but avoids iOS number input focus quirks
-- [ ] Verify fix: fill fields in any order (IMO → type → name → LOA → NDA, then LOA → IMO → type → name → NDA). All fields must accept input regardless of interaction order
-
-**Problem 2: Vessel card is sparse and looks bad**
-
-The card currently shows: vessel name, IMO number, vessel_type (capitalized text), LOA, size band label, NDA badge. But the layout is flat text lines with no visual hierarchy — it looks like a debug dump.
-
-Available data from GET `/api/vessels`: `id`, `imo_number`, `name`, `vessel_type`, `size_band_id`, `loa_meters`, `nda_flag`, `created_at`, `vessel_size_bands(label)`. All relevant fields are already returned.
-
-- [ ] Redesign the vessel card layout: vessel name as the card title with M/Y or S/Y prefix (use the same greyed-out prefix pattern as the creation form's name input), IMO as subtitle
-- [ ] Group metadata on one line: vessel type icon or label + LOA (with unit) + size band label (e.g. "Motor · 45m · 30-50m")
-- [ ] NDA badge: keep the existing `ShieldAlert` badge, position it top-right of the card (not inline with text)
-- [ ] Edit button: keep existing link to `/vessels/[id]/edit`, style as a subtle icon button (pencil) top-right alongside NDA badge
-- [ ] Match the visual density and card pattern of daywork/permanent job cards (rounded corners, consistent padding, metadata row with dot separators)
+- [x] Replaced Dialog with inline expandable Card form (no focus trap, no nested portals)
+- [x] Removed Dialog/DialogTrigger/DialogContent imports
+- [x] Changed LOA input from `type="number"` to `type="text" inputMode="decimal"`
+- [x] Redesigned vessel cards: M/Y or S/Y prefix on name, IMO subtitle, dot-separated metadata (Motor · 45m · 30-50m), NDA badge + edit button top-right
 
 ### Seed: Add two new test users
 
@@ -219,10 +190,7 @@ Daywork and permanent templates can be saved and loaded but never deleted. Over 
 
 ### UX: Discover page availability state goes stale
 
-After setting availability via the overlay on the profile page, navigating to discover still shows the old `hasAvailability` state (loaded once on mount). Crew who just set availability still get blocked from applying.
-
-- [ ] When discover page mounts or becomes visible (`visibilitychange`), re-fetch availability status
-- [ ] Or: use a shared state/context for availability that updates across pages
+- [x] Added `checkAvailability()` to visibilitychange handler — re-fetches when tab regains focus
 
 ### Fix: Permanent crew withdrawal auto-reverts posting — employer should decide
 

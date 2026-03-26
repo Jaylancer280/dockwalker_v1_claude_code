@@ -18,14 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
@@ -57,7 +49,7 @@ export default function VesselsPage() {
   const [sizeBands, setSizeBands] = useState<SizeBand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const loadVessels = useCallback(async () => {
     try {
@@ -89,7 +81,7 @@ export default function VesselsPage() {
   const { showSuccess } = useToast();
 
   function handleCreated() {
-    setDialogOpen(false);
+    setShowForm(false);
     showSuccess('Vessel added');
     loadVessels();
   }
@@ -99,31 +91,32 @@ export default function VesselsPage() {
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="mx-auto flex max-w-lg items-center justify-between">
           <h1 className="text-[24px] font-bold tracking-[-0.5px]">Your Vessels</h1>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-1 h-4 w-4" />
-                Add vessel
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Add a vessel</DialogTitle>
-                <DialogDescription>
-                  Register a vessel to attach to daywork postings
-                </DialogDescription>
-              </DialogHeader>
+          <Button size="sm" onClick={() => setShowForm((v) => !v)}>
+            <Plus className="mr-1 h-4 w-4" />
+            {showForm ? 'Cancel' : 'Add vessel'}
+          </Button>
+        </div>
+      </header>
+
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-6">
+        {showForm && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Add a vessel</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Register a vessel to attach to postings
+              </p>
+            </CardHeader>
+            <CardContent>
               <CreateVesselForm
                 sizeBands={sizeBands}
                 onCreated={handleCreated}
                 lengthUnit={prefs.lengthUnit}
               />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </header>
+            </CardContent>
+          </Card>
+        )}
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-6">
         {loading && <LoadingSpinner size="md" />}
 
         {error && (
@@ -143,46 +136,54 @@ export default function VesselsPage() {
           />
         )}
 
-        {vessels.map((vessel) => (
-          <Card key={vessel.id}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">{vessel.name}</CardTitle>
-                <div className="flex items-center gap-1">
-                  <Link href={`/vessels/${vessel.id}/edit`}>
-                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
-                  {vessel.nda_flag && (
-                    <Badge variant="outline" className="gap-1 text-xs">
-                      <ShieldAlert className="h-3 w-3" />
-                      NDA
-                    </Badge>
-                  )}
+        {vessels.map((vessel) => {
+          const prefix = vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
+          const loaDisplay =
+            vessel.loa_meters != null
+              ? prefs.lengthUnit === 'ft'
+                ? `${Math.round(metersToFeet(vessel.loa_meters))}ft`
+                : `${vessel.loa_meters}m`
+              : null;
+          const bandDisplay = vessel.vessel_size_bands?.label
+            ? convertSizeBandLabel(vessel.vessel_size_bands.label, prefs.lengthUnit)
+            : null;
+          const meta = [
+            vessel.vessel_type === 'sail' ? 'Sail' : 'Motor',
+            loaDisplay,
+            bandDisplay,
+          ].filter(Boolean);
+
+          return (
+            <Card key={vessel.id} className="relative">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm">
+                      <span className="text-muted-foreground">{prefix}</span> {vessel.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">IMO {vessel.imo_number}</p>
+                    {meta.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">{meta.join(' · ')}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {vessel.nda_flag && (
+                      <Badge variant="outline" className="gap-1 text-xs">
+                        <ShieldAlert className="h-3 w-3" />
+                        NDA
+                      </Badge>
+                    )}
+                    <Link href={`/vessels/${vessel.id}/edit`}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                <span>IMO {vessel.imo_number}</span>
-                <span className="capitalize">{vessel.vessel_type}</span>
-                {vessel.loa_meters != null && (
-                  <span>
-                    {prefs.lengthUnit === 'ft'
-                      ? `${Math.round(metersToFeet(vessel.loa_meters))}ft`
-                      : `${vessel.loa_meters}m`}
-                  </span>
-                )}
-                {!vessel.loa_meters && vessel.vessel_size_bands?.label && (
-                  <span>
-                    {convertSizeBandLabel(vessel.vessel_size_bands.label, prefs.lengthUnit)}
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </main>
   );
@@ -299,9 +300,8 @@ function CreateVesselForm({
         <Label htmlFor="loa">Length overall ({lengthUnit === 'ft' ? 'feet' : 'metres'})</Label>
         <Input
           id="loa"
-          type="number"
-          min="1"
-          step="0.1"
+          type="text"
+          inputMode="decimal"
           placeholder={lengthUnit === 'ft' ? 'e.g. 131' : 'e.g. 40'}
           value={loaInput}
           onChange={(e) => setLoaInput(e.target.value)}
