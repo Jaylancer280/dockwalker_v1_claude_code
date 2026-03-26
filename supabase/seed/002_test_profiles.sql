@@ -6,8 +6,9 @@
 -- Crew     "Profile Two"  → c@1 / 87654321  (hat: crew)
 -- Crew     "Profile Three"→ g@1 / 87654321  (hat: crew, with experience)
 -- Unboarded               → d@1 / 87654321  (auth only, no onboarding)
+-- Agent    "Profile Five" → a@1 / 87654321  (hat: agent, agency identity)
 --
--- Includes: 3 vessels (1 NDA), crew availability, crew experience
+-- Includes: 3 vessels (1 NDA), crew availability, crew experience, agent vessel
 -- =============================================================================
 
 -- Fixed UUIDs for deterministic seeding
@@ -15,10 +16,12 @@
 -- Crew user:      22222222-2222-2222-2222-222222222222
 -- Crew user 2:    77777777-7777-7777-7777-777777777777
 -- Unboarded user: 88888888-8888-8888-8888-888888888888
+-- Agent user:     99999999-9999-9999-9999-999999999999
 -- Vessel 1:       33333333-3333-3333-3333-333333333333  (M/Y Serenity, 65m, charter)
 -- Vessel 2:       33333333-3333-3333-3333-333333333334  (M/Y Phantom, 45m, private, NDA)
 -- Crew exp vessel: 33333333-3333-3333-3333-333333333335 (S/Y Wanderer, 35m)
 -- Crew exp vessel: 33333333-3333-3333-3333-333333333338 (M/Y Azure Dream, 40m)
+-- Agent vessel:   33333333-3333-3333-3333-333333333339  (M/Y Meridian, 55m, charter)
 
 -- ========================= AUTH USERS =========================
 
@@ -67,6 +70,16 @@ insert into auth.users (
   '{"provider": "email", "providers": ["email"]}'::jsonb,
   '{}'::jsonb,
   now(), now(), '', '', '', ''
+), (
+  '00000000-0000-0000-0000-000000000000',
+  '99999999-9999-9999-9999-999999999999',
+  'authenticated', 'authenticated',
+  'a@1',
+  crypt('87654321', gen_salt('bf')),
+  now(),
+  '{"provider": "email", "providers": ["email"]}'::jsonb,
+  '{}'::jsonb,
+  now(), now(), '', '', '', ''
 );
 
 -- Auth identities (required for email login to work)
@@ -98,6 +111,13 @@ insert into auth.identities (
   '88888888-8888-8888-8888-888888888888',
   'd@1',
   '{"sub": "88888888-8888-8888-8888-888888888888", "email": "d@1"}'::jsonb,
+  'email',
+  now(), now(), now()
+), (
+  '99999999-9999-9999-9999-999999999999',
+  '99999999-9999-9999-9999-999999999999',
+  'a@1',
+  '{"sub": "99999999-9999-9999-9999-999999999999", "email": "a@1"}'::jsonb,
   'email',
   now(), now(), now()
 );
@@ -308,6 +328,64 @@ insert into public.crew_experiences (
 );
 
 select public.derive_experience_profile('77777777-7777-7777-7777-777777777777');
+
+-- ========================= ONBOARD AGENT (a@1) =========================
+-- identity_type: agent, current_hat: agent
+-- Profile Five: Agency agent based in Fort Lauderdale, represents multiple vessels
+-- Cannot switch hats. Has agency_name. Posts jobs on behalf of vessel owners.
+
+select public.onboard_person(
+  'agent',
+  'agent',
+  jsonb_build_object(
+    'display_name', 'Profile Five',
+    'primary_role_id', 'd0000000-0000-0000-0000-000000000001',
+    'certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000005"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000005',
+    'vessel_size_exposure_ids', '["f1000000-0000-0000-0000-000000000003","f1000000-0000-0000-0000-000000000004","f1000000-0000-0000-0000-000000000005"]'::jsonb,
+    'bio', 'Senior crew placement agent with 10 years in the superyacht industry. Managing a portfolio of 12 vessels across the Med and Caribbean. Specialising in deck and engineering placements.',
+    'agency_name', 'Meridian Yacht Crew',
+    'location_port_id', 'c0000000-0000-0000-0000-000000000020'
+  ),
+  '99999999-9999-9999-9999-999999999999'
+);
+
+-- Agent vessel: M/Y Meridian — 55m charter vessel (agent manages on behalf of owner)
+select public.append_event(
+  'VESSEL.CREATED',
+  '33333333-3333-3333-3333-333333333339',
+  'vessel',
+  'agent',
+  jsonb_build_object(
+    'id', '33333333-3333-3333-3333-333333333339',
+    'imo_number', '9876549',
+    'name', 'Meridian',
+    'vessel_type', 'motor',
+    'vessel_operation', 'charter',
+    'size_band_id', 'f1000000-0000-0000-0000-000000000004',
+    'loa_meters', 55,
+    'nda_flag', false
+  ),
+  '99999999-9999-9999-9999-999999999999'
+);
+
+-- Agent maritime background: past Captain experience (not current — agents cannot mark current)
+insert into public.crew_experiences (
+  id, person_id, vessel_id, role_id,
+  start_date, end_date, is_current, vessel_operation,
+  flag_state, contract_type, description
+) values (
+  'aa000000-0000-0000-0000-000000000004',
+  '99999999-9999-9999-9999-999999999999',
+  '33333333-3333-3333-3333-333333333339',
+  'd0000000-0000-0000-0000-000000000001',
+  (current_date - interval '8 years')::date,
+  (current_date - interval '3 years')::date,
+  false, 'charter', 'CYM', 'permanent',
+  'Captain on M/Y Meridian for 5 years before transitioning to crew agency work. Western Med and Caribbean circuits.'
+);
+
+select public.derive_experience_profile('99999999-9999-9999-9999-999999999999');
 
 -- ========================= USER 4 (d@1) — NO ONBOARDING =========================
 -- Auth user exists but NO events, NO person row, NO profile.
