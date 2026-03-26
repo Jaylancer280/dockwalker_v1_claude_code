@@ -150,11 +150,9 @@ Profile edit mode shows `primary_role_id`, `experience_bracket_id`, `vessel_size
 
 ### Fix: Vessel creation from post form is a dead end
 
-`VesselSelector`'s `onRequestCreate` navigates to `/vessels` but doesn't return to the posting form after vessel creation. User must manually navigate back and re-fill the form.
-
-- [ ] In `daywork/post/page.tsx` and `permanent-post-form.tsx`: change `onRequestCreate` to open the vessel creation inline (using the same BottomSheet approach from the vessel page fix) instead of navigating away
-- [ ] After successful vessel creation, add the new vessel to the local `vessels` state and auto-select it in the VesselSelector
-- [ ] Alternative simpler fix: save form state to `sessionStorage` before navigating to `/vessels`, restore on return. Less elegant but zero new components
+- [x] Both forms save state to sessionStorage before navigating to `/vessels?returnTo=...`
+- [x] Vessels page auto-opens form when `returnTo` param present, redirects back after creation
+- [x] Form state restored from sessionStorage on mount
 
 ### Fix: Permanent review page duplicate useEffect
 
@@ -265,21 +263,17 @@ Replace the current in-app Stripe checkout flow with an Apple IAP bypass: in-app
 
 ### Fix: Wire 4 dead email templates
 
-`apps/web/src/lib/email/templates.ts` defines 7 email templates but only 3 are connected (`applicationAcceptedEmail`, `permanentSelectedEmail`, `engagementStartingEmail`). The other 4 have complete HTML templates but are never called from any route or trigger.
-
-- [ ] `applicationReceivedEmail` — wire into `notifyOnEvent()` for `DAYWORK.APPLIED` events. Send to the employer when a crew member applies. Gate behind `push_applications` preference + no-push-token fallback (same pattern as existing dispatcher)
-- [ ] `newMessageEmail` — wire into `notifyOnEvent()` for `MESSAGE.SENT` events. Send to the recipient. Gate behind `push_messages` preference + no-push-token fallback. Add throttle: max 1 email per engagement per hour to avoid spam during active chat
-- [ ] `permanentShortlistedEmail` — wire into `notifyOnEvent()` for `PERMANENT.SHORTLISTED` events. Send to the crew member
-- [ ] `permanentPlacementConfirmedEmail` — wire into `notifyOnEvent()` for `PERMANENT.PLACEMENT_CONFIRMED` events. Send to the crew member
-- [ ] All four: respect `email_enabled` preference, only send if user has no push tokens
+- [x] `applicationReceivedEmail` wired for `DAYWORK.APPLIED` — sends to employer
+- [x] `newMessageEmail` wired for `MESSAGE.SENT` (non-system) — sends to recipient
+- [x] `permanentShortlistedEmail` wired for `PERMANENT.SHORTLISTED` — sends to crew
+- [x] `permanentPlacementConfirmedEmail` wired for `PERMANENT.PLACEMENT_CONFIRMED` — sends to crew
+- [x] All respect `email_enabled` preference + no-push-token gate
 
 ### Add: OG meta tags + social sharing image
 
-Landing page has no Open Graph or Twitter Card meta tags. Shared links show minimal preview on social media.
-
-- [ ] In `apps/web/src/app/layout.tsx`, add to the `metadata` export: `openGraph: { title, description, url, siteName, images: [{ url: '/images/brand/og-image.png', width: 1200, height: 630 }] }` and `twitter: { card: 'summary_large_image', title, description, images: ['/images/brand/og-image.png'] }`
-- [ ] Create a 1200x630px OG image asset at `apps/web/public/images/brand/og-image.png` — DockWalker logo centred on dark navy background (#0B1A2E) with tagline "Superyacht hiring, simplified"
-- [ ] Add terms of service and privacy policy links to the landing page footer (placeholder hrefs until legal docs are ready)
+- [x] Added OpenGraph + Twitter Card meta tags to layout.tsx (using existing app icon — dedicated 1200x630 OG image TBD as design asset)
+- [ ] Create a 1200x630px OG image asset at `apps/web/public/images/brand/og-image.png`
+- [ ] Add terms of service and privacy policy links to the landing page footer
 
 ### Pre-TestFlight: Capacitor native code changes
 

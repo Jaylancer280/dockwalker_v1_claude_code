@@ -8,13 +8,21 @@ import {
   hasPushTokens,
 } from './loaders';
 import { sendEmail } from '../email/send';
-import { applicationAcceptedEmail, permanentSelectedEmail } from '../email/templates';
+import {
+  applicationAcceptedEmail,
+  applicationReceivedEmail,
+  newMessageEmail,
+  permanentSelectedEmail,
+  permanentShortlistedEmail,
+  permanentPlacementConfirmedEmail,
+} from '../email/templates';
 
 /**
- * Send email for critical events ONLY when the user has no push tokens.
- * Only 3 event types warrant email:
- * - DAYWORK.ACCEPTED ("you got the job")
- * - PERMANENT.SELECTED ("you've been selected")
+ * Send email for important events ONLY when the user has no push tokens.
+ * Handled event types:
+ * - DAYWORK.ACCEPTED, DAYWORK.APPLIED
+ * - MESSAGE.SENT (non-system)
+ * - PERMANENT.SELECTED, PERMANENT.SHORTLISTED, PERMANENT.PLACEMENT_CONFIRMED
  * - Engagement starts tomorrow (handled by cron, not here)
  */
 export async function sendEmailForEvent(
@@ -23,8 +31,15 @@ export async function sendEmailForEvent(
   payload: Record<string, unknown>,
   ctx: NotifyContext,
 ): Promise<void> {
-  // Only send email for the 2 critical event types handled here
-  if (eventType !== 'DAYWORK.ACCEPTED' && eventType !== 'PERMANENT.SELECTED') return;
+  const EMAIL_EVENT_TYPES = [
+    'DAYWORK.ACCEPTED',
+    'DAYWORK.APPLIED',
+    'MESSAGE.SENT',
+    'PERMANENT.SELECTED',
+    'PERMANENT.SHORTLISTED',
+    'PERMANENT.PLACEMENT_CONFIRMED',
+  ];
+  if (!EMAIL_EVENT_TYPES.includes(eventType)) return;
 
   // Check email preference
   const { data: prefs } = await sc
@@ -71,6 +86,45 @@ export async function sendEmailForEvent(
       roleName: info.role_name,
       jobNumber: info.job_number,
       engagementId,
+    });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'DAYWORK.APPLIED') {
+    const employerName = await getDisplayName(sc, ctx.recipientPersonId);
+    const crewName = await getDisplayName(sc, payload.crew_person_id as string);
+    const dayworkId = payload.daywork_id as string;
+    const jobNumber = await getJobNumber(sc, dayworkId);
+    const deepLink = `${siteUrl}/daywork/${dayworkId}/review`;
+    const tpl = applicationReceivedEmail({ employerName, crewName, jobTitle: jobNumber, deepLink });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'MESSAGE.SENT') {
+    if (payload.is_system) return;
+    const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
+    const senderName = await getDisplayName(sc, payload.sender_person_id as string);
+    const preview = typeof payload.content === 'string' ? payload.content.slice(0, 100) : '';
+    const engagementId = payload.engagement_id as string;
+    const deepLink = `${siteUrl}/messages/${engagementId}`;
+    const tpl = newMessageEmail({ recipientName, senderName, preview, deepLink });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'PERMANENT.SHORTLISTED') {
+    const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
+    const postingId = payload.permanent_posting_id as string;
+    const info = await getPermanentPostingInfo(sc, postingId);
+    if (!info) return;
+    const tpl = permanentShortlistedEmail({
+      recipientName,
+      roleName: info.role_name,
+      jobNumber: info.job_number,
+    });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'PERMANENT.PLACEMENT_CONFIRMED') {
+    const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
+    const postingId = payload.permanent_posting_id as string;
+    const info = await getPermanentPostingInfo(sc, postingId);
+    if (!info) return;
+    const tpl = permanentPlacementConfirmedEmail({
+      recipientName,
+      roleName: info.role_name,
+      jobNumber: info.job_number,
     });
     await sendEmail({ to: email, ...tpl });
   }

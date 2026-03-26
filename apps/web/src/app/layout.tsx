@@ -20,7 +20,8 @@ const geist = localFont({
 
 export const metadata: Metadata = {
   title: 'DockWalker',
-  description: 'Fast-dispatch daywork hiring for superyacht crew',
+  description:
+    'Superyacht hiring, simplified — daywork and permanent positions for crew and employers',
   manifest: '/manifest.json',
   icons: {
     icon: '/images/brand/dw_app_icon_cropped.png',
@@ -30,6 +31,21 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'DockWalker',
+  },
+  openGraph: {
+    title: 'DockWalker',
+    description:
+      'Superyacht hiring, simplified — daywork and permanent positions for crew and employers',
+    siteName: 'DockWalker',
+    images: [{ url: '/images/brand/dw_app_icon_cropped.png', width: 512, height: 512 }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'DockWalker',
+    description:
+      'Superyacht hiring, simplified — daywork and permanent positions for crew and employers',
+    images: ['/images/brand/dw_app_icon_cropped.png'],
   },
 };
 

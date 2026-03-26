@@ -91,25 +91,51 @@ function DayworkPostForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Restore saved draft from sessionStorage (vessel creation round-trip)
+  const [draft] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const raw = sessionStorage.getItem('dockwalker:daywork-post-draft');
+    if (!raw) return null;
+    sessionStorage.removeItem('dockwalker:daywork-post-draft');
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  });
+
   // Form fields
   const [vesselId, setVesselId] = useState('');
   const [vesselNda, setVesselNda] = useState(false);
-  const [roleId, setRoleId] = useState('');
-  const [locationPortId, setLocationPortId] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [workingDays, setWorkingDays] = useState('');
-  const [requiredCertIds, setRequiredCertIds] = useState<string[]>([]);
-  const [requiredLangs, setRequiredLangs] = useState<string[]>([]);
-  const [experienceBracketId, setExperienceBracketId] = useState('');
-  const [dayRate, setDayRate] = useState('');
-  const [currency, setCurrency] = useState(
-    () => (typeof window !== 'undefined' && localStorage.getItem('dw-currency-pref')) || 'EUR',
+  const [roleId, setRoleId] = useState((draft?.roleId as string) ?? '');
+  const [locationPortId, setLocationPortId] = useState((draft?.locationPortId as string) ?? '');
+  const [startDate, setStartDate] = useState((draft?.startDate as string) ?? '');
+  const [endDate, setEndDate] = useState((draft?.endDate as string) ?? '');
+  const [workingDays, setWorkingDays] = useState((draft?.workingDays as string) ?? '');
+  const [requiredCertIds, setRequiredCertIds] = useState<string[]>(
+    (draft?.requiredCertIds as string[]) ?? [],
   );
-  const [meals, setMeals] = useState<MealOption[]>([]);
-  const [notes, setNotes] = useState('');
-  const [positionsAvailable, setPositionsAvailable] = useState('1');
-  const [permanentOpportunity, setPermanentOpportunity] = useState(false);
+  const [requiredLangs, setRequiredLangs] = useState<string[]>(
+    (draft?.requiredLangs as string[]) ?? [],
+  );
+  const [experienceBracketId, setExperienceBracketId] = useState(
+    (draft?.experienceBracketId as string) ?? '',
+  );
+  const [dayRate, setDayRate] = useState((draft?.dayRate as string) ?? '');
+  const [currency, setCurrency] = useState(
+    () =>
+      ((draft?.currency as string) ??
+        (typeof window !== 'undefined' && localStorage.getItem('dw-currency-pref'))) ||
+      'EUR',
+  );
+  const [meals, setMeals] = useState<MealOption[]>((draft?.meals as MealOption[]) ?? []);
+  const [notes, setNotes] = useState((draft?.notes as string) ?? '');
+  const [positionsAvailable, setPositionsAvailable] = useState(
+    (draft?.positionsAvailable as string) ?? '1',
+  );
+  const [permanentOpportunity, setPermanentOpportunity] = useState(
+    (draft?.permanentOpportunity as boolean) ?? false,
+  );
 
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
@@ -132,6 +158,29 @@ function DayworkPostForm() {
   }, [maxWorkingDays, workingDays]);
 
   const [showPostConfirm, setShowPostConfirm] = useState(false);
+
+  // Save form state to sessionStorage before navigating to vessel creation
+  function saveFormAndCreateVessel() {
+    const state = {
+      vesselId,
+      roleId,
+      locationPortId,
+      startDate,
+      endDate,
+      workingDays,
+      requiredCertIds,
+      requiredLangs,
+      experienceBracketId,
+      dayRate,
+      currency,
+      meals,
+      notes,
+      positionsAvailable,
+      permanentOpportunity,
+    };
+    sessionStorage.setItem('dockwalker:daywork-post-draft', JSON.stringify(state));
+    router.push('/vessels?returnTo=daywork-post');
+  }
 
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -403,7 +452,7 @@ function DayworkPostForm() {
             value={vesselId}
             onValueChange={setVesselId}
             onNdaChange={setVesselNda}
-            onRequestCreate={() => router.push('/vessels')}
+            onRequestCreate={saveFormAndCreateVessel}
           />
         </div>
 

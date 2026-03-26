@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, ShieldAlert, Pencil } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
@@ -44,12 +45,15 @@ interface SizeBand {
 }
 
 export default function VesselsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const prefs = usePreferences();
   const [vessels, setVessels] = useState<Vessel[]>([]);
   const [sizeBands, setSizeBands] = useState<SizeBand[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(!!returnTo);
 
   const loadVessels = useCallback(async () => {
     try {
@@ -83,7 +87,13 @@ export default function VesselsPage() {
   function handleCreated() {
     setShowForm(false);
     showSuccess('Vessel added');
-    loadVessels();
+    if (returnTo === 'daywork-post') {
+      router.push('/daywork/post');
+    } else if (returnTo === 'permanent-post') {
+      router.push('/daywork/post?mode=permanent');
+    } else {
+      loadVessels();
+    }
   }
 
   return (

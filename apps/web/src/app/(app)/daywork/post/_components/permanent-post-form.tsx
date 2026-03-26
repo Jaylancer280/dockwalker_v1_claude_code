@@ -62,27 +62,70 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   const { currency: preferredCurrency } = usePreferences();
   const submittingRef = useRef(false);
 
+  // Restore saved draft from sessionStorage (vessel creation round-trip)
+  const [draft] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const raw = sessionStorage.getItem('dockwalker:permanent-post-draft');
+    if (!raw) return null;
+    sessionStorage.removeItem('dockwalker:permanent-post-draft');
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  });
+
   // Form state
   const [vesselId, setVesselId] = useState('');
-  const [roleId, setRoleId] = useState('');
-  const [locationPortId, setLocationPortId] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [salaryMin, setSalaryMin] = useState('');
-  const [salaryMax, setSalaryMax] = useState('');
-  const [salaryCurrency, setSalaryCurrency] = useState(preferredCurrency);
-  const [salaryPeriod, setSalaryPeriod] = useState('monthly');
-  const [liveAboard, setLiveAboard] = useState(false);
-  const [certificationIds, setCertificationIds] = useState<string[]>([]);
-  const [requiredLangs, setRequiredLangs] = useState<string[]>([]);
-  const [experienceBracketId, setExperienceBracketId] = useState('any');
-  const [shortlistCap, setShortlistCap] = useState('5');
-  const [notes, setNotes] = useState('');
+  const [roleId, setRoleId] = useState((draft?.roleId as string) ?? '');
+  const [locationPortId, setLocationPortId] = useState((draft?.locationPortId as string) ?? '');
+  const [startDate, setStartDate] = useState((draft?.startDate as string) ?? '');
+  const [salaryMin, setSalaryMin] = useState((draft?.salaryMin as string) ?? '');
+  const [salaryMax, setSalaryMax] = useState((draft?.salaryMax as string) ?? '');
+  const [salaryCurrency, setSalaryCurrency] = useState<CurrencyCode>(
+    (draft?.salaryCurrency as CurrencyCode) ?? preferredCurrency,
+  );
+  const [salaryPeriod, setSalaryPeriod] = useState((draft?.salaryPeriod as string) ?? 'monthly');
+  const [liveAboard, setLiveAboard] = useState((draft?.liveAboard as boolean) ?? false);
+  const [certificationIds, setCertificationIds] = useState<string[]>(
+    (draft?.certificationIds as string[]) ?? [],
+  );
+  const [requiredLangs, setRequiredLangs] = useState<string[]>(
+    (draft?.requiredLangs as string[]) ?? [],
+  );
+  const [experienceBracketId, setExperienceBracketId] = useState(
+    (draft?.experienceBracketId as string) ?? 'any',
+  );
+  const [shortlistCap, setShortlistCap] = useState((draft?.shortlistCap as string) ?? '5');
+  const [notes, setNotes] = useState((draft?.notes as string) ?? '');
 
   // Template state
   const [templates, setTemplates] = useState<PermanentTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
+
+  // Save form state before navigating to vessel creation
+  function saveFormAndCreateVessel() {
+    const state = {
+      vesselId,
+      roleId,
+      locationPortId,
+      startDate,
+      salaryMin,
+      salaryMax,
+      salaryCurrency,
+      salaryPeriod,
+      liveAboard,
+      certificationIds,
+      requiredLangs,
+      experienceBracketId,
+      shortlistCap,
+      notes,
+    };
+    sessionStorage.setItem('dockwalker:permanent-post-draft', JSON.stringify(state));
+    router.push('/vessels?returnTo=permanent-post');
+  }
 
   // Lookups
   const [roles, setRoles] = useState<LookupItem[]>([]);
@@ -302,7 +345,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           setLocationPortId={setLocationPortId}
           startDate={startDate}
           setStartDate={setStartDate}
-          onRequestCreateVessel={() => router.push('/vessels')}
+          onRequestCreateVessel={saveFormAndCreateVessel}
         />
 
         <SalarySection

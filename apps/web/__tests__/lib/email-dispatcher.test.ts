@@ -28,7 +28,11 @@ vi.mock('@/lib/email/send', () => ({
 // --- Mock email templates ---
 vi.mock('@/lib/email/templates', () => ({
   applicationAcceptedEmail: () => ({ subject: 'You got the job!', html: '<p>Accepted</p>' }),
+  applicationReceivedEmail: () => ({ subject: 'New applicant', html: '<p>Applied</p>' }),
+  newMessageEmail: () => ({ subject: 'New message', html: '<p>Message</p>' }),
   permanentSelectedEmail: () => ({ subject: 'You have been selected!', html: '<p>Selected</p>' }),
+  permanentShortlistedEmail: () => ({ subject: 'Shortlisted', html: '<p>Shortlisted</p>' }),
+  permanentPlacementConfirmedEmail: () => ({ subject: 'Placement confirmed', html: '<p>Confirmed</p>' }),
 }));
 
 // --- Import after mocks ---
@@ -73,11 +77,11 @@ describe('sendEmailForEvent', () => {
     mockHasPushTokens.mockResolvedValue(false);
   });
 
-  it('ignores events that are not DAYWORK.ACCEPTED or PERMANENT.SELECTED', async () => {
+  it('ignores events that are not in the handled set', async () => {
     const sc = createMockSc();
-    await sendEmailForEvent(sc, 'DAYWORK.APPLIED', { daywork_id: 'dw1' }, defaultCtx);
-    await sendEmailForEvent(sc, 'MESSAGE.SENT', {}, defaultCtx);
     await sendEmailForEvent(sc, 'PERSON.CREATED', {}, defaultCtx);
+    await sendEmailForEvent(sc, 'DAYWORK.POSTED', {}, defaultCtx);
+    await sendEmailForEvent(sc, 'VESSEL.CREATED', {}, defaultCtx);
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
