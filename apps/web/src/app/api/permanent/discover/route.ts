@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       }
     }
     if (filterLiveAboard && filterLiveAboard !== 'any') {
-      query = query.eq('live_aboard', filterLiveAboard === 'true');
+      query = query.eq('live_aboard', filterLiveAboard === 'true' || filterLiveAboard === 'yes');
     }
     if (cursor) {
       query = query.lt('created_at', cursor);

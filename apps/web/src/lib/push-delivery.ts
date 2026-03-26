@@ -167,9 +167,8 @@ async function getApnsJwt(): Promise<string | null> {
     apnsJwt = `${header}.${payload}.${signature}`;
     apnsJwtExpiry = Date.now() + 50 * 60 * 1000; // refresh every 50 min (APNs allows 60)
     return apnsJwt;
-  } catch (err) {
-    console.error('[Push] Failed to read APNs key or sign JWT:', err);
-    return null;
+  } catch {
+    throw new Error('[Push] Failed to read APNs key or sign JWT');
   }
 }
 

@@ -325,7 +325,9 @@ function CreateVesselForm({
       <div className="flex items-center justify-between rounded-lg border border-border p-3">
         <div>
           <p className="text-sm font-medium">NDA vessel</p>
-          <p className="text-xs text-muted-foreground">Hide vessel identity from crew</p>
+          <p className="text-xs text-muted-foreground">
+            Hide vessel identity from crew until they accept a position
+          </p>
         </div>
         <Switch checked={ndaFlag} onCheckedChange={setNdaFlag} />
       </div>

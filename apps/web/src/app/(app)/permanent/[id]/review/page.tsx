@@ -73,15 +73,21 @@ export default function PermanentReviewPage() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [selectConfirm, setSelectConfirm] = useState<Applicant | null>(null);
 
+  const fetchReview = useCallback(
+    () =>
+      safeFetch<{
+        applicants?: Applicant[];
+        shortlist_cap?: number;
+        shortlist_count?: number;
+        posting_status?: string;
+        selected_crew_id?: string | null;
+      }>(`/api/permanent/${postingId}/review`),
+    [postingId],
+  );
+
   const loadApplicants = useCallback(async () => {
     setLoading(true);
-    const result = await safeFetch<{
-      applicants?: Applicant[];
-      shortlist_cap?: number;
-      shortlist_count?: number;
-      posting_status?: string;
-      selected_crew_id?: string | null;
-    }>(`/api/permanent/${postingId}/review`);
+    const result = await fetchReview();
     if (result.ok) {
       setApplicants(result.data.applicants ?? []);
       setShortlistCap(result.data.shortlist_cap ?? 5);
@@ -92,37 +98,27 @@ export default function PermanentReviewPage() {
       showError('Failed to load applicants');
     }
     setLoading(false);
-  }, [postingId, showError]);
+  }, [fetchReview, showError]);
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const result = await safeFetch<{
-        applicants?: Applicant[];
-        shortlist_cap?: number;
-        shortlist_count?: number;
-        posting_status?: string;
-        selected_crew_id?: string | null;
-      }>(`/api/permanent/${postingId}/review`);
-      if (!cancelled) {
-        if (result.ok) {
-          setApplicants(result.data.applicants ?? []);
-          setShortlistCap(result.data.shortlist_cap ?? 5);
-          setShortlistCount(result.data.shortlist_count ?? 0);
-          setPostingStatus(result.data.posting_status ?? 'active');
-          setSelectedCrewId(result.data.selected_crew_id ?? null);
-        } else {
-          showError('Failed to load applicants');
-        }
-        setLoading(false);
+    fetchReview().then((result) => {
+      if (cancelled) return;
+      if (result.ok) {
+        setApplicants(result.data.applicants ?? []);
+        setShortlistCap(result.data.shortlist_cap ?? 5);
+        setShortlistCount(result.data.shortlist_count ?? 0);
+        setPostingStatus(result.data.posting_status ?? 'active');
+        setSelectedCrewId(result.data.selected_crew_id ?? null);
+      } else {
+        showError('Failed to load applicants');
       }
-    })();
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postingId]);
+  }, [fetchReview, showError]);
 
   const applied = applicants.filter((a) => a.status === 'applied');
   const shortlisted = applicants.filter(

@@ -210,7 +210,7 @@ export default function EditVesselPage() {
             <p className="text-xs text-muted-foreground">
               {originalNda
                 ? 'NDA cannot be removed once enabled'
-                : 'Hide vessel identity from crew'}
+                : 'Hide vessel identity from crew until they accept a position'}
             </p>
           </div>
           <Switch checked={ndaFlag} onCheckedChange={setNdaFlag} disabled={originalNda} />

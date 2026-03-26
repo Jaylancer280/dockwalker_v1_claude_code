@@ -25,6 +25,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
   } else if (Array.isArray(notificationIds) && notificationIds.length > 0) {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (
+      notificationIds.length > 100 ||
+      !notificationIds.every((id: unknown) => typeof id === 'string' && UUID_RE.test(id))
+    ) {
+      return NextResponse.json({ error: 'Invalid notification IDs' }, { status: 400 });
+    }
     const { error } = await supabase
       .from('notifications')
       .update({ read: true })

@@ -423,7 +423,7 @@ export interface EventPayloadMap {
   'PERMANENT.APPLICATION_BLOCKED': {
     crew_person_id: string;
     permanent_posting_id: string;
-    missing_certification_ids: number[];
+    missing_certification_ids: string[];
   };
   'PERMANENT.SHORTLISTED': {
     crew_person_id: string;

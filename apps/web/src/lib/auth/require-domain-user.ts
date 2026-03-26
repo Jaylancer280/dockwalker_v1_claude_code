@@ -28,7 +28,7 @@ export async function requireDomainUser(): Promise<GuardResult> {
 
   const { data: personRow } = await supabase
     .from('persons')
-    .select('id, identity_type, current_hat, is_admin')
+    .select('id, identity_type, current_hat, is_admin, deactivated_at')
     .eq('id', user.id)
     .single();
 
@@ -39,6 +39,13 @@ export async function requireDomainUser(): Promise<GuardResult> {
         { error: 'Complete onboarding before using this feature' },
         { status: 409 },
       ),
+    };
+  }
+
+  if (personRow.deactivated_at !== null) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: 'Account deactivated' }, { status: 403 }),
     };
   }
 

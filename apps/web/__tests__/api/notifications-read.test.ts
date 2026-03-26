@@ -70,7 +70,7 @@ describe('POST /api/notifications/read', () => {
     const req = new Request('http://localhost/api/notifications/read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notificationIds: ['n1', 'n2'] }),
+      body: JSON.stringify({ notificationIds: ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222'] }),
     });
 
     const res = await POST(req);

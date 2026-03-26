@@ -78,7 +78,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           payload: {
             crew_person_id: user.id,
             permanent_posting_id: postingId,
-            missing_certification_ids: missingIds.map((id) => parseInt(id, 10) || 0),
+            missing_certification_ids: missingIds,
           },
           personId: user.id,
         });

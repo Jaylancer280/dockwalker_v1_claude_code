@@ -39,8 +39,8 @@ export async function registerPushNotifications() {
       }
     });
 
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('[Push] Registration error:', error);
+    PushNotifications.addListener('registrationError', () => {
+      // Push registration failed — user will be prompted again on next app open
     });
 
     // Foreground push: show in-app toast banner
@@ -72,8 +72,8 @@ export async function registerPushNotifications() {
         window.location.href = url;
       }
     });
-  } catch (err) {
-    console.error('[Push] Setup failed:', err);
+  } catch {
+    // Push setup failed — non-fatal, will retry on next setupPush() call
   }
 }
 

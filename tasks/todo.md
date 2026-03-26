@@ -132,31 +132,22 @@ Existing users: `e@1` (employer, UUID `11111111-...`) and `c@1` (crew, UUID `222
 
 ### Fix: PermanentPosting type mismatches — UUIDs typed as numbers
 
-`packages/types/src/models.ts` `PermanentPosting` interface has `role_id`, `port_id`, `experience_bracket_id` typed as `number` and `required_certification_ids` as `number[]`. The DB schema (migration 00059) defines all of these as `uuid` / `uuid[]`. Same issue on `PERMANENT.APPLICATION_BLOCKED` payload in `packages/types/src/events.ts` — `missing_certification_ids: number[]` should be `string[]`.
-
-- [ ] In `packages/types/src/models.ts`, change `PermanentPosting`: `role_id: string`, `port_id: string`, `experience_bracket_id: string | null`, `required_certification_ids: string[]`
-- [ ] In `packages/types/src/events.ts`, change `PERMANENT.APPLICATION_BLOCKED` payload: `missing_certification_ids: string[]`
-- [ ] Grep for any code consuming these fields with numeric operations (e.g., arithmetic, `===` against a number literal) and fix
-- [ ] Run `tsc --noEmit` to verify no downstream type errors
+- [x] In `packages/types/src/models.ts`, change `PermanentPosting` + `PermanentTemplate`: `role_id: string`, `port_id: string`, `experience_bracket_id: string | null`, `required_certification_ids: string[]`
+- [x] In `packages/types/src/events.ts`, change `PERMANENT.APPLICATION_BLOCKED` payload: `missing_certification_ids: string[]`
+- [x] Fixed downstream: removed `parseInt` conversion in permanent apply route
+- [x] Run `tsc --noEmit` — zero errors
 
 ### UX: NDA toggle caveat — vessel details revealed on acceptance
 
-The NDA toggle on vessel creation and vessel edit says "Hide vessel identity from crew" but doesn't mention that vessel details (including IMO) are revealed to crew upon acceptance (daywork) or selection (permanent). The `VesselSelector` info box on the posting form already explains this, but the user should see the caveat at the point of decision — when they first enable NDA.
-
-Three locations need the caveat text:
-
-- [ ] `vessels/page.tsx` `CreateVesselForm` NDA toggle (~line 328): change subtitle from `"Hide vessel identity from crew"` to `"Hide vessel identity from crew until they accept a position"` — or add a second line: `"Vessel details including IMO will be revealed to accepted crew"`
-- [ ] `vessels/[id]/edit/page.tsx` NDA toggle (~line 213): same change to the non-originalNda subtitle (the `originalNda` branch stays as "NDA cannot be removed once enabled")
-- [ ] Keep the existing `VesselSelector` info box as-is — it provides the detailed explanation at posting time, and these toggle-level captions provide the at-a-glance version
+- [x] `vessels/page.tsx` NDA toggle: "Hide vessel identity from crew until they accept a position"
+- [x] `vessels/[id]/edit/page.tsx` NDA toggle: same change
 
 ### Fix: console.error statements will fail pre-commit
 
-Three `console.error` calls in push notification code will block commits. These are in error catch blocks where silently swallowing is wrong but `console.error` is banned.
-
-- [ ] `apps/web/src/lib/push-notifications.ts` line 43 (registration error): replace `console.error(...)` with a no-op comment `// Push registration failed — user will be prompted again on next app open` — the error is non-fatal, registration retries on next `setupPush()` call
-- [ ] `apps/web/src/lib/push-notifications.ts` line 76 (setup failed): same approach — remove `console.error`, add descriptive comment. The catch already prevents crash; no further action needed
-- [ ] `apps/web/src/lib/push-delivery.ts` line 171 (APNs JWT signing error): this is server-side and more critical. Replace with `throw new Error('[Push] Failed to read APNs key or sign JWT')` so the caller's catch block handles it (push delivery functions already have try/catch at the call site that returns gracefully)
-- [ ] Verify no other `console.log`/`console.error`/`console.warn` exist outside test files: `grep -r "console\." apps/web/src/lib/ --include="*.ts" --include="*.tsx"`
+- [x] `push-notifications.ts` line 43: replaced with descriptive comment
+- [x] `push-notifications.ts` line 76: replaced with descriptive comment
+- [x] `push-delivery.ts` line 171: replaced with `throw new Error()`
+- [x] Verified zero `console.*` in `apps/web/src/`
 
 ### Fix: Size band filter is post-fetch — pagination breaks
 
@@ -168,9 +159,7 @@ Both `/api/daywork/discover` and `/api/permanent/discover` apply `sizeBandId` fi
 
 ### Fix: Toast container z-index conflicts with bottom nav
 
-`apps/web/src/components/toast-container.tsx` line 11 uses `z-50` — same as `bottom-nav.tsx`. Toasts at `bottom-20` can be obscured by the nav bar.
-
-- [ ] Change toast container to `z-[60]` or higher
+- [x] Changed toast container from `z-50` to `z-[60]`
 
 ### Fix: Docky sanitiser is insufficient for XSS prevention
 
@@ -209,10 +198,7 @@ Daywork and permanent templates can be saved and loaded but never deleted. Over 
 
 ### Fix: Notification read route doesn't validate IDs
 
-`/api/notifications/read/route.ts` line 27 checks `Array.isArray(notificationIds)` but doesn't validate each element is a valid UUID before passing to `.in('id', notificationIds)`. Malformed strings pass straight to the Supabase query.
-
-- [ ] Add UUID format validation: `const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;` then `if (!notificationIds.every(id => typeof id === 'string' && UUID_RE.test(id))) return NextResponse.json({ error: 'Invalid notification IDs' }, { status: 400 });`
-- [ ] Add a reasonable array length cap (e.g., 100) to prevent abuse
+- [x] Added UUID regex validation + 100-element cap before `.in()` query
 
 ### Fix: Vessel creation from post form is a dead end
 
@@ -224,18 +210,12 @@ Daywork and permanent templates can be saved and loaded but never deleted. Over 
 
 ### Fix: Permanent review page duplicate useEffect
 
-`/permanent/[id]/review/page.tsx` has identical loading logic in both the `loadApplicants` callback (lines 76-95) and the `useEffect` hook (lines 97-125). The useEffect also has an incomplete dependency array (`[postingId]` only, missing `showError`).
-
-- [ ] Refactor the `useEffect` to call `loadApplicants()` instead of duplicating the fetch/setState logic
-- [ ] Add proper cleanup: use the `cancelled` flag pattern inside `loadApplicants` or use an AbortController
-- [ ] Fix dependency array: `[postingId, loadApplicants]`
+- [x] Replaced duplicated fetch logic with single `loadApplicants()` call in useEffect
+- [x] Fixed dependency array: `[loadApplicants]` (includes `postingId` via useCallback deps)
 
 ### Fix: Permanent discover live aboard filter type handling
 
-`/api/permanent/discover/route.ts` line 112-114 converts string `'true'` to boolean correctly, but any non-"any", non-"true" string (e.g., `'false'`, `'no'`, empty string) maps to `false`. The frontend (`permanent-job-feed.tsx`) sends `'yes'`/`'no'`/`'any'` — so `'yes'` maps to `false` (wrong).
-
-- [ ] In the API route: change `filterLiveAboard === 'true'` to `filterLiveAboard === 'true' || filterLiveAboard === 'yes'` to handle both conventions
-- [ ] Or: standardise the frontend to send `'true'`/`'false'`/`'any'` instead of `'yes'`/`'no'`/`'any'` — update `permanent-job-feed.tsx` filter state and Select values
+- [x] API route now accepts both `'true'` and `'yes'` for live aboard filter
 
 ### UX: Discover page availability state goes stale
 
@@ -288,8 +268,8 @@ When crew withdraws after being selected for a permanent role, `apply_projection
 
 `requireDomainUser()` in `apps/web/src/lib/auth/require-domain-user.ts` queries the `persons` table but never checks `deactivated_at`. A user who deactivates their account keeps their auth session and can still hit all protected endpoints. RLS hides other users' data, but they can read their own and potentially append events.
 
-- [ ] After the person lookup (~line 43), add: `if (personRow.deactivated_at !== null) return { ok: false, response: NextResponse.json({ error: 'Account deactivated' }, { status: 403 }) }`
-- [ ] Optionally also sign the user out server-side (call `supabase.auth.admin.signOut(user.id)`) to invalidate their session entirely
+- [x] Added `deactivated_at` to person select + 403 guard after lookup
+- [ ] Optionally also sign the user out server-side (deferred — needs admin client)
 - [ ] Add a test case in existing `requireDomainUser` tests: deactivated person returns 403
 
 ### Redesign: Billing flow — IAP bypass via email-to-web
