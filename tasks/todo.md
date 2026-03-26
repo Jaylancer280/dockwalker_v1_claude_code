@@ -107,11 +107,8 @@ UI bug fixes and UX improvements (5 items)
 
 ### Fix: Size band filter is post-fetch — pagination breaks
 
-Both `/api/daywork/discover` and `/api/permanent/discover` apply `sizeBandId` filter _after_ fetching 50 rows (post-hydration). If only 3 of 50 rows match the band, the user sees 3 results with "load more" that yields another sparse batch. The `hasMore` flag is set before filtering.
-
-- [ ] Option A: Denormalize `size_band_id` onto `dayworks` and `permanent_postings` tables (already populated via `VESSEL.CREATED` → vessels table → LOA → band derivation). Add a migration to backfill, then filter server-side in the Supabase query
-- [ ] Option B: Increase the pre-filter fetch limit when `sizeBandId` is set (e.g., fetch 200, filter, return first 50). Less clean but no migration
-- [ ] Whichever approach: recompute `hasMore` after the filter is applied, not before
+- [x] Option B: fetch 200 (daywork) / 200 (permanent) when sizeBandId set, filter, trim to batch size
+- [x] `hasMore` recomputed after filter (uses post-filter length > BATCH_SIZE)
 
 ### Fix: Toast container z-index conflicts with bottom nav
 
@@ -134,10 +131,8 @@ The confirmation step before posting only mentions NDA vessel status. User can't
 
 ### UX: Auto-derived profile fields appear editable but aren't
 
-Profile edit mode shows `primary_role_id`, `experience_bracket_id`, `vessel_size_exposure_ids` in read-only state but without any label explaining they're auto-derived from experience entries. Users try to change them and get confused.
-
-- [ ] Add "(auto-derived from experience)" label or tooltip to each auto-derived field in edit mode
-- [ ] Or: hide auto-derived fields entirely in edit mode and only show them in view mode with an info icon
+- [x] Added "(auto-derived)" label to Experience and Vessel Size Exposure in view mode
+- [x] Fields already hidden in edit mode — label clarifies why they can't be changed
 
 ### UX: No template deletion
 
@@ -213,7 +208,7 @@ When crew withdraws after being selected for a permanent role, `apply_projection
 
 - [x] Added `deactivated_at` to person select + 403 guard after lookup
 - [ ] Optionally also sign the user out server-side (deferred — needs admin client)
-- [ ] Add a test case in existing `requireDomainUser` tests: deactivated person returns 403
+- [x] Added dedicated `requireDomainUser` test file (4 tests: 401 unauth, 409 no person, 403 deactivated, 200 ok)
 
 ### Redesign: Billing flow — IAP bypass via email-to-web
 

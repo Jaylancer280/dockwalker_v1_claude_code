@@ -123,7 +123,9 @@ export async function GET(request: Request) {
 
     query = query.order('created_at', { ascending: false });
 
-    const { data: dayworks, error } = await query.limit(50);
+    const BATCH_SIZE = 50;
+    const fetchLimit = filterSizeBandId ? 200 : BATCH_SIZE;
+    const { data: dayworks, error } = await query.limit(fetchLimit);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -208,8 +210,13 @@ export async function GET(request: Request) {
       hydrated = hydrated.filter((dw) => dw.vessels?.size_band_id === filterSizeBandId);
     }
 
-    const BATCH_SIZE = 50;
-    const hasMore = filtered.length === BATCH_SIZE;
+    // When size band filtering, we fetched extra rows — trim to batch size and recompute hasMore
+    const hasMore = filterSizeBandId
+      ? hydrated.length > BATCH_SIZE
+      : filtered.length === BATCH_SIZE;
+    if (filterSizeBandId && hydrated.length > BATCH_SIZE) {
+      hydrated = hydrated.slice(0, BATCH_SIZE);
+    }
     const nextCursor =
       hasMore && hydrated.length > 0 ? hydrated[hydrated.length - 1].created_at : null;
 

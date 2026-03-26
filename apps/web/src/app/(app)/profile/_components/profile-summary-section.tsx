@@ -100,7 +100,9 @@ export function ProfileSummarySection({
           ) : null}
           {profile.experience_brackets?.label && (
             <div>
-              <p className="text-xs text-muted-foreground">Experience</p>
+              <p className="text-xs text-muted-foreground">
+                Experience <span className="italic">(auto-derived)</span>
+              </p>
               <p className="text-sm font-medium">
                 {profile.experience_brackets.label}
                 {experiences.length > 0 && ` (${computeTotalExperience(experiences)})`}
@@ -109,7 +111,9 @@ export function ProfileSummarySection({
           )}
           {profile.vessel_size_exposure_ids?.length > 0 && (
             <div>
-              <p className="text-xs text-muted-foreground">Vessel Size Exposure</p>
+              <p className="text-xs text-muted-foreground">
+                Vessel Size Exposure <span className="italic">(auto-derived)</span>
+              </p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {profile.vessel_size_exposure_ids.map((sbId) => {
                   const sbLabel = sizeBandNames[sbId];
