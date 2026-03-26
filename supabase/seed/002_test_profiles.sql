@@ -4,16 +4,21 @@
 --
 -- Employer "Profile One"  → e@1 / 87654321  (hat: employer)
 -- Crew     "Profile Two"  → c@1 / 87654321  (hat: crew)
+-- Crew     "Profile Three"→ g@1 / 87654321  (hat: crew, with experience)
+-- Unboarded               → d@1 / 87654321  (auth only, no onboarding)
 --
--- Includes: 2 vessels (1 NDA), crew availability, crew experience
+-- Includes: 3 vessels (1 NDA), crew availability, crew experience
 -- =============================================================================
 
 -- Fixed UUIDs for deterministic seeding
 -- Employer user:  11111111-1111-1111-1111-111111111111
 -- Crew user:      22222222-2222-2222-2222-222222222222
+-- Crew user 2:    77777777-7777-7777-7777-777777777777
+-- Unboarded user: 88888888-8888-8888-8888-888888888888
 -- Vessel 1:       33333333-3333-3333-3333-333333333333  (M/Y Serenity, 65m, charter)
 -- Vessel 2:       33333333-3333-3333-3333-333333333334  (M/Y Phantom, 45m, private, NDA)
 -- Crew exp vessel: 33333333-3333-3333-3333-333333333335 (S/Y Wanderer, 35m)
+-- Crew exp vessel: 33333333-3333-3333-3333-333333333338 (M/Y Azure Dream, 40m)
 
 -- ========================= AUTH USERS =========================
 
@@ -42,6 +47,26 @@ insert into auth.users (
   '{"provider": "email", "providers": ["email"]}'::jsonb,
   '{}'::jsonb,
   now(), now(), '', '', '', ''
+), (
+  '00000000-0000-0000-0000-000000000000',
+  '77777777-7777-7777-7777-777777777777',
+  'authenticated', 'authenticated',
+  'g@1',
+  crypt('87654321', gen_salt('bf')),
+  now(),
+  '{"provider": "email", "providers": ["email"]}'::jsonb,
+  '{}'::jsonb,
+  now(), now(), '', '', '', ''
+), (
+  '00000000-0000-0000-0000-000000000000',
+  '88888888-8888-8888-8888-888888888888',
+  'authenticated', 'authenticated',
+  'd@1',
+  crypt('87654321', gen_salt('bf')),
+  now(),
+  '{"provider": "email", "providers": ["email"]}'::jsonb,
+  '{}'::jsonb,
+  now(), now(), '', '', '', ''
 );
 
 -- Auth identities (required for email login to work)
@@ -59,6 +84,20 @@ insert into auth.identities (
   '22222222-2222-2222-2222-222222222222',
   'c@1',
   '{"sub": "22222222-2222-2222-2222-222222222222", "email": "c@1"}'::jsonb,
+  'email',
+  now(), now(), now()
+), (
+  '77777777-7777-7777-7777-777777777777',
+  '77777777-7777-7777-7777-777777777777',
+  'g@1',
+  '{"sub": "77777777-7777-7777-7777-777777777777", "email": "g@1"}'::jsonb,
+  'email',
+  now(), now(), now()
+), (
+  '88888888-8888-8888-8888-888888888888',
+  '88888888-8888-8888-8888-888888888888',
+  'd@1',
+  '{"sub": "88888888-8888-8888-8888-888888888888", "email": "d@1"}'::jsonb,
   'email',
   now(), now(), now()
 );
@@ -214,3 +253,62 @@ select public.append_event(
   ),
   '22222222-2222-2222-2222-222222222222'
 );
+
+-- ========================= ONBOARD CREW 2 (g@1) =========================
+-- identity_type: crew, current_hat: crew
+-- Profile Three: Stewardess based in Palma, with one vessel experience
+
+select public.onboard_person(
+  'crew',
+  'crew',
+  jsonb_build_object(
+    'display_name', 'Profile Three',
+    'primary_role_id', 'd0000000-0000-0000-0000-000000000014',
+    'certification_ids', '["e0000000-0000-0000-0000-000000000001","e0000000-0000-0000-0000-000000000005"]'::jsonb,
+    'experience_bracket_id', 'f0000000-0000-0000-0000-000000000002',
+    'vessel_size_exposure_ids', '["f1000000-0000-0000-0000-000000000003"]'::jsonb,
+    'bio', 'Stewardess with 8 months experience on a 40m M/Y. STCW and ENG1 certified. Based in Palma, looking for daywork and permanent positions.',
+    'location_port_id', 'c0000000-0000-0000-0000-000000000008'
+  ),
+  '77777777-7777-7777-7777-777777777777'
+);
+
+-- Vessel for Profile Three experience
+select public.append_event(
+  'VESSEL.CREATED',
+  '33333333-3333-3333-3333-333333333338',
+  'vessel',
+  'crew',
+  jsonb_build_object(
+    'id', '33333333-3333-3333-3333-333333333338',
+    'imo_number', '9876548',
+    'name', 'Azure Dream',
+    'vessel_type', 'motor',
+    'size_band_id', 'f1000000-0000-0000-0000-000000000003',
+    'loa_meters', 40,
+    'nda_flag', false
+  ),
+  '77777777-7777-7777-7777-777777777777'
+);
+
+-- Experience: Stewardess on M/Y Azure Dream, 8 months
+insert into public.crew_experiences (
+  id, person_id, vessel_id, role_id,
+  start_date, end_date, is_current, vessel_operation,
+  flag_state, contract_type, description
+) values (
+  'aa000000-0000-0000-0000-000000000003',
+  '77777777-7777-7777-7777-777777777777',
+  '33333333-3333-3333-3333-333333333338',
+  'd0000000-0000-0000-0000-000000000014',
+  (current_date - interval '12 months')::date,
+  (current_date - interval '4 months')::date,
+  false, 'charter', 'MLT', 'seasonal',
+  'Interior service during busy Med charter season — silver service, table setting, laundry, guest cabins.'
+);
+
+select public.derive_experience_profile('77777777-7777-7777-7777-777777777777');
+
+-- ========================= USER 4 (d@1) — NO ONBOARDING =========================
+-- Auth user exists but NO events, NO person row, NO profile.
+-- App middleware should redirect to onboarding.

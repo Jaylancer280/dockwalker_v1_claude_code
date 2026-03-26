@@ -83,23 +83,8 @@ UI bug fixes and UX improvements (5 items)
 
 ### Seed: Add two new test users
 
-Existing users: `e@1` (employer, UUID `11111111-...`) and `c@1` (crew, UUID `22222222-...`). Add to `supabase/seed/002_test_profiles.sql`.
-
-**User 3: `g@1` / `87654321` — Fully onboarded crew with one vessel experience**
-
-- [ ] Add `auth.users` row: UUID `77777777-7777-7777-7777-777777777777`, email `g@1`, password `87654321` (bcrypt via `crypt('87654321', gen_salt('bf'))`), `email_confirmed_at = now()`
-- [ ] Add `auth.identities` row: provider `email`, provider_id `g@1`, identity_data with sub + email
-- [ ] Append `PERSON.CREATED` event: identity_type `crew`, current_hat `crew`
-- [ ] Append `PROFILE.CREATED` event: give them a display name (e.g. "Profile Three"), a role (e.g. Stewardess or Deckhand — pick a different role than Profile Two), a location, basic certs (STCW Basic Safety + ENG1), an experience bracket (e.g. 6-12 months), bio
-- [ ] Create a vessel for the experience: `VESSEL.CREATED` event with a new vessel UUID (e.g. `33333333-3333-3333-3333-333333333338`), distinct IMO number, owned by this user
-- [ ] Insert one `crew_experiences` row: referencing the vessel, a role, start/end dates in the past, `is_current = false`, vessel_operation, flag_state, contract_type
-- [ ] Call `derive_experience_profile('77777777-7777-7777-7777-777777777777')` to auto-fill experience bracket and vessel size exposure
-
-**User 4: `d@1` / `87654321` — Auth created, onboarding NOT started**
-
-- [ ] Add `auth.users` row: UUID `88888888-8888-8888-8888-888888888888`, email `d@1`, password `87654321`, `email_confirmed_at = now()`
-- [ ] Add `auth.identities` row: provider `email`, provider_id `d@1`, identity_data with sub + email
-- [ ] Do NOT append any events — no `PERSON.CREATED`, no `PROFILE.CREATED`. This user exists in `auth.users` but has no `persons` or `profiles` row, so the app middleware should redirect them to onboarding
+- [x] User 3 `g@1`: Stewardess "Profile Three" in Palma, STCW+ENG1, 1 vessel experience (M/Y Azure Dream 40m), auto-derived brackets
+- [x] User 4 `d@1`: Auth only, no onboarding — tests redirect to onboarding flow
 
 ### Fix: PermanentPosting type mismatches — UUIDs typed as numbers
 
@@ -134,13 +119,8 @@ Both `/api/daywork/discover` and `/api/permanent/discover` apply `sizeBandId` fi
 
 ### Fix: Docky sanitiser is insufficient for XSS prevention
 
-`/docky/[conversationId]/page.tsx` `sanitiseHtml` (lines 28-33) strips `<script>`, `<iframe>`, and `on*=` handlers, but does NOT block `javascript:` URIs in `<a href>`, `data:` URIs, CSS injection, or SVG-based XSS.
-
-- [ ] `npm install dompurify` + `npm install -D @types/dompurify` in `apps/web/`
-- [ ] In `/docky/[conversationId]/page.tsx`: add `import DOMPurify from 'dompurify'` (page is `'use client'` so DOM is available)
-- [ ] Delete the `sanitiseHtml` function (lines 28-33)
-- [ ] Replace `sanitiseHtml(html)` call with `DOMPurify.sanitize(html)` — default config strips all dangerous content (scripts, event handlers, javascript: URIs, data: URIs, SVG exploits, CSS injection). No custom config needed
-- [ ] Verify the flow: markdown → `renderMarkdown()` → `DOMPurify.sanitize()` → `dangerouslySetInnerHTML`
+- [x] Installed `dompurify` + `@types/dompurify`
+- [x] Replaced regex `sanitiseHtml` with `DOMPurify.sanitize()` — covers javascript: URIs, data: URIs, SVG, CSS injection
 
 ### UX: Daywork + permanent post confirmation overlay
 

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileChips } from '@/hooks/use-profile-chips';
 import { useDockyReadiness } from '@/hooks/use-docky-readiness';
+import DOMPurify from 'dompurify';
 import { safeFetch } from '@/lib/safe-fetch';
 
 interface Source {
@@ -23,13 +24,6 @@ interface Message {
   content: string;
   sources?: Source[] | null;
   created_at: string;
-}
-
-function sanitiseHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/\bon\w+\s*=/gi, 'data-removed=');
 }
 
 function renderMarkdown(text: string): string {
@@ -54,7 +48,7 @@ function renderMarkdown(text: string): string {
   // Paragraphs
   html = html.replace(/\n\n/g, '<br/><br/>');
 
-  return sanitiseHtml(html);
+  return DOMPurify.sanitize(html);
 }
 
 export default function DockyConversationPage() {
