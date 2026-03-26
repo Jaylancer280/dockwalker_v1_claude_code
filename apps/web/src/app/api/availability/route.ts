@@ -17,7 +17,7 @@ export async function GET() {
     .from('availability_windows')
     .select('id, date, expires_at, city_id, port_id, not_available')
     .eq('person_id', user.id)
-    .gt('expires_at', new Date().toISOString())
+    .gt('expires_at', new Date().toISOString().split('T')[0])
     .order('date');
 
   if (windowsError) {

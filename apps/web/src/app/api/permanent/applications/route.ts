@@ -42,7 +42,14 @@ export async function GET() {
       )
       .eq('crew_person_id', user.id)
       .not('permanent_posting_id', 'is', null)
-      .in('status', ['applied', 'shortlisted', 'selected', 'not_selected', 'rejected'])
+      .in('status', [
+        'applied',
+        'shortlisted',
+        'selected',
+        'not_selected',
+        'rejected',
+        'placement_confirmed',
+      ])
       .order('created_at', { ascending: false });
 
     if (error) {

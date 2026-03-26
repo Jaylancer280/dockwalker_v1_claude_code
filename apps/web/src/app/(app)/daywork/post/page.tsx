@@ -18,7 +18,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -570,15 +569,20 @@ function DayworkPostForm() {
         {/* Required certs */}
         <div className="flex flex-col gap-1.5">
           <Label>Required certifications (optional)</Label>
-          <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+          <div className="mt-1 flex flex-wrap gap-2">
             {certs.map((cert) => (
-              <label key={cert.id} className="flex items-center gap-2 py-1.5 text-sm">
-                <Checkbox
-                  checked={requiredCertIds.includes(cert.id)}
-                  onCheckedChange={() => toggleCert(cert.id)}
-                />
+              <button
+                key={cert.id}
+                type="button"
+                className={`rounded-full px-3 py-1 text-xs ${
+                  requiredCertIds.includes(cert.id)
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)]'
+                }`}
+                onClick={() => toggleCert(cert.id)}
+              >
                 {cert.name}
-              </label>
+              </button>
             ))}
           </div>
         </div>
@@ -586,21 +590,26 @@ function DayworkPostForm() {
         {/* Required languages */}
         <div className="flex flex-col gap-1.5">
           <Label>Languages (optional)</Label>
-          <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+          <div className="mt-1 flex flex-wrap gap-2">
             {LANGUAGES.map((lang) => (
-              <label key={lang.code} className="flex items-center gap-2 py-1.5 text-sm">
-                <Checkbox
-                  checked={requiredLangs.includes(lang.code)}
-                  onCheckedChange={() =>
-                    setRequiredLangs((prev) =>
-                      prev.includes(lang.code)
-                        ? prev.filter((c) => c !== lang.code)
-                        : [...prev, lang.code],
-                    )
-                  }
-                />
+              <button
+                key={lang.code}
+                type="button"
+                className={`rounded-full px-3 py-1 text-xs ${
+                  requiredLangs.includes(lang.code)
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)]'
+                }`}
+                onClick={() =>
+                  setRequiredLangs((prev) =>
+                    prev.includes(lang.code)
+                      ? prev.filter((c) => c !== lang.code)
+                      : [...prev, lang.code],
+                  )
+                }
+              >
                 {lang.label}
-              </label>
+              </button>
             ))}
           </div>
         </div>

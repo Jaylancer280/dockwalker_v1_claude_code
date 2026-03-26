@@ -25,6 +25,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { SegmentedToggle } from '@/components/ui/segmented-toggle';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -56,6 +64,7 @@ export default function MyPostingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [cancelId, setCancelId] = useState<string | null>(null);
   const [engagementsByDaywork, setEngagementsByDaywork] = useState<
     Record<string, { id: string; crew_person_id: string; crew_name?: string }[]>
   >({});
@@ -369,7 +378,7 @@ export default function MyPostingsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleCancel(posting.id)}
+                      onClick={() => setCancelId(posting.id)}
                       disabled={cancelling === posting.id}
                       className="text-destructive hover:text-destructive"
                     >
@@ -584,6 +593,34 @@ export default function MyPostingsPage() {
           />
         </>
       )}
+
+      {/* Cancel posting confirmation dialog */}
+      <Dialog open={cancelId !== null} onOpenChange={(open) => !open && setCancelId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this posting?</DialogTitle>
+            <DialogDescription>
+              This will cancel the posting and notify all applicants. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => setCancelId(null)}>
+              Keep posting
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelling !== null}
+              onClick={async () => {
+                if (!cancelId) return;
+                setCancelId(null);
+                await handleCancel(cancelId);
+              }}
+            >
+              Cancel posting
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

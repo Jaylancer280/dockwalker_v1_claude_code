@@ -72,6 +72,7 @@ interface AppliedTabProps {
   onPermanentWithdraw: (postingId: string) => void;
   onViewProfile: (personId: string) => void;
   onSwitchToBrowse: () => void;
+  appsError: string | null;
 }
 
 export function AppliedTab({
@@ -82,6 +83,7 @@ export function AppliedTab({
   onPermanentWithdraw,
   onViewProfile,
   onSwitchToBrowse,
+  appsError,
 }: AppliedTabProps) {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-4">
@@ -90,8 +92,8 @@ export function AppliedTab({
       {!loadingApps && applications.length === 0 && (
         <EmptyState
           icon={ClipboardList}
-          title="No pending applications"
-          description="Jobs you apply to will appear here."
+          title={appsError ? 'Something went wrong' : 'No pending applications'}
+          description={appsError ?? 'Jobs you apply to will appear here.'}
           action={
             <Button variant="outline" size="sm" onClick={onSwitchToBrowse}>
               Browse jobs

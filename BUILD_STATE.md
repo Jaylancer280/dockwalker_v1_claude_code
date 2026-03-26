@@ -216,10 +216,11 @@
 - [Stage 152] Bug fixes + architectural cleanup — (Fix 151a-d) RLS, agent notifications, middleware redirect, permanent review languages; (152e) migration 00072 consolidates 6 triggers into apply_projection; (152f) profile page decomposed 1632→~400 lines + 6 components; (152g) discover page decomposed 1793→718 lines + 4 components; (152h) deferred — agent market kept as separate page, middleware redirect sufficient; (152i) avatar try/catch; (152j) skipped — language list stable at 20 hardcoded entries; 856 tests pass
 - [Stage UI-0] Decomposition + component extraction — 5 shared UI primitives (EmptyState, LoadingSpinner, SegmentedToggle, BottomSheet, UnderlineTabs); onboarding 1440→452 + 6 steps; review 1216→472 + 7 components; permanent post form 529→358 + 4 sections; experience forms 731+500→264+244 + 4 shared sections; settings 667→136 + 4 sections; mine 744→589 + 6 components; market 612→302 + 3 components; 856 tests pass
 - [Fix UI-0] Wire shared primitives — EmptyState adopted in 12 files (25 refs), LoadingSpinner in 15 files (41 refs), SegmentedToggle in 2 files, UnderlineTabs in 3 files, BottomSheet in 5 chat overlays; 91 total adoptions replacing inline patterns; 856 tests pass
+- [Pre-TestFlight fix batch] 9 fixes for shipping — (1) vessels RLS: 3 new SELECT policies for non-owner reads (migration 00074), 6 integration tests; (2) employer /discover redirect (middleware + client); (3) crew /review redirect (middleware regex); (4) profile banner narrowed to email-prefix only; (5) discover feed error state; (6) applied tab error handling + placement_confirmed terminal status (migration 00075); (7) daywork mine cancel confirmation dialog; (8) cert/language pills unified across daywork/permanent forms; (9) availability timezone date-only comparison; 860 unit + 53 integration tests pass
 
 ## Current Schema Version
 
-v73 — Per-date availability expiry (73 migrations applied)
+v75 — Vessels RLS + placement_confirmed status (75 migrations applied)
 
 ## Migrations Applied
 
@@ -298,6 +299,9 @@ v73 — Per-date availability expiry (73 migrations applied)
 | `00070_agent_activity_log.sql` | Creates `agent_activity_log` table (UUID PK, person_id FK, action, metadata JSONB, created_at) with RLS (agent insert own, admin select all) |
 | `00071_fix_activity_log_rls.sql` | Fixes agent_activity_log RLS: INSERT restricted to agents via identity_type check, SELECT uses `is_admin` boolean instead of nonexistent `identity_type='admin'` |
 | `00072_consolidate_triggers.sql` | Consolidates 6 supplementary triggers into `apply_projection` — adds `desired_role_id`, `deck_name`, `location_city_id`, career status to PROFILE handlers; `sea_time_days/miles` to EXPERIENCE handlers; `required_languages` to DAYWORK/PERMANENT.POSTED; drops all 6 trigger functions |
+| `00073_availability_date_expiry.sql` | Availability date-based expiry: each date row expires at `date + interval '1 day'` instead of 7-day fixed window; updated `apply_projection` AVAILABILITY.SET handler |
+| `00074_vessels_rls_read_access.sql` | Vessels RLS fix: 3 new SELECT policies — authenticated non-NDA read, engaged user NDA read, crew experience NDA read; unblocks PostgREST embedded joins for non-owners |
+| `00075_placement_confirmed_status.sql` | Adds `placement_confirmed` to application status CHECK; updates PERMANENT.PLACEMENT_CONFIRMED handler to mark selected application as terminal |
 
 ## Deferred Decisions
 

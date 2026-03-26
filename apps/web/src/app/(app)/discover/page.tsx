@@ -110,6 +110,12 @@ export default function DiscoverPage() {
   // Profile readiness for nudge card
   const [profileIncomplete, setProfileIncomplete] = useState(false);
 
+  // Discover feed error
+  const [feedError, setFeedError] = useState<string | null>(null);
+
+  // Applications error
+  const [appsError, setAppsError] = useState<string | null>(null);
+
   // Lookups for filters
   const [roles, setRoles] = useState<LookupItem[]>([]);
   const [certifications, setCertifications] = useState<LookupItem[]>([]);
@@ -159,15 +165,20 @@ export default function DiscoverPage() {
       window.location.href = '/discover/market';
       return;
     }
+    // Redirect employers to mine page (crew-only page)
+    if (
+      result.ok &&
+      (result.data as { person?: { current_hat?: string } }).person?.current_hat === 'employer'
+    ) {
+      window.location.href = '/daywork/mine';
+      return;
+    }
     // Profile readiness: check if key fields are missing
     if (result.ok && result.data.profile) {
       const p = result.data.profile;
       const name = p.display_name ?? '';
       const looksLikeEmailPrefix = /^[A-Za-z0-9._+-]+$/.test(name) && !name.includes(' ');
-      const incomplete =
-        looksLikeEmailPrefix ||
-        !p.nationality_id ||
-        (!p.primary_role_id && (!p.certification_ids || p.certification_ids.length === 0));
+      const incomplete = looksLikeEmailPrefix;
       setProfileIncomplete(incomplete);
     }
   }
@@ -250,9 +261,12 @@ export default function DiscoverPage() {
         has_more?: boolean;
       }>(`/api/daywork/discover${qs ? `?${qs}` : ''}`);
       if (result.ok) {
+        setFeedError(null);
         if (result.data.dayworks) setCards(result.data.dayworks);
         setNextCursor(result.data.next_cursor ?? null);
         setHasMore(result.data.has_more ?? false);
+      } else {
+        setFeedError('Failed to load jobs. Pull down to refresh.');
       }
     } finally {
       setLoading(false);
@@ -372,10 +386,16 @@ export default function DiscoverPage() {
 
   const loadApplications = useCallback(async () => {
     setLoadingApps(true);
+    setAppsError(null);
     const [dwResult, pmResult] = await Promise.all([
       safeFetch<{ applications?: MyApplication[] }>('/api/daywork/applications'),
       safeFetch<{ applications?: MyApplication[] }>('/api/permanent/applications'),
     ]);
+    if (!dwResult.ok && !pmResult.ok) {
+      setAppsError('Failed to load applications. Pull down to refresh.');
+      setLoadingApps(false);
+      return;
+    }
     const dwApps = dwResult.ok
       ? (dwResult.data.applications ?? []).map((a: MyApplication) => ({
           ...a,
@@ -591,6 +611,7 @@ export default function DiscoverPage() {
           onPermanentWithdraw={handlePermanentWithdraw}
           onViewProfile={setViewProfileId}
           onSwitchToBrowse={() => setActiveTab('browse')}
+          appsError={appsError}
         />
       )}
 
@@ -643,6 +664,7 @@ export default function DiscoverPage() {
           requireAvailability={requireAvailability}
           browseMode={browseMode}
           setBrowseMode={setBrowseMode}
+          feedError={feedError}
           permanentFeed={
             <PermanentJobFeed
               showFilters={showFilters}

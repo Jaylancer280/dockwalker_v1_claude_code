@@ -87,6 +87,20 @@ export async function updateSession(request: NextRequest) {
       url.pathname = '/discover/market';
       return NextResponse.redirect(url);
     }
+
+    // Employer hat cannot access crew discover — redirect to mine
+    if (person.current_hat === 'employer' && path === '/discover') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/daywork/mine';
+      return NextResponse.redirect(url);
+    }
+
+    // Crew cannot access employer review pages — redirect to discover
+    if (person.current_hat === 'crew' && /^\/daywork\/[^/]+\/review/.test(path)) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/discover';
+      return NextResponse.redirect(url);
+    }
   }
 
   // On onboarding page but already onboarded → redirect by hat

@@ -60,6 +60,7 @@ const STATUS_LABELS: Record<
   selected: { label: 'Selected', variant: 'default' },
   not_selected: { label: 'Position filled', variant: 'outline' },
   rejected: { label: 'Position closed', variant: 'destructive' },
+  placement_confirmed: { label: 'Placed', variant: 'default' },
 };
 
 function formatSalary(min: number, max: number, currency: string, period: string) {

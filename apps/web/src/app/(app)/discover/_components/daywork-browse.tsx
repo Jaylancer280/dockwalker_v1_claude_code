@@ -86,6 +86,7 @@ interface DayworkBrowseProps {
   browseMode: 'daywork' | 'permanent';
   setBrowseMode: (mode: 'daywork' | 'permanent') => void;
   permanentFeed: React.ReactNode;
+  feedError: string | null;
 }
 
 export function DayworkBrowse({
@@ -132,6 +133,7 @@ export function DayworkBrowse({
   browseMode,
   setBrowseMode,
   permanentFeed,
+  feedError,
 }: DayworkBrowseProps) {
   const prefs = usePreferences();
   const lengthUnit = prefs.lengthUnit;
@@ -153,10 +155,10 @@ export function DayworkBrowse({
       {profileIncomplete && (
         <div className="mx-auto mt-2 w-full max-w-lg px-4">
           <div className="rounded-lg border border-border bg-muted/50 p-4">
-            <p className="text-sm font-medium">Complete your profile to start applying</p>
+            <p className="text-sm font-medium">Complete your profile</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Employers see your role, certifications, and experience when you apply. Add these to
-              your profile so you can apply for jobs.
+              Employers see your name, role, certifications, and experience when you apply. Update
+              your display name to get started.
             </p>
             <a
               href="/profile"
@@ -305,8 +307,10 @@ export function DayworkBrowse({
             {!loading && cards.length === 0 && (
               <EmptyState
                 imageSrc="/images/empty-states/discover.jpg"
-                title="No jobs found"
-                description="No daywork postings match your filters. Try widening your search."
+                title={feedError ? 'Something went wrong' : 'No jobs found'}
+                description={
+                  feedError ?? 'No daywork postings match your filters. Try widening your search.'
+                }
                 action={
                   <Button variant="outline" size="sm" onClick={onLoadCards}>
                     Refresh
