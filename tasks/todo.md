@@ -265,17 +265,15 @@ Replace the current in-app Stripe checkout flow with an Apple IAP bypass: in-app
 
 - [x] Added OpenGraph + Twitter Card meta tags to layout.tsx (using existing app icon — dedicated 1200x630 OG image TBD as design asset)
 - [ ] Create a 1200x630px OG image asset at `apps/web/public/images/brand/og-image.png`
-- [ ] Add terms of service and privacy policy links to the landing page footer
+- [x] Added Terms of Service and Privacy Policy links to landing page footer (placeholder `/terms` and `/privacy` routes)
 
 ### Pre-TestFlight: Capacitor native code changes
 
-Code-level changes needed before TestFlight/Play Store builds. External config (Firebase credentials, deep link domains, signing keys, app store submissions) is tracked in `tasks/founder-todo.md` — not duplicated here.
-
-- [ ] **iOS push entitlement:** Add `aps-environment` key (value: `development` for TestFlight, `production` for release) to `ios/App/App/App.entitlements`
-- [ ] **iOS permissions:** Add `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` to `ios/App/App/Info.plist` (required for avatar upload)
-- [ ] **Android permissions:** Add `android.permission.CAMERA` and `android.permission.READ_MEDIA_IMAGES` to `AndroidManifest.xml`
-- [ ] **.gitignore:** Add patterns for `google-services.json`, `GoogleService-Info.plist`, `*.mobileprovision`, `*.p8`, `*.p12`
-- [ ] **AppDelegate.swift:** Add `UNUserNotificationCenter.current().delegate = self` in `didFinishLaunchingWithOptions` for iOS push notification handling
+- [x] iOS push entitlement: `aps-environment` = `development` in App.entitlements
+- [x] iOS permissions: `NSCameraUsageDescription` + `NSPhotoLibraryUsageDescription` in Info.plist
+- [x] Android permissions: `CAMERA` + `READ_MEDIA_IMAGES` in AndroidManifest.xml
+- [x] .gitignore: patterns for google-services.json, GoogleService-Info.plist, _.mobileprovision, _.p8, \*.p12
+- [x] AppDelegate.swift: `UNUserNotificationCenter.current().delegate = self` for foreground push
 
 ---
 

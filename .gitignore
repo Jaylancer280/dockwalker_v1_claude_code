@@ -40,3 +40,10 @@ Thumbs.db
 npm-debug.log*
 
 .vercel
+
+# native credentials (never commit)
+google-services.json
+GoogleService-Info.plist
+*.mobileprovision
+*.p8
+*.p12

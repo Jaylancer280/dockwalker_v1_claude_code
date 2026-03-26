@@ -47,5 +47,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>DockWalker needs camera access to take a profile photo</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DockWalker needs photo library access to choose a profile photo</string>
 </dict>
 </plist>

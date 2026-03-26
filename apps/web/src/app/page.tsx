@@ -143,12 +143,19 @@ export default function LandingPage() {
         <p className="text-xs text-[var(--tertiary)]">
           DockWalker — Superyacht daywork and permanent hiring, all in one place
         </p>
-        <Link
-          href="/auth/login"
-          className="mt-2 inline-block text-xs text-[var(--accent)] hover:underline"
-        >
-          Already have an account? Log in
-        </Link>
+        <div className="mt-3 flex items-center justify-center gap-3 text-xs text-[var(--tertiary)]">
+          <Link href="/auth/login" className="text-[var(--accent)] hover:underline">
+            Log in
+          </Link>
+          <span>·</span>
+          <Link href="/terms" className="hover:underline">
+            Terms of Service
+          </Link>
+          <span>·</span>
+          <Link href="/privacy" className="hover:underline">
+            Privacy Policy
+          </Link>
+        </div>
       </footer>
     </main>
   );
