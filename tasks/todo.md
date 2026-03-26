@@ -5,228 +5,366 @@
 
 ## Current Task
 
-Fix: Cron Trigger 1 query too broad
+UI bug fixes and UX improvements (5 items)
 
 ---
 
 ## Queue
 
-### Fix: Cron Trigger 1 — missing RPC + fallback query fires for all available crew
+### Fix: Permanent post form crash — empty SelectItem value
 
-**Problem:** `api/cron/availability-expiry/route.ts` calls `rpc('get_expiring_availability_crew')` which **doesn't exist in any migration**. The fallback query fires for anyone with any active availability — not just crew whose last date is tomorrow. This would spam all available crew with "expires tomorrow" notifications daily.
+- [x] In `permanent-form-sections.tsx` line 338, change `<SelectItem value="">Any</SelectItem>` to `<SelectItem value="any">Any</SelectItem>`
+- [x] In `permanent-post-form.tsx`, update the `experienceBracketId` state init from `''` to `'any'` (or keep `''` and add `onValueChange` handler that maps `'any'` back to `''`)
+- [x] Verify form submission logic at ~line 194 still sends `null` when "Any" is selected (currently does `experienceBracketId || null` — if using `'any'` sentinel, change to `experienceBracketId === 'any' ? null : experienceBracketId`)
+- [x] Check if the daywork post form has the same pattern for experience bracket — if so, apply the same fix for consistency
 
-**Fix options (pick one):**
+### Fix: Tab state resets to first tab on page refresh
 
-**Option A — Fix the fallback query (simpler, no migration):**
+- [x] In `discover/page.tsx`: persist `activeTab` to `sessionStorage` on change, restore on mount (follow Mine page's `MY_JOBS_TAB_STORAGE_KEY` pattern)
+- [x] In `messages/page.tsx`: persist active tab (`'active'` | `'history'`) to `sessionStorage` on change, restore on mount
+- [x] Verify Mine page already works correctly (it should — uses sessionStorage)
+- [x] Test: refresh on each tab of Discover, Messages, and Mine — tab should persist within a session
 
-- [x] Replace the fallback query in the cron route with a proper per-person aggregation. Use Supabase client to query:
-  ```
-  SELECT person_id FROM availability_windows
-  WHERE expires_at > now() AND not_available = false
-  GROUP BY person_id
-  HAVING max(date) = CURRENT_DATE + 1
-  ```
-  This can be done with raw SQL via `supabase.rpc()` or by fetching all non-expired windows and aggregating in JS (less efficient but no migration needed).
+### Add: Employer hat "How candidates see my profile" preview
 
-**Option B — Create the missing RPC (cleaner, needs migration):**
+- [x] In `profile/page.tsx`, when `!isCrewHat && person.identity_type !== 'agent'` (employer hat), add a "How candidates see you" button alongside the existing "My jobs" button
+- [x] Wire the button to open `ProfileOverlay` with the user's own `person_id` (same pattern as crew/agent preview)
+- [x] `ProfileOverlay` already renders an employer view (lines 358-450) — verify it works for self-view (it should, since `/api/profile/[personId]` allows self-access)
 
-- [x] Add `get_expiring_availability_crew()` function to a new migration that returns person_ids whose `max(date) = CURRENT_DATE + 1`
-- [x] Keep the RPC call in the cron route, remove the broken fallback
+### Fix: Date fields overlap on mobile — stack vertically on small screens
 
-**Either way:**
+- [x] In `daywork/post/page.tsx` ~line 415: change `grid grid-cols-2 gap-3` to `grid grid-cols-1 sm:grid-cols-2 gap-3`
 
-- [x] Remove the non-existent RPC call if going with Option A, or create it if going with Option B
-- [x] Verify: only crew whose LAST available date is tomorrow get notified — not all available crew
-- [x] Verify: crew with dates beyond tomorrow do NOT get notified
-- [x] `npx tsc --noEmit` — zero errors
-- [ ] All tests pass
+### UX: Add person icon to permanent card "Posted by" text
 
-### Fix: Availability model — date-based expiry, auto-shrink, notifications
+- [x] In `permanent-job-card.tsx` ~line 210: add a `User` icon (from lucide-react) inline before or after the "Posted by {name}" text inside the existing button
+- [x] Size the icon to match surrounding text (`h-3 w-3` or `h-3.5 w-3.5`)
+- [x] Keep the existing `hover:text-primary hover:underline` behaviour
 
-**Current broken model:** Availability windows have `expires_at = now() + 7 days` — a time-based TTL decoupled from the actual dates. A crew member who sets Jan 1-5 still appears "available" until Jan 8 even though all dates passed. Past dates are never cleaned up.
+### Fix: Profile page scrolls to empty space after save/cancel edit
 
-**Also a regression:** "Cannot set availability for past dates" error when confirming valid future dates. Likely related to the broken expiry model — `existingDates` from a prior session may include dates that are now past, and re-submitting them triggers the validation.
+- [x] In `profile/page.tsx` line 388 (after `setEditing(false)` in `handleSave`): add `window.scrollTo(0, 0)`
+- [x] In `profile/page.tsx` line 451 (cancel button `onClick`): add `window.scrollTo(0, 0)` after `setEditing(false)`
 
-**New model:**
+### UX: Replace identity pill with career status pill
 
-1. **`expires_at` derived from the last selected date** — not `now() + 7 days`. If crew sets Jan 1-5, `expires_at` = end of Jan 5 (midnight UTC). Each row's `expires_at` = `date + 1 day` (i.e. the date is valid for that calendar day, expires at midnight).
-2. **Auto-shrink:** The availability GET endpoint already filters `expires_at > now()`. If each row's `expires_at` is the end of that calendar day, past dates automatically drop off. No cron needed for cleanup.
-3. **Apply gate** unchanged — it checks `expires_at > now()` which still works with date-based expiry.
-4. **Overlay on reopen** shows only future dates as selected (past dates already filtered by GET).
+**Profile page:**
 
-**Notifications (two triggers):**
+- [x] Replace identity badge with career status badge (3 states: available now / after notice / not looking)
+- [x] Only apply for crew identity. For agent identity, keep showing "Agent" badge
+- [x] Uses existing `permAvail` state — no new data fetching needed
 
-1. **24h before last available day:** If crew's latest availability date is tomorrow and they haven't updated, send push: "Your availability expires tomorrow — update to keep seeing jobs." (Existing cron at 08:00 UTC, adjust query to check `max(date)` instead of `expires_at`.)
-2. **7 days since last update:** If crew hasn't set/updated availability in 7 days (check `max(created_at)` or `max(updated_at)` on their windows), send push: "It's been a week — update your availability to stay visible." New check in the same cron.
+**ProfileOverlay — employer-facing view:**
 
-**Stress-tested scenarios (all verified logically):**
+- [x] Add `permanent_availability` and `notice_period_days` to the `CrewProfile` interface
+- [x] Add `permanent_availability, notice_period_days` to the profile select query in `/api/profile/[personId]/route.ts`
+- [x] Pass the fields through in `buildCrewProfile`
+- [x] Render career status badge in `CrewProfileView` — same three states, same colours
+- [x] For `EmployerProfile` view in ProfileOverlay: no career status badge (employers don't have this field)
 
-1. Basic set + auto-shrink ✓
-2. Sparse dates (Mon, Wed, Fri) ✓
-3. Overlay reopen shows only future ✓
-4. Deselecting a date ✓
-5. "Not available" toggle — **needs different expiry** (see below)
-6. Past dates regression — fixed as side effect ✓
-7. Timezone (UTC-consistent) ✓
-8. Cron last-day reminder — **must check max(date) = tomorrow, not today** (see below)
-9. Cron 7-day stale — works as re-engagement nudge ✓
-10. Cron per-row firing — **must aggregate per person** (see below)
-11. Employer available-crew query ✓
-12. Double-submit idempotency ✓
-13. Expire then re-set ✓
+### Fix: Availability overlay — LocationPicker z-index + save not reflecting
 
-**Three issues found during stress testing:**
+**LocationPicker dropdown renders behind the overlay:**
+The availability overlay uses `z-[60]` (line 217 of `availability-overlay.tsx`). The `PopoverContent` in `popover.tsx` uses `z-50`. Radix portals the Popover to the document root, so it renders at z-50 — behind the z-60 overlay. The screenshot confirms the dropdown list appears behind/outside the overlay card.
 
-**Issue A: Not-available rows must NOT use per-date expiry.** A "not available" declaration creates one row with `date = today`. Per-date expiry would expire it tomorrow — crew silently reverts to "not set." **Fix:** Keep 7-day TTL for `not_available = true` rows. Only normal availability rows get `expires_at = date + interval '1 day'`. The `apply_projection` handler already branches on `not_available` — apply different expiry per branch.
+- [ ] Fix: either bump PopoverContent z-index to `z-[70]` globally (but check side effects on other Popover usages), OR pass a higher z-index className to LocationPicker's PopoverContent specifically when used inside the availability overlay
+- [ ] Verify the fix works in both contexts: availability overlay (z-60) and normal page forms (z-auto)
 
-**Issue B: Cron last-day reminder must check tomorrow, not today.** User wants 24h notice before last day. Cron runs at 08:00 UTC. **Fix:** Query `max(date) = CURRENT_DATE + 1` (last available day is tomorrow → send today). NOT `max(date) = CURRENT_DATE` (that would notify on the last day itself, too late).
+**Save doesn't reflect on profile:**
+The code path looks correct: POST → `appendEvent` → `apply_projection` inserts rows → `onConfirm` calls `loadAvailability()` → GET fetches non-expired rows. The implementation agent must test this against the real local DB (`npx supabase db reset` first) to determine if it's:
 
-**Issue C: Cron must aggregate per person, not per row.** With per-date expiry, every row where `date = today` has `expires_at` within 24h. The old query checked `expires_at` within 24h — would fire for every row, not just crew whose LAST date is expiring. **Fix:** `SELECT person_id FROM availability_windows WHERE expires_at > now() AND not_available = false GROUP BY person_id HAVING max(date) = CURRENT_DATE + 1`
+- A timezone mismatch: overlay generates dates in UTC, server compares with `new Date().toISOString()` — if the server/client clocks differ or the per-date expiry (`d::date + interval '1 day'`, migration 00073) causes rows to expire prematurely
+- The `appendEvent` call failing silently (check if `safeFetch` response is actually `ok`)
+- An RLS issue preventing the insert
 
----
+- [ ] After `npx supabase db reset`, manually test: set availability via the overlay → check if the API POST returns success → check if GET `/api/availability` returns the saved windows → check if the profile page renders them
+- [ ] If the POST succeeds but GET returns empty, check the `expires_at` values in `availability_windows` table directly — they should be `date + 1 day` for normal rows
+- [ ] If the issue is timezone-related (e.g., saving at 23:00 UTC+2 where server UTC date is already tomorrow), the fix is in `apply_projection`'s expiry calculation or the GET filter
 
-**Implementation:**
+### Fix: Vessel creation form freezing and LOA input issues
 
-**API changes (`api/availability/route.ts`):**
+The "Add vessel" form is a `CreateVesselForm` component inside a Radix `Dialog` in `vessels/page.tsx`. Two problems:
 
-- [x] POST (normal availability): change `expires_at` from `now() + 7 days` to per-row `endOfDay(date)`. For range Jan 1-5, each row gets `expires_at = date::timestamp + interval '1 day'` at midnight UTC. Jan 1 row expires Jan 2 00:00 UTC, etc.
-- [x] POST (not_available): **keep** `expires_at = now() + 7 days` — not_available declarations use the existing TTL, not per-date expiry
-- [x] POST: the `startDate < todayStr` validation remains correct — with the new model, `existingDates` from GET never includes past dates, so re-submissions only contain today/future dates
-- [x] GET: already filters `expires_at > now()` — verify this returns correct results with per-date expiry (it should, no change needed)
+**Problem 1: Form freezing / LOA not accepting input**
 
-**`apply_projection` AVAILABILITY.SET handler (in migration):**
+Root cause: Radix `Select` (vessel type) portals its dropdown outside the `Dialog`. On mobile/Capacitor (especially iOS), after opening and closing the Select, the Dialog's focus trap interferes with subsequent inputs. The LOA `type="number"` field is most affected because iOS number keyboards fight with portal focus management. Symptom: LOA works if filled first (before Select interaction) but freezes after.
 
-- [x] Normal path (line ~514): change `expires_at` in the INSERT from `(p_payload->>'expires_at')::timestamptz` to `d::date + interval '1 day'` per row in the `generate_series`. This removes dependency on the client-sent `expiresAt` for normal availability.
-- [x] Not-available path (line ~492): **keep** using `(p_payload->>'expires_at')::timestamptz` from the client (which sends `now + 7 days`)
+Fix approach: Replace the `Dialog` with a dedicated full-page route or inline expandable form. Dialogs with nested portaled components are a known Capacitor pain point (see `tasks/lessons.md` — modals need z-[60]+, and the `BottomSheet` component exists as an alternative).
 
-**Client changes (`availability-overlay.tsx`):**
+- [ ] Replace the `Dialog`-based vessel creation form with either: (a) a `BottomSheet` (already exists as shared component), or (b) an inline expandable section on the vessels page that shows/hides the form. Either approach avoids nested Radix portals entirely
+- [ ] If using BottomSheet: move `CreateVesselForm` into the BottomSheet content, ensure the Select for vessel type works inside it (BottomSheet doesn't use Dialog's focus trap)
+- [ ] If using inline form: toggle visibility with a state flag, render the form fields directly on the page below the "Add vessel" button
+- [ ] Remove the `Dialog`/`DialogTrigger`/`DialogContent` imports and wrapper from `vessels/page.tsx`
+- [ ] Change LOA input from `type="number"` to `type="text" inputMode="decimal"` — this still triggers numeric keyboard on mobile but avoids iOS number input focus quirks
+- [ ] Verify fix: fill fields in any order (IMO → type → name → LOA → NDA, then LOA → IMO → type → name → NDA). All fields must accept input regardless of interaction order
 
-- [x] POST body: for normal availability, stop sending `expiresAt` (server computes it per-date). OR send it and let the server ignore it — cleaner to remove.
-- [x] For not_available POST: keep sending `expiresAt = now + 7 days` (server uses it)
-- [x] No other client changes needed — overlay already shows only GET results (auto-filtered)
+**Problem 2: Vessel card is sparse and looks bad**
 
-**Migration:**
+The card currently shows: vessel name, IMO number, vessel_type (capitalized text), LOA, size band label, NDA badge. But the layout is flat text lines with no visual hierarchy — it looks like a debug dump.
 
-- [x] New migration: `UPDATE availability_windows SET expires_at = date::timestamp + interval '1 day' WHERE not_available = false;` — backfill existing normal rows to date-based expiry. Past dates immediately expire. Not-available rows untouched.
-- [x] Update `apply_projection` with the branched expiry logic
-- [x] Rollback: reverse the UPDATE with `SET expires_at = created_at + interval '7 days' WHERE not_available = false` (approximate restore)
+Available data from GET `/api/vessels`: `id`, `imo_number`, `name`, `vessel_type`, `size_band_id`, `loa_meters`, `nda_flag`, `created_at`, `vessel_size_bands(label)`. All relevant fields are already returned.
 
-**Cron changes (`api/cron/availability-expiry/route.ts`):**
+- [ ] Redesign the vessel card layout: vessel name as the card title with M/Y or S/Y prefix (use the same greyed-out prefix pattern as the creation form's name input), IMO as subtitle
+- [ ] Group metadata on one line: vessel type icon or label + LOA (with unit) + size band label (e.g. "Motor · 45m · 30-50m")
+- [ ] NDA badge: keep the existing `ShieldAlert` badge, position it top-right of the card (not inline with text)
+- [ ] Edit button: keep existing link to `/vessels/[id]/edit`, style as a subtle icon button (pencil) top-right alongside NDA badge
+- [ ] Match the visual density and card pattern of daywork/permanent job cards (rounded corners, consistent padding, metadata row with dot separators)
 
-- [x] **Trigger 1 — last day reminder (24h before):** Replace current `expires_at` range query with:
-  ```sql
-  SELECT person_id FROM availability_windows
-  WHERE expires_at > now() AND not_available = false
-  GROUP BY person_id
-  HAVING max(date) = CURRENT_DATE + 1
-  ```
-  This finds crew whose last available day is **tomorrow** — send notification today. Push: "Your availability expires tomorrow — update it to keep finding daywork."
-- [x] **Trigger 2 — stale availability (7 days no update):** New query:
-  ```sql
-  SELECT DISTINCT aw.person_id FROM availability_windows aw
-  WHERE aw.person_id NOT IN (
-    SELECT person_id FROM availability_windows WHERE expires_at > now()
-  )
-  GROUP BY aw.person_id
-  HAVING max(aw.created_at) < now() - interval '7 days'
-  ```
-  This finds crew with no current availability whose last set was 7+ days ago. Push: "It's been a while — set your availability to see daywork in your area."
-- [x] **Deduplication:** Both triggers check `notifications` table — skip if a notification of the same type was sent to this person in the last 24h (trigger 1) or 7 days (trigger 2)
-- [x] **Skip not_available crew:** Trigger 2 should exclude crew with active `not_available = true` rows (they intentionally opted out)
+### Seed: Add two new test users
 
-**Verify:**
+Existing users: `e@1` (employer, UUID `11111111-...`) and `c@1` (crew, UUID `22222222-...`). Add to `supabase/seed/002_test_profiles.sql`.
 
-- [x] Set Jan 1-5. On Jan 3, GET returns Jan 3-5 only. Jan 1-2 auto-expired.
-- [x] Apply gate passes Jan 3 (future dates exist), blocks Jan 6 (all expired).
-- [x] Overlay reopened Jan 3: shows Jan 3-5 pre-selected. No past dates.
-- [x] "Past dates" regression gone — no past dates in submissions.
-- [x] Set "not available" — persists for 7 days, doesn't expire next day.
-- [x] Cron trigger 1: crew with last date = tomorrow gets push.
-- [x] Cron trigger 2: crew with no availability + 7 days stale gets push. Not-available crew excluded.
-- [x] Cron doesn't fire per-row — only per-person when LAST date is expiring.
-- [x] Employer available-crew query returns only future-date crew.
-- [x] Double-submit idempotent — no errors, no duplicate rows.
-- [x] `npx tsc --noEmit` — zero errors
-- [x] All tests pass
-- [x] `npx supabase db reset` — migration applies, past dates immediately expire
+**User 3: `g@1` / `87654321` — Fully onboarded crew with one vessel experience**
 
-### Stage UI-19: Landing Page Redesign
+- [ ] Add `auth.users` row: UUID `77777777-7777-7777-7777-777777777777`, email `g@1`, password `87654321` (bcrypt via `crypt('87654321', gen_salt('bf'))`), `email_confirmed_at = now()`
+- [ ] Add `auth.identities` row: provider `email`, provider_id `g@1`, identity_data with sub + email
+- [ ] Append `PERSON.CREATED` event: identity_type `crew`, current_hat `crew`
+- [ ] Append `PROFILE.CREATED` event: give them a display name (e.g. "Profile Three"), a role (e.g. Stewardess or Deckhand — pick a different role than Profile Two), a location, basic certs (STCW Basic Safety + ENG1), an experience bracket (e.g. 6-12 months), bio
+- [ ] Create a vessel for the experience: `VESSEL.CREATED` event with a new vessel UUID (e.g. `33333333-3333-3333-3333-333333333338`), distinct IMO number, owned by this user
+- [ ] Insert one `crew_experiences` row: referencing the vessel, a role, start/end dates in the past, `is_current = false`, vessel_operation, flag_state, contract_type
+- [ ] Call `derive_experience_profile('77777777-7777-7777-7777-777777777777')` to auto-fill experience bracket and vessel size exposure
 
-**Goal:** Replace the current generic landing page with a brand-led design. DockWalker logo is the hero element, not a stock photo. The page should feel like a product — not a SaaS template.
+**User 4: `d@1` / `87654321` — Auth created, onboarding NOT started**
 
-**Current problems:**
+- [ ] Add `auth.users` row: UUID `88888888-8888-8888-8888-888888888888`, email `d@1`, password `87654321`, `email_confirmed_at = now()`
+- [ ] Add `auth.identities` row: provider `email`, provider_id `d@1`, identity_data with sub + email
+- [ ] Do NOT append any events — no `PERSON.CREATED`, no `PROFILE.CREATED`. This user exists in `auth.users` but has no `persons` or `profiles` row, so the app middleware should redirect them to onboarding
 
-- Hero aerial image takes half the screen with no brand identity
-- Massive empty gap between hero and features (gradient fade area)
-- No DockWalker wordmark or logo prominent above the fold
-- Feature list is small text with icon circles — generic
-- "How it works" section decent but buried
-- No clear CTA above the fold on smaller phones
+### Fix: PermanentPosting type mismatches — UUIDs typed as numbers
 
-**Will touch:** `app/page.tsx` only.
+`packages/types/src/models.ts` `PermanentPosting` interface has `role_id`, `port_id`, `experience_bracket_id` typed as `number` and `required_certification_ids` as `number[]`. The DB schema (migration 00059) defines all of these as `uuid` / `uuid[]`. Same issue on `PERMANENT.APPLICATION_BLOCKED` payload in `packages/types/src/events.ts` — `missing_certification_ids: number[]` should be `string[]`.
 
-**Will NOT touch:** API routes, auth pages, any other pages.
+- [ ] In `packages/types/src/models.ts`, change `PermanentPosting`: `role_id: string`, `port_id: string`, `experience_bracket_id: string | null`, `required_certification_ids: string[]`
+- [ ] In `packages/types/src/events.ts`, change `PERMANENT.APPLICATION_BLOCKED` payload: `missing_certification_ids: string[]`
+- [ ] Grep for any code consuming these fields with numeric operations (e.g., arithmetic, `===` against a number literal) and fix
+- [ ] Run `tsc --noEmit` to verify no downstream type errors
 
-**Available assets:**
+### UX: NDA toggle caveat — vessel details revealed on acceptance
 
-- `public/images/brand/dw_app_icon_cropped.png` — app icon (already in public)
-- `public/images/brand/dw_logo_white.png` — white logo variant
-- `public/images/onboarding/hero-aerial.jpg` — can be kept as subtle background, not hero
+The NDA toggle on vessel creation and vessel edit says "Hide vessel identity from crew" but doesn't mention that vessel details (including IMO) are revealed to crew upon acceptance (daywork) or selection (permanent). The `VesselSelector` info box on the posting form already explains this, but the user should see the caveat at the point of decision — when they first enable NDA.
 
----
+Three locations need the caveat text:
 
-#### UI-19a: Above the fold — logo-led hero
+- [ ] `vessels/page.tsx` `CreateVesselForm` NDA toggle (~line 328): change subtitle from `"Hide vessel identity from crew"` to `"Hide vessel identity from crew until they accept a position"` — or add a second line: `"Vessel details including IMO will be revealed to accepted crew"`
+- [ ] `vessels/[id]/edit/page.tsx` NDA toggle (~line 213): same change to the non-originalNda subtitle (the `originalNda` branch stays as "NDA cannot be removed once enabled")
+- [ ] Keep the existing `VesselSelector` info box as-is — it provides the detailed explanation at posting time, and these toggle-level captions provide the at-a-glance version
 
-Replace the full-bleed aerial photo hero with a clean, brand-focused layout.
+### Fix: console.error statements will fail pre-commit
 
-- [x] **Remove the full-width hero image** as the primary visual. The aerial photo can optionally stay as a very subtle background (opacity 0.03-0.05) or be removed entirely — evaluate visually
-- [x] **DockWalker logo** large and centred: use `dw_app_icon_cropped.png` at 96-120px (currently 80px — too small). Or use `dw_logo_white.png` if it's a wordmark. Check what the white logo looks like.
-- [x] **App name "DockWalker"** as text below/beside the logo: `text-[28px] font-bold tracking-[-0.5px]` — clear brand presence
-- [x] **Tagline:** keep "Superyacht hiring, simplified" but bump to `text-[18px]` — currently `text-3xl` which is too large relative to the tagline
-- [x] **Subtitle:** keep the description but tighten copy
-- [x] **CTAs above the fold:** "Sign up" (primary) and "Log in" (outline) — use `Button` component, not custom link classes. `rounded-full` pill shape per design system
-- [x] **Remove gradient overlay div** (lines 18-23) — no hero image to fade
-- [x] **Background:** use `bg-[var(--background)]` with the body gradients (already set in globals.css from UI-D1). The atmospheric radial gradients give enough visual interest without a photo
-- [x] **Vertical spacing:** hero section should fit above the fold on a 390px × 844px viewport (iPhone 14 size). Test: can you see both CTA buttons without scrolling?
+Three `console.error` calls in push notification code will block commits. These are in error catch blocks where silently swallowing is wrong but `console.error` is banned.
 
----
+- [ ] `apps/web/src/lib/push-notifications.ts` line 43 (registration error): replace `console.error(...)` with a no-op comment `// Push registration failed — user will be prompted again on next app open` — the error is non-fatal, registration retries on next `setupPush()` call
+- [ ] `apps/web/src/lib/push-notifications.ts` line 76 (setup failed): same approach — remove `console.error`, add descriptive comment. The catch already prevents crash; no further action needed
+- [ ] `apps/web/src/lib/push-delivery.ts` line 171 (APNs JWT signing error): this is server-side and more critical. Replace with `throw new Error('[Push] Failed to read APNs key or sign JWT')` so the caller's catch block handles it (push delivery functions already have try/catch at the call site that returns gracefully)
+- [ ] Verify no other `console.log`/`console.error`/`console.warn` exist outside test files: `grep -r "console\." apps/web/src/lib/ --include="*.ts" --include="*.tsx"`
 
-#### UI-19b: Value props section
+### Fix: Size band filter is post-fetch — pagination breaks
 
-- [x] Keep the 3 feature rows (daywork, permanent, smart features) — they communicate well
-- [x] Bump icon containers to `h-12 w-12` (from `h-10 w-10`) for better visual weight
-- [x] Bump feature titles to `text-[15px] font-semibold` (from `text-sm`)
-- [x] Section background: `bg-[var(--surface)]` (from `bg-muted/30`) — matches the surface pattern used elsewhere
+Both `/api/daywork/discover` and `/api/permanent/discover` apply `sizeBandId` filter _after_ fetching 50 rows (post-hydration). If only 3 of 50 rows match the band, the user sees 3 results with "load more" that yields another sparse batch. The `hasMore` flag is set before filtering.
 
----
+- [ ] Option A: Denormalize `size_band_id` onto `dayworks` and `permanent_postings` tables (already populated via `VESSEL.CREATED` → vessels table → LOA → band derivation). Add a migration to backfill, then filter server-side in the Supabase query
+- [ ] Option B: Increase the pre-filter fetch limit when `sizeBandId` is set (e.g., fetch 200, filter, return first 50). Less clean but no migration
+- [ ] Whichever approach: recompute `hasMore` after the filter is applied, not before
 
-#### UI-19c: How it works section
+### Fix: Toast container z-index conflicts with bottom nav
 
-- [x] Keep the crew/employer photo cards — they work well
-- [x] Keep the 3-step numbered list
-- [x] Step number circles: use `bg-[var(--accent)]` (from `bg-primary`)
-- [x] Consider: if the page feels too long on mobile, this section could be cut. Evaluate visually.
+`apps/web/src/components/toast-container.tsx` line 11 uses `z-50` — same as `bottom-nav.tsx`. Toasts at `bottom-20` can be obscured by the nav bar.
 
----
+- [ ] Change toast container to `z-[60]` or higher
 
-#### UI-19d: Footer
+### Fix: Docky sanitiser is insufficient for XSS prevention
 
-- [x] Keep simple — DockWalker tagline + login link
-- [x] Use `text-[var(--tertiary)]` for footer text
-- [x] Add Terms / Privacy links if they exist (check if routes exist)
+`/docky/[conversationId]/page.tsx` `sanitiseHtml` (lines 28-33) strips `<script>`, `<iframe>`, and `on*=` handlers, but does NOT block `javascript:` URIs in `<a href>`, `data:` URIs, CSS injection, or SVG-based XSS.
 
----
+- [ ] `npm install dompurify` + `npm install -D @types/dompurify` in `apps/web/`
+- [ ] In `/docky/[conversationId]/page.tsx`: add `import DOMPurify from 'dompurify'` (page is `'use client'` so DOM is available)
+- [ ] Delete the `sanitiseHtml` function (lines 28-33)
+- [ ] Replace `sanitiseHtml(html)` call with `DOMPurify.sanitize(html)` — default config strips all dangerous content (scripts, event handlers, javascript: URIs, data: URIs, SVG exploits, CSS injection). No custom config needed
+- [ ] Verify the flow: markdown → `renderMarkdown()` → `DOMPurify.sanitize()` → `dangerouslySetInnerHTML`
 
-#### Verify
+### UX: Daywork + permanent post confirmation overlay
 
-- [x] On 390px viewport: logo + name + tagline + both CTAs visible above the fold without scrolling
-- [x] No full-bleed stock photo as hero — logo is the primary visual
-- [x] Page feels like DockWalker, not a template
-- [x] Dark mode: atmospheric gradients visible, logo looks good against dark background
-- [x] Light mode: clean, professional
-- [x] CTAs use `Button` component with `rounded-full`
-- [x] `npx tsc --noEmit` — zero errors
-- [x] All tests pass
+The confirmation step before posting only mentions NDA vessel status. User can't preview the full posting. Replace with a proper confirmation overlay that lists all details so the user can review before confirming or go back to edit.
+
+- [ ] Replace the existing confirmation `Dialog` with a `BottomSheet` confirmation overlay (consistent with other overlays in the app)
+- [ ] Show all posting details in a compact summary: role, vessel (with M/Y or S/Y prefix), location (region → city → port), dates + working days, day rate + currency, positions available, required certs, required languages, meals (breakfast/lunch/dinner), notes (truncated to ~100 chars with "..." if longer), NDA flag
+- [ ] Two buttons at the bottom: "Post job" (primary) and "Back to edit" (secondary/ghost)
+- [ ] Apply the same pattern to the permanent post form: show salary range + period, live aboard, shortlist cap, start date instead of the daywork-specific fields
+- [ ] Both overlays should scroll if content exceeds viewport height
+
+### UX: Auto-derived profile fields appear editable but aren't
+
+Profile edit mode shows `primary_role_id`, `experience_bracket_id`, `vessel_size_exposure_ids` in read-only state but without any label explaining they're auto-derived from experience entries. Users try to change them and get confused.
+
+- [ ] Add "(auto-derived from experience)" label or tooltip to each auto-derived field in edit mode
+- [ ] Or: hide auto-derived fields entirely in edit mode and only show them in view mode with an info icon
+
+### UX: No template deletion
+
+Daywork and permanent templates can be saved and loaded but never deleted. Over time this list grows unbounded.
+
+- [ ] Add a delete button (trash icon) to each template in the template list on the post form
+- [ ] Wire to `DELETE /api/daywork/templates/:id` (or permanent equivalent) — check if these routes exist; if not, add them
+- [ ] Confirm RLS allows owner-only deletion
+
+### Fix: Notification read route doesn't validate IDs
+
+`/api/notifications/read/route.ts` line 27 checks `Array.isArray(notificationIds)` but doesn't validate each element is a valid UUID before passing to `.in('id', notificationIds)`. Malformed strings pass straight to the Supabase query.
+
+- [ ] Add UUID format validation: `const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;` then `if (!notificationIds.every(id => typeof id === 'string' && UUID_RE.test(id))) return NextResponse.json({ error: 'Invalid notification IDs' }, { status: 400 });`
+- [ ] Add a reasonable array length cap (e.g., 100) to prevent abuse
+
+### Fix: Vessel creation from post form is a dead end
+
+`VesselSelector`'s `onRequestCreate` navigates to `/vessels` but doesn't return to the posting form after vessel creation. User must manually navigate back and re-fill the form.
+
+- [ ] In `daywork/post/page.tsx` and `permanent-post-form.tsx`: change `onRequestCreate` to open the vessel creation inline (using the same BottomSheet approach from the vessel page fix) instead of navigating away
+- [ ] After successful vessel creation, add the new vessel to the local `vessels` state and auto-select it in the VesselSelector
+- [ ] Alternative simpler fix: save form state to `sessionStorage` before navigating to `/vessels`, restore on return. Less elegant but zero new components
+
+### Fix: Permanent review page duplicate useEffect
+
+`/permanent/[id]/review/page.tsx` has identical loading logic in both the `loadApplicants` callback (lines 76-95) and the `useEffect` hook (lines 97-125). The useEffect also has an incomplete dependency array (`[postingId]` only, missing `showError`).
+
+- [ ] Refactor the `useEffect` to call `loadApplicants()` instead of duplicating the fetch/setState logic
+- [ ] Add proper cleanup: use the `cancelled` flag pattern inside `loadApplicants` or use an AbortController
+- [ ] Fix dependency array: `[postingId, loadApplicants]`
+
+### Fix: Permanent discover live aboard filter type handling
+
+`/api/permanent/discover/route.ts` line 112-114 converts string `'true'` to boolean correctly, but any non-"any", non-"true" string (e.g., `'false'`, `'no'`, empty string) maps to `false`. The frontend (`permanent-job-feed.tsx`) sends `'yes'`/`'no'`/`'any'` — so `'yes'` maps to `false` (wrong).
+
+- [ ] In the API route: change `filterLiveAboard === 'true'` to `filterLiveAboard === 'true' || filterLiveAboard === 'yes'` to handle both conventions
+- [ ] Or: standardise the frontend to send `'true'`/`'false'`/`'any'` instead of `'yes'`/`'no'`/`'any'` — update `permanent-job-feed.tsx` filter state and Select values
+
+### UX: Discover page availability state goes stale
+
+After setting availability via the overlay on the profile page, navigating to discover still shows the old `hasAvailability` state (loaded once on mount). Crew who just set availability still get blocked from applying.
+
+- [ ] When discover page mounts or becomes visible (`visibilitychange`), re-fetch availability status
+- [ ] Or: use a shared state/context for availability that updates across pages
+
+### Fix: Permanent crew withdrawal auto-reverts posting — employer should decide
+
+When crew withdraws after being selected for a permanent role, `apply_projection` (`PERMANENT.WITHDRAWN` handler, migration 00073 lines 489-490) automatically sets the posting back to `active`. The employer gets no notification, no prompt, no choice — the posting silently reappears in the discovery feed. This is wrong: the employer should decide whether to repost or close, same as the daywork crew-cancel response pattern.
+
+**Migration (new):**
+
+- [ ] Change `PERMANENT.WITHDRAWN` handler: when `v_app_status = 'selected'`, do NOT set posting to `active`. Instead keep it in `in_negotiation` (or introduce a new `selection_reverted` status if cleaner — check if the `permanent_postings_status` CHECK constraint needs expanding)
+- [ ] Set a `withdrawn_by` or `selection_reverted` flag on the posting (or reuse existing columns) so the API/UI can distinguish "employer hasn't responded yet" from "actively negotiating"
+- [ ] Rollback file must restore the current auto-revert behavior
+
+**API route (new): `POST /api/permanent/[id]/respond-withdrawal`**
+
+- [ ] Two actions: `repost` (sets posting to `active`) and `cancel` (sets posting to `cancelled`, notifies remaining applicants)
+- [ ] Hat check: employer/agent only
+- [ ] Ownership check: must be the posting owner
+- [ ] Status check: posting must be in the held state (not already `active` or `cancelled`)
+- [ ] Append `PERMANENT.SELECTION_REVERTED` event on repost (already exists in the event types) or a new event if semantics differ
+- [ ] On cancel: append `PERMANENT.CANCELLED_BY_EMPLOYER`, notify all pending/shortlisted applicants
+
+**UI (chat page banner):**
+
+- [ ] In `messages/[engagementId]/page.tsx` or `banners.tsx`: when employer views a closed permanent engagement where `outcome = 'withdrew'` AND posting is still in the held state (employer hasn't responded), show a banner: "Crew withdrew from this position. Would you like to repost or close it?"
+- [ ] Two buttons: "Repost role" (calls respond-withdrawal with `action: 'repost'`) and "Close posting" (calls respond-withdrawal with `action: 'cancel'`)
+- [ ] Follow the exact same UX pattern as the daywork `CrewCancelResponse` banner (relist vs cancel)
+- [ ] After employer responds, refresh context and hide the banner
+
+**Context API:**
+
+- [ ] Add `withdrawal_responded` flag to `/api/messages/[engagementId]/context` — derived from posting status (if posting is no longer in the held state, employer has responded)
+- [ ] Return `outcome` field for permanent engagements so the UI knows it was a crew withdrawal
+
+**Tests:**
+
+- [ ] Withdrawal from selected status: posting stays in held state, NOT `active`
+- [ ] Employer responds with `repost`: posting moves to `active`
+- [ ] Employer responds with `cancel`: posting moves to `cancelled`
+- [ ] Non-owner cannot respond (403)
+- [ ] Cannot respond if posting already `active` or `cancelled` (400)
+- [ ] Withdrawal from non-selected status (applied, shortlisted): no employer prompt needed, posting stays `active` (existing behavior unchanged)
+
+### Fix: Deactivated users can still call API routes
+
+`requireDomainUser()` in `apps/web/src/lib/auth/require-domain-user.ts` queries the `persons` table but never checks `deactivated_at`. A user who deactivates their account keeps their auth session and can still hit all protected endpoints. RLS hides other users' data, but they can read their own and potentially append events.
+
+- [ ] After the person lookup (~line 43), add: `if (personRow.deactivated_at !== null) return { ok: false, response: NextResponse.json({ error: 'Account deactivated' }, { status: 403 }) }`
+- [ ] Optionally also sign the user out server-side (call `supabase.auth.admin.signOut(user.id)`) to invalidate their session entirely
+- [ ] Add a test case in existing `requireDomainUser` tests: deactivated person returns 403
+
+### Redesign: Billing flow — IAP bypass via email-to-web
+
+Replace the current in-app Stripe checkout flow with an Apple IAP bypass: in-app page shows tiers (no prices), "Email me" CTA sends a magic link, user purchases in the browser, returns to app with subscription active.
+
+**Phase 1: In-app billing page redesign**
+
+- [ ] Rewrite `apps/web/src/app/(app)/billing/page.tsx`: remove "Subscribe" button, remove Stripe checkout redirect, remove feature comparison pricing
+- [ ] Make tiers data-driven: array of `{ id, name, description, features[] }` objects at the top of the file. No prices shown. Tier details TBD — structure should support 2-4 tiers without code changes
+- [ ] Each paid tier shows an "Email me about this" button (or similar neutral CTA — exact copy TBD)
+- [ ] Free tier shows "Current plan" badge if user has no active subscription
+- [ ] Active subscription shows the tier name + "Active" badge + "Manage subscription" link (this link opens a mailto or sends an email — NOT the Stripe portal in-app)
+- [ ] Keep the Docky paywall UX as-is: 402 → limit card → "Upgrade" button → navigates to `/billing`
+
+**Phase 2: Email-to-web magic link**
+
+- [ ] New migration: `subscription_tokens` table — `id UUID PK`, `person_id UUID FK`, `plan TEXT`, `created_at TIMESTAMPTZ`, `expires_at TIMESTAMPTZ` (default `now() + interval '24 hours'`), RLS: service role only
+- [ ] Rollback file for the migration
+- [ ] New email template: `subscriptionInfoEmail()` in `apps/web/src/lib/email/templates.ts` — branded email with tier name, brief description, and a CTA button linking to `/subscribe/{plan}?token={token}`
+- [ ] New API route: `POST /api/billing/request-info` — accepts `{ plan }`, generates a token row in `subscription_tokens`, sends the email via Resend, returns 200. Rate limit: max 3 emails per person per hour to prevent spam
+- [ ] Wire the "Email me" button on the billing page to call this route, show a success toast: "Check your email"
+
+**Phase 3: Web purchase page**
+
+- [ ] New route: `apps/web/src/app/subscribe/[plan]/page.tsx` — outside the `(app)` layout (no bottom nav, no auth required via middleware). Minimal layout: DockWalker logo, plan name, purchase form
+- [ ] On mount: validate token from URL query param against `subscription_tokens` table — check exists, not expired, plan matches. If invalid/expired, show error with "Request a new link" CTA
+- [ ] On valid token: create Stripe checkout session (reuse existing `create-checkout` logic but triggered from this page, not the in-app billing page). Redirect to Stripe hosted checkout
+- [ ] Stripe success URL: `/subscribe/success` — simple confirmation page: "You're subscribed! Open DockWalker to continue." with a deep link back to the app (`com.dockwalker.app://billing?success=true`)
+- [ ] Stripe cancel URL: `/subscribe/[plan]?token={token}&cancelled=true` — show "Purchase cancelled" with option to try again
+- [ ] After successful checkout: delete the used token (one-time use)
+
+**Phase 4: Cleanup old flow**
+
+- [ ] Remove or repurpose `POST /api/billing/create-checkout` — it should only be callable from the web subscribe page, not from the in-app billing page. Add a guard: reject requests that originate from the app (check referer or add a `source` param)
+- [ ] Remove `POST /api/billing/create-portal` route — subscription management moves to email-based support or a web-only portal link sent via email (same pattern)
+- [ ] Keep `GET /api/billing/status` — unchanged, still needed for in-app subscription detection
+- [ ] Keep Stripe webhook — unchanged, still processes `checkout.session.completed` etc.
+- [ ] Keep `requireSubscription()` — unchanged, still gates Docky
+- [ ] Keep `subscriptions` table — unchanged
+- [ ] Update tests: remove checkout/portal tests, add request-info + token validation tests
+
+**Tests:**
+
+- [ ] `POST /api/billing/request-info`: 401 unauth, 400 invalid plan, 200 sends email + creates token, 429 rate limited
+- [ ] Token validation: expired token rejected, wrong plan rejected, used token rejected, valid token creates checkout session
+- [ ] End-to-end: request-info → email sent → open link → Stripe checkout → webhook fires → `GET /api/billing/status` returns active plan
+
+### Fix: Wire 4 dead email templates
+
+`apps/web/src/lib/email/templates.ts` defines 7 email templates but only 3 are connected (`applicationAcceptedEmail`, `permanentSelectedEmail`, `engagementStartingEmail`). The other 4 have complete HTML templates but are never called from any route or trigger.
+
+- [ ] `applicationReceivedEmail` — wire into `notifyOnEvent()` for `DAYWORK.APPLIED` events. Send to the employer when a crew member applies. Gate behind `push_applications` preference + no-push-token fallback (same pattern as existing dispatcher)
+- [ ] `newMessageEmail` — wire into `notifyOnEvent()` for `MESSAGE.SENT` events. Send to the recipient. Gate behind `push_messages` preference + no-push-token fallback. Add throttle: max 1 email per engagement per hour to avoid spam during active chat
+- [ ] `permanentShortlistedEmail` — wire into `notifyOnEvent()` for `PERMANENT.SHORTLISTED` events. Send to the crew member
+- [ ] `permanentPlacementConfirmedEmail` — wire into `notifyOnEvent()` for `PERMANENT.PLACEMENT_CONFIRMED` events. Send to the crew member
+- [ ] All four: respect `email_enabled` preference, only send if user has no push tokens
+
+### Add: OG meta tags + social sharing image
+
+Landing page has no Open Graph or Twitter Card meta tags. Shared links show minimal preview on social media.
+
+- [ ] In `apps/web/src/app/layout.tsx`, add to the `metadata` export: `openGraph: { title, description, url, siteName, images: [{ url: '/images/brand/og-image.png', width: 1200, height: 630 }] }` and `twitter: { card: 'summary_large_image', title, description, images: ['/images/brand/og-image.png'] }`
+- [ ] Create a 1200x630px OG image asset at `apps/web/public/images/brand/og-image.png` — DockWalker logo centred on dark navy background (#0B1A2E) with tagline "Superyacht hiring, simplified"
+- [ ] Add terms of service and privacy policy links to the landing page footer (placeholder hrefs until legal docs are ready)
+
+### Pre-TestFlight: Capacitor native code changes
+
+Code-level changes needed before TestFlight/Play Store builds. External config (Firebase credentials, deep link domains, signing keys, app store submissions) is tracked in `tasks/founder-todo.md` — not duplicated here.
+
+- [ ] **iOS push entitlement:** Add `aps-environment` key (value: `development` for TestFlight, `production` for release) to `ios/App/App/App.entitlements`
+- [ ] **iOS permissions:** Add `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription` to `ios/App/App/Info.plist` (required for avatar upload)
+- [ ] **Android permissions:** Add `android.permission.CAMERA` and `android.permission.READ_MEDIA_IMAGES` to `AndroidManifest.xml`
+- [ ] **.gitignore:** Add patterns for `google-services.json`, `GoogleService-Info.plist`, `*.mobileprovision`, `*.p8`, `*.p12`
+- [ ] **AppDelegate.swift:** Add `UNUserNotificationCenter.current().delegate = self` in `didFinishLaunchingWithOptions` for iOS push notification handling
 
 ---
 
@@ -246,6 +384,10 @@ Merge `/discover/market` into the main discover page as an agent-specific mode.
 
 - [ ] PermanentJobCard, PermanentJobFeed, PermanentPostForm, PermanentReviewPage, PermanentApplicationCard
 
+### Component Tests for Form Pickers
+
+- [ ] LocationPicker, RolePicker, FlagStatePicker, AvailabilityOverlay, ProfileOverlay, ImageCropper — smoke tests (render, selection callback, error states)
+
 ### Onboarding True Atomicity
 
 ### App Feature Guide
@@ -254,8 +396,12 @@ Merge `/discover/market` into the main discover page as an agent-specific mode.
 
 ### Weekly Check-In Cron (Permanent)
 
+### Email: List-Unsubscribe header
+
+Add RFC 2369 `List-Unsubscribe` header to all outgoing emails for better deliverability. Currently emails link to `/settings` in the footer but have no one-click unsubscribe mechanism.
+
 ---
 
 ## Done
 
-(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, UI-D1, UI-D2, UI-D3, UI-D4, UI-D5, UI-13a, UI-13b, UI-13c, UI-14, UI-15, UI-15b, Fix-UI-15b, UI-16, Fix-z-index, UI-17, Fix-UI-17, UI-18, epaulette-fixes, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)
+(See git history for completed stages 51-139, 141a, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, UI-0, Fix-UI-0, UI-D1, UI-D2, UI-D3, UI-D4, UI-D5, UI-13a, UI-13b, UI-13c, UI-14, UI-15, UI-15b, Fix-UI-15b, UI-16, Fix-z-index, UI-17, Fix-UI-17, UI-18, epaulette-fixes, UI-19, availability-model-overhaul, cron-trigger-fix, fixes 118a/123a/123b/127a/128a/128b/131a/139a-f/140a-e/143g/144-batch/fix1-addendum/144-cert/145a/146a/147a, template name cap, messages test cleanup)

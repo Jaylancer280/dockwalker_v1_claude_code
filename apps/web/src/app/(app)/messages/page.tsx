@@ -36,7 +36,11 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabView>('active');
+  const [tab, setTab] = useState<TabView>(() => {
+    if (typeof window === 'undefined') return 'active';
+    const stored = sessionStorage.getItem('dockwalker:messages-tab');
+    return stored === 'history' ? 'history' : 'active';
+  });
 
   const load = useCallback(async () => {
     try {
@@ -55,6 +59,10 @@ export default function MessagesPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    sessionStorage.setItem('dockwalker:messages-tab', tab);
+  }, [tab]);
 
   // Active: active engagements + completed/cancelled that still need rating
   const active = conversations.filter(

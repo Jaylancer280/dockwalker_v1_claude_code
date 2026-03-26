@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { languageLabel } from '@/lib/languages';
 import { Avatar } from '@/components/avatar';
@@ -43,6 +44,8 @@ interface CrewProfile {
   location: { port: string; city: string; region: string } | null;
   city_location: { city: string; region: string | null } | null;
   experiences: CrewExperience[];
+  permanent_availability: string | null;
+  notice_period_days: number | null;
 }
 
 interface EmployerProfile {
@@ -181,6 +184,23 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
           {profile.desired_role && profile.desired_role.id !== profile.primary_role?.id && (
             <p className="text-xs text-muted-foreground">Seeking: {profile.desired_role.name}</p>
           )}
+          <div className="mt-1">
+            {profile.permanent_availability === 'immediate' ? (
+              <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                Available now
+              </Badge>
+            ) : profile.permanent_availability === 'after_notice' ? (
+              <Badge className="bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                After {profile.notice_period_days ?? '?'}d notice
+              </Badge>
+            ) : (
+              <Badge variant="secondary">
+                {profile.permanent_availability === 'not_looking'
+                  ? 'Not looking'
+                  : 'Status not set'}
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 

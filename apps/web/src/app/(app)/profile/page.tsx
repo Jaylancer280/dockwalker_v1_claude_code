@@ -386,6 +386,7 @@ export default function ProfilePage() {
 
     if (result.ok) {
       setEditing(false);
+      window.scrollTo(0, 0);
       await loadProfile();
       showSuccess('Profile updated');
     } else {
@@ -448,7 +449,10 @@ export default function ProfilePage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setEditing(false);
+                    window.scrollTo(0, 0);
+                  }}
                   disabled={saving}
                 >
                   <X className="h-4 w-4" />
@@ -503,9 +507,25 @@ export default function ProfilePage() {
                   </p>
                 )}
                 <div className="mt-1 flex items-center gap-2">
-                  <Badge variant="secondary" className="capitalize">
-                    {profile.identity_type}
-                  </Badge>
+                  {profile.identity_type === 'crew' ? (
+                    permAvail === 'immediate' ? (
+                      <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                        Available now
+                      </Badge>
+                    ) : permAvail === 'after_notice' ? (
+                      <Badge className="bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                        After {noticeDays ?? '?'}d notice
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">
+                        {permAvail === 'not_looking' ? 'Not looking' : 'Status not set'}
+                      </Badge>
+                    )
+                  ) : (
+                    <Badge variant="secondary" className="capitalize">
+                      {profile.identity_type}
+                    </Badge>
+                  )}
                   <HatSwitcher
                     currentHat={person.current_hat}
                     identityType={person.identity_type}
@@ -545,14 +565,26 @@ export default function ProfilePage() {
           </Button>
         )}
         {!editing && !isCrewHat && person.identity_type !== 'agent' && (
-          <Button
-            variant="outline"
-            className="w-fit gap-2"
-            onClick={() => router.push('/daywork/mine')}
-          >
-            <Briefcase className="h-4 w-4" />
-            My jobs
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="w-fit gap-2"
+              size="sm"
+              onClick={() => setShowPreview(true)}
+            >
+              <Eye className="h-4 w-4" />
+              How candidates see you
+            </Button>
+            <Button
+              variant="outline"
+              className="w-fit gap-2"
+              size="sm"
+              onClick={() => router.push('/daywork/mine')}
+            >
+              <Briefcase className="h-4 w-4" />
+              My jobs
+            </Button>
+          </div>
         )}
 
         <Separator />

@@ -74,7 +74,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   const [liveAboard, setLiveAboard] = useState(false);
   const [certificationIds, setCertificationIds] = useState<string[]>([]);
   const [requiredLangs, setRequiredLangs] = useState<string[]>([]);
-  const [experienceBracketId, setExperienceBracketId] = useState('');
+  const [experienceBracketId, setExperienceBracketId] = useState('any');
   const [shortlistCap, setShortlistCap] = useState('5');
   const [notes, setNotes] = useState('');
 
@@ -191,7 +191,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         liveAboard,
         requiredCertificationIds: certificationIds,
         requiredLanguages: requiredLangs,
-        experienceBracketId: experienceBracketId || null,
+        experienceBracketId: experienceBracketId === 'any' ? null : experienceBracketId || null,
         shortlistCap: parseInt(shortlistCap, 10) || 5,
         notes: notes || null,
       }),
@@ -223,7 +223,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           liveAboard,
           requiredCertificationIds: certificationIds,
           requiredLanguages: requiredLangs,
-          experienceBracketId: experienceBracketId || null,
+          experienceBracketId: experienceBracketId === 'any' ? null : experienceBracketId || null,
           shortlistCap: parseInt(shortlistCap, 10) || 5,
           notes: notes || null,
         }),

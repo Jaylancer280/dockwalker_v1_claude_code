@@ -335,7 +335,7 @@ export function RequirementsSection({
             <SelectValue placeholder="Any experience level" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any</SelectItem>
+            <SelectItem value="any">Any</SelectItem>
             {experienceBrackets.map((b) => (
               <SelectItem key={b.id} value={b.id}>
                 {b.name}

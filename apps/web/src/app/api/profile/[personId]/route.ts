@@ -44,7 +44,7 @@ export async function GET(
       person_id, display_name, identity_type, bio, avatar_url, deck_name,
       primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
       vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, visa_ids,
-      languages,
+      languages, permanent_availability, notice_period_days,
       agency_name, role_specialization_ids,
       yacht_roles!profiles_primary_role_id_fkey(id, name, department),
       desired_roles:yacht_roles!profiles_desired_role_id_fkey(id, name),
@@ -215,6 +215,8 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
       ? { port: ports.name, city: ports.cities?.name, region: ports.cities?.regions?.name }
       : null,
     city_location: cityName ? { city: cityName, region: regionName } : null,
+    permanent_availability: profile.permanent_availability ?? null,
+    notice_period_days: profile.notice_period_days ?? null,
     experiences: (experiences ?? []).map((exp: Record<string, unknown>) => {
       const vessel = exp.vessels as {
         name: string;

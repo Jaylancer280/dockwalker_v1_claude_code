@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin, Briefcase, Award, Calendar, Users, Ship } from 'lucide-react';
+import { MapPin, Briefcase, Award, Calendar, Users, Ship, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
@@ -214,6 +214,7 @@ export function PermanentJobCard({
               }
             }}
           >
+            <User className="mr-1 inline h-3 w-3" />
             Posted by {posting.poster_name}
           </button>
         )}

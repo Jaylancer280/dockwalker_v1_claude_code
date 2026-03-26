@@ -43,7 +43,12 @@ interface SizeBandItem {
 
 export default function DiscoverPage() {
   const { showError, showSuccess } = useToast();
-  const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>('browse');
+  const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>(() => {
+    if (typeof window === 'undefined') return 'browse';
+    const stored = sessionStorage.getItem('dockwalker:discover-tab');
+    if (stored === 'browse' || stored === 'invitations' || stored === 'applied') return stored;
+    return 'browse';
+  });
   const [browseMode, setBrowseMode] = useState<'daywork' | 'permanent'>(() => {
     if (typeof window === 'undefined') return 'daywork';
     return (localStorage.getItem('dw-browse-mode') as 'daywork' | 'permanent') || 'daywork';
@@ -166,6 +171,10 @@ export default function DiscoverPage() {
       setProfileIncomplete(incomplete);
     }
   }
+
+  useEffect(() => {
+    sessionStorage.setItem('dockwalker:discover-tab', activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     loadCrewCerts();
