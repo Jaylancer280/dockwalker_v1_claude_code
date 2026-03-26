@@ -17,6 +17,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
 import { currencySymbol, type CurrencyCode } from '@/lib/units';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -227,6 +228,9 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     return null;
   })();
 
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [vesselDisplayName, setVesselDisplayName] = useState('');
+
   async function handleSubmit() {
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -346,6 +350,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           startDate={startDate}
           setStartDate={setStartDate}
           onRequestCreateVessel={saveFormAndCreateVessel}
+          onVesselNameChange={setVesselDisplayName}
         />
 
         <SalarySection
@@ -417,11 +422,83 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
             !salaryMin ||
             !salaryMax
           }
-          onClick={handleSubmit}
+          onClick={() => setShowConfirm(true)}
         >
-          {loading ? 'Posting...' : 'Post Permanent Position'}
+          Review & Post
         </Button>
       </div>
+
+      {/* Post confirmation overlay */}
+      <BottomSheet
+        open={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        title="Review your posting"
+      >
+        <div className="flex flex-col gap-3 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Vessel</span>
+            <span className="font-medium">{vesselDisplayName || '—'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Role</span>
+            <span className="font-medium">{roles.find((r) => r.id === roleId)?.name ?? '—'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Start date</span>
+            <span className="font-medium">{startDate || '—'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Salary</span>
+            <span className="font-medium">
+              {currencySymbol(salaryCurrency)}
+              {salaryMin}–{salaryMax}/{salaryPeriod === 'annual' ? 'year' : 'month'}
+            </span>
+          </div>
+          {liveAboard && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Live aboard</span>
+              <span className="font-medium">Yes</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Shortlist cap</span>
+            <span className="font-medium">{shortlistCap}</span>
+          </div>
+          {certificationIds.length > 0 && (
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground shrink-0">Certs required</span>
+              <span className="font-medium text-right">
+                {certificationIds
+                  .map((id) => certifications.find((c) => c.id === id)?.name ?? id)
+                  .join(', ')}
+              </span>
+            </div>
+          )}
+          {notes && (
+            <div>
+              <span className="text-muted-foreground">Notes</span>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {notes.length > 100 ? notes.slice(0, 100) + '...' : notes}
+              </p>
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setShowConfirm(false)}>
+              Back to edit
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={() => {
+                setShowConfirm(false);
+                handleSubmit();
+              }}
+              disabled={loading}
+            >
+              {loading ? 'Posting...' : 'Post job'}
+            </Button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }

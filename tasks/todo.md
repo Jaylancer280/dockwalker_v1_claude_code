@@ -121,13 +121,10 @@ UI bug fixes and UX improvements (5 items)
 
 ### UX: Daywork + permanent post confirmation overlay
 
-The confirmation step before posting only mentions NDA vessel status. User can't preview the full posting. Replace with a proper confirmation overlay that lists all details so the user can review before confirming or go back to edit.
-
-- [ ] Replace the existing confirmation `Dialog` with a `BottomSheet` confirmation overlay (consistent with other overlays in the app)
-- [ ] Show all posting details in a compact summary: role, vessel (with M/Y or S/Y prefix), location (region → city → port), dates + working days, day rate + currency, positions available, required certs, required languages, meals (breakfast/lunch/dinner), notes (truncated to ~100 chars with "..." if longer), NDA flag
-- [ ] Two buttons at the bottom: "Post job" (primary) and "Back to edit" (secondary/ghost)
-- [ ] Apply the same pattern to the permanent post form: show salary range + period, live aboard, shortlist cap, start date instead of the daywork-specific fields
-- [ ] Both overlays should scroll if content exceeds viewport height
+- [x] Daywork: replaced Dialog with BottomSheet showing full posting summary (vessel, role, dates, rate, positions, certs, meals, notes, NDA flag)
+- [x] Permanent: added BottomSheet confirmation (vessel, role, start date, salary range, live aboard, shortlist cap, certs, notes)
+- [x] Both: "Post job" + "Back to edit" buttons, scrollable content via BottomSheet
+- [x] VesselSelector: added `onNameChange` callback so parent can display vessel name in confirmation
 
 ### UX: Auto-derived profile fields appear editable but aren't
 

@@ -35,6 +35,7 @@ export interface RoleLocationSectionProps {
   startDate: string;
   setStartDate: (v: string) => void;
   onRequestCreateVessel: () => void;
+  onVesselNameChange?: (name: string) => void;
 }
 
 export function RoleLocationSection({
@@ -48,6 +49,7 @@ export function RoleLocationSection({
   startDate,
   setStartDate,
   onRequestCreateVessel,
+  onVesselNameChange,
 }: RoleLocationSectionProps) {
   return (
     <>
@@ -57,6 +59,7 @@ export function RoleLocationSection({
         <VesselSelector
           value={vesselId}
           onValueChange={setVesselId}
+          onNameChange={onVesselNameChange}
           onRequestCreate={onRequestCreateVessel}
         />
       </div>

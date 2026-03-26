@@ -22,6 +22,7 @@ interface VesselSelectorProps {
   value: string;
   onValueChange: (vesselId: string) => void;
   onNdaChange?: (isNda: boolean) => void;
+  onNameChange?: (name: string) => void;
   onRequestCreate?: () => void;
 }
 
@@ -34,6 +35,7 @@ export function VesselSelector({
   value,
   onValueChange,
   onNdaChange,
+  onNameChange,
   onRequestCreate,
 }: VesselSelectorProps) {
   const [vessels, setVessels] = useState<VesselOption[]>([]);
@@ -91,6 +93,7 @@ export function VesselSelector({
           onValueChange(id);
           const v = vessels.find((vsl) => vsl.id === id);
           onNdaChange?.(v?.nda_flag ?? false);
+          if (v) onNameChange?.(v.nda_flag ? 'NDA Vessel' : v.name);
         }}
       >
         <SelectTrigger>

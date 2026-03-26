@@ -25,6 +25,8 @@ import {
 } from '@/components/ui/dialog';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { currencySymbol } from '@/lib/units';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
@@ -107,6 +109,7 @@ function DayworkPostForm() {
   // Form fields
   const [vesselId, setVesselId] = useState('');
   const [vesselNda, setVesselNda] = useState(false);
+  const [vesselDisplayName, setVesselDisplayName] = useState('');
   const [roleId, setRoleId] = useState((draft?.roleId as string) ?? '');
   const [locationPortId, setLocationPortId] = useState((draft?.locationPortId as string) ?? '');
   const [startDate, setStartDate] = useState((draft?.startDate as string) ?? '');
@@ -452,6 +455,7 @@ function DayworkPostForm() {
             value={vesselId}
             onValueChange={setVesselId}
             onNdaChange={setVesselNda}
+            onNameChange={setVesselDisplayName}
             onRequestCreate={saveFormAndCreateVessel}
           />
         </div>
@@ -680,33 +684,74 @@ function DayworkPostForm() {
         </div>
       </form>
 
-      {/* Post confirmation dialog */}
-      <Dialog open={showPostConfirm} onOpenChange={setShowPostConfirm}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Post daywork</DialogTitle>
-            <DialogDescription>
-              This will publish your daywork listing and make it visible to crew. You can cancel the
-              posting later if needed.
-              {vesselNda && (
-                <>
-                  <br />
-                  <br />
-                  This is an NDA vessel — details will be revealed to crew on acceptance.
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPostConfirm(false)}>
-              Cancel
+      {/* Post confirmation overlay */}
+      <BottomSheet
+        open={showPostConfirm}
+        onClose={() => setShowPostConfirm(false)}
+        title="Review your posting"
+      >
+        <div className="flex flex-col gap-3 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Vessel</span>
+            <span className="font-medium">
+              {vesselDisplayName || '—'}
+              {vesselNda ? ' (NDA)' : ''}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Role</span>
+            <span className="font-medium">{roles.find((r) => r.id === roleId)?.name ?? '—'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Dates</span>
+            <span className="font-medium">
+              {startDate} → {endDate}
+              {workingDays ? ` (${workingDays} days)` : ''}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Day rate</span>
+            <span className="font-medium">
+              {currencySymbol(currency)}
+              {dayRate}/day
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Positions</span>
+            <span className="font-medium">{positionsAvailable}</span>
+          </div>
+          {requiredCertIds.length > 0 && (
+            <div className="flex justify-between gap-4">
+              <span className="text-muted-foreground shrink-0">Certs required</span>
+              <span className="font-medium text-right">
+                {requiredCertIds.map((id) => certs.find((c) => c.id === id)?.name ?? id).join(', ')}
+              </span>
+            </div>
+          )}
+          {meals.length > 0 && (
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Meals</span>
+              <span className="font-medium capitalize">{meals.join(', ')}</span>
+            </div>
+          )}
+          {notes && (
+            <div>
+              <span className="text-muted-foreground">Notes</span>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {notes.length > 100 ? notes.slice(0, 100) + '...' : notes}
+              </p>
+            </div>
+          )}
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setShowPostConfirm(false)}>
+              Back to edit
             </Button>
-            <Button onClick={handleConfirmedSubmit} disabled={loading}>
-              {loading ? 'Posting...' : 'Post'}
+            <Button className="flex-1" onClick={handleConfirmedSubmit} disabled={loading}>
+              {loading ? 'Posting...' : 'Post job'}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* Save template dialog */}
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
