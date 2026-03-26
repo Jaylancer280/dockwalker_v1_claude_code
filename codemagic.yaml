@@ -3,8 +3,6 @@ workflows:
     name: iOS TestFlight Build
     max_build_duration: 30
     instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: DockWalker
     environment:
       ios_signing:
         distribution_type: app_store
@@ -42,16 +40,21 @@ workflows:
       - name: Set up code signing
         script: |
           keychain initialize
+          app-store-connect fetch-signing-files "io.dockwalker.app" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
 
-      - name: Install CocoaPods
+      - name: Set Xcode signing
         script: |
           cd apps/web/ios/App
-          pod install || true
+          xcode-project use-profiles
 
-      - name: Set bundle identifier
+      - name: Increment build number
         script: |
           cd apps/web/ios/App
-          agvtool new-version -all $(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" || echo 0) + 1))
+          LATEST=$(app-store-connect get-latest-testflight-build-number "io.dockwalker.app" || echo "0")
+          agvtool new-version -all $(($LATEST + 1))
 
       - name: Build iOS
         script: |
@@ -62,10 +65,11 @@ workflows:
 
     artifacts:
       - apps/web/ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
 
     publishing:
       app_store_connect:
-        auth: integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
-        beta_groups:
-          - DockWalker Testers
