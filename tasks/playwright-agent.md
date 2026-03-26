@@ -181,12 +181,32 @@ Do NOT fix application code — only document.
 
 ### 8. Log UX suggestions
 
-Write to `tasks/playwright-suggestions.md`:
+**Before logging any finding, verify it is real — not a false positive.**
+
+Severity-based verification:
+
+- **HIGH (would log as a bug):** MUST read the relevant source code before logging. Check: is this actually broken, or is it correct behavior you don't understand? Is the data missing because of a bug, or because the seed doesn't have it? Did a previous test in this run mutate state? Read the component, the API route, and the business rules reference in this manual. If you can't confirm the root cause, log as "NEEDS VERIFICATION" not HIGH.
+
+- **MEDIUM (looks wrong but app works):** Read the component code to understand the rendering logic. Check the business rules reference. If the behavior matches a documented rule, move to Rejected immediately.
+
+- **LOW (polish/consistency):** Screenshot evidence is sufficient. No code verification needed.
+
+**Common false positive patterns to check for:**
+
+1. **Test pollution:** Did an earlier test in this run mutate DB state? (e.g., cancelling a posting removes it from active list, making subsequent tests see fewer items)
+2. **Seed data gaps:** Does the seed actually have the data you expect? Check the Seed Data IDs tables in this manual.
+3. **Correct business rule enforcement:** Is the "error" actually correct blocking behavior? Check the Business Rules Reference.
+4. **Dev-mode artifacts:** Is this a Next.js dev overlay, not an app error?
+5. **Filtering behavior:** Is the list empty because of correct filters, not broken queries?
+
+Write verified findings to `tasks/playwright-suggestions.md`:
 
 ```markdown
-### SUG-XXX — Brief description (2026-03-27T09:15)
+### SUG-XXX — Brief description (VERIFIED / NEEDS VERIFICATION) (2026-03-27T09:15)
 
 **Observed:** What you actually saw in the screenshot.
+
+**Root cause:** What the code actually does (cite file and line if verified).
 
 **Suggestion:** What should be different and why.
 

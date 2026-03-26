@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.dockwalker.app',
+  appId: 'io.dockwalker.app',
   appName: 'DockWalker',
   // Must match Next.js static export output directory (CAPACITOR_BUILD=1 next build)
   webDir: 'out',

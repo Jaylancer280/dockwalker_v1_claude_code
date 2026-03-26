@@ -1,225 +1,248 @@
-# Founder Todo — External Blockers & Manual Config
+# Founder Todo — Launch Checklist
 
-> **Human-only file.** This is NOT for Claude Code — it tracks things that require YOUR action
-> outside the codebase: account creation, credential setup, dashboard config, app store submissions.
-> Claude Code cannot do any of these. They block production launch regardless of code completeness.
+> Single source of truth for getting DockWalker to TestFlight and production.
+> Structured by environment. Work top-to-bottom.
 >
-> Last reviewed: 2026-03-26 (planning agent audit)
+> **Key principle:** API keys and secrets NEVER go in the codebase.
+> They live in Vercel environment variables (scoped per environment)
+> and Supabase project settings. The codebase reads them from `process.env`.
+>
+> Last reviewed: 2026-03-26
 
 ---
 
-## Pre-Launch Critical (Nothing works in production without these)
+## Phase 0 — Code Fixes Before Any Deployment
 
-### Supabase Production Instance
+These are blocking bugs found by the testing agent. Fix via planning → implementation → testing agent loop.
 
-- [ ] Create Supabase production project (or promote existing)
-- [ ] Run migrations against production database
-- [ ] Set environment variables in Vercel:
-  - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-- [ ] Verify RLS policies are active on all 29 tables
-
-### Supabase SMTP (Auth Emails)
-
-- [ ] Choose SMTP provider — recommended: **Resend** (resend.com)
-- [ ] Create Resend account, verify sender domain
-- [ ] Configure DNS records: SPF, DKIM, DMARC for your sending domain
-- [ ] In Supabase Dashboard → Project Settings → Auth → SMTP Settings:
-  - Enter Resend SMTP credentials (host: `smtp.resend.com`, port: 465, user: `resend`, pass: your API key)
-- [ ] In Supabase Dashboard → Auth → Email Templates:
-  - Copy contents of `supabase/templates/confirmation.html` into Confirmation template
-  - Copy contents of `supabase/templates/recovery.html` into Recovery template
-  - Copy contents of `supabase/templates/email_change.html` into Email Change template
-  - Set subject lines to match `supabase/config.toml` template config
-
-### Vercel Deployment
-
-- [ ] Create Vercel project linked to this repo
-- [ ] Set all environment variables (see `apps/web/.env.example` for full list)
-- [ ] Set `CRON_SECRET` for Vercel Cron authentication
-- [ ] Configure custom domain (this becomes PRODUCTION_DOMAIN below)
-- [ ] Verify `vercel.json` security headers are active after first deploy
+- [ ] **SUG-001 + SUG-013:** Crew review page shows employer UI — add role-based rendering to `/daywork/[id]/review` and `/permanent/[id]/review`
+- [ ] **SUG-016:** Employer not redirected from `/discover` — fix middleware to check `current_hat !== 'crew'`, not just `identity_type === 'agent'`
+- [ ] **SUG-011:** Cancel posting has no confirmation dialog — add confirmation modal matching the permanent posting cancel pattern
 
 ---
 
-## Pre-Launch Important (Core features degraded without these)
+## Phase 1 — Staging Environment (TestFlight Target)
 
-### Resend (Transactional Email)
+This is what your 20 testers use. It can break. Seed data is fine here.
 
-- [ ] If not already created above, create Resend account
-- [ ] Generate API key
-- [ ] Set in Vercel environment variables:
-  - `RESEND_API_KEY=re_xxx`
-  - `RESEND_FROM_EMAIL=DockWalker <noreply@yourdomain.com>`
-- [ ] Verify domain matches the DKIM/SPF records from SMTP setup above
+### 1a. Supabase Staging Project
 
-### Stripe (Subscriptions) — IAP Bypass Flow
+- [x] Create Supabase project `dockwalker-staging` (EU Central)
+  - Project ref: `hwpcuehqawullzqbmcdv`
+  - URL: `https://hwpcuehqawullzqbmcdv.supabase.co`
+- [x] 73 migrations pushed
+- [x] Canonical data seeded (ports, roles, certs)
+- [x] Avatars storage bucket created
+- [x] RLS active (auto-enabled + migration policies)
 
-- [ ] Create Stripe account (or use existing)
-- [ ] **Decide subscription tiers:** tier names, what each tier unlocks, pricing, billing interval (monthly/annual). Code supports 2-4 tiers via a data-driven array — no code changes needed, just update the tier config
-- [ ] **Decide who pays:** currently only crew pay (employers free). If employers/agents get gated features later, decide now or defer
-- [ ] Create subscription products and prices in Stripe Dashboard for each decided tier
-- [ ] Note the price IDs and set in Vercel:
-  - `STRIPE_SECRET_KEY`
-  - `STRIPE_WEBHOOK_SECRET`
-  - `STRIPE_PRICE_CREW_PRO` (update name if tiers change)
-  - `STRIPE_PRICE_CREW_UNLIMITED` (update name if tiers change)
-- [ ] Configure Stripe webhook endpoint: `https://PRODUCTION_DOMAIN/api/webhooks/stripe`
-  - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
-- [ ] **Write the billing page copy:** tier descriptions, feature bullet points, "Email me" button text. No prices shown in-app (IAP bypass). The code renders whatever you put in the tier config array
-- [ ] **Write the subscription email copy:** the email users receive when they tap "Email me" — should explain the tier, link to the web purchase page, and feel trustworthy (not spammy)
-- [ ] **Test the full flow on a real device:** tap "Email me" in app → receive email → open link in Safari → pay on Stripe → return to app → verify subscription is active
+### 1b. Supabase SMTP (Staging Auth Emails)
 
-### Push Notifications — FCM (Android)
+- [ ] Supabase Dashboard → Project Settings → Auth → SMTP Settings
+- [ ] For staging, Supabase's built-in email works (ugly but functional). Skip custom SMTP for now.
+- [ ] OR: Set up Resend (resend.com) if you want branded emails from day one:
+  - Create Resend account
+  - Add and verify your domain (DNS: SPF, DKIM, DMARC records)
+  - Get API key
+  - In Supabase SMTP Settings: host `smtp.resend.com`, port 465, user `resend`, pass = API key
+  - Copy `supabase/templates/*.html` into Supabase Dashboard → Auth → Email Templates
 
-- [ ] Create Firebase project (or use existing)
-- [ ] Enable Cloud Messaging in Firebase Console
-- [ ] Generate service account key (JSON)
-- [ ] Set in Vercel:
-  - `FCM_PROJECT_ID`
-  - `FCM_SERVICE_ACCOUNT_KEY` (paste the JSON string)
+### 1c. Vercel Staging Deployment
 
-### Push Notifications — APNs (iOS)
+- [x] Vercel project created, linked to GitHub repo
+- [x] Environment variables set (Supabase URL, anon key, service role key)
+- [x] Deployed to `https://dockwalker-staging.vercel.app/`
+- [x] Signup + login verified working
+- [ ] Set `NEXT_PUBLIC_SITE_URL=https://dockwalker-staging.vercel.app` in Vercel env vars (for email links)
 
-- [ ] Log into Apple Developer account
-- [ ] Create APNs authentication key (.p8 file) under Certificates, Identifiers & Profiles → Keys
-- [ ] Note the Key ID and Team ID
-- [ ] Set in Vercel:
-  - `APNS_KEY_ID`
-  - `APNS_TEAM_ID`
-  - `APNS_BUNDLE_ID=com.dockwalker.app`
-  - `APNS_KEY_PATH` (or store .p8 contents as env var — check push-delivery.ts for expected format)
+### 1d. Minimal Services for Staging
 
-### Upstash Redis (Rate Limiting)
+- [x] Upstash Redis — `dockwalker-staging` (EU West, eviction enabled)
+- [x] Sentry — `dockwalker` project (Next.js, alert on every new issue)
+- [x] Cron secret generated and set
+- [x] All env vars added to Vercel, redeployment triggered
 
-- [ ] Create Upstash Redis instance (free tier is sufficient for launch)
-- [ ] Set in Vercel:
-  - `UPSTASH_REDIS_REST_URL`
-  - `UPSTASH_REDIS_REST_TOKEN`
+**Skip for staging (add later):**
 
----
+- Stripe — billing is deferred
+- FCM/APNs — push notifications can wait until production
+- Anthropic/OpenAI — Docky works but costs money; defer until production
+- Resend transactional emails — auth emails work via Supabase built-in
+- Deep links — not needed for TestFlight
 
-## Pre-Launch Nice-to-Have (App works without, but you'll want them)
+### 1e. Capacitor iOS Build (TestFlight)
 
-### Sentry (Error Tracking)
+- [ ] Update `apps/web/capacitor.config.ts`:
+  - Set `server.url` to your Vercel staging preview URL (for live-reload during testing)
+  - OR build the web app statically and bundle it (production approach)
+- [ ] Open Xcode: `cd apps/web && npx cap open ios`
+- [ ] Set your Apple Developer Team in Signing & Capabilities
+- [ ] Set Bundle Identifier: `com.dockwalker.app`
+- [ ] Archive → Distribute → TestFlight
+- [ ] Invite your 20 testers via TestFlight
 
-- [ ] Create Sentry account and project (Next.js platform)
-- [ ] Note the DSN from Project Settings → Client Keys
-- [ ] Set in Vercel:
-  - `NEXT_PUBLIC_SENTRY_DSN`
-  - `SENTRY_ORG` (optional, for source map upload)
-  - `SENTRY_PROJECT` (optional)
-  - `SENTRY_AUTH_TOKEN` (optional, for source map upload in CI)
+### 1f. TestFlight Testing Checklist
 
-### Anthropic + OpenAI (Docky AI Advisor)
+Give your 20 testers these flows to test:
 
-- [ ] Create Anthropic account, generate API key
-- [ ] Create OpenAI account, generate API key
-- [ ] Set in Vercel:
-  - `ANTHROPIC_API_KEY`
-  - `OPENAI_API_KEY`
-  - `DOCKY_MODEL=claude-haiku-4-5-20251001` (optional, has default)
-- [ ] Bulk-index MCA documentation chunks into `mca_document_chunks` table (manual SQL insert or script)
-
-### Deep Link Verification (Mobile App Links)
-
-These files exist with placeholders. Replace with real values before submitting to app stores:
-
-- [ ] Get your **Apple Developer Team ID** from Apple Developer account → Membership
-  - Update `apps/web/public/.well-known/apple-app-site-association`: replace `TEAM_ID` with real value
-  - Update `apps/web/ios/App/App/App.entitlements`: replace `PRODUCTION_DOMAIN` with your domain
-- [ ] Get your **Android signing key SHA256 fingerprint**: `keytool -list -v -keystore your.keystore`
-  - Update `apps/web/public/.well-known/assetlinks.json`: replace `PLACEHOLDER_SHA256_FINGERPRINT`
-  - Update `apps/web/android/app/src/main/AndroidManifest.xml`: replace `PRODUCTION_DOMAIN`
-- [ ] After deploying, verify:
-  - iOS: `https://app-site-association.cdn-apple.com/a/v1/YOURDOMAIN`
-  - Android: `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://YOURDOMAIN`
-
-### App Store Submissions
-
-- [ ] iOS: Create App Store Connect listing, screenshots, description, privacy policy URL
-- [ ] iOS: Configure signing certificate and provisioning profile in Xcode
-- [ ] iOS: Build with `npm run build:ios` from `apps/web/`, archive in Xcode, submit for review
-- [ ] Android: Create Google Play Console listing, screenshots, description, privacy policy URL
-- [ ] Android: Sign release APK/AAB with your keystore
-- [ ] Android: Build with `npm run build:android` from `apps/web/`, upload to Play Console
-
-### Legal / Compliance
-
-- [ ] **Terms of Service document** — needed for app store submissions and landing page footer link (code has placeholder href ready)
-- [ ] **Privacy Policy document** — needed for app store submissions, landing page footer, and GDPR compliance. Should cover: data collected, event ledger retention, GDPR export/deletion, device fingerprint hashing, push notification data
-- [ ] **Cookie consent** — determine if needed for your jurisdiction. The web app uses localStorage (preferences) and Supabase auth cookies
-
-### Content / Copy
-
-- [ ] **OG social sharing image** — 1200x630px branded image for social media previews. Code expects it at `/images/brand/og-image.png`. DockWalker logo on dark navy (#0B1A2E) with tagline suggested
-- [ ] **Landing page footer links** — terms and privacy policy URLs once documents exist
-- [ ] **NDA toggle copy** — current text: "Hide vessel identity from crew until they accept a position." Review and approve or suggest alternative
-- [ ] **Confirmation overlay copy** — the daywork/permanent post confirmation overlay will show all posting details before submission. Review field labels and ordering once implemented
-
-### Firebase / Native
-
-- [ ] **Firebase iOS config:** Generate `GoogleService-Info.plist` from Firebase console, add to Xcode project (gitignored)
-- [ ] **Firebase Android config:** Generate `google-services.json` from Firebase console, place in `android/app/` (gitignored)
+- [ ] Sign up with email → receive confirmation → confirm → onboard
+- [ ] Set availability (crew) or post a daywork job (employer)
+- [ ] Apply to a daywork job → employer reviews → accepts
+- [ ] Message thread opens after acceptance
+- [ ] Post a permanent job → crew applies → shortlist → select → negotiate
+- [ ] Profile: add experience, upload avatar, view "how employers see you"
+- [ ] Hat switch: crew → employer → post a job → switch back
+- [ ] Docky: ask a question about STCW (if AI keys configured)
 
 ---
 
-## Post-Launch
+## Phase 2 — Production Environment
 
-- [ ] Monitor Sentry for first-week errors
-- [ ] Monitor Vercel Analytics for usage patterns
-- [ ] Check Supabase Dashboard for database performance
-- [ ] Review Stripe webhook logs for payment issues
-- [ ] Set up Stripe production webhook (test mode → live mode)
-- [ ] Consider adding CSP header once you've catalogued all inline scripts and external origins (complex with Next.js — defer until stable)
-- [ ] **Rotate `CRON_SECRET`** periodically — treat as a credential
+Only set this up after staging is validated. Your real users go here.
+
+### 2a. Supabase Production Project
+
+- [ ] Create a new Supabase project:
+  - Region: EU (Frankfurt)
+  - Name: `dockwalker-production`
+- [ ] Note down credentials (same 3 keys as staging)
+- [ ] Push migrations:
+  ```bash
+  npx supabase db push --project-ref YOUR_PRODUCTION_REF
+  ```
+- [ ] Do NOT seed production with test data. Real users onboard fresh.
+- [ ] Verify RLS active on all tables
+- [ ] Create `avatars` storage bucket (public)
+
+### 2b. Vercel Production
+
+- [ ] In Vercel Project Settings → Git → Production Branch: `main`
+- [ ] Set Environment Variables (scope: **Production**):
+
+  ```
+  # Supabase PRODUCTION credentials
+  NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PRODUCTION_REF.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...production
+  SUPABASE_SERVICE_ROLE_KEY=eyJ...production-service
+
+  # App URL
+  NEXT_PUBLIC_SITE_URL=https://yourdomain.com
+
+  # Rate Limiting (same Upstash or new instance)
+  UPSTASH_REDIS_REST_URL=...
+  UPSTASH_REDIS_REST_TOKEN=...
+
+  # Error Tracking
+  NEXT_PUBLIC_SENTRY_DSN=...
+
+  # Cron
+  CRON_SECRET=...different-from-staging...
+
+  # Transactional Email
+  RESEND_API_KEY=re_...
+  RESEND_FROM_EMAIL=DockWalker <noreply@yourdomain.com>
+  ```
+
+- [ ] Configure custom domain in Vercel → Domains
+- [ ] Verify security headers active after first production deploy
+
+### 2c. Production Services (Add as needed)
+
+**Resend (transactional email) — needed for production:**
+
+- [ ] Verify domain (same as SMTP setup if done for staging)
+- [ ] Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Vercel (Production scope)
+
+**Push Notifications — needed before App Store:**
+
+- [ ] FCM: Firebase project → Cloud Messaging → service account JSON
+  - Set `FCM_PROJECT_ID` and `FCM_SERVICE_ACCOUNT_KEY` in Vercel (Production)
+- [ ] APNs: Apple Developer → Keys → APNs key (.p8)
+  - Set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY_PATH` in Vercel (Production)
+
+**Docky AI — needed before public launch:**
+
+- [ ] Set `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in Vercel (Production)
+- [ ] Bulk-index MCA document chunks into production Supabase `mca_document_chunks` table
+
+**Stripe — defer until monetisation decision:**
+
+- [ ] Create Stripe products/prices
+- [ ] Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*` in Vercel (Production)
+- [ ] Configure webhook endpoint: `https://yourdomain.com/api/webhooks/stripe`
+
+### 2d. Deep Links (before App Store submission)
+
+- [ ] Replace placeholder values:
+  - `apps/web/public/.well-known/apple-app-site-association` → real Team ID
+  - `apps/web/public/.well-known/assetlinks.json` → real SHA256 fingerprint
+  - `apps/web/ios/App/App/App.entitlements` → real domain
+  - `apps/web/android/app/src/main/AndroidManifest.xml` → real domain
+- [ ] Verify after deploy:
+  - iOS: `https://app-site-association.cdn-apple.com/a/v1/yourdomain.com`
+  - Android: `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://yourdomain.com`
+
+### 2e. App Store Submissions
+
+- [ ] iOS App Store Connect:
+  - Create listing, screenshots (6.7" + 6.1"), description (see `founder-drafts.md` § 6)
+  - Privacy policy URL (host the doc from `founder-drafts.md` § 2 on your domain)
+  - Build with production Capacitor config → archive → submit
+- [ ] Google Play Console:
+  - Create listing, screenshots, description
+  - Sign release AAB with keystore
+  - Upload
 
 ---
 
-## Quick Reference: All Environment Variables
+## Phase 3 — Branch Strategy & Deployment Flow
 
-```bash
-# Required
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
+Once staging and production are both live:
 
-# Payments
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_PRICE_CREW_PRO=
-STRIPE_PRICE_CREW_UNLIMITED=
-
-# Push — Android
-FCM_PROJECT_ID=
-FCM_SERVICE_ACCOUNT_KEY=
-
-# Push — iOS
-APNS_KEY_ID=
-APNS_TEAM_ID=
-APNS_BUNDLE_ID=com.dockwalker.app
-APNS_KEY_PATH=
-
-# Rate Limiting
-UPSTASH_REDIS_REST_URL=
-UPSTASH_REDIS_REST_TOKEN=
-
-# Transactional Email
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=
-
-# Error Tracking
-NEXT_PUBLIC_SENTRY_DSN=
-SENTRY_ORG=
-SENTRY_PROJECT=
-SENTRY_AUTH_TOKEN=
-
-# AI Advisor
-ANTHROPIC_API_KEY=
-OPENAI_API_KEY=
-DOCKY_MODEL=claude-haiku-4-5-20251001
-
-# Cron
-CRON_SECRET=
 ```
+feature-branch → PR (auto-deploys to staging preview) → test on staging → merge to main → auto-deploys to production
+```
+
+**Rules:**
+
+- Never push directly to `main`
+- Every change goes through a PR
+- PR preview URL = staging (points to staging Supabase)
+- Merging to `main` = production deploy (points to production Supabase)
+- Vercel handles the environment variable scoping automatically
+
+**Migrations:**
+
+- Test migrations on staging first: `npx supabase db push --project-ref STAGING_REF`
+- After staging validation, push to production: `npx supabase db push --project-ref PRODUCTION_REF`
+- Never run untested migrations against production
+
+---
+
+## Legal / Content (Do Anytime)
+
+- [ ] Review Terms of Service draft in `tasks/founder-drafts.md` § 1 — get lawyer review
+- [ ] Review Privacy Policy draft in `tasks/founder-drafts.md` § 2 — get lawyer review
+- [ ] Fill in placeholders: [COMPANY NAME], [JURISDICTION], [SUPPORT EMAIL], [DPO EMAIL]
+- [ ] Host both documents on your domain (or as app pages)
+- [ ] Wire footer links on landing page to hosted documents
+- [ ] Create OG image per spec in `tasks/founder-drafts.md` § 7
+- [ ] Cookie consent: determine if needed for your jurisdiction
+
+---
+
+## Security Principles (Read Once, Follow Always)
+
+1. **API keys never go in the codebase.** They live in Vercel environment variables, scoped per environment. The `.env.local` file is gitignored and only used for local development.
+
+2. **Different keys per environment.** Staging Supabase keys ≠ production Supabase keys. If staging is compromised, production is unaffected.
+
+3. **Service role key is the nuclear key.** It bypasses RLS. Only Vercel's server-side functions use it. Never expose it to the client. Never put it in `NEXT_PUBLIC_*` variables.
+
+4. **Rotate secrets periodically.** `CRON_SECRET`, API keys, Stripe webhook secret — rotate every 90 days or after any suspected compromise.
+
+5. **Vercel environment variable scoping:**
+   - **Production:** only used when deploying from `main` branch
+   - **Preview:** used for all PR preview deployments (your staging)
+   - **Development:** only used if you run `vercel dev` locally (optional — you use `.env.local` instead)
+
+6. **If an agent asks you to put a key in a file**, that's wrong. Keys go in Vercel Dashboard → Settings → Environment Variables. The codebase reads them via `process.env.VARIABLE_NAME`. The only file that contains keys is `.env.local` which is gitignored.

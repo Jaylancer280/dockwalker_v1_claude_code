@@ -1,8 +1,9 @@
-# Launch Readiness Assessment
+# Launch Readiness Assessment (ARCHIVED)
 
-> Created: 2026-03-18 | Baseline: Stage 94b | Last reviewed: 2026-03-18 (post-Stage 107 audit)
-> Mark items `[x]` as they're completed. Add stage number.
-> For external/config tasks, see `tasks/founder-todo.md`.
+> **This file is archived.** All items merged into `tasks/founder-todo.md` on 2026-03-26.
+> See `tasks/founder-todo.md` for the current launch checklist.
+>
+> Original: Created 2026-03-18 | Baseline: Stage 94b | Last reviewed: 2026-03-18 (post-Stage 107 audit)
 
 ---
 

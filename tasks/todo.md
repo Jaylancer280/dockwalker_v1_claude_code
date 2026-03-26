@@ -11,7 +11,7 @@
 
 ## Queue
 
-(empty — all pre-TestFlight fixes complete)
+(empty)
 
 ---
 
@@ -79,4 +79,4 @@ After vessels RLS fix resolves the name lookup, verify the vessel_type prefix (M
 
 ## Done
 
-(See git history for completed stages 51-152, UI-0 through UI-19, availability-model-overhaul, cron-trigger-fix, all fix batches, template name cap, messages test cleanup, pre-TestFlight native changes, workflow protocol, Playwright baseline, pre-TestFlight fix batch)
+(See git history for completed stages 51-152, UI-0 through UI-19, availability-model-overhaul, cron-trigger-fix, all fix batches, template name cap, messages test cleanup, pre-TestFlight native changes, workflow protocol, Playwright baseline, pre-TestFlight fix batch, rollback + test fixes)

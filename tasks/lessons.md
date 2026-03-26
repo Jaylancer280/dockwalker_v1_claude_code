@@ -72,6 +72,8 @@
 
 - **Tests are only as good as the seed data behind them:** If the seed doesn't have a scenario for a state you need to test, the test is meaningless — it will either test the wrong state or show an empty page and "pass." The testing agent is authorized to modify seed files in `supabase/seed/` to create the data its tests require. New seed data is additive — never modify existing scenarios that other tests depend on. After any seed change: reseed, verify, update the agent manual's seed ID tables.
 
+- **Screenshots are symptoms, not diagnoses — verify before logging:** A screenshot of an empty list could mean the query is broken (real bug), the data was correctly filtered (false positive), a previous test mutated state (test pollution), or the seed doesn't have the data you assumed (wrong assumption). The testing agent must read the relevant component and API code before logging any HIGH finding. 3 out of 17 initial findings were false positives because the agent guessed from screenshots instead of reading the code. Severity-based verification: HIGH requires code verification, MEDIUM requires component-level understanding, LOW can rely on screenshot evidence alone.
+
 - **Per-scenario timestamps in the registry are essential, not optional:** When iterating at 100+ commits in 20 days, "last tested 2026-03-26" is useless — a feature could be built, broken, and fixed three times in one day. Every scenario row must have a UTC minute-level timestamp so the testing agent can tell "this scenario was last verified at 15:30 but the route was modified at 16:10 — needs re-test."
 
 ## Procedures
