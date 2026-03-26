@@ -58,6 +58,22 @@
 
 - **When copying a component pattern, copy ALL its props — not just the data ones:** The `PermanentPostForm` copied `VesselSelector` usage from the daywork form but omitted `onRequestCreate`, leaving a dead "Add your first vessel" button. When replicating a component's usage from another page, check every prop the original passes — interaction callbacks are easy to miss because they don't cause TypeScript errors (they're optional props that silently default to undefined).
 
+- **Playwright "page loads" is not a meaningful test — check what rendered:** A page that renders an error message still "loads." A page showing "Failed to load applicants" passes `toBeVisible()`. A page with "No jobs found" when 5 jobs exist passes all load assertions. The testing agent must review screenshots for correctness, not just existence. Pattern: after every visual baseline capture, evaluate: is the data correct? Is the error state appropriate? Is content role-appropriate?
+
+- **Tab counts that disagree with tab content are a data source mismatch:** When a tab badge shows "(8)" but the tab content shows "No pending applications," the count query and list query use different data sources or filters. Never assume they're wired to the same endpoint. Both SUG-014 (Invitations) and SUG-015 (Applied) had this pattern — easy to catch if you click the tabs and look.
+
+- **Cross-route consistency requires explicit comparison, not memory:** The testing agent cannot notice that daywork certs use checkboxes while permanent certs use pills unless it screenshots both in the same test run and compares them. Humans see this in 3 minutes by switching tabs. Automated tests need a dedicated consistency spec that navigates to sibling routes and captures matching sections side by side. Always build consistency specs for: daywork ↔ permanent forms, crew ↔ employer ↔ agent versions of the same page, empty states across roles.
+
+- **Seed data expires — tests that depend on date-relative seed data will go stale:** The seed uses `current_date + interval '20 days'` for future postings and `current_date - interval '30 days'` for past engagements. These are always relative to "today." But availability expires after 7 days (`expires_at: now() + interval '7 days'`). If the DB isn't reseeded regularly, availability windows expire and discover shows "No jobs" even with valid postings. Always `npx supabase db reset` before a full test run.
+
+- **The testing agent must reseed before running:** `npx supabase db reset` should be the first action in every full test run. Without it, previous test runs may have mutated state (e.g., cancelling a posting in edge-case tests removes it from the active list), and date-relative seed data may have expired. The agent prompt should include this as a step 0.
+
+- **Destructive test actions pollute subsequent tests:** The edge-cases spec clicks "Cancel" on a real posting (DW-01), which actually cancels it in the database. Subsequent tests that expect 5 active postings now see 3. Either: (a) run destructive tests last, (b) reseed between spec runs, or (c) avoid clicking real destructive buttons — screenshot the confirmation state instead. Option (c) is preferred for the testing agent since it shouldn't modify app state.
+
+- **Tests are only as good as the seed data behind them:** If the seed doesn't have a scenario for a state you need to test, the test is meaningless — it will either test the wrong state or show an empty page and "pass." The testing agent is authorized to modify seed files in `supabase/seed/` to create the data its tests require. New seed data is additive — never modify existing scenarios that other tests depend on. After any seed change: reseed, verify, update the agent manual's seed ID tables.
+
+- **Per-scenario timestamps in the registry are essential, not optional:** When iterating at 100+ commits in 20 days, "last tested 2026-03-26" is useless — a feature could be built, broken, and fixed three times in one day. Every scenario row must have a UTC minute-level timestamp so the testing agent can tell "this scenario was last verified at 15:30 but the route was modified at 16:10 — needs re-test."
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)
@@ -80,6 +96,8 @@ After ANY session that includes a migration, before presenting changes:
 - **Every new UI component must be global, even if used once:** When creating a new UI element (toggle, empty state, loading spinner, bottom sheet, etc.), always create it as a shared component in `apps/web/src/components/` or `apps/web/src/components/ui/`. Never build UI patterns inline in page files — even if only one page uses it today. Inline components get duplicated when the next page needs the same pattern, creating inconsistency that compounds during reskins. A shared component restyled once propagates everywhere; an inline pattern must be found and fixed in every file.
 
 - **Client-side `.single()` on tables with permissive RLS fails silently when multiple rows exist:** The profiles table allows any authenticated user to read all active profiles. `.single()` without `.eq('person_id', ...)` returns an error when 2+ profiles exist, `.catch()` swallows it, and the state stays empty. Always filter by user ID or use the server API route (e.g., `safeFetch('/api/profile')`) which handles auth filtering server-side.
+
+- **Check existing planning artifacts before adding todo items:** The project has multiple planning files (`tasks/founder-todo.md`, `tasks/launch-readiness.md`, `tasks/todo.md`). Before adding new items to the queue — especially infrastructure, config, or launch-readiness items — read the other planning files first to avoid duplication. When in doubt about whether something belongs in the code todo vs the founder's external checklist, ask the user.
 
 ### Pre-commit aggregate_type audit (automated)
 

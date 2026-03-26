@@ -4,7 +4,7 @@
 > outside the codebase: account creation, credential setup, dashboard config, app store submissions.
 > Claude Code cannot do any of these. They block production launch regardless of code completeness.
 >
-> Last reviewed: 2026-03-18 (Stage 107 baseline)
+> Last reviewed: 2026-03-26 (planning agent audit)
 
 ---
 
@@ -54,19 +54,22 @@
   - `RESEND_FROM_EMAIL=DockWalker <noreply@yourdomain.com>`
 - [ ] Verify domain matches the DKIM/SPF records from SMTP setup above
 
-### Stripe (Subscriptions)
+### Stripe (Subscriptions) — IAP Bypass Flow
 
 - [ ] Create Stripe account (or use existing)
-- [ ] Create subscription products and prices in Stripe Dashboard:
-  - `crew_pro` plan — set price, interval
-  - `crew_unlimited` plan — set price, interval
+- [ ] **Decide subscription tiers:** tier names, what each tier unlocks, pricing, billing interval (monthly/annual). Code supports 2-4 tiers via a data-driven array — no code changes needed, just update the tier config
+- [ ] **Decide who pays:** currently only crew pay (employers free). If employers/agents get gated features later, decide now or defer
+- [ ] Create subscription products and prices in Stripe Dashboard for each decided tier
 - [ ] Note the price IDs and set in Vercel:
   - `STRIPE_SECRET_KEY`
   - `STRIPE_WEBHOOK_SECRET`
-  - `STRIPE_PRICE_CREW_PRO`
-  - `STRIPE_PRICE_CREW_UNLIMITED`
+  - `STRIPE_PRICE_CREW_PRO` (update name if tiers change)
+  - `STRIPE_PRICE_CREW_UNLIMITED` (update name if tiers change)
 - [ ] Configure Stripe webhook endpoint: `https://PRODUCTION_DOMAIN/api/webhooks/stripe`
   - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+- [ ] **Write the billing page copy:** tier descriptions, feature bullet points, "Email me" button text. No prices shown in-app (IAP bypass). The code renders whatever you put in the tier config array
+- [ ] **Write the subscription email copy:** the email users receive when they tap "Email me" — should explain the tier, link to the web purchase page, and feel trustworthy (not spammy)
+- [ ] **Test the full flow on a real device:** tap "Email me" in app → receive email → open link in Safari → pay on Stripe → return to app → verify subscription is active
 
 ### Push Notifications — FCM (Android)
 
@@ -142,6 +145,24 @@ These files exist with placeholders. Replace with real values before submitting 
 - [ ] Android: Sign release APK/AAB with your keystore
 - [ ] Android: Build with `npm run build:android` from `apps/web/`, upload to Play Console
 
+### Legal / Compliance
+
+- [ ] **Terms of Service document** — needed for app store submissions and landing page footer link (code has placeholder href ready)
+- [ ] **Privacy Policy document** — needed for app store submissions, landing page footer, and GDPR compliance. Should cover: data collected, event ledger retention, GDPR export/deletion, device fingerprint hashing, push notification data
+- [ ] **Cookie consent** — determine if needed for your jurisdiction. The web app uses localStorage (preferences) and Supabase auth cookies
+
+### Content / Copy
+
+- [ ] **OG social sharing image** — 1200x630px branded image for social media previews. Code expects it at `/images/brand/og-image.png`. DockWalker logo on dark navy (#0B1A2E) with tagline suggested
+- [ ] **Landing page footer links** — terms and privacy policy URLs once documents exist
+- [ ] **NDA toggle copy** — current text: "Hide vessel identity from crew until they accept a position." Review and approve or suggest alternative
+- [ ] **Confirmation overlay copy** — the daywork/permanent post confirmation overlay will show all posting details before submission. Review field labels and ordering once implemented
+
+### Firebase / Native
+
+- [ ] **Firebase iOS config:** Generate `GoogleService-Info.plist` from Firebase console, add to Xcode project (gitignored)
+- [ ] **Firebase Android config:** Generate `google-services.json` from Firebase console, place in `android/app/` (gitignored)
+
 ---
 
 ## Post-Launch
@@ -152,6 +173,7 @@ These files exist with placeholders. Replace with real values before submitting 
 - [ ] Review Stripe webhook logs for payment issues
 - [ ] Set up Stripe production webhook (test mode → live mode)
 - [ ] Consider adding CSP header once you've catalogued all inline scripts and external origins (complex with Next.js — defer until stable)
+- [ ] **Rotate `CRON_SECRET`** periodically — treat as a credential
 
 ---
 
