@@ -141,11 +141,8 @@ Profile edit mode shows `primary_role_id`, `experience_bracket_id`, `vessel_size
 
 ### UX: No template deletion
 
-Daywork and permanent templates can be saved and loaded but never deleted. Over time this list grows unbounded.
-
-- [ ] Add a delete button (trash icon) to each template in the template list on the post form
-- [ ] Wire to `DELETE /api/daywork/templates/:id` (or permanent equivalent) — check if these routes exist; if not, add them
-- [ ] Confirm RLS allows owner-only deletion
+- [x] Added trash icon button next to template select on both daywork and permanent post forms
+- [x] DELETE routes already existed for both — wired with owner-scoped RLS
 
 ### Fix: Notification read route doesn't validate IDs
 

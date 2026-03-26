@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Save } from 'lucide-react';
+import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -155,6 +155,20 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     setNotes(t.notes ?? '');
   }
 
+  async function handleDeleteTemplate() {
+    if (!selectedTemplateId) return;
+    const result = await safeFetch(`/api/permanent/templates/${selectedTemplateId}`, {
+      method: 'DELETE',
+    });
+    if (result.ok) {
+      setTemplates((prev) => prev.filter((t) => t.id !== selectedTemplateId));
+      setSelectedTemplateId('');
+      showSuccess('Template deleted');
+    } else {
+      showErrorToast('Failed to delete template');
+    }
+  }
+
   // Salary preview
   const salaryPreview = (() => {
     const min = parseFloat(salaryMin);
@@ -250,18 +264,30 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
       {templates.length > 0 && (
         <div className="mb-6">
           <Label>Load from template</Label>
-          <Select value={selectedTemplateId} onValueChange={loadTemplate}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a template..." />
-            </SelectTrigger>
-            <SelectContent>
-              {templates.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
-                  {t.template_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2">
+            <Select value={selectedTemplateId} onValueChange={loadTemplate}>
+              <SelectTrigger className="flex-1">
+                <SelectValue placeholder="Select a template..." />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.template_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedTemplateId && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-destructive"
+                onClick={handleDeleteTemplate}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

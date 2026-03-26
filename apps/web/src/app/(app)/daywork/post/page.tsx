@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Save } from 'lucide-react';
+import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,6 +135,7 @@ function DayworkPostForm() {
 
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -224,8 +225,23 @@ function DayworkPostForm() {
   }, []);
 
   function handleLoadTemplate(templateId: string) {
+    setSelectedTemplateId(templateId);
     const t = templates.find((x) => x.id === templateId);
     if (t) applyTemplate(t);
+  }
+
+  async function handleDeleteTemplate() {
+    if (!selectedTemplateId) return;
+    const result = await safeFetch(`/api/daywork/templates/${selectedTemplateId}`, {
+      method: 'DELETE',
+    });
+    if (result.ok) {
+      setTemplates((prev) => prev.filter((t) => t.id !== selectedTemplateId));
+      setSelectedTemplateId('');
+      showSuccess('Template deleted');
+    } else {
+      showErrorToast('Failed to delete template');
+    }
   }
 
   function toggleCert(id: string) {
@@ -353,18 +369,30 @@ function DayworkPostForm() {
         {templates.length > 0 && (
           <div className="flex flex-col gap-1.5">
             <Label>Load template</Label>
-            <Select onValueChange={handleLoadTemplate}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a template..." />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={selectedTemplateId} onValueChange={handleLoadTemplate}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select a template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedTemplateId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-destructive"
+                  onClick={handleDeleteTemplate}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
