@@ -91,8 +91,7 @@ workflows:
       - name: Increment build number
         script: |
           cd apps/web/ios/App
-          LATEST=$(app-store-connect get-latest-testflight-build-number "io.dockwalker.app" || echo "0")
-          agvtool new-version -all $(($LATEST + 1))
+          agvtool new-version -all $PROJECT_BUILD_NUMBER
 
       - name: Build iOS
         script: |
