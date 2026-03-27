@@ -14,7 +14,6 @@ workflows:
         NEXT_PUBLIC_SITE_URL: https://dockwalker.io
       node: 22
       xcode: latest
-      cocoapods: default
     triggering:
       events:
         - push
@@ -30,8 +29,6 @@ workflows:
       - name: Configure Capacitor for remote server
         script: |
           cd apps/web
-          # Write a capacitor.config.ts that points to the staging URL
-          # instead of bundling a static export
           cat > capacitor.config.ts << 'CAPEOF'
           import type { CapacitorConfig } from '@capacitor/cli';
           const config: CapacitorConfig = {
@@ -84,6 +81,13 @@ workflows:
           cd apps/web/ios/App
           xcode-project use-profiles
 
+      - name: Resolve Swift packages
+        script: |
+          cd apps/web/ios/App
+          xcodebuild -resolvePackageDependencies \
+            -project App.xcodeproj \
+            -scheme App
+
       - name: Increment build number
         script: |
           cd apps/web/ios/App
@@ -94,7 +98,7 @@ workflows:
         script: |
           cd apps/web/ios/App
           xcode-project build-ipa \
-            --workspace "App.xcworkspace" \
+            --project "App.xcodeproj" \
             --scheme "App"
 
     artifacts:
