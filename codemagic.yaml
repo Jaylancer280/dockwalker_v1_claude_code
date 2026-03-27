@@ -36,7 +36,7 @@ workflows:
             appName: 'DockWalker',
             webDir: 'public',
             server: {
-              url: 'https://dockwalker-staging.vercel.app',
+              url: 'https://dockwalker.io',
               cleartext: false,
             },
             plugins: {
