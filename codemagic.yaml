@@ -81,17 +81,15 @@ workflows:
           cd apps/web/ios/App
           xcode-project use-profiles
 
-      - name: Fix app icon (remove alpha channel, ensure 1024x1024)
+      - name: Fix app icon (remove alpha channel)
         script: |
           ICON="apps/web/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"
-          # Convert RGBA to RGB by flattening onto navy background
-          python3 -c "
-          from PIL import Image
-          img = Image.open('$ICON').convert('RGBA')
-          bg = Image.new('RGBA', img.size, (11, 26, 46, 255))
-          bg.paste(img, mask=img)
-          bg.convert('RGB').resize((1024, 1024), Image.LANCZOS).save('$ICON')
-          "
+          # sips is built into macOS — no dependencies needed
+          sips -s format png -s formatOptions nointerlace "$ICON" --out /tmp/icon_clean.png
+          # Remove alpha by converting to jpg then back to png (sips trick)
+          sips -s format jpeg /tmp/icon_clean.png --out /tmp/icon_noa.jpg
+          sips -s format png /tmp/icon_noa.jpg --out "$ICON"
+          sips -z 1024 1024 "$ICON"
 
       - name: Resolve Swift packages
         script: |
