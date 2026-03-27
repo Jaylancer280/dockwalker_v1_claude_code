@@ -27,14 +27,48 @@ workflows:
           cd apps/web
           npm ci
 
-      - name: Build Next.js static export
+      - name: Configure Capacitor for remote server
         script: |
           cd apps/web
-          CAPACITOR_BUILD=1 npm run build
+          # Write a capacitor.config.ts that points to the staging URL
+          # instead of bundling a static export
+          cat > capacitor.config.ts << 'CAPEOF'
+          import type { CapacitorConfig } from '@capacitor/cli';
+          const config: CapacitorConfig = {
+            appId: 'io.dockwalker.app',
+            appName: 'DockWalker',
+            webDir: 'public',
+            server: {
+              url: 'https://dockwalker-staging.vercel.app',
+              cleartext: false,
+            },
+            plugins: {
+              SplashScreen: {
+                launchAutoHide: true,
+                launchShowDuration: 2000,
+                backgroundColor: '#0B1A2E',
+                showSpinner: false,
+              },
+              StatusBar: {
+                style: 'LIGHT',
+                backgroundColor: '#FFFFFF',
+              },
+              PushNotifications: {
+                presentationOptions: ['badge', 'sound', 'alert'],
+              },
+            },
+            ios: {
+              scheme: 'DockWalker',
+              contentInset: 'always',
+            },
+          };
+          export default config;
+          CAPEOF
 
       - name: Sync Capacitor
         script: |
           cd apps/web
+          mkdir -p public
           npx cap sync ios
 
       - name: Set up code signing
