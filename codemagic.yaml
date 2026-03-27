@@ -99,7 +99,8 @@ workflows:
           cd apps/web/ios/App
           xcode-project build-ipa \
             --project "App.xcodeproj" \
-            --scheme "App"
+            --scheme "App" \
+            --archive-xcargs "CODE_SIGN_STYLE=Manual"
 
     artifacts:
       - apps/web/ios/App/build/ios/ipa/*.ipa
