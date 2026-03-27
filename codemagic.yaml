@@ -38,6 +38,7 @@ workflows:
             server: {
               url: 'https://dockwalker.io',
               cleartext: false,
+              allowNavigation: ['dockwalker.io', '*.dockwalker.io', '*.supabase.co'],
             },
             plugins: {
               SplashScreen: {
