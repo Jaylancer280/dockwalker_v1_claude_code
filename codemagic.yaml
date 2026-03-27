@@ -12,7 +12,7 @@ workflows:
       vars:
         NEXT_PUBLIC_SUPABASE_URL: https://hwpcuehqawullzqbmcdv.supabase.co
         NEXT_PUBLIC_SITE_URL: https://dockwalker.io
-      node: 20
+      node: 22
       xcode: latest
       cocoapods: default
     triggering:
