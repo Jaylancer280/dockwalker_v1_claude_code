@@ -132,6 +132,25 @@ async function checkRelationshipContext(
 
   if (permAppContext && permAppContext.length > 0) return true;
 
+  // 5. Active poster context — target has an active daywork or permanent posting
+  const { data: activeDaywork } = await supabase
+    .from('dayworks')
+    .select('id')
+    .eq('poster_person_id', targetId)
+    .eq('status', 'active')
+    .limit(1);
+
+  if (activeDaywork && activeDaywork.length > 0) return true;
+
+  const { data: activePerm } = await supabase
+    .from('permanent_postings')
+    .select('id')
+    .eq('employer_person_id', targetId)
+    .eq('status', 'active')
+    .limit(1);
+
+  if (activePerm && activePerm.length > 0) return true;
+
   return false;
 }
 

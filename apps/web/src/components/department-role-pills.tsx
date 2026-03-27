@@ -131,7 +131,7 @@ export function DepartmentRolePills({ roles, value, onValueChange }: DepartmentR
               <button
                 type="button"
                 onClick={() => toggleDept(dept.department)}
-                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-[var(--accent-lo)]"
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors hover:bg-[var(--accent-lo)]"
               >
                 {isExpanded ? (
                   <ChevronDown className="h-3 w-3" />

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
+import { metersToFeet } from '@/lib/units';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
 import { VesselDetailsSection } from '../_components/vessel-details-section';
@@ -209,7 +210,14 @@ export default function AddExperiencePage() {
           vesselType={vesselType}
           setVesselType={setVesselType}
           loaMeters={loaMeters}
-          setLoaMeters={setLoaMeters}
+          setLoaMeters={(v) => {
+            const m = Number(v);
+            if (lengthUnit === 'ft' && Number.isFinite(m) && m > 0) {
+              setLoaMeters(String(Math.round(metersToFeet(m))));
+            } else {
+              setLoaMeters(v);
+            }
+          }}
         />
 
         {/* Vessel details — shown when not using existing vessel */}

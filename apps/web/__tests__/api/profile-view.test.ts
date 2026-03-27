@@ -59,7 +59,7 @@ describe('GET /api/profile/[personId]', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 403 when no relationship context', async () => {
+  it('returns 403 when no relationship context and no active postings', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     // Engagement check — no results
@@ -70,11 +70,68 @@ describe('GET /api/profile/[personId]', () => {
     mockFrom.mockReturnValueOnce(mockChain([]));
     // Permanent application check — no results
     mockFrom.mockReturnValueOnce(mockChain([]));
+    // Active daywork check — no results
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Active permanent posting check — no results
+    mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.error).toContain("don't have access");
+  });
+
+  it('returns 200 when target has active daywork posting (no prior relationship)', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    // Engagement check — no results
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Application check — no results
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Invitation check — no results
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Permanent application check — no results
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Active daywork check — has active posting
+    mockFrom.mockReturnValueOnce(mockChain([{ id: 'dw-1' }]));
+
+    // Profile fetch
+    const employerProfile = {
+      person_id: 'p2',
+      display_name: 'Active Poster',
+      identity_type: 'crew',
+      bio: null,
+      primary_role_id: null,
+      certification_ids: [],
+      experience_bracket_id: null,
+      vessel_size_exposure_ids: [],
+      location_port_id: null,
+      location_city_id: null,
+      nationality_id: null,
+      visa_ids: [],
+      languages: [],
+      agency_name: null,
+      role_specialization_ids: [],
+      yacht_roles: null,
+      desired_roles: null,
+      experience_brackets: null,
+      ports: null,
+      location_cities: null,
+      nationalities: null,
+      avatar_url: null,
+      deck_name: null,
+      permanent_availability: null,
+      notice_period_days: null,
+    };
+    mockFrom.mockReturnValueOnce(mockChain(employerProfile));
+
+    // Experiences fetch
+    mockFrom.mockReturnValueOnce(mockChain([]));
+
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.display_name).toBe('Active Poster');
   });
 
   it('returns 200 for crew profile when engagement context exists', async () => {

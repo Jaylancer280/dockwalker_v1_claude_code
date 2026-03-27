@@ -19,6 +19,7 @@ import { ContractDetailsInput } from '@/components/contract-details-input';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
 import { VesselDetailsSection } from '@/app/(app)/profile/_components/vessel-details-section';
 import { usePreferences } from '@/hooks/use-preferences';
+import { metersToFeet } from '@/lib/units';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 interface FlagState {
@@ -218,6 +219,18 @@ function ExperienceEntryCard({
     () => (v: string) => updateEntry(entry.key, 'vessel', { loaMeters: v }),
     [entry.key, updateEntry],
   );
+  // Convert metres from IMO lookup to display units
+  const handleLoaFromLookup = useMemo(
+    () => (v: string) => {
+      const m = Number(v);
+      if (lengthUnit === 'ft' && Number.isFinite(m) && m > 0) {
+        updateEntry(entry.key, 'vessel', { loaMeters: String(Math.round(metersToFeet(m))) });
+      } else {
+        updateEntry(entry.key, 'vessel', { loaMeters: v });
+      }
+    },
+    [entry.key, updateEntry, lengthUnit],
+  );
 
   return (
     <div className="flex flex-col gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4">
@@ -254,7 +267,7 @@ function ExperienceEntryCard({
         vesselType={entry.vessel.vesselType}
         setVesselType={setVesselType}
         loaMeters={entry.vessel.loaMeters}
-        setLoaMeters={setLoaMeters}
+        setLoaMeters={handleLoaFromLookup}
       />
 
       {/* Vessel details — shown when not using existing vessel */}

@@ -110,6 +110,9 @@ export default function DiscoverPage() {
   // Profile readiness for nudge card
   const [profileIncomplete, setProfileIncomplete] = useState(false);
 
+  // Redirecting (employer/agent hit this page via client-side nav)
+  const [redirecting, setRedirecting] = useState(false);
+
   // Discover feed error
   const [feedError, setFeedError] = useState<string | null>(null);
 
@@ -162,6 +165,7 @@ export default function DiscoverPage() {
       result.ok &&
       (result.data as { person?: { identity_type?: string } }).person?.identity_type === 'agent'
     ) {
+      setRedirecting(true);
       window.location.href = '/discover/market';
       return;
     }
@@ -170,6 +174,7 @@ export default function DiscoverPage() {
       result.ok &&
       (result.data as { person?: { current_hat?: string } }).person?.current_hat === 'employer'
     ) {
+      setRedirecting(true);
       window.location.href = '/daywork/mine';
       return;
     }
@@ -541,6 +546,14 @@ export default function DiscoverPage() {
       setFilterPermanentExpBracketId('');
       setFilterPermanentSizeBandId('');
     }
+  }
+
+  if (redirecting) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Redirecting...</p>
+      </main>
+    );
   }
 
   return (
