@@ -24,6 +24,7 @@ import { safeFetch } from '@/lib/safe-fetch';
 import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
+import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
 
 interface Vessel {
   id: string;
@@ -217,6 +218,18 @@ function CreateVesselForm({
   const [ndaFlag, setNdaFlag] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [useExisting, setUseExisting] = useState(false);
+  const [existingVesselId, setExistingVesselId] = useState('');
+
+  // When ImoLookupSection sets loaMeters (always in metres), convert to display unit
+  function handleLoaFromLookup(metersStr: string) {
+    const m = Number(metersStr);
+    if (lengthUnit === 'ft' && Number.isFinite(m) && m > 0) {
+      setLoaInput(String(Math.round(metersToFeet(m))));
+    } else {
+      setLoaInput(metersStr);
+    }
+  }
 
   // Derive LOA in meters and matching band from the input
   const loaNum = Number(loaInput);
@@ -236,6 +249,12 @@ function CreateVesselForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Vessel found via lookup — already exists in DB, just refresh
+    if (useExisting && existingVesselId) {
+      onCreated();
+      return;
+    }
 
     if (loaMeters == null || loaMeters < 1) {
       setError('Please enter a valid vessel length');
@@ -264,73 +283,80 @@ function CreateVesselForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="imo">IMO number (required)</Label>
-        <Input
-          id="imo"
-          placeholder="7 digits"
-          value={imoNumber}
-          onChange={(e) => setImoNumber(e.target.value)}
-          maxLength={7}
-          required
-        />
-      </div>
+      <ImoLookupSection
+        imoNumber={imoNumber}
+        setImoNumber={setImoNumber}
+        useExisting={useExisting}
+        setUseExisting={setUseExisting}
+        existingVesselId={existingVesselId}
+        setExistingVesselId={setExistingVesselId}
+        vesselName={name}
+        setVesselName={setName}
+        vesselType={(vesselType || 'motor') as 'motor' | 'sail'}
+        setVesselType={(v) => setVesselType(v)}
+        loaMeters={loaInput}
+        setLoaMeters={handleLoaFromLookup}
+      />
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Vessel type</Label>
-        <Select value={vesselType} onValueChange={setVesselType} required>
-          <SelectTrigger>
-            <SelectValue placeholder="Select type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="motor">Motor (M/Y)</SelectItem>
-            <SelectItem value="sail">Sail (S/Y)</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {!useExisting && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <Label>Vessel type</Label>
+            <Select value={vesselType} onValueChange={setVesselType} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="motor">Motor (M/Y)</SelectItem>
+                <SelectItem value="sail">Sail (S/Y)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="vesselName">Vessel name</Label>
-        <div className="flex">
-          <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-            {vesselType === 'sail' ? 'S/Y' : 'M/Y'}
-          </span>
-          <Input
-            id="vesselName"
-            placeholder="Vessel Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded-l-none"
-            required
-          />
-        </div>
-      </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="vesselName">Vessel name</Label>
+            <div className="flex">
+              <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                {vesselType === 'sail' ? 'S/Y' : 'M/Y'}
+              </span>
+              <Input
+                id="vesselName"
+                placeholder="Vessel Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="rounded-l-none"
+                required
+              />
+            </div>
+          </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="loa">Length overall ({lengthUnit === 'ft' ? 'feet' : 'metres'})</Label>
-        <Input
-          id="loa"
-          type="text"
-          inputMode="decimal"
-          placeholder={lengthUnit === 'ft' ? 'e.g. 131' : 'e.g. 40'}
-          value={loaInput}
-          onChange={(e) => setLoaInput(e.target.value)}
-          required
-        />
-        {matchedBand && (
-          <p className="text-xs text-muted-foreground">
-            Size band: {convertSizeBandLabel(matchedBand.label, lengthUnit)}
-          </p>
-        )}
-        {loaInput && !matchedBand && loaMeters != null && (
-          <p className="text-xs text-destructive">
-            Minimum vessel size is{' '}
-            {lengthUnit === 'ft'
-              ? `${Math.round(metersToFeet(sizeBands[0]?.min_meters ?? 24))}ft`
-              : `${sizeBands[0]?.min_meters ?? 24}m`}
-          </p>
-        )}
-      </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="loa">Length overall ({lengthUnit === 'ft' ? 'feet' : 'metres'})</Label>
+            <Input
+              id="loa"
+              type="text"
+              inputMode="decimal"
+              placeholder={lengthUnit === 'ft' ? 'e.g. 131' : 'e.g. 40'}
+              value={loaInput}
+              onChange={(e) => setLoaInput(e.target.value)}
+              required
+            />
+            {matchedBand && (
+              <p className="text-xs text-muted-foreground">
+                Size band: {convertSizeBandLabel(matchedBand.label, lengthUnit)}
+              </p>
+            )}
+            {loaInput && !matchedBand && loaMeters != null && (
+              <p className="text-xs text-destructive">
+                Minimum vessel size is{' '}
+                {lengthUnit === 'ft'
+                  ? `${Math.round(metersToFeet(sizeBands[0]?.min_meters ?? 24))}ft`
+                  : `${sizeBands[0]?.min_meters ?? 24}m`}
+              </p>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="flex items-center justify-between rounded-lg border border-border p-3">
         <div>

@@ -15,18 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { currencySymbol } from '@/lib/units';
-import { EpauletteBadge } from '@/components/epaulette-badge';
+import { DepartmentRolePills } from '@/components/department-role-pills';
+import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
+import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -124,11 +119,9 @@ function DayworkPostForm() {
     (draft?.experienceBracketId as string) ?? '',
   );
   const [dayRate, setDayRate] = useState((draft?.dayRate as string) ?? '');
+  const prefs = usePreferences();
   const [currency, setCurrency] = useState(
-    () =>
-      ((draft?.currency as string) ??
-        (typeof window !== 'undefined' && localStorage.getItem('dw-currency-pref'))) ||
-      'EUR',
+    () => (draft?.currency as string) ?? prefs.currency ?? 'EUR',
   );
   const [meals, setMeals] = useState<MealOption[]>((draft?.meals as MealOption[]) ?? []);
   const [notes, setNotes] = useState((draft?.notes as string) ?? '');
@@ -187,9 +180,8 @@ function DayworkPostForm() {
   // Templates
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
-  const [savingTemplate, setSavingTemplate] = useState(false);
 
   function applyTemplate(t: Template) {
     // Reset all fields to defaults first so switching from a fuller template
@@ -307,7 +299,6 @@ function DayworkPostForm() {
 
   async function handleSaveTemplate() {
     if (!templateName.trim()) return;
-    setSavingTemplate(true);
 
     const result = await safeFetch<{ error?: string }>('/api/daywork/templates', {
       method: 'POST',
@@ -332,7 +323,7 @@ function DayworkPostForm() {
 
     if (result.ok) {
       showSuccess('Template saved');
-      setSaveDialogOpen(false);
+      setSaveAsTemplate(false);
       setTemplateName('');
       const templatesResult = await safeFetch<{ templates?: Template[] }>('/api/daywork/templates');
       if (templatesResult.ok && templatesResult.data.templates)
@@ -340,13 +331,6 @@ function DayworkPostForm() {
     } else {
       showErrorToast(result.error);
     }
-    setSavingTemplate(false);
-  }
-
-  function openSaveDialog() {
-    const roleName = roles.find((r) => r.id === roleId)?.name;
-    setTemplateName(roleName ?? '');
-    setSaveDialogOpen(true);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -392,6 +376,10 @@ function DayworkPostForm() {
     });
 
     if (result.ok) {
+      // Save template alongside if checkbox is checked
+      if (saveAsTemplate && templateName.trim()) {
+        await handleSaveTemplate();
+      }
       showSuccess('Daywork posted');
       router.push('/daywork/mine');
     } else {
@@ -461,24 +449,12 @@ function DayworkPostForm() {
 
         {/* Role */}
         <div className="flex flex-col gap-1.5">
-          <Label className="flex items-center gap-2">
-            Role needed
-            {roleId && roles.find((r) => r.id === roleId)?.name && (
-              <EpauletteBadge roleName={roles.find((r) => r.id === roleId)!.name} size="sm" />
-            )}
-          </Label>
-          <Select value={roleId} onValueChange={setRoleId} required>
-            <SelectTrigger>
-              <SelectValue placeholder="Select role" />
-            </SelectTrigger>
-            <SelectContent>
-              {roles.map((role) => (
-                <SelectItem key={role.id} value={role.id}>
-                  {role.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Role needed</Label>
+          <DepartmentRolePills
+            roles={roles.filter((r): r is typeof r & { department: string } => !!r.department)}
+            value={roleId}
+            onValueChange={setRoleId}
+          />
         </div>
 
         {/* Location */}
@@ -552,18 +528,12 @@ function DayworkPostForm() {
         {/* Experience bracket */}
         <div className="flex flex-col gap-1.5">
           <Label>Minimum experience (optional)</Label>
-          <Select value={experienceBracketId} onValueChange={setExperienceBracketId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Any experience level" />
-            </SelectTrigger>
-            <SelectContent>
-              {brackets.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <ExperienceBracketPills
+            brackets={brackets}
+            value={experienceBracketId}
+            onValueChange={setExperienceBracketId}
+            optional
+          />
         </div>
 
         {/* Required certs */}
@@ -658,12 +628,16 @@ function DayworkPostForm() {
         {/* Notes */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="notes">Notes (optional)</Label>
-          <Input
+          <textarea
             id="notes"
-            placeholder="Any additional details"
+            className="w-full rounded-md border bg-[var(--card)] px-3 py-2 text-sm"
+            rows={3}
+            maxLength={500}
+            placeholder="Job description, requirements, benefits..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+          <p className="text-right text-xs text-muted-foreground">{notes.length}/500</p>
         </div>
 
         {/* Permanent opportunity */}
@@ -680,17 +654,33 @@ function DayworkPostForm() {
           </p>
         </div>
 
+        {/* Save as template */}
+        <div className="space-y-2 rounded-lg border p-3">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="saveTemplate"
+              checked={saveAsTemplate}
+              onCheckedChange={(v) => setSaveAsTemplate(v === true)}
+            />
+            <Label htmlFor="saveTemplate" className="cursor-pointer">
+              <Save className="mr-1 inline h-4 w-4" />
+              Save as template
+            </Label>
+          </div>
+          {saveAsTemplate && (
+            <Input
+              placeholder="Template name"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+            />
+          )}
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="flex gap-2">
-          <Button type="submit" disabled={loading} className="flex-1">
-            {loading ? 'Posting...' : 'Post daywork'}
-          </Button>
-          <Button type="button" variant="outline" onClick={openSaveDialog}>
-            <Save className="mr-1 h-4 w-4" />
-            Save template
-          </Button>
-        </div>
+        <Button type="submit" disabled={loading} className="w-full">
+          {loading ? 'Posting...' : 'Post daywork'}
+        </Button>
       </form>
 
       {/* Post confirmation overlay */}
@@ -761,32 +751,6 @@ function DayworkPostForm() {
           </div>
         </div>
       </BottomSheet>
-
-      {/* Save template dialog */}
-      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Save as template</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="templateName">Template name</Label>
-            <Input
-              id="templateName"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-              placeholder="e.g. Deckhand — Port Vauban"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveTemplate} disabled={savingTemplate || !templateName.trim()}>
-              {savingTemplate ? 'Saving...' : 'Save'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

@@ -480,11 +480,34 @@ describe('POST /api/availability', () => {
     expect(body.error).toContain('does not belong');
   });
 
-  it('returns 400 on notAvailable without cityId', async () => {
+  it('returns 200 on notAvailable without cityId (location not required)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockRpc.mockResolvedValueOnce({ error: null });
 
     const res = await POST(
       makeRequest({ notAvailable: true }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.notAvailable).toBe(true);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'AVAILABILITY.SET',
+        p_payload: expect.objectContaining({
+          city_id: null,
+          not_available: true,
+        }),
+      }),
+    );
+  });
+
+  it('returns 400 on normal availability without cityId', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const res = await POST(
+      makeRequest({ startDate: futureDate(1), endDate: futureDate(3) }),
     );
     expect(res.status).toBe(400);
     const body = await res.json();

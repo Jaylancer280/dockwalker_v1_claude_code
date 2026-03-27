@@ -72,11 +72,14 @@ vi.mock('@/lib/haptics', () => ({
 // Mock supabase client
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'u1' } }, error: null }),
+    },
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         order: vi.fn().mockResolvedValue({ data: [] }),
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null }),
+          single: vi.fn().mockResolvedValue({ data: { current_hat: 'employer' } }),
         }),
       }),
     }),

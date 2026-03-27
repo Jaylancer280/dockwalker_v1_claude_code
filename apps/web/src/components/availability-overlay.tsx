@@ -107,7 +107,7 @@ export function AvailabilityOverlay({
 
   // City is required for setting availability. Clearing all doesn't need a city.
   const isValid =
-    isClearingAll || (locationValue?.cityId && (notAvailable || selectedDates.size > 0));
+    isClearingAll || notAvailable || (locationValue?.cityId && selectedDates.size > 0);
 
   async function handleConfirm() {
     if (!isValid || submitting) return;
@@ -136,8 +136,8 @@ export function AvailabilityOverlay({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             notAvailable: true,
-            cityId: locationValue?.cityId,
-            portId: locationValue?.portId,
+            cityId: locationValue?.cityId ?? null,
+            portId: locationValue?.portId ?? null,
           }),
         });
         if (result.ok) {
@@ -401,7 +401,7 @@ export function AvailabilityOverlay({
                 ? 'Confirm not available'
                 : 'Confirm availability'}
           </Button>
-          {!isValid && !isClearingAll && (
+          {!isValid && !isClearingAll && !notAvailable && (
             <p className="mt-1.5 text-center text-xs text-destructive">
               {!locationValue?.cityId
                 ? 'Please select a location'

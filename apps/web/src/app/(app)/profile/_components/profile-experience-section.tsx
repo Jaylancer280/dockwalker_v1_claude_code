@@ -90,14 +90,11 @@ export function ProfileExperienceSection({
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           )}
         </button>
-        {expandedSections.experience && experiences.length === 0 && (
-          <button
-            onClick={onAddExperience}
-            className="flex items-center gap-2 px-4 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
-          >
-            Add your vessel experience — it auto-derives your role, experience level, and vessel
-            size exposure
-          </button>
+        {experiences.length === 0 && (
+          <Button variant="outline" className="mx-4 gap-2" onClick={onAddExperience}>
+            <Plus className="h-4 w-4" />
+            Add your vessel experience
+          </Button>
         )}
         {expandedSections.experience && experiences.length > 0 && (
           <>

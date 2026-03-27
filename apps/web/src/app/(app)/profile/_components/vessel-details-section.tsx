@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -9,6 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { metersToFeet, convertSizeBandLabel } from '@/lib/units';
+
+interface SizeBand {
+  id: string;
+  label: string;
+  min_meters: number;
+  max_meters: number | null;
+}
 
 export interface VesselDetailsSectionProps {
   vesselType: 'motor' | 'sail';
@@ -17,6 +26,8 @@ export interface VesselDetailsSectionProps {
   setVesselName: (v: string) => void;
   loaMeters: string;
   setLoaMeters: (v: string) => void;
+  lengthUnit?: 'm' | 'ft';
+  sizeBands?: SizeBand[];
 }
 
 export function VesselDetailsSection({
@@ -26,8 +37,26 @@ export function VesselDetailsSection({
   setVesselName,
   loaMeters,
   setLoaMeters,
+  lengthUnit = 'm',
+  sizeBands,
 }: VesselDetailsSectionProps) {
   const vesselPrefix = vesselType === 'sail' ? 'S/Y' : 'M/Y';
+
+  // Derive LOA in meters for size band matching
+  const loaNum = Number(loaMeters);
+  const loaInMeters = useMemo(() => {
+    if (!loaMeters || !Number.isFinite(loaNum) || loaNum <= 0) return null;
+    return lengthUnit === 'ft' ? loaNum / 3.28084 : loaNum;
+  }, [loaMeters, loaNum, lengthUnit]);
+
+  const matchedBand = useMemo(() => {
+    if (!loaInMeters || !sizeBands) return null;
+    return (
+      sizeBands.find(
+        (b) => loaInMeters >= b.min_meters && (b.max_meters === null || loaInMeters < b.max_meters),
+      ) ?? null
+    );
+  }, [loaInMeters, sizeBands]);
 
   return (
     <>
@@ -64,14 +93,27 @@ export function VesselDetailsSection({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label>LOA (meters)</Label>
+        <Label>LOA ({lengthUnit === 'ft' ? 'feet' : 'metres'})</Label>
         <Input
-          type="number"
-          placeholder="45"
+          type="text"
+          inputMode="decimal"
+          placeholder={lengthUnit === 'ft' ? 'e.g. 131' : 'e.g. 40'}
           value={loaMeters}
           onChange={(e) => setLoaMeters(e.target.value)}
-          min={1}
         />
+        {matchedBand && (
+          <p className="text-xs text-muted-foreground">
+            Size band: {convertSizeBandLabel(matchedBand.label, lengthUnit)}
+          </p>
+        )}
+        {loaMeters && !matchedBand && loaInMeters != null && sizeBands && sizeBands.length > 0 && (
+          <p className="text-xs text-destructive">
+            Minimum vessel size is{' '}
+            {lengthUnit === 'ft'
+              ? `${Math.round(metersToFeet(sizeBands[0].min_meters))}ft`
+              : `${sizeBands[0].min_meters}m`}
+          </p>
+        )}
       </div>
     </>
   );

@@ -9,8 +9,6 @@ import { AvatarUpload } from '@/components/avatar-upload';
 import { NotificationBell } from '@/components/notification-bell';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { HatSwitcher } from '@/components/hat-switcher';
@@ -532,12 +530,7 @@ export default function ProfilePage() {
                   />
                 </div>
               </>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <Label>Display name</Label>
-                <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
 

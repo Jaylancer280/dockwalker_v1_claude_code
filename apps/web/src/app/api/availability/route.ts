@@ -115,13 +115,80 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const { startDate, endDate, cityId, portId, notAvailable } = body;
 
-  if (!cityId) {
-    return NextResponse.json({ error: 'cityId is required' }, { status: 400 });
-  }
-
   // Not-available uses 7-day TTL; normal availability uses per-date expiry (computed server-side in apply_projection)
   const notAvailableExpiresAt = new Date();
   notAvailableExpiresAt.setDate(notAvailableExpiresAt.getDate() + 7);
+
+  // "Not available" path: explicit declaration, no dates or city needed
+  if (notAvailable) {
+    // Validate cityId if provided
+    if (cityId) {
+      const { data: cityCheck } = await serviceClient
+        .from('cities')
+        .select('id')
+        .eq('id', cityId)
+        .single();
+
+      if (!cityCheck) {
+        return NextResponse.json({ error: 'Invalid cityId' }, { status: 400 });
+      }
+    }
+
+    // Validate portId belongs to cityId if both provided
+    if (portId && cityId) {
+      const { data: portCheck } = await serviceClient
+        .from('ports')
+        .select('id, city_id')
+        .eq('id', portId)
+        .single();
+
+      if (!portCheck) {
+        return NextResponse.json({ error: 'Invalid portId' }, { status: 400 });
+      }
+
+      if (portCheck.city_id !== cityId) {
+        return NextResponse.json(
+          { error: 'Port does not belong to the selected city' },
+          { status: 400 },
+        );
+      }
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    try {
+      await appendEvent(serviceClient, {
+        eventType: 'AVAILABILITY.SET',
+        aggregateId: user.id,
+        aggregateType: 'person',
+        roleContext: 'crew',
+        payload: {
+          start_date: todayStr,
+          end_date: todayStr,
+          expires_at: notAvailableExpiresAt.toISOString(),
+          city_id: cityId ?? null,
+          port_id: portId ?? null,
+          not_available: true,
+        },
+        personId: user.id,
+      });
+
+      return NextResponse.json({
+        success: true,
+        notAvailable: true,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to set availability';
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
+  }
+
+  // Normal availability path: cityId required
+  if (!cityId) {
+    return NextResponse.json({ error: 'cityId is required' }, { status: 400 });
+  }
 
   // Validate portId belongs to cityId if both provided
   if (portId) {
@@ -140,50 +207,6 @@ export async function POST(request: Request) {
         { error: 'Port does not belong to the selected city' },
         { status: 400 },
       );
-    }
-  }
-
-  // "Not available" path: explicit declaration, no dates needed
-  if (notAvailable) {
-    // Validate cityId exists
-    const { data: cityCheck } = await serviceClient
-      .from('cities')
-      .select('id')
-      .eq('id', cityId)
-      .single();
-
-    if (!cityCheck) {
-      return NextResponse.json({ error: 'Invalid cityId' }, { status: 400 });
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-
-    try {
-      await appendEvent(serviceClient, {
-        eventType: 'AVAILABILITY.SET',
-        aggregateId: user.id,
-        aggregateType: 'person',
-        roleContext: 'crew',
-        payload: {
-          start_date: todayStr,
-          end_date: todayStr,
-          expires_at: notAvailableExpiresAt.toISOString(),
-          city_id: cityId,
-          port_id: portId ?? null,
-          not_available: true,
-        },
-        personId: user.id,
-      });
-
-      return NextResponse.json({
-        success: true,
-        notAvailable: true,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to set availability';
-      return NextResponse.json({ error: message }, { status: 500 });
     }
   }
 

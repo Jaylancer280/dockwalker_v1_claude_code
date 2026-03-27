@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,25 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const router = useRouter();
+
+  // Poll for confirmed session after signup success
+  useEffect(() => {
+    if (!success) return;
+
+    const supabase = createClient();
+    const interval = setInterval(async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        router.push('/onboarding');
+      }
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [success, router]);
+
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -69,6 +89,9 @@ export default function SignUpPage() {
                 We&apos;ve sent a confirmation link to <strong>{email}</strong>. Click the link to
                 complete your sign up.
               </CardDescription>
+              <p className="mt-2 text-xs text-muted-foreground">
+                This page will update automatically once you confirm.
+              </p>
             </CardHeader>
           </Card>
           <Link

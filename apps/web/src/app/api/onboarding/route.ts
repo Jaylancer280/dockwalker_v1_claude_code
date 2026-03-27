@@ -199,6 +199,8 @@ export async function POST(request: Request) {
             contractType?: string;
             contractDetails?: string;
             description?: string;
+            seaTimeDays?: number;
+            seaTimeNauticalMiles?: number;
           };
         };
 
@@ -283,6 +285,14 @@ export async function POST(request: Request) {
                 | 'temporary') ?? null,
             contract_details: experience.contractDetails ?? null,
             description: experience.description ?? null,
+            sea_time_days:
+              experience.seaTimeDays != null
+                ? Math.max(0, Math.round(experience.seaTimeDays))
+                : null,
+            sea_time_nautical_miles:
+              experience.seaTimeNauticalMiles != null
+                ? Math.max(0, Math.round(experience.seaTimeNauticalMiles))
+                : null,
           },
           personId: user.id,
         });

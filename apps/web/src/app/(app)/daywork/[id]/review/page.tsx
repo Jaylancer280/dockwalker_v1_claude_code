@@ -71,6 +71,27 @@ export default function ReviewApplicantsPage() {
     role_name: string | null;
   }>({ job_number: null, role_name: null });
 
+  // Client-side hat guard: redirect crew away from employer review page
+  // (middleware handles full page loads; this catches client-side navigation)
+  useEffect(() => {
+    const supabase = createClient();
+    async function checkHat() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: person } = await supabase
+        .from('persons')
+        .select('current_hat')
+        .eq('id', user.id)
+        .single();
+      if (person?.current_hat === 'crew') {
+        router.push('/discover');
+      }
+    }
+    checkHat();
+  }, [router]);
+
   // Load certifications for filter dropdown + daywork meta for invite dialog
   useEffect(() => {
     const supabase = createClient();

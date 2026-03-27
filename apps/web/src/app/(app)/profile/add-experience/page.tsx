@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
+import { usePreferences } from '@/hooks/use-preferences';
 import { ChevronLeft, Loader2 } from 'lucide-react';
-import { ImoLookupSection } from '../_components/imo-lookup-section';
+import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
 import { VesselDetailsSection } from '../_components/vessel-details-section';
 import { ExperienceDetailsSection } from '../_components/experience-details-section';
 import { PrivateIntelligenceSection } from '../_components/private-intelligence-section';
@@ -23,11 +24,20 @@ interface FlagState {
   name: string;
 }
 
+interface SizeBand {
+  id: string;
+  label: string;
+  min_meters: number;
+  max_meters: number | null;
+}
+
 export default function AddExperiencePage() {
   const router = useRouter();
   const { showError, showSuccess } = useToast();
+  const { lengthUnit } = usePreferences();
   const [roles, setRoles] = useState<RoleItem[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
+  const [sizeBands, setSizeBands] = useState<SizeBand[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -65,13 +75,18 @@ export default function AddExperiencePage() {
   const loadLookups = useCallback(async () => {
     try {
       const supabase = createClient();
-      const [rolesRes, flagsRes, profileRes] = await Promise.all([
+      const [rolesRes, flagsRes, bandsRes, profileRes] = await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
         supabase.from('flag_states').select('id, name').order('sort_order'),
+        supabase
+          .from('vessel_size_bands')
+          .select('id, label, min_meters, max_meters')
+          .order('sort_order'),
         safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
       if (flagsRes.data) setFlagStates(flagsRes.data);
+      if (bandsRes.data) setSizeBands(bandsRes.data);
       if (profileRes.ok && profileRes.data.person?.identity_type === 'agent') {
         setIsAgent(true);
       }
@@ -103,7 +118,10 @@ export default function AddExperiencePage() {
           imoNumber,
           name: vesselName,
           vesselType,
-          loaMeters: Number(loaMeters),
+          loaMeters:
+            Math.round(
+              (lengthUnit === 'ft' ? Number(loaMeters) / 3.28084 : Number(loaMeters)) * 100,
+            ) / 100,
           ndaFlag: false,
         }),
       });
@@ -203,6 +221,8 @@ export default function AddExperiencePage() {
             setVesselName={setVesselName}
             loaMeters={loaMeters}
             setLoaMeters={setLoaMeters}
+            lengthUnit={lengthUnit as 'm' | 'ft'}
+            sizeBands={sizeBands}
           />
         )}
 

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const authError = searchParams.get('error');
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -47,6 +49,13 @@ export default function LoginPage() {
           />
           <h1 className="text-xl font-bold tracking-tight">DockWalker</h1>
         </div>
+
+        {authError === 'auth_failed' && (
+          <p className="w-full rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+            We couldn&apos;t verify your email automatically. Please sign in with your email and
+            password.
+          </p>
+        )}
 
         <Card className="w-full">
           <CardHeader>

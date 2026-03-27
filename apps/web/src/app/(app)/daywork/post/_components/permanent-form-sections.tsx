@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/select';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
-import { EpauletteBadge } from '@/components/epaulette-badge';
+import { DepartmentRolePills } from '@/components/department-role-pills';
+import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
 import { type CurrencyCode } from '@/lib/units';
 import { LANGUAGES } from '@/lib/languages';
 
@@ -66,24 +67,12 @@ export function RoleLocationSection({
 
       {/* Role */}
       <div>
-        <Label className="flex items-center gap-2">
-          Role
-          {roleId && roles.find((r) => r.id === roleId)?.name && (
-            <EpauletteBadge roleName={roles.find((r) => r.id === roleId)!.name} size="sm" />
-          )}
-        </Label>
-        <Select value={roleId} onValueChange={setRoleId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select role..." />
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((r) => (
-              <SelectItem key={r.id} value={r.id}>
-                {r.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label>Role</Label>
+        <DepartmentRolePills
+          roles={roles.filter((r): r is typeof r & { department: string } => !!r.department)}
+          value={roleId}
+          onValueChange={setRoleId}
+        />
       </div>
 
       {/* Location */}
@@ -333,19 +322,12 @@ export function RequirementsSection({
       {/* Experience bracket */}
       <div>
         <Label>Minimum experience (optional)</Label>
-        <Select value={experienceBracketId} onValueChange={setExperienceBracketId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Any experience level" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="any">Any</SelectItem>
-            {experienceBrackets.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <ExperienceBracketPills
+          brackets={experienceBrackets}
+          value={experienceBracketId}
+          onValueChange={setExperienceBracketId}
+          optional
+        />
       </div>
     </>
   );

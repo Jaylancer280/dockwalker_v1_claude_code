@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
+import { usePreferences } from '@/hooks/use-preferences';
+import { feetToMeters } from '@/lib/units';
 
 import { WelcomeStep } from './_components/welcome-step';
 import { IdentityStep } from './_components/identity-step';
@@ -31,6 +33,13 @@ interface FlagState {
   name: string;
 }
 
+interface SizeBandFull {
+  id: string;
+  label: string;
+  min_meters: number;
+  max_meters: number | null;
+}
+
 function emptyExperienceEntry(): VesselExperienceEntry {
   return {
     key: crypto.randomUUID(),
@@ -54,12 +63,15 @@ function emptyExperienceEntry(): VesselExperienceEntry {
       contractType: '',
       contractDetails: '',
       description: '',
+      seaTimeDays: '',
+      seaTimeNauticalMiles: '',
     },
   };
 }
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { lengthUnit } = usePreferences();
   const [step, setStep] = useState<Step>('welcome');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,7 +118,6 @@ export default function OnboardingPage() {
   const [experienceEntries, setExperienceEntries] = useState<VesselExperienceEntry[]>([
     emptyExperienceEntry(),
   ]);
-  const [lookingUpImo, setLookingUpImo] = useState<string | null>(null);
 
   // Hat selection
   const [hat, setHat] = useState<HatType | null>(null);
@@ -131,6 +142,7 @@ export default function OnboardingPage() {
   const [certs, setCerts] = useState<LookupItem[]>([]);
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
+  const [sizeBandsFull, setSizeBandsFull] = useState<SizeBandFull[]>([]);
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [nationalities, setNationalities] = useState<
     { id: string; name: string; flag_emoji: string }[]
@@ -148,7 +160,10 @@ export default function OnboardingPage() {
           supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
           supabase.from('certifications').select('id, name, category').order('sort_order'),
           supabase.from('experience_brackets').select('id, label').order('sort_order'),
-          supabase.from('vessel_size_bands').select('id, label').order('sort_order'),
+          supabase
+            .from('vessel_size_bands')
+            .select('id, label, min_meters, max_meters')
+            .order('sort_order'),
           supabase.from('flag_states').select('id, name').order('sort_order'),
           supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
           supabase.from('visa_types').select('id, name').order('sort_order'),
@@ -156,7 +171,10 @@ export default function OnboardingPage() {
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
       if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
-      if (sizesRes.data) setSizeBands(sizesRes.data.map((s) => ({ ...s, name: s.label })));
+      if (sizesRes.data) {
+        setSizeBands(sizesRes.data.map((s) => ({ ...s, name: s.label })));
+        setSizeBandsFull(sizesRes.data as SizeBandFull[]);
+      }
       if (flagsRes.data) setFlagStates(flagsRes.data);
       if (nationalitiesRes.data) setNationalities(nationalitiesRes.data);
       if (visaTypesRes.data) setVisaTypes(visaTypesRes.data);
@@ -166,40 +184,6 @@ export default function OnboardingPage() {
   }, [needsLookups, lookupsLoaded]);
 
   const lookupsLoading = needsLookups && !lookupsLoaded;
-
-  const lookupImo = useCallback(async (entryKey: string, imoNumber: string) => {
-    const imoClean = imoNumber.replace(/\D/g, '');
-    if (imoClean.length !== 7) return;
-
-    setLookingUpImo(entryKey);
-    try {
-      const result = await safeFetch<{
-        found: boolean;
-        vessel?: { name: string; vessel_type?: 'motor' | 'sail'; loa_meters: number; id: string };
-      }>(`/api/vessels/lookup?imo=${imoClean}`);
-      if (result.ok && result.data.found && result.data.vessel) {
-        setExperienceEntries((prev) =>
-          prev.map((e) =>
-            e.key === entryKey
-              ? {
-                  ...e,
-                  vessel: {
-                    ...e.vessel,
-                    name: result.data.vessel!.name,
-                    vesselType: result.data.vessel!.vessel_type ?? 'motor',
-                    loaMeters: String(result.data.vessel!.loa_meters),
-                    useExisting: true,
-                    existingVesselId: result.data.vessel!.id,
-                  },
-                }
-              : e,
-          ),
-        );
-      }
-    } finally {
-      setLookingUpImo(null);
-    }
-  }, []);
 
   function updateEntry(
     key: string,
@@ -267,7 +251,12 @@ export default function OnboardingPage() {
                   imoNumber: e.vessel.imoNumber,
                   name: e.vessel.name,
                   vesselType: e.vessel.vesselType,
-                  loaMeters: Number(e.vessel.loaMeters) || 0,
+                  loaMeters:
+                    Math.round(
+                      (lengthUnit === 'ft'
+                        ? feetToMeters(Number(e.vessel.loaMeters))
+                        : Number(e.vessel.loaMeters)) * 100,
+                    ) / 100 || 0,
                 },
                 experience: {
                   roleId: e.experience.roleId,
@@ -284,6 +273,12 @@ export default function OnboardingPage() {
                   contractType: e.experience.contractType || undefined,
                   contractDetails: e.experience.contractDetails || undefined,
                   description: e.experience.description || undefined,
+                  seaTimeDays: e.experience.seaTimeDays
+                    ? Number(e.experience.seaTimeDays)
+                    : undefined,
+                  seaTimeNauticalMiles: e.experience.seaTimeNauticalMiles
+                    ? Number(e.experience.seaTimeNauticalMiles)
+                    : undefined,
                 },
               }))
           : [];
@@ -414,11 +409,10 @@ export default function OnboardingPage() {
       <VesselExperienceStep
         experienceEntries={experienceEntries}
         setExperienceEntries={setExperienceEntries}
-        lookingUpImo={lookingUpImo}
         error={error}
         roles={roles}
         flagStates={flagStates}
-        lookupImo={lookupImo}
+        sizeBands={sizeBandsFull}
         updateEntry={updateEntry}
         removeEntry={removeEntry}
         addEntry={() => setExperienceEntries((prev) => [...prev, emptyExperienceEntry()])}

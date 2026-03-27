@@ -373,15 +373,13 @@ describe('Post Daywork page — employer form dropdowns', () => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
     });
 
-    // Roles
-    for (const role of MOCK_ROLES) {
-      expect(screen.getByText(role.name)).toBeInTheDocument();
-    }
+    // Roles — now inside DepartmentRolePills (collapsed by default, search visible)
+    expect(screen.getByPlaceholderText(/search roles/i)).toBeInTheDocument();
 
     // Location picker — rendered as mocked component
     expect(screen.getByTestId('location-picker')).toBeInTheDocument();
 
-    // Experience brackets
+    // Experience brackets — now rendered as pills (always visible)
     for (const bracket of MOCK_BRACKETS) {
       expect(screen.getByText(bracket.label)).toBeInTheDocument();
     }

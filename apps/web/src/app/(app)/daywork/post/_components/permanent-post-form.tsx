@@ -143,11 +143,16 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     Promise.all([
       supabase.from('yacht_roles').select('id, name, department').order('name'),
       supabase.from('certifications').select('id, name').order('name'),
-      supabase.from('experience_brackets').select('id, name').order('id'),
+      supabase.from('experience_brackets').select('id, label').order('sort_order'),
     ]).then(([rolesRes, certsRes, bracketsRes]) => {
       setRoles((rolesRes.data ?? []) as LookupItem[]);
       setCertifications((certsRes.data ?? []) as LookupItem[]);
-      setExperienceBrackets((bracketsRes.data ?? []) as LookupItem[]);
+      setExperienceBrackets(
+        (bracketsRes.data ?? []).map((b: { id: string; label: string }) => ({
+          ...b,
+          name: b.label,
+        })) as LookupItem[],
+      );
     });
 
     safeFetch<{ templates?: PermanentTemplate[] }>('/api/permanent/templates').then((result) => {

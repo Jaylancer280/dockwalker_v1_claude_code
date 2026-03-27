@@ -218,6 +218,9 @@
 - [Fix UI-0] Wire shared primitives — EmptyState adopted in 12 files (25 refs), LoadingSpinner in 15 files (41 refs), SegmentedToggle in 2 files, UnderlineTabs in 3 files, BottomSheet in 5 chat overlays; 91 total adoptions replacing inline patterns; 856 tests pass
 - [Pre-TestFlight fix batch] 9 fixes for shipping — (1) vessels RLS: 3 new SELECT policies for non-owner reads (migration 00074), 6 integration tests; (2) employer /discover redirect (middleware + client); (3) crew /review redirect (middleware regex); (4) profile banner narrowed to email-prefix only; (5) discover feed error state; (6) applied tab error handling + placement_confirmed terminal status (migration 00075); (7) daywork mine cancel confirmation dialog; (8) cert/language pills unified across daywork/permanent forms; (9) availability timezone date-only comparison; 860 unit + 53 integration tests pass
 
+- [Fix batch 153] UX fixes — (1) signup page polls for confirmed session every 3s, auto-redirects to /onboarding when email confirmed in other tab; (2) login page shows info message on `?error=auth_failed` query param; (3) availability overlay + API allow "not available" without city selection (cityId optional when notAvailable: true); (4) removed duplicate "Display name" input from profile page avatar section; (5) experience section empty-state CTA visible even when section is collapsed (Button with Plus icon); 870 tests pass
+- [Fix 154] SUG fixes — SUG-001: added client-side hat guard on review page (crew redirected to /discover on client-side navigation); SUG-004/011/016 verified already fixed in pre-TestFlight batch (migration 00074, cancel dialog, middleware+client redirect); updated review-available-tab test mock for new auth.getUser() call; 870 tests pass
+
 ## Current Schema Version
 
 v75 — Vessels RLS + placement_confirmed status (75 migrations applied)
