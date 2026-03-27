@@ -296,8 +296,6 @@ describe('GET /api/profile/[personId]', () => {
       ]),
     );
 
-
-
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
     const body = await res.json();
