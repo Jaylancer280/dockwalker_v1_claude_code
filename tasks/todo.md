@@ -11,90 +11,11 @@ Mobile Phase 3: Employer Flows — post jobs, my jobs, review applicants, templa
 
 ## Queue
 
-### 0. Stage 166 review fixes
-
-#### 0a. BUG — Vessel selector response shape mismatch
-
-`apps/mobile/src/components/vessel-selector.tsx:52` — `result.data.vessel.id` will crash. The vessel API (`POST /api/vessels`) returns `{ id: "uuid" }`, not `{ vessel: { id } }`.
-
-- [x] Changed `result.data.vessel.id` to `result.data.id`` to `result.data.id`on line 52 of vessel-selector.tsx. Update the generic type on line 47 from`apiPost<{ vessel: { id: string } }>`to`apiPost<{ id: string }>`.
-
-#### 0b. BUG — Vessel selector treats IMO + LOA as optional
-
-`apps/mobile/src/components/vessel-selector.tsx:44-45` — IMO and LOA are conditionally sent. The vessel API requires ALL four fields: `imoNumber`, `name`, `vesselType`, `loaMeters` (returns 400 if any missing). The UI labels IMO "(optional)" and LOA "(metres, optional)" — they are not.
-
-- [x] Made IMO required: remove "(optional)" from the label on line 85. Add validation in `handleCreate`: if `!newImo.trim()` or `newImo.trim().length !== 7`, show `Alert.alert('IMO number required', 'Enter a valid 7-digit IMO number')` and return.
-- [x] Made LOA required: remove "(optional)" from the label on line 113. Add validation: if `!newLoa.trim()` or `parseFloat(newLoa) <= 0`, show `Alert.alert('LOA required', 'Enter the vessel length in metres')` and return.
-- [x] Always send both fields: remove the `if` guards on lines 44-45. Always set `body.imoNumber = newImo.trim()` and `body.loaMeters = parseFloat(newLoa)`.
-
-#### 0c. My Jobs hooks should be separate files
-
-`apps/mobile/app/(app)/(tabs)/my-jobs.tsx:45-69` inlines two data hooks. Phase 2 pattern puts hooks in `src/hooks/`. Extract for reuse (review screens may need the same data).
-
-- [x] Extracted hooks to separate files()`to`apps/mobile/src/hooks/use-my-dayworks.ts`and`useMyPermanent()`to`apps/mobile/src/hooks/use-my-permanent.ts`. Import them in my-jobs.tsx.
-
----
-
-### 1. Vessel selector + shared form components (DONE)
-
-- [x] Created `use-vessels.ts`` — TanStack Query hook, direct Supabase read of `vessels`table where`owner_person_id = user.id`. Returns list of user's vessels with name, type, size band, NDA flag.
-- [x] Created `vessel-selector.tsx`` — bottom sheet listing user's vessels as selectable cards (M/Y or S/Y prefix, name, size band). "Add vessel" button at bottom opens inline vessel creation form (name, IMO, vessel type motor/sail, LOA). Vessel creation calls `apiPost('/api/vessels')`.
-
-#### 1b. Form picker components
-
-Mobile-native versions of the web's form pickers. Reuse canonical data hooks from Phase 2.
-
-- [x] Created `form-role-picker.tsx`.tsx`— bottom sheet with hierarchical department → role selection. Uses`useRoles()`canonical hook +`rolesToGroups()`from`@dockwalker/shared`. Single-select, returns role ID.
-- [x] Created `form-location-picker.tsx`.tsx`— bottom sheet with region → city → port drill-down. Uses`usePorts()` canonical hook. Returns port ID.
-- [x] Created `form-cert-picker.tsx`.tsx`— bottom sheet with multi-select cert pills grouped by category. Uses`useCertifications()`. Returns array of cert IDs.
-- [x] Created `form-language-picker.tsx`.tsx`— bottom sheet with multi-select language pills. Uses`LANGUAGES`from`@dockwalker/shared`. Returns array of language codes.
-
----
-
-### 2. Tab navigator update (hat-conditional)
-
-**Context:** Employer/agent hat needs the My Jobs tab visible before anything else in Phase 3 can be navigated to. This is a prerequisite for all employer screens.
-
-- [x] Tab layout conditionally show "Discover" tab for crew hat, "My Jobs" tab for employer/agent hat. Both tabs exist in the file system but only the relevant one shows in the tab bar based on `person.current_hat`. Crew sees: Discover, Messages, Profile, Notifications, More. Employer/agent sees: My Jobs, Messages, Profile, Notifications, More.
-
----
-
-### 3. My Jobs screen
-
-**Context:** Employer's job management hub. Everything else in Phase 3 navigates from here. Reads via Vercel API (mine routes have complex aggregation). Reference: web's `apps/web/src/app/(app)/daywork/mine/page.tsx`.
-
-#### 3a. API utility + My Jobs data hooks
-
-- [x] Added `apiGet`<T>(path: string): Promise<ApiResult<T>>`to`apps/mobile/src/lib/api.ts`— same auth pattern as`apiPost` (Bearer token, 15s timeout, safe JSON parsing). Multiple hooks in Phase 3 depend on this.
-- [x] Created `use-my-dayworks`.ts`— TanStack Query hook calling`apiGet('/api/daywork/mine')`. Returns daywork postings with status, positions_available, positions_filled, role/port/vessel joins.
-- [x] Created `use-my-permanent`.ts`— TanStack Query hook calling`apiGet('/api/permanent/mine')`. Returns permanent postings with status, applicant_count, shortlist_count, selected_crew_name, role/port/vessel joins.
-
-#### 3b. My Jobs screen with tabs
-
-- [x] Created `my-jobs.tsx`` — replaces the placeholder. Tab layout with segments: Active, In Progress, Done, Templates
-- [x] **Active tab:** FlashList of active daywork + permanent postings. Each card shows: job reference, role, vessel, dates/salary, positions, applicant count badge. Tap navigates to review screen. Filter: daywork `status === 'active'` with `positions_filled < positions_available`; permanent `status === 'active'`.
-- [x] **In Progress tab:** Daywork postings where `positions_filled > 0` (crew accepted, engagements running). Permanent postings where `status === 'in_negotiation'` (candidate selected). Card shows "Go to chat" linking to messages.
-- [x] **Done tab:** Daywork with `status === 'closed'`. Permanent with `status === 'closed'`. Reduced opacity. Read-only.
-- [x] **Templates tab:** Placeholder list for now — template CRUD wired in item 9.
-- [x] Pull-to-refresh on all tabs
-- [x] "Post" header button action button or header button — navigates to post type selector (item 4)
-
----
-
-### 4. Post type selector
-
-**Context:** Entry point to posting — user chooses daywork or permanent. Navigated to from the "Post" button on My Jobs.
-
-- [x] Created `post.tsx` choice screen with two large cards: "Daywork — Short-term cover, 1-14 days" and "Permanent — Long-term position, structured hiring". Tapping navigates to the respective form.
-- [x] Hat guard: crew redirected to discover
-
----
-
 ### 5. Post daywork form
 
 **Context:** Employer/agent posts a daywork job. All fields match the web form. Submits to `POST /api/daywork`. Reference: web's `apps/web/src/app/(app)/daywork/post/page.tsx`.
 
-- [ ] Create `apps/mobile/app/(app)/post-daywork.tsx` — scrollable form wrapped in `KeyboardAwareScrollView` (from `react-native-keyboard-controller`). Fields:
+- [x] Created `post-daywork.tsx`` — scrollable form wrapped in `KeyboardAwareScrollView`(from`react-native-keyboard-controller`). Fields:
   - Vessel selector (required)
   - Role picker (required)
   - Location picker (required)
@@ -108,10 +29,10 @@ Mobile-native versions of the web's form pickers. Reuse canonical data hooks fro
   - Notes (textarea)
   - Positions available (numeric input, 1-20)
   - Permanent opportunity toggle
-- [ ] "Load from template" button at top — opens template selector bottom sheet (wired in item 9)
-- [ ] Submit calls `apiPost('/api/daywork', body)` — on success, navigate back to My Jobs
-- [ ] Validation: required fields enforced before submit, working days <= date span
-- [ ] Hat guard: only employer/agent hat can access
+- [x] "Load from template" placeholder (wired in item 9)
+- [x] Submit calls `apiPost("/api/daywork", body)`)` — on success, navigate back to My Jobs
+- [x] Validation: required fields, working days <= date span <= date span
+- [x] Hat guard: crew redirected to discover
 
 **Deliberately omitted for mobile:** `workingDayDates` (optional per-day date selection). The API accepts it but mobile uses the simpler working days count only.
 
@@ -121,7 +42,7 @@ Mobile-native versions of the web's form pickers. Reuse canonical data hooks fro
 
 **Context:** Employer/agent posts a permanent job. Submits to `POST /api/permanent`. Reference: web's `apps/web/src/app/(app)/daywork/post/_components/permanent-post-form.tsx`.
 
-- [ ] Create `apps/mobile/app/(app)/post-permanent.tsx` — scrollable form in `KeyboardAwareScrollView`. Fields:
+- [x] Created `post-permanent.tsx`` — scrollable form in `KeyboardAwareScrollView`. Fields:
   - Vessel selector (required)
   - Role picker (required)
   - Location picker (required)
@@ -138,10 +59,10 @@ Mobile-native versions of the web's form pickers. Reuse canonical data hooks fro
   - Meals (checkboxes)
   - Positions available (numeric, 1-20)
   - Notes (textarea)
-- [ ] "Load from template" button at top (wired in item 9)
-- [ ] Submit calls `apiPost('/api/permanent', body)` — on success, navigate back to My Jobs
-- [ ] Validation: required fields enforced, salary max >= salary min
-- [ ] Hat guard: only employer/agent hat can access
+- [x] "Load from template" placeholder (wired in item 9)
+- [x] Submit calls `apiPost("/api/permanent", body)`)` — on success, navigate back to My Jobs
+- [x] Validation: required fields, salary max >= min
+- [x] Hat guard: crew redirected to discover
 
 ---
 
@@ -262,4 +183,4 @@ Mobile-native versions of the web's form pickers. Reuse canonical data hooks fro
 
 ## Done
 
-(See git history for completed stages 51-165, UI-0 through UI-19, all fix batches, workflow protocol, Playwright baseline, rollback + test fixes, SUG fixes, UI consistency 1-3, Codemagic CI, app icon, bundle ID, Capacitor dead-end cleanup, mobile Phase 1 monorepo + shell + auth, mobile Phase 2 discovery + swipe + Fix 165)
+(See git history for completed stages 51-166, UI-0 through UI-19, all fix batches, workflow protocol, Playwright baseline, rollback + test fixes, SUG fixes, UI consistency 1-3, Codemagic CI, app icon, bundle ID, Capacitor dead-end cleanup, mobile Phase 1 monorepo + shell + auth, mobile Phase 2 discovery + swipe + Fix 165, pre-Phase 3 audit fixes, Stage 166 employer foundations: vessel selector, form pickers, hat-conditional tabs, My Jobs screen, post type selector, apiGet, shared grouping extraction + Fix 166)
