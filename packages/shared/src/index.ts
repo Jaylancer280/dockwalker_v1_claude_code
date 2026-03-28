@@ -23,3 +23,9 @@ export {
   type EpauletteInfo,
   getEpaulette,
 } from './epaulettes';
+
+export {
+  type PillGroup,
+  rolesToGroups,
+  certsToGroups,
+} from './grouping';

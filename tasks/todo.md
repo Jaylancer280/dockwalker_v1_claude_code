@@ -11,48 +11,13 @@ Mobile Phase 3: Employer Flows — post jobs, my jobs, review applicants, templa
 
 ## Queue
 
-### 0. Audit fixes — bugs from Phase 1-2 (must fix before Phase 3)
+### 0. Remaining audit fix
 
-**Context:** Zero-trust audit of all code since ground zero (7f3f2f5) found 3 critical bugs and 3 high-severity issues. These must be fixed first — Phase 3 builds on top of broken foundations otherwise.
+#### 0e. Person type cast masks missing columns
 
-#### 0a. CRITICAL — Onboarding sends invalid identity type
+`apps/mobile/src/lib/auth-context.tsx:58` — `setPerson(data as Person)` casts a 3-column query result to the full `Person` type (5 fields). `created_at` and `deactivated_at` are `undefined` at runtime but TypeScript thinks they're `string` and `string | null`. If future code accesses `person.created_at`, no type error — just a runtime crash.
 
-`apps/mobile/app/onboarding.tsx:49` hardcodes `identityType: 'individual'`. The API validates against `['crew', 'agent']` and returns 400. The catch block on line 62 silently routes to `/`, creating an infinite redirect loop (no person record → back to onboarding → fails → back to app → no person...).
-
-- [x] Changed `identityType: 'crew'` as the default for the Phase 1 shell (crew-first onboarding)
-- [x] Remove the silent `catch { router.replace('/') }` — replace with `Alert.alert` showing the error message. Do NOT route to app on failure.
-- [x] Add a comment: `// TODO Phase 5: replace hardcoded values with real form inputs (identity type, role, certs, experience)`
-
-#### 0b. CRITICAL — Availability overlay missing required cityId
-
-`apps/mobile/src/components/availability-overlay.tsx:86-89` POSTs to `/api/availability` with only `startDate` and `endDate`. The API returns 400 "cityId is required". No location picker exists in the overlay. Crew cannot set availability → cannot apply to daywork.
-
-- [x] Add a city picker to the availability overlay — reuse `usePorts()` canonical hook for the region → city drill-down. The overlay needs a city selector above the date grid. Port is optional (pass if user selects one, omit if not).
-- [x] Pass cityId, portId })` call
-
-#### 0c. CRITICAL — app.json missing bundle ID and app name
-
-`apps/mobile/app.json` has `"name": "mobile"`, `"slug": "mobile"`, no `ios.bundleIdentifier`, no `android.package`. Spec requires `io.dockwalker.app`.
-
-- [x] Set name to DockWalker"`and`"slug": "dockwalker"` in app.json
-- [x] Add ios bundleIdentifier": "io.dockwalker.app" }` to app.json
-- [x] Add android package": "io.dockwalker.app" }` to app.json
-
-#### 0d. HIGH — Install missing dependencies for Phase 3
-
-- [x] Installed react-hook-form + zod + @hookform/resolvers zod`in`apps/mobile/` — required for post forms (items 5 and 6)
-
-#### 0e. HIGH — Person interface incomplete
-
-`apps/mobile/src/lib/auth-context.tsx:6-10` — Person interface is missing `created_at` and `deactivated_at`. Import `Person` from `@dockwalker/types` instead of defining a local subset.
-
-- [x] Replaced local Person interface with @dockwalker/types import } from '@dockwalker/types'` — the select query can stay as-is (only fetching 3 columns), but the type should match the full model so downstream code gets type errors if it accesses columns that weren't fetched
-
-#### 0f. HIGH — No ESLint import boundary enforcement
-
-Spec Section 8 requires mobile to block imports of `next`, `react-dom`, `@supabase/ssr`. Currently no `no-restricted-imports` rule exists.
-
-- [x] Added no-restricted-imports ESLint rule`ESLint rule to`apps/mobile/eslint.config.js`blocking:`next`, `next/_`, `react-dom`, `react-dom/_`, `@supabase/ssr`
+- [x] Changed `person` state type to `Pick<Person, 'id' | 'current_hat' | 'identity_type'> | null` in auth-context.tsx. Update `AuthContextValue.person` to match. Remove the `as Person` cast on line 58 (the query return type should now satisfy the Pick).
 
 ---
 
@@ -62,17 +27,17 @@ Spec Section 8 requires mobile to block imports of `next`, `react-dom`, `@supaba
 
 #### 1a. Vessel selector
 
-- [ ] Create `apps/mobile/src/hooks/use-vessels.ts` — TanStack Query hook, direct Supabase read of `vessels` table where `owner_person_id = user.id`. Returns list of user's vessels with name, type, size band, NDA flag.
-- [ ] Create `apps/mobile/src/components/vessel-selector.tsx` — bottom sheet listing user's vessels as selectable cards (M/Y or S/Y prefix, name, size band). "Add vessel" button at bottom opens inline vessel creation form (name, IMO, vessel type motor/sail, LOA). Vessel creation calls `apiPost('/api/vessels')`.
+- [x] Created `use-vessels.ts`` — TanStack Query hook, direct Supabase read of `vessels`table where`owner_person_id = user.id`. Returns list of user's vessels with name, type, size band, NDA flag.
+- [x] Created `vessel-selector.tsx`` — bottom sheet listing user's vessels as selectable cards (M/Y or S/Y prefix, name, size band). "Add vessel" button at bottom opens inline vessel creation form (name, IMO, vessel type motor/sail, LOA). Vessel creation calls `apiPost('/api/vessels')`.
 
 #### 1b. Form picker components
 
 Mobile-native versions of the web's form pickers. Reuse canonical data hooks from Phase 2.
 
-- [ ] Create `apps/mobile/src/components/form-role-picker.tsx` — bottom sheet with hierarchical department → role selection. Uses `useRoles()` canonical hook + `rolesToGroups()` from `@dockwalker/shared`. Single-select, returns role ID.
-- [ ] Create `apps/mobile/src/components/form-location-picker.tsx` — bottom sheet with region → city → port drill-down. Uses `usePorts()` canonical hook. Returns port ID.
-- [ ] Create `apps/mobile/src/components/form-cert-picker.tsx` — bottom sheet with multi-select cert pills grouped by category. Uses `useCertifications()`. Returns array of cert IDs.
-- [ ] Create `apps/mobile/src/components/form-language-picker.tsx` — bottom sheet with multi-select language pills. Uses `LANGUAGES` from `@dockwalker/shared`. Returns array of language codes.
+- [x] Created `form-role-picker.tsx`.tsx`— bottom sheet with hierarchical department → role selection. Uses`useRoles()`canonical hook +`rolesToGroups()`from`@dockwalker/shared`. Single-select, returns role ID.
+- [x] Created `form-location-picker.tsx`.tsx`— bottom sheet with region → city → port drill-down. Uses`usePorts()` canonical hook. Returns port ID.
+- [x] Created `form-cert-picker.tsx`.tsx`— bottom sheet with multi-select cert pills grouped by category. Uses`useCertifications()`. Returns array of cert IDs.
+- [x] Created `form-language-picker.tsx`.tsx`— bottom sheet with multi-select language pills. Uses`LANGUAGES`from`@dockwalker/shared`. Returns array of language codes.
 
 ---
 
@@ -80,7 +45,7 @@ Mobile-native versions of the web's form pickers. Reuse canonical data hooks fro
 
 **Context:** Employer/agent hat needs the My Jobs tab visible before anything else in Phase 3 can be navigated to. This is a prerequisite for all employer screens.
 
-- [ ] In `apps/mobile/app/(app)/(tabs)/_layout.tsx`: conditionally show "Discover" tab for crew hat, "My Jobs" tab for employer/agent hat. Both tabs exist in the file system but only the relevant one shows in the tab bar based on `person.current_hat`. Crew sees: Discover, Messages, Profile, Notifications, More. Employer/agent sees: My Jobs, Messages, Profile, Notifications, More.
+- [x] Tab layout conditionally show "Discover" tab for crew hat, "My Jobs" tab for employer/agent hat. Both tabs exist in the file system but only the relevant one shows in the tab bar based on `person.current_hat`. Crew sees: Discover, Messages, Profile, Notifications, More. Employer/agent sees: My Jobs, Messages, Profile, Notifications, More.
 
 ---
 
@@ -90,19 +55,19 @@ Mobile-native versions of the web's form pickers. Reuse canonical data hooks fro
 
 #### 3a. API utility + My Jobs data hooks
 
-- [ ] Add `apiGet<T>(path: string): Promise<ApiResult<T>>` to `apps/mobile/src/lib/api.ts` — same auth pattern as `apiPost` (Bearer token, 15s timeout, safe JSON parsing). Multiple hooks in Phase 3 depend on this.
-- [ ] Create `apps/mobile/src/hooks/use-my-dayworks.ts` — TanStack Query hook calling `apiGet('/api/daywork/mine')`. Returns daywork postings with status, positions_available, positions_filled, role/port/vessel joins.
-- [ ] Create `apps/mobile/src/hooks/use-my-permanent.ts` — TanStack Query hook calling `apiGet('/api/permanent/mine')`. Returns permanent postings with status, applicant_count, shortlist_count, selected_crew_name, role/port/vessel joins.
+- [x] Added `apiGet`<T>(path: string): Promise<ApiResult<T>>`to`apps/mobile/src/lib/api.ts`— same auth pattern as`apiPost` (Bearer token, 15s timeout, safe JSON parsing). Multiple hooks in Phase 3 depend on this.
+- [x] Created `use-my-dayworks`.ts`— TanStack Query hook calling`apiGet('/api/daywork/mine')`. Returns daywork postings with status, positions_available, positions_filled, role/port/vessel joins.
+- [x] Created `use-my-permanent`.ts`— TanStack Query hook calling`apiGet('/api/permanent/mine')`. Returns permanent postings with status, applicant_count, shortlist_count, selected_crew_name, role/port/vessel joins.
 
 #### 3b. My Jobs screen with tabs
 
-- [ ] Create `apps/mobile/app/(app)/(tabs)/my-jobs.tsx` — replaces the placeholder. Tab layout with segments: Active, In Progress, Done, Templates
-- [ ] **Active tab:** FlashList of active daywork + permanent postings. Each card shows: job reference, role, vessel, dates/salary, positions, applicant count badge. Tap navigates to review screen. Filter: daywork `status === 'active'` with `positions_filled < positions_available`; permanent `status === 'active'`.
-- [ ] **In Progress tab:** Daywork postings where `positions_filled > 0` (crew accepted, engagements running). Permanent postings where `status === 'in_negotiation'` (candidate selected). Card shows "Go to chat" linking to messages.
-- [ ] **Done tab:** Daywork with `status === 'closed'`. Permanent with `status === 'closed'`. Reduced opacity. Read-only.
-- [ ] **Templates tab:** Placeholder list for now — template CRUD wired in item 9.
-- [ ] Pull-to-refresh on all tabs
-- [ ] "Post" floating action button or header button — navigates to post type selector (item 4)
+- [x] Created `my-jobs.tsx`` — replaces the placeholder. Tab layout with segments: Active, In Progress, Done, Templates
+- [x] **Active tab:** FlashList of active daywork + permanent postings. Each card shows: job reference, role, vessel, dates/salary, positions, applicant count badge. Tap navigates to review screen. Filter: daywork `status === 'active'` with `positions_filled < positions_available`; permanent `status === 'active'`.
+- [x] **In Progress tab:** Daywork postings where `positions_filled > 0` (crew accepted, engagements running). Permanent postings where `status === 'in_negotiation'` (candidate selected). Card shows "Go to chat" linking to messages.
+- [x] **Done tab:** Daywork with `status === 'closed'`. Permanent with `status === 'closed'`. Reduced opacity. Read-only.
+- [x] **Templates tab:** Placeholder list for now — template CRUD wired in item 9.
+- [x] Pull-to-refresh on all tabs
+- [x] "Post" header button action button or header button — navigates to post type selector (item 4)
 
 ---
 
@@ -110,8 +75,8 @@ Mobile-native versions of the web's form pickers. Reuse canonical data hooks fro
 
 **Context:** Entry point to posting — user chooses daywork or permanent. Navigated to from the "Post" button on My Jobs.
 
-- [ ] Create `apps/mobile/app/(app)/post.tsx` — choice screen with two large cards: "Daywork — Short-term cover, 1-14 days" and "Permanent — Long-term position, structured hiring". Tapping navigates to the respective form.
-- [ ] Hat guard: only employer/agent hat can access this screen
+- [x] Created `post.tsx` choice screen with two large cards: "Daywork — Short-term cover, 1-14 days" and "Permanent — Long-term position, structured hiring". Tapping navigates to the respective form.
+- [x] Hat guard: crew redirected to discover
 
 ---
 

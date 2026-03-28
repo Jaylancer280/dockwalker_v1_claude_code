@@ -3,10 +3,12 @@ import { Session, User } from '@supabase/supabase-js';
 import type { Person } from '@dockwalker/types';
 import { supabase } from './supabase';
 
+type PersonIdentity = Pick<Person, 'id' | 'current_hat' | 'identity_type'>;
+
 interface AuthContextValue {
   session: Session | null;
   user: User | null;
-  person: Person | null;
+  person: PersonIdentity | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -17,7 +19,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [person, setPerson] = useState<Person | null>(null);
+  const [person, setPerson] = useState<PersonIdentity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -55,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error || !data) {
       setPerson(null);
     } else {
-      setPerson(data as Person);
+      setPerson(data);
     }
     setIsLoading(false);
   }

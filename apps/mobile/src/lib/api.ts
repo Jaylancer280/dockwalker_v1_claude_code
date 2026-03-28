@@ -12,6 +12,44 @@ async function getAuthToken(): Promise<string | null> {
 }
 
 /**
+ * Authenticated GET from the Vercel API.
+ * Used for complex read endpoints where duplicating query logic is impractical.
+ */
+export async function apiGet<T = unknown>(
+  path: string,
+): Promise<ApiResult<T>> {
+  const token = await getAuthToken();
+  if (!token) return { ok: false, error: 'Not authenticated' };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      signal: controller.signal,
+    });
+
+    if (res.ok) {
+      const text = await res.text();
+      const data = text ? (JSON.parse(text) as T) : ({} as T);
+      return { ok: true, data };
+    }
+
+    const text = await res.text();
+    const parsed = text ? JSON.parse(text) : {};
+    return { ok: false, error: parsed.error ?? 'Something went wrong' };
+  } catch {
+    return { ok: false, error: 'Network error — check your connection' };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
  * Authenticated POST to the Vercel API.
  * All mobile writes go through this — reads go direct to Supabase.
  */
