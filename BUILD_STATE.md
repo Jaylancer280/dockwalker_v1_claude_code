@@ -226,6 +226,7 @@
 - [Stage 158] Hierarchical pill picker — new `HierarchicalPills` component with `rolesToGroups`/`certsToGroups` helpers; single-select (roles) and multi-select (certs) with category→item drill-down; deployed to all role pickers (daywork/permanent/profile/onboarding/discover), all cert pickers (grouped by category), visa+language pickers (flat pills replacing checkboxes); location pickers kept as popover; old `DepartmentRolePills`/`RolePicker` no longer imported; 906 tests pass
 - [Fix 158b] Profile edit cleanup — agent Role Specializations converted from checkboxes to HierarchicalPills (multi-select by department); removed unused Checkbox import; resolved merge conflict markers from stash; duplicate Display name already fixed in Fix batch 153; 906 tests pass
 - [Stage 159] Page transition speed — bottom nav `prefetch={true}`; skeleton `loading.tsx` for discover/messages/profile/daywork-mine; SWR installed + `useSafeFetch` hook; messages page converted to SWR (cached data on re-nav); discover/profile/mine SWR deferred; 906 tests pass
+- [Fix 160] UX hardening A-D — "Pull down to refresh" → "Tap Retry" with Retry button; reject applicant confirmation dialog; template deletion confirmations (3 locations); error toasts on data export + account deletion failure; 906 tests pass
 
 ## Current Schema Version
 

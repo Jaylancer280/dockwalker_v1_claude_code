@@ -24,6 +24,7 @@ import { ReviewFilterPanel } from './_components/review-filter-panel';
 import { ApplicantsTab } from './_components/applicants-tab';
 import { AvailableCrewTab } from './_components/available-crew-tab';
 import { AcceptConfirmDialog } from './_components/accept-confirm-dialog';
+import { RejectConfirmDialog } from './_components/reject-confirm-dialog';
 import { InviteConfirmDialog } from './_components/invite-confirm-dialog';
 
 export default function ReviewApplicantsPage() {
@@ -40,6 +41,10 @@ export default function ReviewApplicantsPage() {
     engagementId: string;
   } | null>(null);
   const [pendingAccept, setPendingAccept] = useState<{
+    crewId: string;
+    crewName: string;
+  } | null>(null);
+  const [pendingReject, setPendingReject] = useState<{
     crewId: string;
     crewName: string;
   } | null>(null);
@@ -223,6 +228,12 @@ export default function ReviewApplicantsPage() {
     setPendingAccept({ crewId, crewName });
   }
 
+  function requestReject(crewId: string) {
+    const applicant = allApplicants.find((a) => a.crew_person_id === crewId);
+    const crewName = applicant?.profiles?.display_name ?? 'this crew member';
+    setPendingReject({ crewId, crewName });
+  }
+
   async function handleAccept(crewId: string) {
     setActing(true);
     const result = await safeFetch<{ engagementId?: string }>(
@@ -373,7 +384,7 @@ export default function ReviewApplicantsPage() {
             nextCard={nextCard as Applicant | null}
             handleShortlist={handleShortlist}
             requestAccept={requestAccept}
-            handleReject={handleReject}
+            handleReject={requestReject}
             loadApplicants={loadApplicants}
             setTab={setTab}
             setViewProfileId={setViewProfileId}
@@ -408,6 +419,12 @@ export default function ReviewApplicantsPage() {
         positionsAvailable={positionsAvailable}
         positionsFilled={positionsFilled}
         handleAccept={handleAccept}
+      />
+
+      <RejectConfirmDialog
+        pendingReject={pendingReject}
+        setPendingReject={setPendingReject}
+        handleReject={handleReject}
       />
 
       <InviteConfirmDialog

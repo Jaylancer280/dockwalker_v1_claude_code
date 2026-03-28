@@ -72,6 +72,7 @@ interface AppliedTabProps {
   onPermanentWithdraw: (postingId: string) => void;
   onViewProfile: (personId: string) => void;
   onSwitchToBrowse: () => void;
+  onRetry: () => void;
   appsError: string | null;
 }
 
@@ -83,6 +84,7 @@ export function AppliedTab({
   onPermanentWithdraw,
   onViewProfile,
   onSwitchToBrowse,
+  onRetry,
   appsError,
 }: AppliedTabProps) {
   return (
@@ -95,9 +97,15 @@ export function AppliedTab({
           title={appsError ? 'Something went wrong' : 'No pending applications'}
           description={appsError ?? 'Jobs you apply to will appear here.'}
           action={
-            <Button variant="outline" size="sm" onClick={onSwitchToBrowse}>
-              Browse jobs
-            </Button>
+            appsError ? (
+              <Button variant="outline" size="sm" onClick={onRetry}>
+                Retry
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={onSwitchToBrowse}>
+                Browse jobs
+              </Button>
+            )
           }
         />
       )}

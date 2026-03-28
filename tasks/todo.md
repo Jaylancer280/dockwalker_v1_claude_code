@@ -17,55 +17,21 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 2. UX hardening — confirmation dialogs, error feedback, completeness hints
-
-**Batch of UX fixes found during full audit. Each is small individually.**
-
-**A. Fix "Pull down to refresh" text (no gesture exists):**
-
-- [ ] `discover/page.tsx` line 274 — change to show a "Retry" button instead
-- [ ] Same file line 400 — same fix for applied tab error
-
-**B. Reject applicant needs confirmation dialog:**
-
-- [ ] `applicants-tab.tsx` line 119/133 — add confirmation dialog matching accept pattern. Show crew name, "This cannot be undone."
-- [ ] Same for shortlist tab reject button
-
-**C. Template deletion needs confirmation dialog:**
-
-- [ ] `daywork/post/page.tsx` line 429 — trash icon with no confirmation
-- [ ] `daywork-templates-section.tsx` line 62 — same
-- [ ] `permanent-mine-section.tsx` line 205 — same
-
-**D. Silent failure fixes:**
-
-- [ ] `danger-zone-section.tsx` lines 27-40 — data export: add error toast on failure
-- [ ] Same file lines 42-51 — account deletion: add error toast on failure
-- [ ] `settings/page.tsx` lines 84-92 — notification toggles: await result, show error, revert UI on failure
-- [ ] `billing/page.tsx` lines 42-66 — show error toast when checkout redirect fails
+### 2. UX hardening — remaining items (E, F, G deferred)
 
 **E. Profile section completeness hints (NOT gamification):**
 
-- [ ] In collapsible sections (Summary, Looking For, About, Experience), show inline "2 fields not set" in collapsed header when fields are empty
-- [ ] Summary: nationality, location, experience bracket
-- [ ] Looking For: desired role, daywork port, permanent availability
-- [ ] About: certifications, visas, languages, bio
-- [ ] Experience: "No experience added" if zero entries
-- [ ] Muted text style. Disappears when section is complete.
+- [ ] In collapsible sections, show inline "2 fields not set" in collapsed header when fields are empty
 - [ ] Remove the "Complete your profile" banner on discover once section hints exist
 
 **F. Onboarding progress indicator:**
 
 - [ ] `onboarding/page.tsx` — add step dots or "Step 2 of 5" text
-- [ ] Conditional step count: crew = 5-6 steps, agent = 4 steps
-- [ ] Row of dots with current one filled
 
 **G. Unread message indicators:**
 
 - [ ] `messages/page.tsx` — add blue dot or bold text for unread conversations
 - [ ] Wire `get_unread_counts` RPC (migration 00058) into the messages list UI
-
-**Done condition:** No misleading "pull down" text. Reject and template delete have confirmations. Silent failures show error toasts. Profile sections show missing field counts. Onboarding shows progress. Unread messages visually distinct.
 
 ---
 

@@ -252,7 +252,10 @@ export default function MyPostingsPage() {
     setSavingPositions(false);
   }
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   async function handleDeleteTemplate(id: string) {
+    setConfirmDeleteId(null);
     setDeletingTemplate(id);
     const result = await safeFetch<{ error?: string }>(`/api/daywork/templates/${id}`, {
       method: 'DELETE',
@@ -577,7 +580,7 @@ export default function MyPostingsPage() {
                   loading={loading}
                   templates={templates}
                   deletingTemplate={deletingTemplate}
-                  onDeleteTemplate={handleDeleteTemplate}
+                  onDeleteTemplate={setConfirmDeleteId}
                 />
               </TabsContent>
             </Tabs>
@@ -617,6 +620,29 @@ export default function MyPostingsPage() {
               }}
             >
               Cancel posting
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete template</DialogTitle>
+            <DialogDescription>Are you sure? This cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmDeleteId && handleDeleteTemplate(confirmDeleteId)}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

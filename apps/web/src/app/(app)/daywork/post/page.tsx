@@ -16,6 +16,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { LocationPicker } from '@/components/location-picker';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { currencySymbol } from '@/lib/units';
@@ -273,7 +281,10 @@ function DayworkPostForm() {
     if (t) applyTemplate(t);
   }
 
+  const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState(false);
+
   async function handleDeleteTemplate() {
+    setConfirmDeleteTemplate(false);
     if (!selectedTemplateId) return;
     const result = await safeFetch(`/api/daywork/templates/${selectedTemplateId}`, {
       method: 'DELETE',
@@ -426,7 +437,7 @@ function DayworkPostForm() {
                   variant="ghost"
                   size="icon"
                   className="shrink-0 text-destructive"
-                  onClick={handleDeleteTemplate}
+                  onClick={() => setConfirmDeleteTemplate(true)}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -744,6 +755,22 @@ function DayworkPostForm() {
           </div>
         </div>
       </BottomSheet>
+      <Dialog open={confirmDeleteTemplate} onOpenChange={setConfirmDeleteTemplate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete template</DialogTitle>
+            <DialogDescription>Are you sure? This cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmDeleteTemplate(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteTemplate}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

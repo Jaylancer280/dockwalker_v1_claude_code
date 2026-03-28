@@ -271,7 +271,7 @@ export default function DiscoverPage() {
         setNextCursor(result.data.next_cursor ?? null);
         setHasMore(result.data.has_more ?? false);
       } else {
-        setFeedError('Failed to load jobs. Pull down to refresh.');
+        setFeedError('Failed to load jobs. Tap Retry to try again.');
       }
     } finally {
       setLoading(false);
@@ -397,7 +397,7 @@ export default function DiscoverPage() {
       safeFetch<{ applications?: MyApplication[] }>('/api/permanent/applications'),
     ]);
     if (!dwResult.ok && !pmResult.ok) {
-      setAppsError('Failed to load applications. Pull down to refresh.');
+      setAppsError('Failed to load applications. Tap Retry to try again.');
       setLoadingApps(false);
       return;
     }
@@ -624,6 +624,7 @@ export default function DiscoverPage() {
           onPermanentWithdraw={handlePermanentWithdraw}
           onViewProfile={setViewProfileId}
           onSwitchToBrowse={() => setActiveTab('browse')}
+          onRetry={loadApplications}
           appsError={appsError}
         />
       )}

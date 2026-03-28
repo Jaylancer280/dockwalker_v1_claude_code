@@ -105,7 +105,10 @@ export function PermanentMineSection() {
     }
   }
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   async function handleDeleteTemplate(templateId: string) {
+    setConfirmDeleteId(null);
     setDeletingId(templateId);
     const result = await safeFetch(`/api/permanent/templates/${templateId}`, { method: 'DELETE' });
     if (result.ok) {
@@ -202,7 +205,7 @@ export function PermanentMineSection() {
                   size="sm"
                   variant="outline"
                   disabled={deletingId === t.id}
-                  onClick={() => handleDeleteTemplate(t.id)}
+                  onClick={() => setConfirmDeleteId(t.id)}
                 >
                   <Trash2 className="h-3 w-3" />
                 </Button>
@@ -339,6 +342,29 @@ export function PermanentMineSection() {
               }}
             >
               {cancelling ? 'Cancelling...' : 'Cancel posting'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => !open && setConfirmDeleteId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete template</DialogTitle>
+            <DialogDescription>Are you sure? This cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmDeleteId && handleDeleteTemplate(confirmDeleteId)}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

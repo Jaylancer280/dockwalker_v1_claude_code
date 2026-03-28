@@ -311,7 +311,7 @@ export function DayworkBrowse({
                 }
                 action={
                   <Button variant="outline" size="sm" onClick={onLoadCards}>
-                    Refresh
+                    Retry
                   </Button>
                 }
               />

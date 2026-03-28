@@ -11,10 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
+import { useToast } from '@/hooks/use-toast';
 
 export function DangerZoneSection() {
   const router = useRouter();
   const supabase = createClient();
+  const { showError } = useToast();
 
   // Delete account
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -35,6 +37,8 @@ export function DangerZoneSection() {
       a.download = `dockwalker-data-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+    } else {
+      showError('Failed to export data. Please try again.');
     }
     setExporting(false);
   }
@@ -46,6 +50,8 @@ export function DangerZoneSection() {
     if (result.ok) {
       await supabase.auth.signOut();
       router.push('/');
+    } else {
+      showError('Failed to delete account. Please try again.');
     }
     setDeleting(false);
   }
