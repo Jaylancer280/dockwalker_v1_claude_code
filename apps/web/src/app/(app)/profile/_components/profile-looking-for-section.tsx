@@ -75,9 +75,9 @@ export function ProfileLookingForSection({
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
             Looking for
           </p>
-          {!expandedSections.looking && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {[
+          {!expandedSections.looking &&
+            (() => {
+              const parts = [
                 profile.desired_roles?.name,
                 profile.ports ? `${profile.ports.cities?.name}` : null,
                 permAvail === 'immediate'
@@ -85,11 +85,24 @@ export function ProfileLookingForSection({
                   : permAvail === 'after_notice'
                     ? 'After notice'
                     : null,
-              ]
-                .filter(Boolean)
-                .join(' · ') || 'Not set'}
-            </p>
-          )}
+              ].filter(Boolean);
+              const missing = [
+                !profile.desired_roles && 'desired role',
+                !profile.ports && 'daywork port',
+                !permAvail && 'permanent availability',
+              ].filter(Boolean);
+              return (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {parts.join(' · ') || 'Not set'}
+                  {missing.length > 0 && (
+                    <span className="text-xs text-[var(--tertiary)]">
+                      {' '}
+                      · {missing.length} field{missing.length > 1 ? 's' : ''} not set
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
         </div>
         {expandedSections.looking ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />

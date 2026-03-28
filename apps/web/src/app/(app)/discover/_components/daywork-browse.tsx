@@ -47,7 +47,6 @@ interface DayworkBrowseProps {
   composingMessage: boolean;
   messageText: string;
   showFilters: boolean;
-  profileIncomplete: boolean;
   hasAvailability: boolean | null;
   swipeRef: RefObject<SwipeableCardHandle | null>;
   // Filter state
@@ -99,7 +98,6 @@ export function DayworkBrowse({
   composingMessage,
   messageText,
   showFilters,
-  profileIncomplete,
   hasAvailability,
   swipeRef,
   filterRoleId,
@@ -153,24 +151,7 @@ export function DayworkBrowse({
 
   return (
     <>
-      {/* Profile completion nudge */}
-      {profileIncomplete && (
-        <div className="mx-auto mt-2 w-full max-w-lg px-4">
-          <div className="rounded-lg border border-border bg-muted/50 p-4">
-            <p className="text-sm font-medium">Complete your profile</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Employers see your name, role, certifications, and experience when you apply. Update
-              your display name to get started.
-            </p>
-            <a
-              href="/profile"
-              className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 hover:underline"
-            >
-              Go to profile →
-            </a>
-          </div>
-        </div>
-      )}
+      {/* Profile completion nudge removed — section hints on profile page serve this purpose */}
 
       {/* Daywork / Permanent toggle */}
       <div className="mx-auto max-w-lg mt-2 px-4">

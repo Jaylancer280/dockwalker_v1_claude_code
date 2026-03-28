@@ -17,25 +17,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 2. UX hardening — remaining items (E, F, G deferred)
-
-**E. Profile section completeness hints (NOT gamification):**
-
-- [ ] In collapsible sections, show inline "2 fields not set" in collapsed header when fields are empty
-- [ ] Remove the "Complete your profile" banner on discover once section hints exist
-
-**F. Onboarding progress indicator:**
-
-- [ ] `onboarding/page.tsx` — add step dots or "Step 2 of 5" text
-
-**G. Unread message indicators:**
-
-- [ ] `messages/page.tsx` — add blue dot or bold text for unread conversations
-- [ ] Wire `get_unread_counts` RPC (migration 00058) into the messages list UI
-
----
-
-### 3. Capacitor static export architecture (BLOCKING — proper TF build)
+### 2. Capacitor static export architecture (BLOCKING — proper TF build)
 
 The current Codemagic build loads the entire app remotely from Vercel. Correct architecture: static HTML locally, only API calls remote.
 
@@ -67,7 +49,7 @@ The current Codemagic build loads the entire app remotely from Vercel. Correct a
 
 ---
 
-### 4. Permanent post form — add missing fields
+### 3. Permanent post form — add missing fields
 
 Permanent posting should be richer than daywork, not thinner.
 

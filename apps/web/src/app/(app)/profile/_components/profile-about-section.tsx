@@ -44,20 +44,33 @@ export function ProfileAboutSection({
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
             About
           </p>
-          {!expandedSections.about && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {[
+          {!expandedSections.about &&
+            (() => {
+              const parts = [
                 profile.deck_name ? `"${profile.deck_name}"` : null,
                 profile.certification_ids?.length > 0
                   ? `${profile.certification_ids.length} certs`
                   : null,
                 visaIds.length > 0 ? `${visaIds.length} visas` : null,
                 profile.languages?.length > 0 ? `${profile.languages.length} languages` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ') || 'Add your details'}
-            </p>
-          )}
+              ].filter(Boolean);
+              const missing = [
+                !(profile.certification_ids?.length > 0) && 'certifications',
+                !profile.bio && 'bio',
+                !(profile.languages?.length > 0) && 'languages',
+              ].filter(Boolean);
+              return (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {parts.join(' · ') || 'Add your details'}
+                  {missing.length > 0 && (
+                    <span className="text-xs text-[var(--tertiary)]">
+                      {' '}
+                      · {missing.length} field{missing.length > 1 ? 's' : ''} not set
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
         </div>
         {expandedSections.about ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />

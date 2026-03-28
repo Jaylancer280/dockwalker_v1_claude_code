@@ -72,13 +72,28 @@ export function ProfileSummarySection({
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
             Summary
           </p>
-          {!expandedSections.summary && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {profile.yacht_roles?.name
+          {!expandedSections.summary &&
+            (() => {
+              const missing = [
+                !profile.nationalities && 'nationality',
+                !profile.location_cities && !profile.ports?.cities && 'location',
+                !profile.experience_brackets && experiences.length === 0 && 'experience',
+              ].filter(Boolean);
+              const summary = profile.yacht_roles?.name
                 ? `${profile.yacht_roles.name}${profile.experience_brackets?.label ? ` · ${profile.experience_brackets.label}` : ''}${experiences.length > 0 ? ` · ${computeTotalExperience(experiences)}` : ''}${(profile.location_cities?.name ?? profile.ports?.cities?.name) ? ` · ${profile.location_cities?.name ?? profile.ports?.cities?.name}` : ''}`
-                : 'Tap to set up'}
-            </p>
-          )}
+                : null;
+              return (
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {summary ?? 'Tap to set up'}
+                  {missing.length > 0 && (
+                    <span className="text-xs text-[var(--tertiary)]">
+                      {' '}
+                      · {missing.length} field{missing.length > 1 ? 's' : ''} not set
+                    </span>
+                  )}
+                </p>
+              );
+            })()}
         </div>
         {expandedSections.summary ? (
           <ChevronUp className="h-4 w-4 text-muted-foreground" />

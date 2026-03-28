@@ -227,6 +227,7 @@
 - [Fix 158b] Profile edit cleanup — agent Role Specializations converted from checkboxes to HierarchicalPills (multi-select by department); removed unused Checkbox import; resolved merge conflict markers from stash; duplicate Display name already fixed in Fix batch 153; 906 tests pass
 - [Stage 159] Page transition speed — bottom nav `prefetch={true}`; skeleton `loading.tsx` for discover/messages/profile/daywork-mine; SWR installed + `useSafeFetch` hook; messages page converted to SWR (cached data on re-nav); discover/profile/mine SWR deferred; 906 tests pass
 - [Fix 160] UX hardening A-D — "Pull down to refresh" → "Tap Retry" with Retry button; reject applicant confirmation dialog; template deletion confirmations (3 locations); error toasts on data export + account deletion failure; 906 tests pass
+- [Stage 161] UX hardening E-G — (E) profile section completeness hints: "X fields not set" in collapsed Summary/Looking For/About headers; removed "Complete your profile" banner from discover; (F) onboarding progress dots: animated dot indicator with step count, skips welcome, conditional step sequence per identity/experience; (G) unread message indicators: blue dot on avatar + bold name for conversations with unread messages, wired `get_unread_counts` RPC; 906 tests pass
 
 ## Current Schema Version
 

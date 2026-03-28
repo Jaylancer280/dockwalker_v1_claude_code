@@ -107,9 +107,6 @@ export default function DiscoverPage() {
   // Crew languages for language pill coloring
   const [crewLangs, setCrewLangs] = useState<string[] | null>(null);
 
-  // Profile readiness for nudge card
-  const [profileIncomplete, setProfileIncomplete] = useState(false);
-
   // Redirecting (employer/agent hit this page via client-side nav)
   const [redirecting, setRedirecting] = useState(false);
 
@@ -183,8 +180,6 @@ export default function DiscoverPage() {
       const p = result.data.profile;
       const name = p.display_name ?? '';
       const looksLikeEmailPrefix = /^[A-Za-z0-9._+-]+$/.test(name) && !name.includes(' ');
-      const incomplete = looksLikeEmailPrefix;
-      setProfileIncomplete(incomplete);
     }
   }
 
@@ -639,7 +634,6 @@ export default function DiscoverPage() {
           composingMessage={composingMessage}
           messageText={messageText}
           showFilters={showFilters}
-          profileIncomplete={profileIncomplete}
           hasAvailability={hasAvailability}
           swipeRef={swipeRef}
           filterRoleId={filterRoleId}

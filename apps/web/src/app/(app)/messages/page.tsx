@@ -12,6 +12,7 @@ import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import { Avatar } from '@/components/avatar';
 import { NotificationBell } from '@/components/notification-bell';
 import { useSafeFetch } from '@/hooks/use-safe-fetch';
+import { createClient } from '@/lib/supabase/client';
 
 interface Conversation {
   id: string;
@@ -46,6 +47,31 @@ export default function MessagesPage() {
     const stored = sessionStorage.getItem('dockwalker:messages-tab');
     return stored === 'history' ? 'history' : 'active';
   });
+
+  // Unread message counts per engagement
+  const [unreadMap, setUnreadMap] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchUnreads() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data: counts } = await supabase.rpc('get_unread_counts', { p_person_id: user.id });
+      if (counts && !cancelled) {
+        const map = new Map<string, number>();
+        for (const row of counts as { engagement_id: string; unread_count: number }[]) {
+          map.set(row.engagement_id, row.unread_count);
+        }
+        setUnreadMap(map);
+      }
+    }
+    fetchUnreads();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     sessionStorage.setItem('dockwalker:messages-tab', tab);
@@ -132,17 +158,24 @@ export default function MessagesPage() {
                   tab === 'history' ? 'opacity-75' : ''
                 }`}
               >
-                {/* Avatar */}
-                <Avatar
-                  src={conv.profiles?.avatar_url ?? null}
-                  name={conv.profiles?.display_name ?? '?'}
-                  size="sm"
-                />
+                {/* Avatar + unread dot */}
+                <div className="relative shrink-0">
+                  <Avatar
+                    src={conv.profiles?.avatar_url ?? null}
+                    name={conv.profiles?.display_name ?? '?'}
+                    size="sm"
+                  />
+                  {(unreadMap.get(conv.id) ?? 0) > 0 && (
+                    <div className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent)] ring-2 ring-[var(--card)]" />
+                  )}
+                </div>
 
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  {/* Name + status */}
+                  {/* Name + unread + status */}
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[15px] font-semibold tracking-[-0.3px] truncate">
+                    <span
+                      className={`text-[15px] tracking-[-0.3px] truncate ${(unreadMap.get(conv.id) ?? 0) > 0 ? 'font-bold' : 'font-semibold'}`}
+                    >
                       {conv.profiles?.display_name ?? 'Unknown'}
                     </span>
                     <div className="flex shrink-0 items-center gap-1.5">

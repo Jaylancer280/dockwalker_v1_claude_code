@@ -305,6 +305,40 @@ export default function OnboardingPage() {
     }
   }
 
+  // ── Step progress ────────────────────────────────────────────────────────
+
+  const stepOrder: Step[] =
+    identityType === 'agent'
+      ? ['welcome', 'identity', 'profile', 'hat']
+      : experienceLevel === 'experienced'
+        ? ['welcome', 'identity', 'experience-fork', 'profile', 'vessel-experience', 'hat']
+        : ['welcome', 'identity', 'experience-fork', 'profile', 'hat'];
+  const currentStepIndex = stepOrder.indexOf(step);
+  const totalSteps = stepOrder.length;
+
+  function ProgressDots() {
+    if (step === 'welcome') return null;
+    return (
+      <div className="flex items-center justify-center gap-1.5 py-3">
+        {stepOrder.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1.5 rounded-full transition-all ${
+              i === currentStepIndex
+                ? 'w-4 bg-[var(--accent)]'
+                : i < currentStepIndex
+                  ? 'w-1.5 bg-[var(--accent)]'
+                  : 'w-1.5 bg-[var(--border)]'
+            }`}
+          />
+        ))}
+        <span className="ml-2 text-[10px] text-muted-foreground">
+          {currentStepIndex + 1} of {totalSteps}
+        </span>
+      </div>
+    );
+  }
+
   // ── Step routing ──────────────────────────────────────────────────────────
 
   if (step === 'welcome') {
@@ -313,134 +347,149 @@ export default function OnboardingPage() {
 
   if (step === 'identity') {
     return (
-      <IdentityStep
-        onBack={() => setStep('welcome')}
-        onSelectCrew={() => setStep('experience-fork')}
-        onSelectAgent={() => setStep('profile')}
-        setIdentityType={setIdentityType}
-        setExperienceLevel={() => setExperienceLevel(null)}
-      />
+      <>
+        <ProgressDots />
+        <IdentityStep
+          onBack={() => setStep('welcome')}
+          onSelectCrew={() => setStep('experience-fork')}
+          onSelectAgent={() => setStep('profile')}
+          setIdentityType={setIdentityType}
+          setExperienceLevel={() => setExperienceLevel(null)}
+        />
+      </>
     );
   }
 
   if (step === 'experience-fork') {
     return (
-      <ExperienceForkStep
-        onBack={() => setStep('identity')}
-        onSelect={(level) => {
-          setExperienceLevel(level);
-          setStep('profile');
-        }}
-      />
+      <>
+        <ProgressDots />
+        <ExperienceForkStep
+          onBack={() => setStep('identity')}
+          onSelect={(level) => {
+            setExperienceLevel(level);
+            setStep('profile');
+          }}
+        />
+      </>
     );
   }
 
   if (step === 'profile') {
     return (
-      <ProfileStep
-        identityType={identityType}
-        experienceLevel={experienceLevel}
-        loading={loading}
-        error={error}
-        lookupsLoading={lookupsLoading}
-        userEmail={userEmail}
-        displayName={displayName}
-        setDisplayName={setDisplayName}
-        avatarUrl={avatarUrl}
-        setAvatarUrl={setAvatarUrl}
-        locationPortId={locationPortId}
-        setLocationPortId={setLocationPortId}
-        locationCityId={locationCityId}
-        setLocationCityId={setLocationCityId}
-        bio={bio}
-        setBio={setBio}
-        languages={languages}
-        setLanguages={setLanguages}
-        primaryRoleId={primaryRoleId}
-        setPrimaryRoleId={setPrimaryRoleId}
-        certificationIds={certificationIds}
-        setCertificationIds={setCertificationIds}
-        experienceBracketId={experienceBracketId}
-        setExperienceBracketId={setExperienceBracketId}
-        vesselSizeExposureIds={vesselSizeExposureIds}
-        setVesselSizeExposureIds={setVesselSizeExposureIds}
-        shoreExperience={shoreExperience}
-        setShoreExperience={setShoreExperience}
-        motivation={motivation}
-        setMotivation={setMotivation}
-        availableToStart={availableToStart}
-        setAvailableToStart={setAvailableToStart}
-        deckName={deckName}
-        setDeckName={setDeckName}
-        desiredRoleId={desiredRoleId}
-        setDesiredRoleId={setDesiredRoleId}
-        permanentAvailability={permanentAvailability}
-        setPermanentAvailability={setPermanentAvailability}
-        noticePeriodDays={noticePeriodDays}
-        setNoticePeriodDays={setNoticePeriodDays}
-        currentlyEmployed={currentlyEmployed}
-        setCurrentlyEmployed={setCurrentlyEmployed}
-        nationalityId={nationalityId}
-        setNationalityId={setNationalityId}
-        visaIds={visaIds}
-        setVisaIds={setVisaIds}
-        agencyName={agencyName}
-        setAgencyName={setAgencyName}
-        roleSpecializationIds={roleSpecializationIds}
-        setRoleSpecializationIds={setRoleSpecializationIds}
-        roles={roles}
-        certs={certs}
-        brackets={brackets}
-        sizeBands={sizeBands}
-        nationalities={nationalities}
-        visaTypes={visaTypes}
-        onBack={() => setStep(identityType === 'crew' ? 'experience-fork' : 'identity')}
-        onNext={() => setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'hat')}
-        onSkip={() => setStep('hat')}
-        onSubmitAgent={() => handleSubmit()}
-        setError={setError}
-        setSkipping={setSkipping}
-      />
+      <>
+        <ProgressDots />
+        <ProfileStep
+          identityType={identityType}
+          experienceLevel={experienceLevel}
+          loading={loading}
+          error={error}
+          lookupsLoading={lookupsLoading}
+          userEmail={userEmail}
+          displayName={displayName}
+          setDisplayName={setDisplayName}
+          avatarUrl={avatarUrl}
+          setAvatarUrl={setAvatarUrl}
+          locationPortId={locationPortId}
+          setLocationPortId={setLocationPortId}
+          locationCityId={locationCityId}
+          setLocationCityId={setLocationCityId}
+          bio={bio}
+          setBio={setBio}
+          languages={languages}
+          setLanguages={setLanguages}
+          primaryRoleId={primaryRoleId}
+          setPrimaryRoleId={setPrimaryRoleId}
+          certificationIds={certificationIds}
+          setCertificationIds={setCertificationIds}
+          experienceBracketId={experienceBracketId}
+          setExperienceBracketId={setExperienceBracketId}
+          vesselSizeExposureIds={vesselSizeExposureIds}
+          setVesselSizeExposureIds={setVesselSizeExposureIds}
+          shoreExperience={shoreExperience}
+          setShoreExperience={setShoreExperience}
+          motivation={motivation}
+          setMotivation={setMotivation}
+          availableToStart={availableToStart}
+          setAvailableToStart={setAvailableToStart}
+          deckName={deckName}
+          setDeckName={setDeckName}
+          desiredRoleId={desiredRoleId}
+          setDesiredRoleId={setDesiredRoleId}
+          permanentAvailability={permanentAvailability}
+          setPermanentAvailability={setPermanentAvailability}
+          noticePeriodDays={noticePeriodDays}
+          setNoticePeriodDays={setNoticePeriodDays}
+          currentlyEmployed={currentlyEmployed}
+          setCurrentlyEmployed={setCurrentlyEmployed}
+          nationalityId={nationalityId}
+          setNationalityId={setNationalityId}
+          visaIds={visaIds}
+          setVisaIds={setVisaIds}
+          agencyName={agencyName}
+          setAgencyName={setAgencyName}
+          roleSpecializationIds={roleSpecializationIds}
+          setRoleSpecializationIds={setRoleSpecializationIds}
+          roles={roles}
+          certs={certs}
+          brackets={brackets}
+          sizeBands={sizeBands}
+          nationalities={nationalities}
+          visaTypes={visaTypes}
+          onBack={() => setStep(identityType === 'crew' ? 'experience-fork' : 'identity')}
+          onNext={() => setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'hat')}
+          onSkip={() => setStep('hat')}
+          onSubmitAgent={() => handleSubmit()}
+          setError={setError}
+          setSkipping={setSkipping}
+        />
+      </>
     );
   }
 
   if (step === 'vessel-experience') {
     return (
-      <VesselExperienceStep
-        experienceEntries={experienceEntries}
-        setExperienceEntries={setExperienceEntries}
-        error={error}
-        roles={roles}
-        flagStates={flagStates}
-        sizeBands={sizeBandsFull}
-        updateEntry={updateEntry}
-        removeEntry={removeEntry}
-        addEntry={() => setExperienceEntries((prev) => [...prev, emptyExperienceEntry()])}
-        onBack={() => setStep('profile')}
-        onNext={() => setStep('hat')}
-        setError={setError}
-      />
+      <>
+        <ProgressDots />
+        <VesselExperienceStep
+          experienceEntries={experienceEntries}
+          setExperienceEntries={setExperienceEntries}
+          error={error}
+          roles={roles}
+          flagStates={flagStates}
+          sizeBands={sizeBandsFull}
+          updateEntry={updateEntry}
+          removeEntry={removeEntry}
+          addEntry={() => setExperienceEntries((prev) => [...prev, emptyExperienceEntry()])}
+          onBack={() => setStep('profile')}
+          onNext={() => setStep('hat')}
+          setError={setError}
+        />
+      </>
     );
   }
 
   // step === 'hat'
   return (
-    <HatSelectionStep
-      loading={loading}
-      error={error}
-      hat={hat}
-      skipping={skipping}
-      experienceLevel={experienceLevel}
-      setHat={setHat}
-      setSkipping={setSkipping}
-      onBack={() => {
-        if (skipping) {
-          setStep('profile');
-        } else {
-          setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'profile');
-        }
-      }}
-      onSelect={(selectedHat) => handleSubmit(selectedHat)}
-    />
+    <>
+      <ProgressDots />
+      <HatSelectionStep
+        loading={loading}
+        error={error}
+        hat={hat}
+        skipping={skipping}
+        experienceLevel={experienceLevel}
+        setHat={setHat}
+        setSkipping={setSkipping}
+        onBack={() => {
+          if (skipping) {
+            setStep('profile');
+          } else {
+            setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'profile');
+          }
+        }}
+        onSelect={(selectedHat) => handleSubmit(selectedHat)}
+      />
+    </>
   );
 }
