@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
 
@@ -45,8 +45,9 @@ export default function OnboardingScreen() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
+        // Deferred: Phase 5 replaces hardcoded values with real form inputs (identity type, role, certs, experience)
         body: JSON.stringify({
-          identityType: 'individual',
+          identityType: 'crew',
           displayName: session.user.email?.split('@')[0] ?? 'New User',
           currentHat: 'crew',
         }),
@@ -59,10 +60,9 @@ export default function OnboardingScreen() {
       }
 
       router.replace('/');
-    } catch {
-      // In Phase 1, onboarding is a shell — errors are expected
-      // if the API isn't reachable. Route to main app anyway.
-      router.replace('/');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Something went wrong';
+      Alert.alert('Onboarding failed', message);
     } finally {
       setLoading(false);
     }

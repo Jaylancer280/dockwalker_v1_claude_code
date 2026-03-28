@@ -16,8 +16,8 @@
 | -------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------- |
 | Monorepo setup (turbo.json, packages/shared, db mobile client) | DONE        | Stage 163 — turbo, shared pkg, mobile db client                                           |
 | Phase 1 — Shell + Auth                                         | DONE        | Stage 163 + Fix 163 — Expo SDK 53, NativeWind, auth context, 5-tab nav, onboarding shell. |
-| Phase 2 — Discovery + Swipe                                    | IN PROGRESS | Checklist in todo.md. Swipe prototype first, then daywork feed, permanent feed, filters.  |
-| Phase 3 — Employer Flows                                       | NOT STARTED |                                                                                           |
+| Phase 2 — Discovery + Swipe                                    | DONE        | Stage 164-165 + Fix 165. Device testing deferred to post-Phase 7.                         |
+| Phase 3 — Employer Flows                                       | IN PROGRESS | Checklist in todo.md. Forms, my jobs, review applicants, templates.                       |
 | Phase 4 — Messaging                                            | NOT STARTED |                                                                                           |
 | Phase 5 — Profile + Experience                                 | NOT STARTED |                                                                                           |
 | Phase 6 — Docky + Polish                                       | NOT STARTED |                                                                                           |
@@ -25,7 +25,7 @@
 | Phase 8 — Android polish pass                                  | NOT STARTED |                                                                                           |
 | Capacitor removal                                              | BLOCKED     | Waiting on Phase 7 validation                                                             |
 
-**Last session:** 2026-03-28 — Stage 165: Full discover screens. Device testing next gate.
+**Last session:** 2026-03-28 — Phase 2 complete (Stage 165 + Fix 165). Device testing deferred to after all phases complete. Phase 3 next.
 
 ---
 

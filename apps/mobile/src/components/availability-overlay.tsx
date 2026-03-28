@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, ScrollView } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { apiPost } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
+import { usePorts } from '@/hooks/use-canonical';
 
 interface AvailabilityOverlayProps {
   onDismiss: () => void;
@@ -32,29 +33,63 @@ function formatDate(dateStr: string): { day: string; weekday: string; month: str
 
 export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: AvailabilityOverlayProps) {
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['80%'], []);
+  const snapPoints = useMemo(() => ['85%'], []);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { data: portsData } = usePorts();
 
   const allDates = useMemo(() => generateDates(14), []);
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
+  const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Group cities by region for the picker
+  const regionCities = useMemo(() => {
+    if (!portsData) return [];
+    const regionMap = new Map<string, { regionName: string; cities: { id: string; name: string }[] }>();
+    for (const city of portsData.cities) {
+      const regionName = city.regions.name;
+      if (!regionMap.has(regionName)) {
+        regionMap.set(regionName, { regionName, cities: [] });
+      }
+      regionMap.get(regionName)!.cities.push({ id: city.id, name: city.name });
+    }
+    return [...regionMap.values()];
+  }, [portsData]);
+
+  // Ports for the selected city
+  const cityPorts = useMemo(() => {
+    if (!portsData || !selectedCityId) return [];
+    return portsData.ports.filter((p) => p.city_id === selectedCityId);
+  }, [portsData, selectedCityId]);
+
+  const selectedCityName = useMemo(() => {
+    if (!portsData || !selectedCityId) return null;
+    return portsData.cities.find((c) => c.id === selectedCityId)?.name ?? null;
+  }, [portsData, selectedCityId]);
 
   const toggleDate = useCallback((date: string) => {
     setSelectedDates((prev) => {
       const next = new Set(prev);
-      if (next.has(date)) {
-        next.delete(date);
-      } else {
-        next.add(date);
-      }
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
       return next;
     });
+  }, []);
+
+  const handleSelectCity = useCallback((cityId: string) => {
+    setSelectedCityId(cityId);
+    setSelectedPortId(null);
   }, []);
 
   const handleSubmit = useCallback(async () => {
     if (selectedDates.size === 0) {
       Alert.alert('Select dates', 'Pick at least one day you are available');
+      return;
+    }
+    if (!selectedCityId) {
+      Alert.alert('Select location', 'Pick the city where you are available');
       return;
     }
 
@@ -80,13 +115,16 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
     }
     ranges.push({ startDate: rangeStart, endDate: prev });
 
-    // Submit each range
     let failed = false;
     for (const range of ranges) {
-      const result = await apiPost('/api/availability', {
+      const body: Record<string, unknown> = {
         startDate: range.startDate,
         endDate: range.endDate,
-      });
+        cityId: selectedCityId,
+      };
+      if (selectedPortId) body.portId = selectedPortId;
+
+      const result = await apiPost('/api/availability', body);
       if (!result.ok) {
         Alert.alert('Error', result.error);
         failed = true;
@@ -100,7 +138,9 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
       queryClient.invalidateQueries({ queryKey: ['availability', user?.id] });
       onAvailabilitySet();
     }
-  }, [selectedDates, queryClient, user?.id, onAvailabilitySet]);
+  }, [selectedDates, selectedCityId, selectedPortId, queryClient, user?.id, onAvailabilitySet]);
+
+  const canSubmit = selectedDates.size > 0 && !!selectedCityId;
 
   return (
     <BottomSheet
@@ -114,11 +154,87 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
       <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Set your availability</Text>
         <Text style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>
-          You need to set availability before applying to daywork
+          Select your location and the days you are available
         </Text>
       </View>
 
-      <BottomSheetScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <BottomSheetScrollView contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+        {/* City picker */}
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
+          Where are you?
+          {selectedCityName && (
+            <Text style={{ fontWeight: '400', color: '#2563eb' }}> — {selectedCityName}</Text>
+          )}
+        </Text>
+
+        {regionCities.map((region) => (
+          <View key={region.regionName} style={{ marginBottom: 12 }}>
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>{region.regionName}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {region.cities.map((city) => (
+                  <Pressable
+                    key={city.id}
+                    onPress={() => handleSelectCity(city.id)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                      backgroundColor: city.id === selectedCityId ? '#2563eb' : '#f3f4f6',
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: city.id === selectedCityId ? '#fff' : '#4b5563' }}>
+                      {city.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        ))}
+
+        {/* Optional port picker */}
+        {cityPorts.length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginBottom: 4 }}>Port/marina (optional)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <Pressable
+                  onPress={() => setSelectedPortId(null)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    backgroundColor: !selectedPortId ? '#2563eb' : '#f3f4f6',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, color: !selectedPortId ? '#fff' : '#4b5563' }}>Any</Text>
+                </Pressable>
+                {cityPorts.map((port) => (
+                  <Pressable
+                    key={port.id}
+                    onPress={() => setSelectedPortId(port.id)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 16,
+                      backgroundColor: port.id === selectedPortId ? '#2563eb' : '#f3f4f6',
+                    }}
+                  >
+                    <Text style={{ fontSize: 13, color: port.id === selectedPortId ? '#fff' : '#4b5563' }}>
+                      {port.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Date grid */}
+        <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 4 }}>
+          Which days?
+        </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {allDates.map((date) => {
             const { day, weekday, month } = formatDate(date);
@@ -153,16 +269,20 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
         <Pressable
           onPress={handleSubmit}
-          disabled={submitting || selectedDates.size === 0}
+          disabled={submitting || !canSubmit}
           style={{
-            backgroundColor: selectedDates.size === 0 ? '#93c5fd' : '#2563eb',
+            backgroundColor: !canSubmit ? '#93c5fd' : '#2563eb',
             borderRadius: 12,
             paddingVertical: 14,
             alignItems: 'center',
           }}
         >
           <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-            {submitting ? 'Setting...' : `Confirm ${selectedDates.size} day${selectedDates.size !== 1 ? 's' : ''}`}
+            {submitting
+              ? 'Setting...'
+              : !selectedCityId
+                ? 'Select a city first'
+                : `Confirm ${selectedDates.size} day${selectedDates.size !== 1 ? 's' : ''}`}
           </Text>
         </Pressable>
       </View>

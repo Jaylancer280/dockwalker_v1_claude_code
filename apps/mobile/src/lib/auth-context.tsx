@@ -1,13 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import type { RoleContext, IdentityType } from '@dockwalker/types';
+import type { Person } from '@dockwalker/types';
 import { supabase } from './supabase';
-
-interface Person {
-  id: string;
-  current_hat: RoleContext;
-  identity_type: IdentityType;
-}
 
 interface AuthContextValue {
   session: Session | null;
