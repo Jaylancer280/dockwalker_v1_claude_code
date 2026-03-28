@@ -19,7 +19,8 @@ export async function GET() {
         id, template_name, vessel_id, role_id, port_id,
         start_date, salary_min, salary_max, salary_currency, salary_period,
         live_aboard, required_certification_ids, required_languages, experience_bracket_id,
-        shortlist_cap, notes, created_at,
+        shortlist_cap, notes, contract_type, contract_details, description, meals,
+        positions_available, created_at,
         yacht_roles(name),
         ports(name, cities(name, regions(name)))
       `,
@@ -94,6 +95,11 @@ export async function POST(request: Request) {
         experience_bracket_id: body.experienceBracketId || null,
         shortlist_cap: body.shortlistCap || 5,
         notes: body.notes || null,
+        contract_type: body.contractType || null,
+        contract_details: body.contractDetails || null,
+        description: body.description || null,
+        meals: body.meals || [],
+        positions_available: body.positionsAvailable || 1,
       })
       .select('id')
       .single();

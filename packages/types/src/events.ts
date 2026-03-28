@@ -413,6 +413,11 @@ export interface EventPayloadMap {
     shortlist_cap: number;
     notes: string | null;
     required_languages?: string[];
+    contract_type?: string | null;
+    contract_details?: string | null;
+    description?: string | null;
+    meals?: string[];
+    positions_available?: number;
   };
   'PERMANENT.APPLIED': {
     id: string;

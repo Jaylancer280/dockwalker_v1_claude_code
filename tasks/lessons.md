@@ -76,6 +76,8 @@
 
 - **Per-scenario timestamps in the registry are essential, not optional:** When iterating at 100+ commits in 20 days, "last tested 2026-03-26" is useless — a feature could be built, broken, and fixed three times in one day. Every scenario row must have a UTC minute-level timestamp so the testing agent can tell "this scenario was last verified at 15:30 but the route was modified at 16:10 — needs re-test."
 
+- **Do not defer or skip todo items by assuming they are not needed:** When a todo item says to fix something, do the work as described. Do not test the build, conclude "this is too hard," and move the item to Post-TestFlight. The user created the item because it needs doing. If the approach described hits a wall, stop and ask — do not unilaterally deprioritize.
+
 ## Procedures
 
 ### Post-migration smoke test (mandatory)

@@ -36,6 +36,11 @@ export async function POST(request: Request) {
       experienceBracketId,
       shortlistCap,
       notes,
+      contractType,
+      contractDetails,
+      description,
+      meals,
+      positionsAvailable,
     } = body;
 
     // Validate required fields
@@ -118,6 +123,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Notes must be 500 characters or less' }, { status: 400 });
     }
 
+    // Validate contract_type if provided
+    const validContractTypes = [
+      'permanent',
+      'rotational',
+      'seasonal',
+      'crossing',
+      'delivery',
+      'temporary',
+    ];
+    if (contractType && !validContractTypes.includes(contractType)) {
+      return NextResponse.json({ error: 'Invalid contract type' }, { status: 400 });
+    }
+
+    // Validate positions_available
+    const resolvedPositions =
+      positionsAvailable !== undefined ? parseInt(positionsAvailable, 10) : 1;
+    if (isNaN(resolvedPositions) || resolvedPositions < 1 || resolvedPositions > 20) {
+      return NextResponse.json(
+        { error: 'positionsAvailable must be between 1 and 20' },
+        { status: 400 },
+      );
+    }
+
     // Validate FK references exist
     const fkChecks = [
       supabase
@@ -192,6 +220,11 @@ export async function POST(request: Request) {
         experience_bracket_id: experienceBracketId ?? null,
         shortlist_cap: resolvedShortlistCap,
         notes: notes ?? null,
+        contract_type: contractType ?? null,
+        contract_details: contractDetails ?? null,
+        description: description ?? null,
+        meals: meals ?? [],
+        positions_available: resolvedPositions,
       },
       personId: user.id,
     });

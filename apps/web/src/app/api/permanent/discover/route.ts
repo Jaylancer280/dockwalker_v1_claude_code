@@ -73,7 +73,8 @@ export async function GET(request: Request) {
         id, job_number, vessel_id, role_id, port_id, start_date,
         salary_min, salary_max, salary_currency, salary_period,
         live_aboard, required_certification_ids, required_languages, experience_bracket_id,
-        shortlist_cap, notes, status, created_at, employer_person_id,
+        shortlist_cap, notes, contract_type, contract_details, description, meals,
+        positions_available, positions_filled, status, created_at, employer_person_id,
         yacht_roles(id, name, department),
         ports(id, name, cities(name, regions(name))),
         experience_brackets(label)

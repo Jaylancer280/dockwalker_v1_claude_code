@@ -103,6 +103,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Vessels RLS Read Access                       | 00074     | 3 new SELECT policies: authenticated non-NDA read, engaged user NDA read, crew experience NDA read                                                                                                                                                                                                |
 | Placement Confirmed Status                    | 00075     | `placement_confirmed` application status; PERMANENT.PLACEMENT_CONFIRMED marks selected application terminal                                                                                                                                                                                       |
 | Seed Experience Brackets                      | 00076     | Seeds 5 experience bracket rows for production; idempotent `ON CONFLICT DO NOTHING`                                                                                                                                                                                                               |
+| Permanent Post Fields                         | 00077     | Adds `contract_type`, `contract_details`, `description`, `meals`, `positions_available`, `positions_filled` to permanent_postings + templates; updates PERMANENT.POSTED handler                                                                                                                   |
 
 ## Daywork Status Lifecycle
 

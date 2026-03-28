@@ -110,7 +110,26 @@ export interface ContractTermsSectionProps {
   setShortlistCap: (v: string) => void;
   notes: string;
   setNotes: (v: string) => void;
+  contractType: string;
+  setContractType: (v: string) => void;
+  description: string;
+  setDescription: (v: string) => void;
+  meals: string[];
+  setMeals: React.Dispatch<React.SetStateAction<string[]>>;
+  positionsAvailable: string;
+  setPositionsAvailable: (v: string) => void;
 }
+
+const CONTRACT_TYPES = [
+  { value: 'permanent', label: 'Permanent' },
+  { value: 'rotational', label: 'Rotational' },
+  { value: 'seasonal', label: 'Seasonal' },
+  { value: 'crossing', label: 'Crossing' },
+  { value: 'delivery', label: 'Delivery' },
+  { value: 'temporary', label: 'Temporary' },
+];
+
+const MEAL_OPTIONS = ['breakfast', 'lunch', 'dinner'];
 
 export function ContractTermsSection({
   liveAboard,
@@ -119,9 +138,60 @@ export function ContractTermsSection({
   setShortlistCap,
   notes,
   setNotes,
+  contractType,
+  setContractType,
+  description,
+  setDescription,
+  meals,
+  setMeals,
+  positionsAvailable,
+  setPositionsAvailable,
 }: ContractTermsSectionProps) {
   return (
     <>
+      {/* Contract type */}
+      <div>
+        <Label>Contract type</Label>
+        <Select value={contractType} onValueChange={setContractType}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select contract type" />
+          </SelectTrigger>
+          <SelectContent>
+            {CONTRACT_TYPES.map((ct) => (
+              <SelectItem key={ct.value} value={ct.value}>
+                {ct.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Description */}
+      <div>
+        <Label>Job description (optional)</Label>
+        <textarea
+          className="w-full rounded-md border bg-[var(--card)] px-3 py-2 text-sm"
+          rows={4}
+          maxLength={2000}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe the role, responsibilities, and what you're looking for..."
+        />
+      </div>
+
+      {/* Positions available */}
+      <div>
+        <Label>Positions available</Label>
+        <Input
+          type="number"
+          min={1}
+          max={20}
+          value={positionsAvailable}
+          onChange={(e) => setPositionsAvailable(e.target.value)}
+          className="w-24"
+        />
+      </div>
+
       {/* Live aboard */}
       <div className="flex items-center gap-2">
         <Checkbox
@@ -132,6 +202,26 @@ export function ContractTermsSection({
         <Label htmlFor="liveAboard" className="cursor-pointer">
           Live aboard included
         </Label>
+      </div>
+
+      {/* Meals */}
+      <div>
+        <Label>Meals provided</Label>
+        <div className="flex gap-3 mt-1">
+          {MEAL_OPTIONS.map((meal) => (
+            <label key={meal} className="flex items-center gap-1.5 text-sm">
+              <Checkbox
+                checked={meals.includes(meal)}
+                onCheckedChange={() =>
+                  setMeals((prev) =>
+                    prev.includes(meal) ? prev.filter((m) => m !== meal) : [...prev, meal],
+                  )
+                }
+              />
+              {meal}
+            </label>
+          ))}
+        </div>
       </div>
 
       {/* Shortlist cap */}
@@ -159,7 +249,7 @@ export function ContractTermsSection({
           maxLength={500}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Job description, requirements, benefits..."
+          placeholder="Additional notes, benefits, perks..."
         />
         <p className="text-right text-xs text-muted-foreground">{notes.length}/500</p>
       </div>

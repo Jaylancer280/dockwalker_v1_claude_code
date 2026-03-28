@@ -191,6 +191,12 @@ export interface PermanentPosting {
   experience_bracket_id: string | null;
   shortlist_cap: number;
   notes: string | null;
+  contract_type: string | null;
+  contract_details: string | null;
+  description: string | null;
+  meals: string[];
+  positions_available: number;
+  positions_filled: number;
   status: PermanentPostingStatus;
   job_number: number;
   created_at: string;
@@ -215,6 +221,11 @@ export interface PermanentTemplate {
   experience_bracket_id: string | null;
   shortlist_cap: number;
   notes: string | null;
+  contract_type: string | null;
+  contract_details: string | null;
+  description: string | null;
+  meals: string[];
+  positions_available: number;
   created_at: string;
   updated_at: string;
 }

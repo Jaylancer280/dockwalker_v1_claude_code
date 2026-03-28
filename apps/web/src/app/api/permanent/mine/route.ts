@@ -21,7 +21,8 @@ export async function GET() {
       .select(
         `
         id, job_number, start_date, salary_min, salary_max, salary_currency, salary_period,
-        live_aboard, shortlist_cap, notes, status, created_at,
+        live_aboard, shortlist_cap, notes, contract_type, description, meals,
+        positions_available, positions_filled, status, created_at,
         yacht_roles(name),
         ports(name, cities(name, regions(name))),
         vessels(name, nda_flag, vessel_type),

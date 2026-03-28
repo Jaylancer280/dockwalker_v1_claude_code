@@ -51,6 +51,11 @@ interface PermanentTemplate {
   experience_bracket_id: string | null;
   shortlist_cap: number | null;
   notes: string | null;
+  contract_type: string | null;
+  contract_details: string | null;
+  description: string | null;
+  meals: string[];
+  positions_available: number | null;
 }
 
 interface PermanentPostFormProps {
@@ -100,6 +105,12 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   );
   const [shortlistCap, setShortlistCap] = useState((draft?.shortlistCap as string) ?? '5');
   const [notes, setNotes] = useState((draft?.notes as string) ?? '');
+  const [contractType, setContractType] = useState((draft?.contractType as string) ?? 'permanent');
+  const [description, setDescription] = useState((draft?.description as string) ?? '');
+  const [meals, setMeals] = useState<string[]>((draft?.meals as string[]) ?? []);
+  const [positionsAvailable, setPositionsAvailable] = useState(
+    (draft?.positionsAvailable as string) ?? '1',
+  );
 
   // Template state
   const [templates, setTemplates] = useState<PermanentTemplate[]>([]);
@@ -203,6 +214,10 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     if (t.experience_bracket_id) setExperienceBracketId(t.experience_bracket_id);
     if (t.shortlist_cap) setShortlistCap(String(t.shortlist_cap));
     setNotes(t.notes ?? '');
+    setContractType(t.contract_type ?? 'permanent');
+    setDescription(t.description ?? '');
+    setMeals(t.meals ?? []);
+    if (t.positions_available) setPositionsAvailable(String(t.positions_available));
   }
 
   async function handleDeleteTemplate() {
@@ -261,6 +276,11 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         experienceBracketId: experienceBracketId === 'any' ? null : experienceBracketId || null,
         shortlistCap: parseInt(shortlistCap, 10) || 5,
         notes: notes || null,
+        contractType: contractType || null,
+        contractDetails: null,
+        description: description || null,
+        meals,
+        positionsAvailable: parseInt(positionsAvailable, 10) || 1,
       }),
     });
 
@@ -293,6 +313,11 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           experienceBracketId: experienceBracketId === 'any' ? null : experienceBracketId || null,
           shortlistCap: parseInt(shortlistCap, 10) || 5,
           notes: notes || null,
+          contractType: contractType || null,
+          contractDetails: null,
+          description: description || null,
+          meals,
+          positionsAvailable: parseInt(positionsAvailable, 10) || 1,
         }),
       });
     }
@@ -378,6 +403,14 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           setShortlistCap={setShortlistCap}
           notes={notes}
           setNotes={setNotes}
+          contractType={contractType}
+          setContractType={setContractType}
+          description={description}
+          setDescription={setDescription}
+          meals={meals}
+          setMeals={setMeals}
+          positionsAvailable={positionsAvailable}
+          setPositionsAvailable={setPositionsAvailable}
         />
 
         <RequirementsSection
