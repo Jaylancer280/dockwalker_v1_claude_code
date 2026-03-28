@@ -72,7 +72,7 @@ export async function GET(request: Request) {
       .eq('crew_person_id', user.id)
       .in('status', ['applied', 'viewed', 'shortlisted', 'accepted', 'superseded', 'withdrawn']);
 
-    const excludedIds = (existingApps ?? []).map((a) => a.daywork_id);
+    const excludedIds = (existingApps ?? []).map((a) => a.daywork_id).filter(Boolean);
 
     // Build query for active dayworks, ordered by recency.
     // Exclusions are applied at the DB level so the limit operates on already-filtered rows.

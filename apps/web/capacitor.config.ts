@@ -29,6 +29,7 @@ const config: CapacitorConfig = {
   ios: {
     scheme: 'DockWalker',
     contentInset: 'always',
+    scrollEnabled: false,
   },
   android: {
     backgroundColor: '#FFFFFF',

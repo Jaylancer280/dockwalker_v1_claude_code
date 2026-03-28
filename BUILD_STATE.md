@@ -220,10 +220,11 @@
 
 - [Fix batch 153] UX fixes — (1) signup page polls for confirmed session every 3s, auto-redirects to /onboarding when email confirmed in other tab; (2) login page shows info message on `?error=auth_failed` query param; (3) availability overlay + API allow "not available" without city selection (cityId optional when notAvailable: true); (4) removed duplicate "Display name" input from profile page avatar section; (5) experience section empty-state CTA visible even when section is collapsed (Button with Plus icon); 870 tests pass
 - [Fix 154] SUG fixes — SUG-001: added client-side hat guard on review page (crew redirected to /discover on client-side navigation); SUG-004/011/016 verified already fixed in pre-TestFlight batch (migration 00074, cancel dialog, middleware+client redirect); updated review-available-tab test mock for new auth.getUser() call; 870 tests pass
+- [Fix 155] Quick wins batch — (A) PF-001: discover daywork feed crash — null `daywork_id` from permanent applications polluted `excludedIds`, breaking the `.not('id','in',...)` filter and returning zero jobs; added `.filter(Boolean)`; (B) experience brackets: migration 00076 seeds 5 brackets into production (seed file only runs locally); fixed seed `ON CONFLICT`; (C) app icon: copied new full-bleed DockWalker icon; (D) overscroll: `overscroll-behavior: none` on html+body + `scrollEnabled: false` in Capacitor iOS config; 906 tests pass
 
 ## Current Schema Version
 
-v75 — Vessels RLS + placement_confirmed status (75 migrations applied)
+v76 — Seed experience brackets (76 migrations applied)
 
 ## Migrations Applied
 
@@ -305,6 +306,7 @@ v75 — Vessels RLS + placement_confirmed status (75 migrations applied)
 | `00073_availability_date_expiry.sql` | Availability date-based expiry: each date row expires at `date + interval '1 day'` instead of 7-day fixed window; updated `apply_projection` AVAILABILITY.SET handler |
 | `00074_vessels_rls_read_access.sql` | Vessels RLS fix: 3 new SELECT policies — authenticated non-NDA read, engaged user NDA read, crew experience NDA read; unblocks PostgREST embedded joins for non-owners |
 | `00075_placement_confirmed_status.sql` | Adds `placement_confirmed` to application status CHECK; updates PERMANENT.PLACEMENT_CONFIRMED handler to mark selected application as terminal |
+| `00076_seed_experience_brackets.sql` | Seeds 5 experience bracket rows via migration for production (seed files only run locally); idempotent with `ON CONFLICT DO NOTHING` |
 
 ## Deferred Decisions
 
