@@ -12,20 +12,20 @@
 
 > Updated by the planning agent at the end of each session. A fresh agent reads this first.
 
-| Phase                                                          | Status      | Notes                                                                                                   |
-| -------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------- |
-| Monorepo setup (turbo.json, packages/shared, db mobile client) | DONE        | Stage 163 — turbo, shared pkg, mobile db client                                                         |
-| Phase 1 — Shell + Auth                                         | DONE        | Stage 163 — Expo SDK 53, NativeWind, auth context, 5-tab nav, onboarding shell. Device testing pending. |
-| Phase 2 — Discovery + Swipe                                    | NOT STARTED | Highest risk — prototype swipe first                                                                    |
-| Phase 3 — Employer Flows                                       | NOT STARTED |                                                                                                         |
-| Phase 4 — Messaging                                            | NOT STARTED |                                                                                                         |
-| Phase 5 — Profile + Experience                                 | NOT STARTED |                                                                                                         |
-| Phase 6 — Docky + Polish                                       | NOT STARTED |                                                                                                         |
-| Phase 7 — Ship (iOS TestFlight)                                | NOT STARTED |                                                                                                         |
-| Phase 8 — Android polish pass                                  | NOT STARTED |                                                                                                         |
-| Capacitor removal                                              | BLOCKED     | Waiting on Phase 7 validation                                                                           |
+| Phase                                                          | Status      | Notes                                                                                     |
+| -------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------- |
+| Monorepo setup (turbo.json, packages/shared, db mobile client) | DONE        | Stage 163 — turbo, shared pkg, mobile db client                                           |
+| Phase 1 — Shell + Auth                                         | DONE        | Stage 163 + Fix 163 — Expo SDK 53, NativeWind, auth context, 5-tab nav, onboarding shell. |
+| Phase 2 — Discovery + Swipe                                    | IN PROGRESS | Checklist in todo.md. Swipe prototype first, then daywork feed, permanent feed, filters.  |
+| Phase 3 — Employer Flows                                       | NOT STARTED |                                                                                           |
+| Phase 4 — Messaging                                            | NOT STARTED |                                                                                           |
+| Phase 5 — Profile + Experience                                 | NOT STARTED |                                                                                           |
+| Phase 6 — Docky + Polish                                       | NOT STARTED |                                                                                           |
+| Phase 7 — Ship (iOS TestFlight)                                | NOT STARTED |                                                                                           |
+| Phase 8 — Android polish pass                                  | NOT STARTED |                                                                                           |
+| Capacitor removal                                              | BLOCKED     | Waiting on Phase 7 validation                                                             |
 
-**Last session:** 2026-03-28 — Stage 163: Monorepo setup + Shell + Auth implemented. Device testing pending.
+**Last session:** 2026-03-28 — Stage 165: Full discover screens. Device testing next gate.
 
 ---
 

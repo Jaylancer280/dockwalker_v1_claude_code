@@ -234,6 +234,10 @@
 
 - [Stage 163] Mobile Phase 1: Monorepo + Shell + Auth — Turborepo pipeline (`turbo.json`), `apps/mobile/` Expo SDK 53 with Expo Router + NativeWind + Supabase auth, `packages/shared/` extracted (units, languages, compute-total-experience, epaulettes — 43 web imports updated), `createMobileClient` in `packages/db/`, auth context + 5-tab navigation + onboarding shell; 908 web tests pass, 5 workspaces type-check
 
+- [Stage 164] Mobile Phase 2a: Dependencies + Swipe prototype — FlashList, @gorhom/bottom-sheet, react-native-keyboard-controller, MMKV, TanStack Query installed; QueryClientProvider + GestureHandlerRootView in root layout; `apiPost`/`apiDelete` authenticated API helpers; canonical data hooks (roles, certs, ports, brackets, size bands); `DayworkJobCard` component with skeleton; `SwipeCardStack` with gesture handler + reanimated spring physics + haptics + rotation + overlay indicators; swipe test screen; `@types/react` override to fix React 19 type duplication; 908 web tests pass, 5 workspaces type-check
+
+- [Stage 165] Mobile Phase 2b: Discover screens — daywork discover hook (direct Supabase read matching web route logic), job detail bottom sheet with apply + message, permanent discover hook with cursor-based pagination + infinite query, permanent job card + FlashList feed, Daywork/Permanent segmented toggle, filter panel bottom sheet (role/cert/port/bracket/size band) with active filter pills, availability gate (check before daywork apply, 14-day date grid overlay), wired end-to-end: swipe right→apply API→optimistic cache remove, permanent tap→Alert apply; 908 web tests pass, 5 workspaces type-check
+
 ## Current Schema Version
 
 v77 — Permanent post fields (77 migrations applied)
@@ -342,7 +346,7 @@ v77 — Permanent post fields (77 migrations applied)
 
 ## In Progress
 
-Mobile Phase 1 — device testing pending (iOS simulator sign-in/sign-out verification)
+Mobile Phase 2 — device testing pending (swipe feel, discover data, apply flow, filters, availability gate)
 
 ## Next Up
 
