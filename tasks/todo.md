@@ -17,32 +17,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 2. Page transition speed — reduce blank-screen flash between navigations
-
-**Problem:** Every tab navigation shows a blank screen or spinner for ~2 seconds before content appears. The app feels like a slow website. Root cause: all pages are `'use client'` with `useEffect` data fetching on mount. No prefetching, no data caching between navigations.
-
-**Files:** `apps/web/src/components/bottom-nav.tsx`, all page files under `apps/web/src/app/(app)/`
-
-**A. Quick wins (do first):**
-
-- [ ] **Enable Link prefetching on bottom nav** (`bottom-nav.tsx`): `<Link href={item.href} prefetch={true}>`
-- [ ] **Cache profile data in sessionStorage** with 60-second TTL so repeat navigations reuse it instantly
-- [ ] **Add `loading.tsx` skeleton screens** to high-traffic routes (`discover`, `messages`, `profile`, `daywork/mine`)
-
-**B. Architectural improvement (SWR/stale-while-revalidate):**
-
-- [ ] Install `swr` package and create `useSafeFetch` hook wrapping `safeFetch` with SWR caching
-- [ ] Convert discover page to use SWR
-- [ ] Convert messages page to use SWR
-- [ ] Convert profile page to use SWR
-- [ ] Convert daywork/mine page to use SWR
-- [ ] Test: navigate between tabs rapidly. Each tab should show content immediately on second visit.
-
-**Done condition:** Second visit to any tab renders content instantly (no spinner). First visit shows a skeleton screen instead of blank white.
-
----
-
-### 3. UX hardening — confirmation dialogs, error feedback, completeness hints
+### 2. UX hardening — confirmation dialogs, error feedback, completeness hints
 
 **Batch of UX fixes found during full audit. Each is small individually.**
 
@@ -94,7 +69,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 4. Capacitor static export architecture (BLOCKING — proper TF build)
+### 3. Capacitor static export architecture (BLOCKING — proper TF build)
 
 The current Codemagic build loads the entire app remotely from Vercel. Correct architecture: static HTML locally, only API calls remote.
 
@@ -126,7 +101,7 @@ The current Codemagic build loads the entire app remotely from Vercel. Correct a
 
 ---
 
-### 5. Permanent post form — add missing fields
+### 4. Permanent post form — add missing fields
 
 Permanent posting should be richer than daywork, not thinner.
 

@@ -68,6 +68,7 @@ export function BottomNav({ currentHat }: BottomNavProps) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               className={`flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
                 isActive ? 'text-[var(--accent)] font-medium' : 'text-[var(--muted-foreground)]'
               }`}

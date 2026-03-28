@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, ClipboardCheck, Archive } from 'lucide-react';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import { Avatar } from '@/components/avatar';
 import { NotificationBell } from '@/components/notification-bell';
-import { safeFetch } from '@/lib/safe-fetch';
+import { useSafeFetch } from '@/hooks/use-safe-fetch';
 
 interface Conversation {
   id: string;
@@ -33,32 +33,19 @@ interface Conversation {
 type TabView = 'active' | 'history';
 
 export default function MessagesPage() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data,
+    error: fetchError,
+    isLoading: loading,
+    mutate,
+  } = useSafeFetch<{ conversations?: Conversation[] }>('/api/messages');
+  const conversations = data?.conversations ?? [];
+  const error = fetchError ? 'Failed to load messages. Please try again.' : null;
   const [tab, setTab] = useState<TabView>(() => {
     if (typeof window === 'undefined') return 'active';
     const stored = sessionStorage.getItem('dockwalker:messages-tab');
     return stored === 'history' ? 'history' : 'active';
   });
-
-  const load = useCallback(async () => {
-    try {
-      const result = await safeFetch<{ conversations?: Conversation[] }>('/api/messages');
-      if (result.ok) {
-        if (result.data.conversations) setConversations(result.data.conversations);
-        setError(null);
-      } else {
-        setError('Failed to load messages. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useEffect(() => {
     sessionStorage.setItem('dockwalker:messages-tab', tab);
@@ -108,7 +95,7 @@ export default function MessagesPage() {
         {error && (
           <div className="mb-4 flex flex-col items-center gap-2 text-center">
             <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" onClick={load}>
+            <Button variant="outline" size="sm" onClick={() => mutate()}>
               Retry
             </Button>
           </div>
