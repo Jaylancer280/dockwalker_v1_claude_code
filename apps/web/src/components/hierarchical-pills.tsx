@@ -13,7 +13,6 @@ export interface HierarchicalPillsProps {
   value: string | string[];
   onValueChange: (v: string | string[]) => void;
   mode: 'single' | 'multi';
-  optional?: boolean;
   placeholder?: string;
 }
 
