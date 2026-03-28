@@ -1,39 +1,38 @@
 # Founder Todo — Launch Checklist
 
-> Single source of truth for getting DockWalker to TestFlight and production.
+> Single source of truth for getting DockWalker to production.
 > Structured by environment. Work top-to-bottom.
 >
 > **Key principle:** API keys and secrets NEVER go in the codebase.
 > They live in Vercel environment variables (scoped per environment)
 > and Supabase project settings. The codebase reads them from `process.env`.
 >
-> Last reviewed: 2026-03-26
+> Last reviewed: 2026-03-28
 
 ---
 
 ## Phase 0 — Code Fixes Before Any Deployment
 
-These are blocking bugs found by the testing agent. Fix via planning → implementation → testing agent loop.
+~~These were blocking bugs found by the testing agent. All resolved:~~
 
-- [ ] **SUG-001 + SUG-013:** Crew review page shows employer UI — add role-based rendering to `/daywork/[id]/review` and `/permanent/[id]/review`
-- [ ] **SUG-016:** Employer not redirected from `/discover` — fix middleware to check `current_hat !== 'crew'`, not just `identity_type === 'agent'`
-- [ ] **SUG-011:** Cancel posting has no confirmation dialog — add confirmation modal matching the permanent posting cancel pattern
+- [x] **SUG-001 + SUG-013:** Crew review page role gate — client-side hat guard + middleware regex for both daywork and permanent review routes (Stage 157)
+- [x] **SUG-016:** Employer redirect from `/discover` — middleware checks `current_hat === 'employer'` and redirects to `/daywork/mine` (Stage 157)
+- [x] **SUG-011:** Cancel posting confirmation dialog — added to daywork mine page (Fix 160)
 
 ---
 
-## Phase 1 — Staging Environment (TestFlight Target)
-
-This is what your 20 testers use. It can break. Seed data is fine here.
+## Phase 1 — Staging Environment (Current State)
 
 ### 1a. Supabase Staging Project
 
 - [x] Create Supabase project `dockwalker-staging` (EU Central)
   - Project ref: `hwpcuehqawullzqbmcdv`
   - URL: `https://hwpcuehqawullzqbmcdv.supabase.co`
-- [x] 73 migrations pushed
+- [x] 77 migrations pushed (through 00077)
 - [x] Canonical data seeded (ports, roles, certs)
 - [x] Avatars storage bucket created
 - [x] RLS active (auto-enabled + migration policies)
+- [ ] Push migration 00076 (experience brackets) + 00077 (permanent post fields) to staging
 
 ### 1b. Supabase SMTP (Staging Auth Emails)
 
@@ -52,7 +51,7 @@ This is what your 20 testers use. It can break. Seed data is fine here.
 - [x] Environment variables set (Supabase URL, anon key, service role key)
 - [x] Deployed to `https://dockwalker-staging.vercel.app/`
 - [x] Signup + login verified working
-- [ ] Set `NEXT_PUBLIC_SITE_URL=https://dockwalker-staging.vercel.app` in Vercel env vars (for email links)
+- [ ] Verify `NEXT_PUBLIC_SITE_URL` is set correctly in Vercel Preview env (should be staging URL, not production domain — Codemagic uses `dockwalker.io` which may cause email link mismatch)
 
 ### 1d. Minimal Services for Staging
 
@@ -64,25 +63,24 @@ This is what your 20 testers use. It can break. Seed data is fine here.
 **Skip for staging (add later):**
 
 - Stripe — billing is deferred
-- FCM/APNs — push notifications can wait until production
 - Anthropic/OpenAI — Docky works but costs money; defer until production
 - Resend transactional emails — auth emails work via Supabase built-in
-- Deep links — not needed for TestFlight
 
-### 1e. Capacitor iOS Build (TestFlight)
+### 1e. Mobile App (Architecture Split)
 
-- [ ] Update `apps/web/capacitor.config.ts`:
-  - Set `server.url` to your Vercel staging preview URL (for live-reload during testing)
-  - OR build the web app statically and bundle it (production approach)
-- [ ] Open Xcode: `cd apps/web && npx cap open ios`
-- [ ] Set your Apple Developer Team in Signing & Capabilities
-- [ ] Set Bundle Identifier: `com.dockwalker.app`
-- [ ] Archive → Distribute → TestFlight
-- [ ] Invite your 20 testers via TestFlight
+> **Capacitor webview wrapper is being replaced with a native Expo/React Native app.**
+> See `tasks/` for the mobile architecture planning doc (forthcoming).
+> The current Codemagic pipeline (remote webview to Vercel) continues working for
+> existing testers until the Expo app replaces it.
 
-### 1f. TestFlight Testing Checklist
+- [x] Codemagic CI/CD pipeline — auto-builds iOS on push to main, submits to TestFlight
+- [x] Bundle ID: `io.dockwalker.app`
+- [x] Signing configured in Codemagic
+- [ ] **NEW:** Expo/React Native app (`apps/mobile/`) — planning in progress, replaces Capacitor
 
-Give your 20 testers these flows to test:
+### 1f. Web App Testing Checklist
+
+Flows to verify on staging with real users:
 
 - [ ] Sign up with email → receive confirmation → confirm → onboard
 - [ ] Set availability (crew) or post a daywork job (employer)
@@ -152,41 +150,50 @@ Only set this up after staging is validated. Your real users go here.
 - [ ] Verify domain (same as SMTP setup if done for staging)
 - [ ] Set `RESEND_API_KEY` and `RESEND_FROM_EMAIL` in Vercel (Production scope)
 
-**Push Notifications — needed before App Store:**
-
-- [ ] FCM: Firebase project → Cloud Messaging → service account JSON
-  - Set `FCM_PROJECT_ID` and `FCM_SERVICE_ACCOUNT_KEY` in Vercel (Production)
-- [ ] APNs: Apple Developer → Keys → APNs key (.p8)
-  - Set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY_PATH` in Vercel (Production)
-
 **Docky AI — needed before public launch:**
 
 - [ ] Set `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in Vercel (Production)
 - [ ] Bulk-index MCA document chunks into production Supabase `mca_document_chunks` table
 
-**Stripe — defer until monetisation decision:**
+### 2d. Deferred Services — Not Blocking Launch
 
-- [ ] Create Stripe products/prices
+**Push Notifications:**
+
+> Push infrastructure exists in code (Stages 63-66) but is not configured for any
+> deployed environment. Will be reconfigured for Expo Push when the native mobile
+> app ships. No action needed for web.
+
+**Stripe Billing:**
+
+> Billing code exists (subscriptions table, checkout/portal routes, webhook handler).
+> Not activated — no Stripe products/prices created. Intentionally deferred until
+> monetisation decision and tier pricing are finalised.
+> See `tasks/founder-drafts.md` § 3-4 for tier copy drafts.
+
+- [ ] Create Stripe products/prices (when ready)
 - [ ] Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*` in Vercel (Production)
 - [ ] Configure webhook endpoint: `https://yourdomain.com/api/webhooks/stripe`
 
-### 2d. Deep Links (before App Store submission)
+### 2e. Deep Links (before App Store submission)
 
 - [ ] Replace placeholder values:
   - `apps/web/public/.well-known/apple-app-site-association` → real Team ID
   - `apps/web/public/.well-known/assetlinks.json` → real SHA256 fingerprint
-  - `apps/web/ios/App/App/App.entitlements` → real domain
-  - `apps/web/android/app/src/main/AndroidManifest.xml` → real domain
+  - `apps/web/ios/App/App/App.entitlements` → real domain (if still using Capacitor shell)
 - [ ] Verify after deploy:
   - iOS: `https://app-site-association.cdn-apple.com/a/v1/yourdomain.com`
   - Android: `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://yourdomain.com`
 
-### 2e. App Store Submissions
+> **Note:** Deep link config will need updating when the Expo app replaces Capacitor.
+> Expo has its own deep linking setup. These placeholder files serve the web and
+> the current Capacitor shell.
+
+### 2f. App Store Submissions
 
 - [ ] iOS App Store Connect:
   - Create listing, screenshots (6.7" + 6.1"), description (see `founder-drafts.md` § 6)
   - Privacy policy URL (host the doc from `founder-drafts.md` § 2 on your domain)
-  - Build with production Capacitor config → archive → submit
+  - Build with Expo EAS (replaces Capacitor archive)
 - [ ] Google Play Console:
   - Create listing, screenshots, description
   - Sign release AAB with keystore

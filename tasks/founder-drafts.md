@@ -304,7 +304,7 @@ Post daywork or permanent roles in under 60 seconds. Review structured crew prof
 - Availability calendar with location
 - Docky AI advisor for MCA cert guidance
 - Templates for repeat posting
-- Works offline-ready on iOS and Android
+- Native iOS and Android app
 
 **Built for maritime professionals in Antibes, Palma, Fort Lauderdale, Caribbean, Bahamas, Dubai, and Turkey.**
 

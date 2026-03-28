@@ -76,7 +76,7 @@
 
 - **Per-scenario timestamps in the registry are essential, not optional:** When iterating at 100+ commits in 20 days, "last tested 2026-03-26" is useless — a feature could be built, broken, and fixed three times in one day. Every scenario row must have a UTC minute-level timestamp so the testing agent can tell "this scenario was last verified at 15:30 but the route was modified at 16:10 — needs re-test."
 
-- **Do not defer or skip todo items by assuming they are not needed:** When a todo item says to fix something, do the work as described. Do not test the build, conclude "this is too hard," and move the item to Post-TestFlight. The user created the item because it needs doing. If the approach described hits a wall, stop and ask — do not unilaterally deprioritize.
+- **Do not defer or skip todo items by assuming they are not needed:** When a todo item says to fix something, do the work as described. Do not test the build, conclude "this is too hard," and move the item to the Backlog. The user created the item because it needs doing. If the approach described hits a wall, stop and ask — do not unilaterally deprioritize.
 
 ## Procedures
 
@@ -104,6 +104,12 @@ After ANY session that includes a migration, before presenting changes:
 - **Check existing planning artifacts before adding todo items:** The project has multiple planning files (`tasks/founder-todo.md`, `tasks/launch-readiness.md`, `tasks/todo.md`). Before adding new items to the queue — especially infrastructure, config, or launch-readiness items — read the other planning files first to avoid duplication. When in doubt about whether something belongs in the code todo vs the founder's external checklist, ask the user.
 
 - **Positions filled count is employer-only data:** Crew should never see how many positions have been filled — only the total positions available (or shortlist cap). Showing fill counts to crew creates competitive anxiety, which violates the mission doc. Employer review pages can show filled/total. Discover cards show only the total. Same principle as "no competition metrics visible to crew."
+
+- **The Backlog is not a dumping ground:** The Backlog section is an active prioritisation queue, not a place to defer difficult work. If a todo item is difficult, the implementation agent must stop and ask the user — not silently move it to the backlog. The user decides what gets deferred, not the agent.
+
+- **Never commit with merge conflict markers or dirty working tree:** Before every commit, the implementation agent must verify: (1) no conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any staged file — grep for them, (2) `git diff` shows no unintended uncommitted changes. Merge conflict markers are a build breaker. Uncommitted formatting diffs accumulate into a confusing working tree. Both were missed across 9 commits on 2026-03-28.
+
+- **Rollback completeness is not optional — verify before committing the migration:** When a migration replaces `apply_projection`, the rollback must contain the full previous function body. A comment saying "see migration 00075" violates the self-contained rollback rule (already documented above). The check: open the rollback file, read it as if it's the only file you have — can you run it and restore the DB to the prior state? If not, it's incomplete. This was already a lesson and was repeated anyway.
 
 ### Pre-commit aggregate_type audit (automated)
 
