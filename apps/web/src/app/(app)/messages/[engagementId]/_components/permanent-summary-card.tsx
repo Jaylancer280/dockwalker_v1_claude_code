@@ -2,7 +2,7 @@
 
 import { MapPin, Briefcase, Ship, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { currencySymbol } from '@/lib/units';
+import { currencySymbol } from '@dockwalker/shared';
 import type { EngagementContext } from './types';
 
 interface PermanentSummaryCardProps {

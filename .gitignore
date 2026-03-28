@@ -35,6 +35,9 @@ Thumbs.db
 # claude code sessions
 .claude/
 
+# turbo
+.turbo
+
 # misc
 *.tsbuildinfo
 npm-debug.log*

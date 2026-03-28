@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
-import { LANGUAGES } from '@/lib/languages';
+import { LANGUAGES } from '@dockwalker/shared';
 
 interface LookupItem {
   id: string;

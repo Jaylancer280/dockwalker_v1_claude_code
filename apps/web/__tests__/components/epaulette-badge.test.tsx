@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { getEpaulette, getDepartmentColor } from '@/lib/epaulettes';
+import { getEpaulette, getDepartmentColor } from '@dockwalker/shared';
 
 describe('getEpaulette utility', () => {
   it('returns correct mapping for all 23 roles', () => {

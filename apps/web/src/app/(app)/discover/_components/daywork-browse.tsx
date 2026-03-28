@@ -18,7 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
-import { convertSizeBandLabel } from '@/lib/units';
+import { convertSizeBandLabel } from '@dockwalker/shared';
 import { usePreferences } from '@/hooks/use-preferences';
 import { type DayworkCard, type SwipeableCardHandle, JobCard, SwipeableCard } from './daywork-card';
 

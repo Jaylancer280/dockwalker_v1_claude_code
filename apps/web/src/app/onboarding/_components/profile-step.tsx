@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { LANGUAGES } from '@/lib/languages';
+import { LANGUAGES } from '@dockwalker/shared';
 
 interface LookupItem {
   id: string;

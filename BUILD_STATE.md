@@ -232,6 +232,8 @@
 - [Fix 162b] Permanent post display + tests — job card shows contract type, positions (total only, no filled count for crew), meals badges; chat PermanentSummaryCard shows contract type; discover API strips `positions_filled` from crew response; context API returns `contract_type`; 2 new tests (invalid contract_type + positions out of range); 908 tests pass
 - [Fix 162c] Post-review cleanup — resolved merge conflict in permanent-summary-card.tsx; rollback 00077 made self-contained with full apply_projection body; removed unused `optional` prop from HierarchicalPills; added pre-commit hook to block merge conflict markers; Capacitor static export dead-end removed (CAPACITOR_BUILD conditional, capacitor-build.sh, 6 \_client.tsx wrapper splits); 908 tests pass
 
+- [Stage 163] Mobile Phase 1: Monorepo + Shell + Auth — Turborepo pipeline (`turbo.json`), `apps/mobile/` Expo SDK 53 with Expo Router + NativeWind + Supabase auth, `packages/shared/` extracted (units, languages, compute-total-experience, epaulettes — 43 web imports updated), `createMobileClient` in `packages/db/`, auth context + 5-tab navigation + onboarding shell; 908 web tests pass, 5 workspaces type-check
+
 ## Current Schema Version
 
 v77 — Permanent post fields (77 migrations applied)
@@ -340,7 +342,7 @@ v77 — Permanent post fields (77 migrations applied)
 
 ## In Progress
 
-None
+Mobile Phase 1 — device testing pending (iOS simulator sign-in/sign-out verification)
 
 ## Next Up
 

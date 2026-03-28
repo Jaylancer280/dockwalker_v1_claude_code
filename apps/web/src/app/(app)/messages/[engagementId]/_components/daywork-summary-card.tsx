@@ -1,6 +1,6 @@
 import { MapPin, Calendar, Briefcase, Anchor, Utensils, Banknote } from 'lucide-react';
 import type { EngagementContext } from './types';
-import { currencySymbol } from '@/lib/units';
+import { currencySymbol } from '@dockwalker/shared';
 
 export function DayworkSummaryCard({ context }: { context: EngagementContext }) {
   const dw = context.dayworks;

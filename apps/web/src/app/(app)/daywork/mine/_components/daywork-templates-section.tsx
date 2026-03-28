@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
-import { currencySymbol } from '@/lib/units';
+import { currencySymbol } from '@dockwalker/shared';
 import type { Template } from './daywork-types';
 
 export interface DayworkTemplatesSectionProps {

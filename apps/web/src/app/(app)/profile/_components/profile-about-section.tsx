@@ -1,6 +1,6 @@
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { languageLabel } from '@/lib/languages';
+import { languageLabel } from '@dockwalker/shared';
 
 interface Profile {
   deck_name: string | null;

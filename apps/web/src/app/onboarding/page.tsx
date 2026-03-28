@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { usePreferences } from '@/hooks/use-preferences';
-import { feetToMeters } from '@/lib/units';
+import { feetToMeters } from '@dockwalker/shared';
 
 import { WelcomeStep } from './_components/welcome-step';
 import { IdentityStep } from './_components/identity-step';

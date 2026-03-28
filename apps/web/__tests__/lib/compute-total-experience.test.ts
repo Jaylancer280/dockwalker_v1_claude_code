@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeTotalExperience } from '@/lib/compute-total-experience';
+import { computeTotalExperience } from '@dockwalker/shared';
 
 describe('computeTotalExperience', () => {
   it('returns "0d" for empty array', () => {

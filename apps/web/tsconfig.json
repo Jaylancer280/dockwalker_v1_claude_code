@@ -21,7 +21,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@dockwalker/types": ["../../packages/types/src"],
-      "@dockwalker/db": ["../../packages/db/src"]
+      "@dockwalker/db": ["../../packages/db/src"],
+      "@dockwalker/shared": ["../../packages/shared/src"]
     }
   },
   "include": [

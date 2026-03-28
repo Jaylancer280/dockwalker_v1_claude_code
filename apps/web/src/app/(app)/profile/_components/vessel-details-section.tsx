@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { metersToFeet, convertSizeBandLabel } from '@/lib/units';
+import { metersToFeet, convertSizeBandLabel } from '@dockwalker/shared';
 
 interface SizeBand {
   id: string;

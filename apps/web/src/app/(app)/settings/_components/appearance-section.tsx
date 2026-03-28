@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useTheme } from '@/components/theme-provider';
-import type { DistanceUnit, CurrencyCode } from '@/lib/units';
+import type { DistanceUnit, CurrencyCode } from '@dockwalker/shared';
 
 export interface AppearanceSectionProps {
   distanceUnit: DistanceUnit;

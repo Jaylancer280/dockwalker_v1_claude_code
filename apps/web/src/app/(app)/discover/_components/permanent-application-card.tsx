@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { currencySymbol } from '@/lib/units';
+import { currencySymbol } from '@dockwalker/shared';
 
 interface PermanentApplicationPosting {
   job_number: number;

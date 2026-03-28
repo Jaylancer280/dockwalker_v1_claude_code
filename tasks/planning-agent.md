@@ -33,6 +33,7 @@ Read these files in order:
 5. `tasks/todo.md` (in-flight work from previous sessions)
 6. `tasks/playwright-suggestions.md` (testing agent findings — review Pending section)
 7. `tasks/playwright-test-registry.md` (test coverage, recent findings, planned scenarios)
+8. `tasks/mobile-web-split-spec.md` (progress tracker — which mobile phase is current)
 
 ### 2. Review Testing Agent Findings
 
@@ -145,7 +146,8 @@ After user decisions are made:
 1. Update `tasks/todo.md` with new/modified checklists
 2. Update `tasks/playwright-suggestions.md` (move items to Accepted/Rejected)
 3. Update `tasks/playwright-test-registry.md` (add/modify PLANNED scenarios)
-4. Append any new lessons to `tasks/lessons.md`
+4. Update progress tracker in `tasks/mobile-web-split-spec.md` if any mobile phase changed status
+5. Append any new lessons to `tasks/lessons.md`
 
 ## Integration with Other Agents
 

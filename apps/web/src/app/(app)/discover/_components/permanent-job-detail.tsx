@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { ProfileOverlay } from '@/components/profile-overlay';
-import { currencySymbol } from '@/lib/units';
-import { languageLabel } from '@/lib/languages';
+import { currencySymbol } from '@dockwalker/shared';
+import { languageLabel } from '@dockwalker/shared';
 import type { PermanentPosting } from './permanent-job-card';
 import { useState } from 'react';
 

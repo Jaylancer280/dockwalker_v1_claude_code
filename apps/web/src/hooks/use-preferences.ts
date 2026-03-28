@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { CurrencyCode, DistanceUnit, LengthUnit } from '@/lib/units';
-import { lengthUnitFromDistance } from '@/lib/units';
+import type { CurrencyCode, DistanceUnit, LengthUnit } from '@dockwalker/shared';
+import { lengthUnitFromDistance } from '@dockwalker/shared';
 
 const STORAGE_KEYS = {
   distanceUnit: 'dw-distance-unit',

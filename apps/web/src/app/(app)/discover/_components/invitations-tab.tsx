@@ -6,7 +6,7 @@ import { LoadingSpinner } from '@/components/loading-spinner';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { currencySymbol } from '@/lib/units';
+import { currencySymbol } from '@dockwalker/shared';
 
 export interface Invitation {
   id: string;

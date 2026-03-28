@@ -37,7 +37,7 @@ import { SegmentedToggle } from '@/components/ui/segmented-toggle';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-jobs-tab';
-import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
+import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
 import { usePreferences } from '@/hooks/use-preferences';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';

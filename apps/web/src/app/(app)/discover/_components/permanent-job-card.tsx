@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { DepartmentChip } from '@/components/department-chip';
-import { currencySymbol } from '@/lib/units';
-import { languageLabel } from '@/lib/languages';
+import { currencySymbol } from '@dockwalker/shared';
+import { languageLabel } from '@dockwalker/shared';
 
 export interface PermanentPosting {
   id: string;

@@ -37,6 +37,7 @@ Read these files in order:
 3. `dockwalker_mission.md` (product context and negative space)
 4. `tasks/lessons.md` (past mistakes — do not repeat these)
 5. `tasks/todo.md` (your work spec — this is what you execute)
+6. `tasks/mobile-web-split-spec.md` (if current task involves mobile or shared packages — read the progress tracker and the relevant section for architectural decisions, import boundaries, and contamination rules)
 
 **If `tasks/todo.md` has no checklist for your task, STOP.** Tell the user to use the planning agent first. Do not improvise a plan.
 

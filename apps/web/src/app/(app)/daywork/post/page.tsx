@@ -26,14 +26,14 @@ import {
 } from '@/components/ui/dialog';
 import { LocationPicker } from '@/components/location-picker';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
-import { currencySymbol } from '@/lib/units';
+import { currencySymbol } from '@dockwalker/shared';
 import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
-import { LANGUAGES } from '@/lib/languages';
+import { LANGUAGES } from '@dockwalker/shared';
 import { PostingTypeSelector } from './_components/posting-type-selector';
 import { PermanentPostForm } from './_components/permanent-post-form';
 

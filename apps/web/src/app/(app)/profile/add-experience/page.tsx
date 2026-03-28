@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
-import { metersToFeet } from '@/lib/units';
+import { metersToFeet } from '@dockwalker/shared';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
 import { VesselDetailsSection } from '../_components/vessel-details-section';

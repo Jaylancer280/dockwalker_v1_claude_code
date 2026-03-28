@@ -1,7 +1,7 @@
 import { Ship, Plus, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { computeTotalExperience } from '@/lib/compute-total-experience';
+import { computeTotalExperience } from '@dockwalker/shared';
 
 interface Profile {
   agency_name: string | null;

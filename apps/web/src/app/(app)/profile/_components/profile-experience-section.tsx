@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { computeTotalExperience } from '@/lib/compute-total-experience';
+import { computeTotalExperience } from '@dockwalker/shared';
 
 interface ExperienceEntry {
   id: string;

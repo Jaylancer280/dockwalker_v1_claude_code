@@ -7,8 +7,8 @@ import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { DepartmentChip } from '@/components/department-chip';
 import { Badge } from '@/components/ui/badge';
-import { currencySymbol, convertSizeBandLabel } from '@/lib/units';
-import { languageLabel } from '@/lib/languages';
+import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
+import { languageLabel } from '@dockwalker/shared';
 
 export interface DayworkCard {
   id: string;

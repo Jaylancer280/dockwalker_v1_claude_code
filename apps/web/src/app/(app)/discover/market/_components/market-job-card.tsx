@@ -4,8 +4,8 @@ import { MapPin, Calendar, Briefcase, Award } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { currencySymbol } from '@/lib/units';
-import { languageLabel } from '@/lib/languages';
+import { currencySymbol } from '@dockwalker/shared';
+import { languageLabel } from '@dockwalker/shared';
 
 export interface MarketCard {
   type: 'daywork' | 'permanent';

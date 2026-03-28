@@ -1,5 +1,5 @@
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import { computeTotalExperience } from '@/lib/compute-total-experience';
+import { computeTotalExperience } from '@dockwalker/shared';
 
 interface Profile {
   person_id: string;

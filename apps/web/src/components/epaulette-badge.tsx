@@ -1,4 +1,4 @@
-import { getEpaulette, getDepartmentColor } from '@/lib/epaulettes';
+import { getEpaulette, getDepartmentColor } from '@dockwalker/shared';
 
 const GOLD = '#D4AF37';
 const SILVER = '#C0C0C0';

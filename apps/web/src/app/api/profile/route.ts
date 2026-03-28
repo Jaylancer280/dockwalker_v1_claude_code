@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import type { EventPayloadMap } from '@dockwalker/types';
 import { appendEvent } from '@dockwalker/db';
-import { LANGUAGE_CODES } from '@/lib/languages';
+import { LANGUAGE_CODES } from '@dockwalker/shared';
 
 /**
  * GET /api/profile

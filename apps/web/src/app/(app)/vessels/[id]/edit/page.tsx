@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
+import { convertSizeBandLabel, metersToFeet } from '@dockwalker/shared';
 import { usePreferences } from '@/hooks/use-preferences';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';

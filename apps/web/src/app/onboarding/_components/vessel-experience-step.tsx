@@ -19,7 +19,7 @@ import { ContractDetailsInput } from '@/components/contract-details-input';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
 import { VesselDetailsSection } from '@/app/(app)/profile/_components/vessel-details-section';
 import { usePreferences } from '@/hooks/use-preferences';
-import { metersToFeet } from '@/lib/units';
+import { metersToFeet } from '@dockwalker/shared';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 interface FlagState {

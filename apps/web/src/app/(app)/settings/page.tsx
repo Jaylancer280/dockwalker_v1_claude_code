@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
-import type { DistanceUnit, CurrencyCode } from '@/lib/units';
+import type { DistanceUnit, CurrencyCode } from '@dockwalker/shared';
 import { AccountSection } from './_components/account-section';
 import { NotificationsSection, type NotificationPrefs } from './_components/notifications-section';
 import { AppearanceSection } from './_components/appearance-section';

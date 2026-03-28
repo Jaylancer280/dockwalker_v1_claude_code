@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
-import { convertSizeBandLabel, metersToFeet } from '@/lib/units';
+import { convertSizeBandLabel, metersToFeet } from '@dockwalker/shared';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';

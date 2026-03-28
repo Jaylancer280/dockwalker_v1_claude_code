@@ -8,7 +8,7 @@ import {
   feetToMeters,
   convertSizeBandLabel,
   lengthUnitFromDistance,
-} from '@/lib/units';
+} from '@dockwalker/shared';
 
 describe('currencySymbol', () => {
   it('returns correct symbols for known codes', () => {

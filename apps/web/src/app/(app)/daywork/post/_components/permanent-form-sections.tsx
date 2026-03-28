@@ -14,8 +14,8 @@ import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
-import { type CurrencyCode } from '@/lib/units';
-import { LANGUAGES } from '@/lib/languages';
+import { type CurrencyCode } from '@dockwalker/shared';
+import { LANGUAGES } from '@dockwalker/shared';
 
 interface LookupItem {
   id: string;

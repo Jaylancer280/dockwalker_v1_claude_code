@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
-import { currencySymbol, type CurrencyCode } from '@/lib/units';
+import { currencySymbol, type CurrencyCode } from '@dockwalker/shared';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
