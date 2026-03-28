@@ -75,6 +75,11 @@ export function PermanentSummaryCard({ context }: PermanentSummaryCardProps) {
       </div>
 
       <div className="mt-1.5 flex flex-wrap gap-1.5">
+        {pp.contract_type && pp.contract_type !== 'permanent' && (
+          <Badge variant="outline" className="capitalize text-[10px]">
+            {pp.contract_type}
+          </Badge>
+        )}
         {pp.live_aboard && (
           <Badge variant="status-open" className="text-[10px]">
             Live aboard

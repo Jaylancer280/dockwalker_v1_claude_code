@@ -103,6 +103,8 @@ After ANY session that includes a migration, before presenting changes:
 
 - **Check existing planning artifacts before adding todo items:** The project has multiple planning files (`tasks/founder-todo.md`, `tasks/launch-readiness.md`, `tasks/todo.md`). Before adding new items to the queue — especially infrastructure, config, or launch-readiness items — read the other planning files first to avoid duplication. When in doubt about whether something belongs in the code todo vs the founder's external checklist, ask the user.
 
+- **Positions filled count is employer-only data:** Crew should never see how many positions have been filled — only the total positions available (or shortlist cap). Showing fill counts to crew creates competitive anxiety, which violates the mission doc. Employer review pages can show filled/total. Discover cards show only the total. Same principle as "no competition metrics visible to crew."
+
 ### Pre-commit aggregate_type audit (automated)
 
 Before every commit, verify all `aggregateType` values used in API routes exist in the `events_aggregate_type_check` constraint. This is automated via pre-commit script (Stage 81c).

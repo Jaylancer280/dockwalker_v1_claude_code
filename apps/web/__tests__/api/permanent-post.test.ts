@@ -186,4 +186,20 @@ describe('POST /api/permanent', () => {
     expect(callArgs[1].payload.shortlist_cap).toBe(10);
     expect(callArgs[1].payload.notes).toBe('Looking for experienced crew with charter background');
   });
+
+  it('returns 400 when contractType is invalid', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const res = await POST(makeRequest({ ...validBody, contractType: 'invalid_type' }));
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('contract type');
+  });
+
+  it('returns 400 when positionsAvailable out of range', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const res = await POST(makeRequest({ ...validBody, positionsAvailable: '25' }));
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('positionsAvailable');
+  });
 });

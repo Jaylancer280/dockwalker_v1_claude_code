@@ -36,6 +36,11 @@ export interface PermanentPosting {
   experience_label: string | null;
   cert_names: string[];
   required_languages: string[];
+  contract_type: string | null;
+  description: string | null;
+  meals: string[];
+  positions_available: number;
+  positions_filled: number;
   poster_name: string | null;
   poster_person_id: string | null;
 }
@@ -150,9 +155,25 @@ export function PermanentJobCard({
 
       {/* Badges row */}
       <div className="mb-3 flex flex-wrap gap-1.5">
+        {posting.contract_type && posting.contract_type !== 'permanent' && (
+          <Badge variant="outline" className="capitalize">
+            {posting.contract_type}
+          </Badge>
+        )}
+        {posting.positions_available > 1 && (
+          <Badge variant="outline">
+            <Users className="mr-0.5 h-3 w-3" />
+            {posting.positions_available} position{posting.positions_available !== 1 ? 's' : ''}
+          </Badge>
+        )}
         {posting.live_aboard && (
           <Badge variant="secondary" className="bg-[var(--success-lo)] text-[var(--success)]">
             Live aboard
+          </Badge>
+        )}
+        {posting.meals?.length > 0 && (
+          <Badge variant="outline" className="text-xs">
+            Meals: {posting.meals.join(', ')}
           </Badge>
         )}
         {posting.experience_label && <Badge variant="outline">{posting.experience_label}</Badge>}

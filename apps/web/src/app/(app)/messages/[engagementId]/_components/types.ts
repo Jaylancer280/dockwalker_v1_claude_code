@@ -80,6 +80,7 @@ export interface EngagementContext {
     live_aboard: boolean;
     shortlist_cap: number;
     notes: string | null;
+    contract_type: string | null;
     status: string;
     yacht_roles: { name: string } | null;
     ports: { name: string; cities: { name: string } | null } | null;

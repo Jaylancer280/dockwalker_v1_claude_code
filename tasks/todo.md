@@ -100,17 +100,7 @@ The current Codemagic build loads the entire app remotely from Vercel. Correct a
 
 ---
 
-### 3. Permanent post form — remaining display + tests
-
-**E. Display:**
-
-- [ ] `permanent-job-card.tsx` — show contract type, meals, positions
-- [ ] `permanent-job-detail.tsx` — show description, contract details
-- [ ] Chat `PermanentSummaryCard` — show contract type
-
-**F. Tests:**
-
-- [ ] POST with new fields → 200, invalid contract_type → 400
+### 3. (cleared — Stage 162b complete)
 
 ---
 

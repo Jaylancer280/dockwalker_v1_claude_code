@@ -32,7 +32,7 @@ export async function GET(
       ),
       permanent_postings(
         id, job_number, salary_min, salary_max, salary_currency, salary_period,
-        live_aboard, shortlist_cap, notes, status,
+        live_aboard, shortlist_cap, notes, contract_type, status,
         yacht_roles(name),
         ports(name, cities(name)),
         vessels(name, vessel_type, loa_meters, imo_number, vessel_size_bands(label))
