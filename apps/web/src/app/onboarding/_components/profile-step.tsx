@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
-import { RolePicker } from '@/components/role-picker';
+import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { LANGUAGES } from '@/lib/languages';
 
@@ -269,10 +269,13 @@ export function ProfileStep(props: ProfileStepProps) {
             <>
               <div className="flex flex-col gap-1.5">
                 <Label>{isGreen ? 'Target role' : 'Primary role'}</Label>
-                <RolePicker
-                  roles={roles as { id: string; name: string; department: string }[]}
+                <HierarchicalPills
+                  groups={rolesToGroups(
+                    roles.filter((r): r is typeof r & { department: string } => !!r.department),
+                  )}
                   value={primaryRoleId}
-                  onValueChange={setPrimaryRoleId}
+                  onValueChange={(v) => setPrimaryRoleId(v as string)}
+                  mode="single"
                   placeholder={isGreen ? 'What role are you targeting?' : 'Select your role'}
                 />
               </div>
@@ -361,38 +364,39 @@ export function ProfileStep(props: ProfileStepProps) {
 
               <div className="flex flex-col gap-1.5">
                 <Label>Certifications</Label>
-                <div className="max-h-48 overflow-y-auto rounded-md border border-border p-3">
-                  {certs.length === 0 && (
-                    <p className="text-sm text-muted-foreground">Loading certifications...</p>
-                  )}
-                  {certs.map((cert) => (
-                    <label key={cert.id} className="flex items-center gap-2 py-1.5 text-sm">
-                      <Checkbox
-                        checked={certificationIds.includes(cert.id)}
-                        onCheckedChange={() =>
-                          setCertificationIds(toggleArrayItem(certificationIds, cert.id))
-                        }
-                      />
-                      {cert.name}
-                    </label>
-                  ))}
-                </div>
+                {certs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Loading certifications...</p>
+                ) : (
+                  <HierarchicalPills
+                    groups={certsToGroups(
+                      certs.filter((c): c is typeof c & { category: string } => !!c.category),
+                    )}
+                    value={certificationIds}
+                    onValueChange={(v) => setCertificationIds(v as string[])}
+                    mode="multi"
+                  />
+                )}
               </div>
 
               {/* Languages — all crew */}
               <div className="flex flex-col gap-1.5">
                 <Label>Languages</Label>
-                <div className="max-h-48 overflow-y-auto rounded-md border border-border p-3">
+                <div className="flex flex-wrap gap-1.5">
                   {LANGUAGES.map((lang) => (
-                    <label key={lang.code} className="flex items-center gap-2 py-1.5 text-sm">
-                      <Checkbox
-                        checked={selectedLanguages.includes(lang.code)}
-                        onCheckedChange={() =>
-                          setSelectedLanguages(toggleArrayItem(selectedLanguages, lang.code))
-                        }
-                      />
+                    <button
+                      key={lang.code}
+                      type="button"
+                      className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                        selectedLanguages.includes(lang.code)
+                          ? 'bg-[var(--accent)] text-white'
+                          : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+                      }`}
+                      onClick={() =>
+                        setSelectedLanguages(toggleArrayItem(selectedLanguages, lang.code))
+                      }
+                    >
                       {lang.label}
-                    </label>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -421,21 +425,26 @@ export function ProfileStep(props: ProfileStepProps) {
                 <Label>
                   Visas <span className="text-xs text-muted-foreground">(optional)</span>
                 </Label>
-                <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+                <div className="flex flex-wrap gap-1.5">
                   {visaTypes.map((v) => (
-                    <label key={v.id} className="flex items-center gap-2 py-1.5 text-sm">
-                      <Checkbox
-                        checked={visaIds.includes(v.id)}
-                        onCheckedChange={() => {
-                          setVisaIds(
-                            visaIds.includes(v.id)
-                              ? visaIds.filter((id) => id !== v.id)
-                              : [...visaIds, v.id],
-                          );
-                        }}
-                      />
+                    <button
+                      key={v.id}
+                      type="button"
+                      className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                        visaIds.includes(v.id)
+                          ? 'bg-[var(--accent)] text-white'
+                          : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+                      }`}
+                      onClick={() =>
+                        setVisaIds(
+                          visaIds.includes(v.id)
+                            ? visaIds.filter((id) => id !== v.id)
+                            : [...visaIds, v.id],
+                        )
+                      }
+                    >
                       {v.name}
-                    </label>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -446,10 +455,13 @@ export function ProfileStep(props: ProfileStepProps) {
                   What role are you looking for?{' '}
                   <span className="text-xs text-muted-foreground">(optional)</span>
                 </Label>
-                <RolePicker
-                  roles={roles as { id: string; name: string; department: string }[]}
+                <HierarchicalPills
+                  groups={rolesToGroups(
+                    roles.filter((r): r is typeof r & { department: string } => !!r.department),
+                  )}
                   value={desiredRoleId}
-                  onValueChange={setDesiredRoleId}
+                  onValueChange={(v) => setDesiredRoleId(v as string)}
+                  mode="single"
                   placeholder="Select desired role"
                 />
               </div>

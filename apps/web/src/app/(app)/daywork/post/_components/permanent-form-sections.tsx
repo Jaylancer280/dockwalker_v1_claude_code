@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/select';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
-import { DepartmentRolePills } from '@/components/department-role-pills';
+import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
 import { type CurrencyCode } from '@/lib/units';
 import { LANGUAGES } from '@/lib/languages';
@@ -21,6 +21,7 @@ interface LookupItem {
   id: string;
   name: string;
   department?: string;
+  category?: string;
 }
 
 // ── RoleLocationSection ──
@@ -68,10 +69,13 @@ export function RoleLocationSection({
       {/* Role */}
       <div>
         <Label>Role</Label>
-        <DepartmentRolePills
-          roles={roles.filter((r): r is typeof r & { department: string } => !!r.department)}
+        <HierarchicalPills
+          groups={rolesToGroups(
+            roles.filter((r): r is typeof r & { department: string } => !!r.department),
+          )}
           value={roleId}
-          onValueChange={setRoleId}
+          onValueChange={(v) => setRoleId(v as string)}
+          mode="single"
         />
       </div>
 
@@ -270,26 +274,14 @@ export function RequirementsSection({
       {/* Certifications */}
       <div>
         <Label>Required certifications</Label>
-        <div className="mt-1 flex flex-wrap gap-2">
-          {certifications.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`rounded-full px-3 py-1 text-xs ${
-                certificationIds.includes(c.id)
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)]'
-              }`}
-              onClick={() =>
-                setCertificationIds((prev) =>
-                  prev.includes(c.id) ? prev.filter((id) => id !== c.id) : [...prev, c.id],
-                )
-              }
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
+        <HierarchicalPills
+          groups={certsToGroups(
+            certifications.filter((c): c is typeof c & { category: string } => !!c.category),
+          )}
+          value={certificationIds}
+          onValueChange={(v) => setCertificationIds(v as string[])}
+          mode="multi"
+        />
       </div>
 
       {/* Languages */}

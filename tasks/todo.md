@@ -17,72 +17,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 2. Hierarchical pill picker — shared component, deployed app-wide
-
-**Problem:** Role, cert, and location selectors are flat lists everywhere. On mobile, 20+ certs or 55 ports in a single list is unusable. The pattern should be: show category pills → user taps one → show items within that category. Tapping the selected category again deselects it and returns to the top layer.
-
-**The component: `apps/web/src/components/hierarchical-pills.tsx`**
-
-A single shared component supporting:
-
-- **Single-select mode** (role picker, location picker) — selecting an item closes the drill-down
-- **Multi-select mode** (cert picker, language picker) — user can select multiple items, switch categories to add more
-- **Flat mode** (visas, languages if ungrouped) — no hierarchy, just pills
-- Layer 1 = category pills (departments, regions, language families)
-- Layer 2 = items within the selected category
-- Deselect Layer 1 pill → Layer 2 disappears, back to all categories
-- Visual: `rounded-full` pills, active = `bg-[var(--accent)] text-white`, inactive = `bg-[var(--card)] border border-[var(--border)]`, `transition-colors`
-
-**A. Build the component:**
-
-- [ ] Create `apps/web/src/components/hierarchical-pills.tsx` with props:
-  ```typescript
-  interface HierarchicalPillsProps {
-    groups: { id: string; label: string; items: { id: string; label: string }[] }[];
-    value: string | string[];
-    onValueChange: (v: string | string[]) => void;
-    mode: 'single' | 'multi';
-    optional?: boolean;
-    placeholder?: string;
-  }
-  ```
-- [ ] Layer 1: render group pills. Tapping one expands Layer 2 below.
-- [ ] Layer 2: render item pills within selected group. In multi-select, already-selected items show active state.
-- [ ] Tapping selected Layer 1 pill again → collapse, show all Layer 1 pills
-- [ ] In single-select: tapping a Layer 2 item calls `onValueChange` and collapses
-- [ ] In multi-select: tapping toggles selection, Layer 2 stays open, user can switch groups
-
-**B. Deploy to all role pickers (single-select, grouped by department):**
-
-- [ ] `apps/web/src/app/(app)/daywork/post/page.tsx` — daywork post form role
-- [ ] `apps/web/src/app/(app)/daywork/post/_components/permanent-post-form.tsx` — permanent post form role
-- [ ] `apps/web/src/app/(app)/profile/_components/profile-edit-form.tsx` — desired role
-- [ ] `apps/web/src/app/onboarding/_components/profile-step.tsx` — onboarding role
-- [ ] `apps/web/src/app/(app)/discover/page.tsx` — discover filter role
-
-**C. Deploy to all cert pickers (multi-select, grouped by department):**
-
-- [ ] Profile edit form — certs (replaces checkboxes, see item 5)
-- [ ] Daywork post form — required certs
-- [ ] Permanent post form — required certs
-- [ ] Discover filters — cert filter
-
-**D. Deploy to all location pickers (single-select, grouped by region → city → port):**
-
-- [ ] Evaluate: LocationPicker already uses a popover drill-down. Determine if replacing with pills is better UX or if existing popover is fine. Skip if popover works.
-- [ ] If replacing: all LocationPicker usages across post forms, profile edit, discover filters, onboarding
-
-**E. Deploy to language pickers (multi-select, flat or grouped):**
-
-- [ ] Profile edit form — languages (replaces checkboxes)
-- [ ] Daywork post form — required languages
-- [ ] Permanent post form — required languages
-
-**Done condition:** One shared `HierarchicalPills` component. Roles show department → roles. Certs show department → certs. All forms use it. No flat dropdowns or checkbox lists for these fields anywhere.
-
----
-
-### 3. Profile edit — duplicate Display name + use hierarchical pills
+### 2. Profile edit — duplicate Display name + use hierarchical pills
 
 **Two problems in `apps/web/src/app/(app)/profile/_components/profile-edit-form.tsx` and `apps/web/src/app/(app)/profile/page.tsx`:**
 
@@ -99,13 +34,13 @@ A single shared component supporting:
 - [ ] Replace language checkboxes with flat pill toggles
 - [ ] Remove the `max-h-40 overflow-y-auto` scroll containers
 
-**Depends on:** Item 2 (HierarchicalPills component must be built first).
+**Depends on:** HierarchicalPills component (now built, Stage 158).
 
 **Done condition:** One Display name field. Hierarchical pills for certs, flat pills for visas/languages. No checkboxes.
 
 ---
 
-### 4. Page transition speed — reduce blank-screen flash between navigations
+### 3. Page transition speed — reduce blank-screen flash between navigations
 
 **Problem:** Every tab navigation shows a blank screen or spinner for ~2 seconds before content appears. The app feels like a slow website. Root cause: all pages are `'use client'` with `useEffect` data fetching on mount. No prefetching, no data caching between navigations.
 
@@ -130,7 +65,7 @@ A single shared component supporting:
 
 ---
 
-### 5. UX hardening — confirmation dialogs, error feedback, completeness hints
+### 4. UX hardening — confirmation dialogs, error feedback, completeness hints
 
 **Batch of UX fixes found during full audit. Each is small individually.**
 
@@ -182,7 +117,7 @@ A single shared component supporting:
 
 ---
 
-### 6. Capacitor static export architecture (BLOCKING — proper TF build)
+### 5. Capacitor static export architecture (BLOCKING — proper TF build)
 
 The current Codemagic build loads the entire app remotely from Vercel. Correct architecture: static HTML locally, only API calls remote.
 
@@ -214,7 +149,7 @@ The current Codemagic build loads the entire app remotely from Vercel. Correct a
 
 ---
 
-### 7. Permanent post form — add missing fields
+### 6. Permanent post form — add missing fields
 
 Permanent posting should be richer than daywork, not thinner.
 

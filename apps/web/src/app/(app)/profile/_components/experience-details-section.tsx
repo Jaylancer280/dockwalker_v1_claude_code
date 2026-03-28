@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RolePicker } from '@/components/role-picker';
+import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
 import { FlagStatePicker } from '@/components/flag-state-picker';
 import { ContractDetailsInput } from '@/components/contract-details-input';
 
@@ -78,7 +78,12 @@ export function ExperienceDetailsSection({
       {/* Role — department hierarchy picker */}
       <div className="flex flex-col gap-1.5">
         <Label>Role held</Label>
-        <RolePicker roles={roles} value={roleId} onValueChange={setRoleId} />
+        <HierarchicalPills
+          groups={rolesToGroups(roles)}
+          value={roleId}
+          onValueChange={(v) => setRoleId(v as string)}
+          mode="single"
+        />
       </div>
 
       {/* Vessel operation during tenure */}

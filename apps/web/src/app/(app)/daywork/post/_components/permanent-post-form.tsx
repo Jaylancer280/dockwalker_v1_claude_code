@@ -31,6 +31,7 @@ interface LookupItem {
   id: string;
   name: string;
   department?: string;
+  category?: string;
 }
 
 interface PermanentTemplate {
@@ -142,7 +143,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     const supabase = createClient();
     Promise.all([
       supabase.from('yacht_roles').select('id, name, department').order('name'),
-      supabase.from('certifications').select('id, name').order('name'),
+      supabase.from('certifications').select('id, name, category').order('sort_order'),
       supabase.from('experience_brackets').select('id, label').order('sort_order'),
     ]).then(([rolesRes, certsRes, bracketsRes]) => {
       setRoles((rolesRes.data ?? []) as LookupItem[]);

@@ -19,7 +19,7 @@ import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { currencySymbol } from '@/lib/units';
-import { DepartmentRolePills } from '@/components/department-role-pills';
+import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
@@ -450,10 +450,13 @@ function DayworkPostForm() {
         {/* Role */}
         <div className="flex flex-col gap-1.5">
           <Label>Role needed</Label>
-          <DepartmentRolePills
-            roles={roles.filter((r): r is typeof r & { department: string } => !!r.department)}
+          <HierarchicalPills
+            groups={rolesToGroups(
+              roles.filter((r): r is typeof r & { department: string } => !!r.department),
+            )}
             value={roleId}
-            onValueChange={setRoleId}
+            onValueChange={(v) => setRoleId(v as string)}
+            mode="single"
           />
         </div>
 
@@ -539,22 +542,12 @@ function DayworkPostForm() {
         {/* Required certs */}
         <div className="flex flex-col gap-1.5">
           <Label>Required certifications (optional)</Label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {certs.map((cert) => (
-              <button
-                key={cert.id}
-                type="button"
-                className={`rounded-full px-3 py-1 text-xs ${
-                  requiredCertIds.includes(cert.id)
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)]'
-                }`}
-                onClick={() => toggleCert(cert.id)}
-              >
-                {cert.name}
-              </button>
-            ))}
-          </div>
+          <HierarchicalPills
+            groups={certsToGroups(certs)}
+            value={requiredCertIds}
+            onValueChange={(v) => setRequiredCertIds(v as string[])}
+            mode="multi"
+          />
         </div>
 
         {/* Required languages */}

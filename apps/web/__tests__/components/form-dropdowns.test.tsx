@@ -211,23 +211,59 @@ vi.mock('@/components/location-picker', () => ({
   ),
 }));
 
-// RolePicker mock — renders roles as visible text for testability
-vi.mock('@/components/role-picker', () => ({
-  RolePicker: ({ roles, value, onValueChange, placeholder }: {
-    roles: { id: string; name: string; department: string }[];
-    value: string;
-    onValueChange: (v: string) => void;
+// HierarchicalPills mock — renders all group items visibly for testability
+vi.mock('@/components/hierarchical-pills', () => ({
+  HierarchicalPills: ({ groups, value, onValueChange, placeholder }: {
+    groups: { id: string; label: string; items: { id: string; label: string }[] }[];
+    value: string | string[];
+    onValueChange: (v: string | string[]) => void;
     placeholder?: string;
   }) => (
-    <div data-testid="role-picker" data-value={value}>
-      <span>{placeholder ?? 'Select role'}</span>
-      {roles.map((r) => (
-        <div key={r.id} data-role-id={r.id} onClick={() => onValueChange(r.id)}>
-          {r.name}
+    <div data-testid="hierarchical-pills" data-value={JSON.stringify(value)}>
+      {placeholder && <span>{placeholder}</span>}
+      {groups.map((g) => (
+        <div key={g.id}>
+          <span>{g.label}</span>
+          {g.items.map((item) => (
+            <div key={item.id} onClick={() => onValueChange(item.id)}>
+              {item.label}
+            </div>
+          ))}
         </div>
       ))}
     </div>
   ),
+  rolesToGroups: (roles: { id: string; name: string; department?: string }[]) => {
+    const map = new Map<string, { id: string; label: string }[]>();
+    for (const r of roles) {
+      const dept = r.department || 'other';
+      const parts = dept.includes('_') ? dept.split('_') : [dept];
+      for (const p of parts) {
+        const list = map.get(p) ?? [];
+        list.push({ id: r.id, label: r.name });
+        map.set(p, list);
+      }
+    }
+    return Array.from(map.entries()).map(([dept, items]) => ({
+      id: dept,
+      label: dept.charAt(0).toUpperCase() + dept.slice(1),
+      items,
+    }));
+  },
+  certsToGroups: (certs: { id: string; name: string; category?: string }[]) => {
+    const map = new Map<string, { id: string; label: string }[]>();
+    for (const c of certs) {
+      const cat = c.category || 'other';
+      const list = map.get(cat) ?? [];
+      list.push({ id: c.id, label: c.name });
+      map.set(cat, list);
+    }
+    return Array.from(map.entries()).map(([cat, items]) => ({
+      id: cat,
+      label: cat.charAt(0).toUpperCase() + cat.slice(1),
+      items,
+    }));
+  },
 }));
 
 // FlagStatePicker mock — renders flag states as visible text for testability
@@ -318,8 +354,8 @@ describe('Onboarding page — crew profile dropdowns', () => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
     });
 
-    // Roles — rendered by RolePicker mock (primary role + desired role = 2 pickers)
-    expect(screen.getAllByTestId('role-picker').length).toBeGreaterThanOrEqual(1);
+    // Roles — rendered by HierarchicalPills mock (primary role + desired role = 2 pickers)
+    expect(screen.getAllByTestId('hierarchical-pills').length).toBeGreaterThanOrEqual(1);
     for (const role of MOCK_ROLES) {
       expect(screen.getAllByText(role.name).length).toBeGreaterThanOrEqual(1);
     }
@@ -373,8 +409,8 @@ describe('Post Daywork page — employer form dropdowns', () => {
       expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
     });
 
-    // Roles — now inside DepartmentRolePills (collapsed by default, search visible)
-    expect(screen.getByPlaceholderText(/search roles/i)).toBeInTheDocument();
+    // Roles — inside HierarchicalPills (department groups with items)
+    expect(screen.getAllByTestId('hierarchical-pills').length).toBeGreaterThanOrEqual(1);
 
     // Location picker — rendered as mocked component
     expect(screen.getByTestId('location-picker')).toBeInTheDocument();
@@ -384,7 +420,7 @@ describe('Post Daywork page — employer form dropdowns', () => {
       expect(screen.getByText(bracket.label)).toBeInTheDocument();
     }
 
-    // Certifications — checkboxes
+    // Certifications — hierarchical pills (grouped by category)
     for (const cert of MOCK_CERTS) {
       expect(screen.getByText(cert.name)).toBeInTheDocument();
     }
@@ -423,10 +459,10 @@ describe('Discover page — filter dropdowns', () => {
     // Open filter panel
     fireEvent.click(screen.getByText('Filters'));
 
-    // "All roles" sentinel option
-    expect(screen.getAllByText('All roles').length).toBeGreaterThanOrEqual(1);
+    // Role filter — HierarchicalPills with "All roles" placeholder
+    expect(screen.getByText('All roles')).toBeInTheDocument();
 
-    // Canonical role options
+    // Canonical role options visible in mock
     for (const role of MOCK_ROLES) {
       expect(screen.getByText(role.name)).toBeInTheDocument();
     }
@@ -531,12 +567,12 @@ describe('Canonical data item counts', () => {
       MOCK_BRACKETS.length + 4,
     );
 
-    // Roles are in the RolePicker mocks (primary role + desired role = 2 pickers)
+    // Roles are in the HierarchicalPills mocks (primary role + desired role = 2 pickers)
     for (const role of MOCK_ROLES) {
       expect(screen.getAllByText(role.name).length).toBeGreaterThanOrEqual(1);
     }
 
-    // Count certification checkboxes
+    // Certification names visible via HierarchicalPills mock
     const certLabels = MOCK_CERTS.map((c) => screen.getByText(c.name));
     expect(certLabels).toHaveLength(MOCK_CERTS.length);
 

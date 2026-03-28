@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { LocationPicker } from '@/components/location-picker';
+import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
 import { convertSizeBandLabel } from '@/lib/units';
 import { usePreferences } from '@/hooks/use-preferences';
 import { type DayworkCard, type SwipeableCardHandle, JobCard, SwipeableCard } from './daywork-card';
@@ -24,6 +25,7 @@ import { type DayworkCard, type SwipeableCardHandle, JobCard, SwipeableCard } fr
 interface LookupItem {
   id: string;
   name: string;
+  department?: string;
   category?: string;
 }
 
@@ -195,19 +197,15 @@ export function DayworkBrowse({
               <CardContent className="flex flex-col gap-3 pt-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground">Role</label>
-                  <Select value={filterRoleId} onValueChange={setFilterRoleId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All roles" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All roles</SelectItem>
-                      {roles.map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <HierarchicalPills
+                    groups={rolesToGroups(
+                      roles.filter((r): r is typeof r & { department: string } => !!r.department),
+                    )}
+                    value={filterRoleId === 'all' ? '' : filterRoleId}
+                    onValueChange={(v) => setFilterRoleId((v as string) || 'all')}
+                    mode="single"
+                    placeholder="All roles"
+                  />
                 </div>
 
                 <div className="flex flex-col gap-1.5">

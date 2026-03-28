@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { LocationPicker } from '@/components/location-picker';
-import { RolePicker } from '@/components/role-picker';
+import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { LANGUAGES } from '@/lib/languages';
 
 interface LookupItem {
@@ -125,10 +125,13 @@ export function ProfileEditForm({
 
         <div className="flex flex-col gap-1.5">
           <Label>Desired Role</Label>
-          <RolePicker
-            roles={roles as { id: string; name: string; department: string }[]}
+          <HierarchicalPills
+            groups={rolesToGroups(
+              roles.filter((r): r is typeof r & { department: string } => !!r.department),
+            )}
             value={desiredRoleId}
-            onValueChange={setDesiredRoleId}
+            onValueChange={(v) => setDesiredRoleId(v as string)}
+            mode="single"
           />
         </div>
 
@@ -164,19 +167,14 @@ export function ProfileEditForm({
 
         <div className="flex flex-col gap-1.5">
           <Label>Certifications</Label>
-          <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
-            {certs.map((cert) => (
-              <label key={cert.id} className="flex items-center gap-2 py-1.5 text-sm">
-                <Checkbox
-                  checked={certificationIds.includes(cert.id)}
-                  onCheckedChange={() =>
-                    toggleArrayItem(certificationIds, cert.id, setCertificationIds)
-                  }
-                />
-                {cert.name}
-              </label>
-            ))}
-          </div>
+          <HierarchicalPills
+            groups={certsToGroups(
+              certs.filter((c): c is typeof c & { category: string } => !!c.category),
+            )}
+            value={certificationIds}
+            onValueChange={(v) => setCertificationIds(v as string[])}
+            mode="multi"
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -202,32 +200,40 @@ export function ProfileEditForm({
 
         <div className="flex flex-col gap-1.5">
           <Label>Visas</Label>
-          <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+          <div className="flex flex-wrap gap-1.5">
             {visaTypes.map((v) => (
-              <label key={v.id} className="flex items-center gap-2 py-1.5 text-sm">
-                <Checkbox
-                  checked={visaIds.includes(v.id)}
-                  onCheckedChange={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
-                />
+              <button
+                key={v.id}
+                type="button"
+                className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                  visaIds.includes(v.id)
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+                }`}
+                onClick={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
+              >
                 {v.name}
-              </label>
+              </button>
             ))}
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
           <Label>Languages</Label>
-          <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
+          <div className="flex flex-wrap gap-1.5">
             {LANGUAGES.map((lang) => (
-              <label key={lang.code} className="flex items-center gap-2 py-1.5 text-sm">
-                <Checkbox
-                  checked={profileLanguages.includes(lang.code)}
-                  onCheckedChange={() =>
-                    toggleArrayItem(profileLanguages, lang.code, setProfileLanguages)
-                  }
-                />
+              <button
+                key={lang.code}
+                type="button"
+                className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                  profileLanguages.includes(lang.code)
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+                }`}
+                onClick={() => toggleArrayItem(profileLanguages, lang.code, setProfileLanguages)}
+              >
                 {lang.label}
-              </label>
+              </button>
             ))}
           </div>
         </div>

@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { RolePicker } from '@/components/role-picker';
+import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
 import { FlagStatePicker } from '@/components/flag-state-picker';
 import { ContractDetailsInput } from '@/components/contract-details-input';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
@@ -290,10 +290,13 @@ function ExperienceEntryCard({
       {/* Role held — department hierarchy picker */}
       <div className="flex flex-col gap-1.5">
         <Label>Role held</Label>
-        <RolePicker
-          roles={roles as { id: string; name: string; department: string }[]}
+        <HierarchicalPills
+          groups={rolesToGroups(
+            roles.filter((r): r is typeof r & { department: string } => !!r.department),
+          )}
           value={entry.experience.roleId}
-          onValueChange={(v) => updateEntry(entry.key, 'experience', { roleId: v })}
+          onValueChange={(v) => updateEntry(entry.key, 'experience', { roleId: v as string })}
+          mode="single"
         />
       </div>
 
