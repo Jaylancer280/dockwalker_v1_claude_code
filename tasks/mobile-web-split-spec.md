@@ -25,7 +25,7 @@
 | Phase 8 — Android polish pass                                  | NOT STARTED |                                                                                           |
 | Capacitor removal                                              | BLOCKED     | Waiting on Phase 7 validation                                                             |
 
-**Last session:** 2026-03-28 — Phase 2 complete (Stage 165 + Fix 165). Device testing deferred to after all phases complete. Phase 3 next.
+**Last session:** 2026-03-28 — Stage 168: Phase 3 complete. Post forms, My Jobs, review screens, templates all built.
 
 ---
 

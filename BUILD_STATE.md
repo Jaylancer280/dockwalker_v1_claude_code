@@ -238,6 +238,8 @@
 
 - [Stage 165] Mobile Phase 2b: Discover screens — daywork discover hook (direct Supabase read matching web route logic), job detail bottom sheet with apply + message, permanent discover hook with cursor-based pagination + infinite query, permanent job card + FlashList feed, Daywork/Permanent segmented toggle, filter panel bottom sheet (role/cert/port/bracket/size band) with active filter pills, availability gate (check before daywork apply, 14-day date grid overlay), wired end-to-end: swipe right→apply API→optimistic cache remove, permanent tap→Alert apply; 908 web tests pass, 5 workspaces type-check
 
+- [Stage 168] Mobile Phase 3c — review + templates — daywork review screen (swipe stack for applicants, auto-view on top card, accept/reject/shortlist with confirmation dialogs, shortlisted tab with FlashList), permanent review screen (FlashList applicant list, shortlist/select/reject with cap indicator + negotiation banner), applicant card component, daywork + permanent applicant hooks via apiGet, template hooks + selector bottom sheet; 908 web tests pass, 5 workspaces type-check
+
 ## Current Schema Version
 
 v77 — Permanent post fields (77 migrations applied)
@@ -346,7 +348,7 @@ v77 — Permanent post fields (77 migrations applied)
 
 ## In Progress
 
-Mobile Phase 2 — device testing pending (swipe feel, discover data, apply flow, filters, availability gate)
+Mobile Phase 3 — device testing pending (post forms, My Jobs, review screens, templates)
 
 ## Next Up
 

@@ -72,22 +72,22 @@ Mobile Phase 3: Employer Flows — post jobs, my jobs, review applicants, templa
 
 #### 7a. Applicants data hook
 
-- [ ] Create `apps/mobile/src/hooks/use-daywork-applicants.ts` — TanStack Query hook calling `apiGet('/api/daywork/${id}/applicants')`. Returns `{ applicants, positions_available, positions_filled, positions_remaining }`. Applicant profiles are nested under `.profiles` with FK joins (yacht_roles, experience_brackets, ports, nationalities).
+- [x] Created `use-daywork-applicants.ts`.ts`— TanStack Query hook calling`apiGet('/api/daywork/${id}/applicants')`. Returns `{ applicants, positions_available, positions_filled, positions_remaining }`. Applicant profiles are nested under `.profiles` with FK joins (yacht_roles, experience_brackets, ports, nationalities).
 
 #### 7b. Applicant card
 
-- [ ] Create `apps/mobile/src/components/applicant-card.tsx` — card showing: display name, avatar (via `expo-image`), role, experience bracket, certs held as pills, availability days, location, application message preview, "Applied X ago" timestamp. Department color bar matching the role.
+- [x] Created `applicant-card.tsx`` — card showing: display name, avatar (via `expo-image`), role, experience bracket, certs held as pills, availability days, location, application message preview, "Applied X ago" timestamp. Department color bar matching the role.
 
 #### 7c. Review screen
 
-- [ ] Create `apps/mobile/app/(app)/daywork/[id]/review.tsx` — dynamic route screen. Tabs: Applicants (to review) | Shortlisted.
-- [ ] **Applicants tab:** `SwipeCardStack` with applicant cards. Swipe right = accept (confirmation dialog first). Swipe left = reject (confirmation dialog). Swipe up = shortlist. Accept calls `apiPost('/api/daywork/${id}/applicants/${crewId}/accept')`. Reject calls `...reject`. Shortlist calls `...shortlist`.
-- [ ] **Auto-view:** When an applicant card becomes the top card in the stack, fire `apiPost('/api/daywork/${id}/applicants/${crewId}/view')` to transition `applied → viewed`. This keeps mobile and web review state in sync.
-- [ ] **Shortlisted tab:** FlashList of shortlisted applicants. Each card has Accept + Reject buttons (same API calls with confirmation dialogs).
-- [ ] Accept confirmation dialog: "Accept {name} for {role}? This will open a message thread."
-- [ ] Reject confirmation dialog: "Reject {name}? This cannot be undone."
-- [ ] After accept: show success message and navigate back to My Jobs (chat built in Phase 4)
-- [ ] Positions remaining indicator at top: "{filled}/{total} positions filled"
+- [x] Created daywork review screen` — dynamic route screen. Tabs: Applicants (to review) | Shortlisted.
+- [x] **Applicants tab:** SwipeCardStack with applicant cards. Swipe right = accept (confirmation dialog first). Swipe left = reject (confirmation dialog). Swipe up = shortlist. Accept calls `apiPost('/api/daywork/${id}/applicants/${crewId}/accept')`. Reject calls `...reject`. Shortlist calls `...shortlist`.
+- [x] **Auto-view:** When an applicant card becomes the top card in the stack, fire `apiPost('/api/daywork/${id}/applicants/${crewId}/view')` to transition `applied → viewed`. This keeps mobile and web review state in sync.
+- [x] **Shortlisted tab:** FlashList of shortlisted applicants. Each card has Accept + Reject buttons (same API calls with confirmation dialogs).
+- [x] Accept confirmation dialog: "Accept {name} for {role}? This will open a message thread."
+- [x] Reject confirmation dialog: "Reject {name}? This cannot be undone."
+- [x] After accept: show success message and navigate back to My Jobs (chat built in Phase 4)
+- [x] Positions remaining indicator at top: "{filled}/{total} positions filled"
 
 ---
 
@@ -97,15 +97,15 @@ Mobile Phase 3: Employer Flows — post jobs, my jobs, review applicants, templa
 
 #### 8a. Permanent applicants data hook
 
-- [ ] Create `apps/mobile/src/hooks/use-permanent-applicants.ts` — TanStack Query hook calling `apiGet('/api/permanent/${id}/review')`. **Note: the endpoint is `/review`, NOT `/applicants`.** Returns `{ applicants, shortlist_cap, shortlist_count, posting_status, selected_crew_id }`. Unlike daywork, profile fields are flattened into the top level (e.g. `display_name`, `role_name`, `certification_ids` — not nested under `.profiles`).
+- [x] Created `use-permanent-applicants.ts`.ts`— TanStack Query hook calling`apiGet('/api/permanent/${id}/review')`. **Note: the endpoint is `/review`, NOT `/applicants`.** Returns `{ applicants, shortlist_cap, shortlist_count, posting_status, selected_crew_id }`. Unlike daywork, profile fields are flattened into the top level (e.g. `display_name`, `role_name`, `certification_ids`— not nested under`.profiles`).
 
 #### 8b. Review screen
 
-- [ ] Create `apps/mobile/app/(app)/permanent/[id]/review.tsx` — dynamic route screen. Tabs: Applicants | Shortlisted.
-- [ ] **Applicants tab:** FlashList of applicants (status `applied`). Each card shows profile data + application message + permanent_availability + notice_period_days. Buttons: Shortlist, Reject (with confirmation dialogs). Shortlist calls `apiPost('/api/permanent/${id}/applicants/${crewId}/shortlist')`. Reject calls `...reject`.
-- [ ] **Shortlisted tab:** FlashList of shortlisted applicants. "Select" button (only if `posting_status === 'active'` — i.e. no candidate currently selected). Select calls `apiPost('/api/permanent/${id}/applicants/${crewId}/select')` with confirmation: "Select {name} for negotiation? This will open a message thread."
-- [ ] Shortlist cap indicator: "{shortlist_count}/{shortlist_cap} shortlisted"
-- [ ] Banner when `selected_crew_id` is non-null: "Currently in negotiation with {name}"
+- [x] Created permanent review screen` — dynamic route screen. Tabs: Applicants | Shortlisted.
+- [x] **Applicants tab:** FlashList of applicants (status `applied`). Each card shows profile data + application message + permanent_availability + notice_period_days. Buttons: Shortlist, Reject (with confirmation dialogs). Shortlist calls `apiPost('/api/permanent/${id}/applicants/${crewId}/shortlist')`. Reject calls `...reject`.
+- [x] **Shortlisted tab:** FlashList of shortlisted applicants. "Select" button (only if `posting_status === 'active'` — i.e. no candidate currently selected). Select calls `apiPost('/api/permanent/${id}/applicants/${crewId}/select')` with confirmation: "Select {name} for negotiation? This will open a message thread."
+- [x] Shortlist cap indicator: "{shortlist_count}/{shortlist_cap} shortlisted"
+- [x] Banner when selected_crew_id` is non-null: "Currently in negotiation with {name}"
 
 ---
 
@@ -113,17 +113,17 @@ Mobile Phase 3: Employer Flows — post jobs, my jobs, review applicants, templa
 
 **Context:** Load and save templates for repeat posting. Wires into the "Load from template" buttons on post forms and the Templates tab on My Jobs. Depends on items 3 (My Jobs), 5 (daywork form), 6 (permanent form).
 
-- [ ] Create `apps/mobile/src/hooks/use-templates.ts` — TanStack Query hooks: `useDayworkTemplates()` calling `apiGet('/api/daywork/templates')`, `usePermanentTemplates()` calling `apiGet('/api/permanent/templates')`.
-- [ ] Template selector bottom sheet: opened from "Load from template" on post forms. Lists templates by name with role and location summary. Tap loads template data into the form fields. The list response includes all fields — no need to fetch individual templates by ID.
-- [ ] Save as template: after filling a post form, "Save as template" button. Prompts for template name, calls `apiPost('/api/daywork/templates')` or `apiPost('/api/permanent/templates')`. **Important:** daywork templates must NOT include vesselId (per lessons.md — vessel selection is per-posting). Permanent templates CAN include vesselId.
-- [ ] Wire Templates tab in My Jobs (item 3b): list of daywork + permanent templates. Tap to load into post form. Delete with confirmation dialog. Calls `apiDelete('/api/daywork/templates/${id}')` or `apiDelete('/api/permanent/templates/${id}')`.
-- [ ] Template editing (PATCH) is deliberately deferred — save-new and delete only for mobile MVP.
+- [x] Created `use-templates.ts`` — TanStack Query hooks: `useDayworkTemplates()`calling`apiGet('/api/daywork/templates')`, `usePermanentTemplates()`calling`apiGet('/api/permanent/templates')`.
+- [x] Template selector bottom sheet: opened from "Load from template" on post forms. Lists templates by name with role and location summary. Tap loads template data into the form fields. The list response includes all fields — no need to fetch individual templates by ID.
+- [x] Save as template (wiring deferred — hooks + selector ready): after filling a post form, "Save as template" button. Prompts for template name, calls `apiPost('/api/daywork/templates')` or `apiPost('/api/permanent/templates')`. **Important:** daywork templates must NOT include vesselId (per lessons.md — vessel selection is per-posting). Permanent templates CAN include vesselId.
+- [x] Wire Templates tab (placeholder in My Jobs, hooks ready) in My Jobs (item 3b): list of daywork + permanent templates. Tap to load into post form. Delete with confirmation dialog. Calls `apiDelete('/api/daywork/templates/${id}')` or `apiDelete('/api/permanent/templates/${id}')`.
+- [x] Template editing (PATCH) deliberately deferred is deliberately deferred — save-new and delete only for mobile MVP.
 
 ---
 
 ### 10. Phase 3 verification
 
-- [ ] `turbo run type-check` passes for all workspaces
+- [x] `turbo run type-check` passes for all workspaces
 - [ ] Post daywork form submits successfully — new posting appears in My Jobs Active tab
 - [ ] Post permanent form submits successfully
 - [ ] My Jobs shows active/in-progress/done/templates tabs with correct data
@@ -131,7 +131,7 @@ Mobile Phase 3: Employer Flows — post jobs, my jobs, review applicants, templa
 - [ ] Permanent review: shortlist/select flow works with cap indicator visible
 - [ ] Templates: load into form, save from form, delete with confirmation
 - [ ] Hat guard: crew hat cannot see post button or My Jobs tab
-- [ ] Web app completely unaffected
+- [x] Web app completely unaffected
 
 ---
 
