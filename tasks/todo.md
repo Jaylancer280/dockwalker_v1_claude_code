@@ -17,84 +17,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 2. Role gate fixes — crew on review page + employer on discover (SUG-001, SUG-016)
-
-**Two bugs where the wrong hat sees the wrong page.**
-
-**A. SUG-001 — Crew on `/daywork/[id]/review` sees employer UI:**
-
-- [ ] `apps/web/src/app/(app)/daywork/[id]/review/page.tsx` — add `current_hat` check. If crew, redirect to the engagement/messages view (or show crew-specific application status). Do NOT render the employer Applicants/Shortlist/Available tabs.
-- [ ] Same check for `apps/web/src/app/(app)/permanent/[id]/review/page.tsx` — crew should not see the employer review UI.
-
-**B. SUG-016 — Employer not redirected from `/discover`:**
-
-- [ ] `apps/web/src/middleware.ts` (or `proxy.ts`) — the discover redirect only checks `identity_type === 'agent'`. It misses crew users with `current_hat = 'employer'`.
-- [ ] Fix: change condition to `if ((person.identity_type === 'agent' || person.current_hat !== 'crew') && path === '/discover')` → redirect to `/daywork/mine`.
-- [ ] Also check the client-side fallback in `apps/web/src/app/(app)/discover/page.tsx` (the `loadCrewCerts` redirect) — ensure it catches employer hat too.
-
-**Done condition:** Crew on review pages sees their own application status, not employer UI. Employer on /discover is redirected to /daywork/mine.
-
----
-
-### 3. Seed data overhaul — realistic names, crew-owned vessels, avatar, completeness
-
-**Problem:** The seed data is half-baked placeholder garbage. Beta testers see "Profile One", "M/Y Unknown vessel", empty profiles, and a single employer posting every job. This is the first thing real users interact with.
-
-**Files:** `supabase/seed/002_test_profiles.sql`, `supabase/seed/003_advanced_scenarios.sql`
-
-**A. Realistic profile names and bios:**
-
-- [ ] Replace "Profile One" → e.g. "Hein van der Merwe" (employer, Captain, 15yr experience)
-- [ ] Replace "Profile Two" → e.g. "James Thornton" (crew, Deckhand, 3yr experience)
-- [ ] Replace "Profile Three" → e.g. "Sophie Laurent" (crew, Stewardess, 8mo experience)
-- [ ] Replace "Profile Five" → e.g. "Victoria Chase" (agent, Meridian Yacht Crew)
-- [ ] Update bios to match new names
-
-**B. Set avatar_url on all seed profiles:**
-
-- [ ] Copy `assets/branding/DockWalker_App_Icon_Kit/DockWalker_AppIcon_1024_new.png` (or `small_128.png`) to `apps/web/public/images/dw-system-avatar.png`
-- [ ] In the `onboard_person` calls, add `'avatar_url', '/images/dw-system-avatar.png'` to the payload JSON
-- [ ] Verify the Avatar component renders correctly
-
-**C. Crew must own their own vessels for experiences:**
-
-- [ ] For c@1: create crew-owned copies of S/Y Wanderer, M/Y Serenity, M/Y Phantom (same IMOs, new UUIDs, owner = c@1)
-- [ ] Update `crew_experiences` to reference crew-owned vessel UUIDs
-- [ ] For g@1: verify M/Y Azure Dream is already owned by g@1
-- [ ] Verify: crew's "My Vessels" page shows their vessels. Experience cards show correct names.
-
-**D. Remove duplicate experiences:**
-
-- [ ] Remove direct INSERTs from `002_test_profiles.sql` (lines 226-255)
-- [ ] Let `003_advanced_scenarios.sql` handle all experiences via events
-- [ ] Keep `derive_experience_profile()` only AFTER all experiences in 003
-
-**E. Set nationality and visas on profiles:**
-
-- [ ] Add `nationality_id` to onboard payloads (South African for Hein, British for James, French for Sophie)
-- [ ] Add `visa_ids` where appropriate
-- [ ] Eliminates "Complete your profile" banner
-
-**F. Give g@1 (Sophie) availability and interactions:**
-
-- [ ] Set daywork availability (next 14 days in Palma)
-- [ ] Set permanent availability to `immediate`
-- [ ] Have Sophie apply to at least one daywork posting
-
-**G. Agent (a@1) must have active postings — both daywork and permanent:**
-
-- [ ] Add 1-2 daywork postings by agent on M/Y Meridian
-- [ ] Add 2-3 permanent postings by agent — different roles, realistic salaries
-
-**H. Diversify poster names on discover:**
-
-- [ ] Add 2-3 more active daywork postings by agent so discover shows jobs from multiple posters
-
-**Done condition:** Realistic names, DockWalker avatars, no "Unknown vessel", no "Complete profile" nag, discover shows jobs from multiple posters. Crew's My Vessels works.
-
----
-
-### 4. Hierarchical pill picker — shared component, deployed app-wide
+### 2. Hierarchical pill picker — shared component, deployed app-wide
 
 **Problem:** Role, cert, and location selectors are flat lists everywhere. On mobile, 20+ certs or 55 ports in a single list is unusable. The pattern should be: show category pills → user taps one → show items within that category. Tapping the selected category again deselects it and returns to the top layer.
 
@@ -159,7 +82,7 @@ A single shared component supporting:
 
 ---
 
-### 5. Profile edit — duplicate Display name + use hierarchical pills
+### 3. Profile edit — duplicate Display name + use hierarchical pills
 
 **Two problems in `apps/web/src/app/(app)/profile/_components/profile-edit-form.tsx` and `apps/web/src/app/(app)/profile/page.tsx`:**
 
@@ -176,13 +99,13 @@ A single shared component supporting:
 - [ ] Replace language checkboxes with flat pill toggles
 - [ ] Remove the `max-h-40 overflow-y-auto` scroll containers
 
-**Depends on:** Item 4 (HierarchicalPills component must be built first).
+**Depends on:** Item 2 (HierarchicalPills component must be built first).
 
 **Done condition:** One Display name field. Hierarchical pills for certs, flat pills for visas/languages. No checkboxes.
 
 ---
 
-### 6. Page transition speed — reduce blank-screen flash between navigations
+### 4. Page transition speed — reduce blank-screen flash between navigations
 
 **Problem:** Every tab navigation shows a blank screen or spinner for ~2 seconds before content appears. The app feels like a slow website. Root cause: all pages are `'use client'` with `useEffect` data fetching on mount. No prefetching, no data caching between navigations.
 
@@ -207,7 +130,7 @@ A single shared component supporting:
 
 ---
 
-### 7. UX hardening — confirmation dialogs, error feedback, completeness hints
+### 5. UX hardening — confirmation dialogs, error feedback, completeness hints
 
 **Batch of UX fixes found during full audit. Each is small individually.**
 
@@ -259,7 +182,7 @@ A single shared component supporting:
 
 ---
 
-### 8. Capacitor static export architecture (BLOCKING — proper TF build)
+### 6. Capacitor static export architecture (BLOCKING — proper TF build)
 
 The current Codemagic build loads the entire app remotely from Vercel. Correct architecture: static HTML locally, only API calls remote.
 
@@ -291,7 +214,7 @@ The current Codemagic build loads the entire app remotely from Vercel. Correct a
 
 ---
 
-### 9. Permanent post form — add missing fields
+### 7. Permanent post form — add missing fields
 
 Permanent posting should be richer than daywork, not thinner.
 

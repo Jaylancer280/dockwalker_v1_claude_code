@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { safeFetch } from '@/lib/safe-fetch';
+import { createClient } from '@/lib/supabase/client';
 
 interface Applicant {
   id: string;
@@ -72,6 +73,26 @@ export default function PermanentReviewPage() {
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [selectConfirm, setSelectConfirm] = useState<Applicant | null>(null);
+
+  // Client-side hat guard: redirect crew away from employer review page
+  useEffect(() => {
+    const supabase = createClient();
+    async function checkHat() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: person } = await supabase
+        .from('persons')
+        .select('current_hat')
+        .eq('id', user.id)
+        .single();
+      if (person?.current_hat === 'crew') {
+        router.push('/discover');
+      }
+    }
+    checkHat();
+  }, [router]);
 
   const fetchReview = useCallback(
     () =>

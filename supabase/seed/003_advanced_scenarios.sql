@@ -2,18 +2,23 @@
 -- Comprehensive seed data — NOT for production
 -- =============================================================================
 --
--- Builds on 002_test_profiles.sql. Uses e@1 (employer) and c@1 (crew).
+-- Builds on 002_test_profiles.sql. Uses e@1 (Hein, employer) and c@1 (James, crew).
 -- Creates crew experiences, availability, daywork postings across all lifecycle
 -- states, permanent postings, templates, and user preferences.
 --
 -- PERSON IDS:
---   Employer: 11111111-1111-1111-1111-111111111111
---   Crew:     22222222-2222-2222-2222-222222222222
+--   Employer (Hein):    11111111-1111-1111-1111-111111111111
+--   Crew (James):       22222222-2222-2222-2222-222222222222
 --
--- VESSEL IDS:
+-- VESSEL IDS (employer-owned �� used in postings):
 --   Serenity (65m motor):       33333333-3333-3333-3333-333333333333
 --   Phantom  (45m motor, NDA):  33333333-3333-3333-3333-333333333334
+-- VESSEL IDS (crew-owned — used in experiences):
 --   Wanderer (35m sail):        33333333-3333-3333-3333-333333333335
+-- VESSEL IDS (crew-owned, used in experiences):
+--   Wanderer copy (35m):        33333333-3333-3333-3333-33333333333a
+--   Serenity copy (65m):        33333333-3333-3333-3333-33333333333b
+--   Phantom copy (45m):         33333333-3333-3333-3333-33333333333c
 --
 -- DAYWORK POSTINGS (DW-01 through DW-10):
 --   DW-01: day +20,  Deckhand,          Port Vauban     — Active, no applicants + invitation
@@ -52,7 +57,7 @@ select public.append_event(
   'crew',
   jsonb_build_object(
     'id', '44444444-4444-4444-4444-44444444e001',
-    'vessel_id', '33333333-3333-3333-3333-333333333335',
+    'vessel_id', '33333333-3333-3333-3333-33333333333a',
     'role_id', 'd0000000-0000-0000-0000-000000000006',
     'start_date', (current_date - interval '8 months')::date,
     'end_date', (current_date - interval '5 months')::date,
@@ -73,7 +78,7 @@ select public.append_event(
   'crew',
   jsonb_build_object(
     'id', '44444444-4444-4444-4444-44444444e002',
-    'vessel_id', '33333333-3333-3333-3333-333333333333',
+    'vessel_id', '33333333-3333-3333-3333-33333333333b',
     'role_id', 'd0000000-0000-0000-0000-000000000006',
     'start_date', (current_date - interval '4 months')::date,
     'end_date', (current_date - interval '2 months')::date,
@@ -98,7 +103,7 @@ select public.append_event(
   'crew',
   jsonb_build_object(
     'id', '44444444-4444-4444-4444-44444444e003',
-    'vessel_id', '33333333-3333-3333-3333-333333333333',
+    'vessel_id', '33333333-3333-3333-3333-33333333333b',
     'role_id', 'd0000000-0000-0000-0000-000000000005',
     'start_date', (current_date - interval '2 months')::date,
     'end_date', (current_date - interval '1 month')::date,
@@ -122,7 +127,7 @@ select public.append_event(
   'crew',
   jsonb_build_object(
     'id', '44444444-4444-4444-4444-44444444e004',
-    'vessel_id', '33333333-3333-3333-3333-333333333334',
+    'vessel_id', '33333333-3333-3333-3333-33333333333c',
     'role_id', 'd0000000-0000-0000-0000-000000000004',
     'start_date', (current_date - interval '3 weeks')::date,
     'end_date', (current_date - interval '1 week')::date,
@@ -1351,6 +1356,25 @@ select public.append_event(
     'notes', 'Sous Chef for private owner. Mediterranean and Asian fusion. Max 12 covers. Immediate start — ASAP.'
   ),
   '11111111-1111-1111-1111-111111111111'
+);
+
+
+-- =============================================================================
+-- SECTION 4B: SOPHIE (g@1) APPLIES TO DW-03
+-- =============================================================================
+-- Sophie applies to the Stewardess daywork posting (DW-03)
+
+select public.append_event(
+  'DAYWORK.APPLIED',
+  '44444444-4444-4444-4444-444444440a01',
+  'application',
+  'crew',
+  jsonb_build_object(
+    'id', '44444444-4444-4444-4444-444444440a01',
+    'daywork_id', '44444444-4444-4444-4444-444444444003',
+    'message', 'Hi, I have 8 months interior experience and am available. Happy to travel from Palma for this.'
+  ),
+  '77777777-7777-7777-7777-777777777777'
 );
 
 

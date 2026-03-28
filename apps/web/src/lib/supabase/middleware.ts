@@ -96,7 +96,10 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Crew cannot access employer review pages — redirect to discover
-    if (person.current_hat === 'crew' && /^\/daywork\/[^/]+\/review/.test(path)) {
+    if (
+      person.current_hat === 'crew' &&
+      (/^\/daywork\/[^/]+\/review/.test(path) || /^\/permanent\/[^/]+\/review/.test(path))
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = '/discover';
       return NextResponse.redirect(url);
