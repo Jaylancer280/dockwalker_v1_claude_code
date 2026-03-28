@@ -109,6 +109,8 @@ After ANY session that includes a migration, before presenting changes:
 
 - **Never commit with merge conflict markers or dirty working tree:** Before every commit, the implementation agent must verify: (1) no conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in any staged file — grep for them, (2) `git diff` shows no unintended uncommitted changes. Merge conflict markers are a build breaker. Uncommitted formatting diffs accumulate into a confusing working tree. Both were missed across 9 commits on 2026-03-28.
 
+- **Mobile code must match the real DB schema — read the web app's queries first:** When writing mobile code that queries a Supabase table, read the web app's existing queries for that table first. The `persons` table has `id` (not `user_id`), `identity_type` is `'crew' | 'agent'` (not `'individual'`), and there is no `is_active` column. The implementation agent invented column names and enum values instead of checking the actual schema or the web app's existing queries. Pattern: before any `.from('table_name')` in mobile code, grep for `from('table_name')` in `apps/web/src/` and match the `.select()` and `.eq()` patterns exactly.
+
 - **Rollback completeness is not optional — verify before committing the migration:** When a migration replaces `apply_projection`, the rollback must contain the full previous function body. A comment saying "see migration 00075" violates the self-contained rollback rule (already documented above). The check: open the rollback file, read it as if it's the only file you have — can you run it and restore the DB to the prior state? If not, it's incomplete. This was already a lesson and was repeated anyway.
 
 ### Pre-commit aggregate_type audit (automated)

@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
+import type { RoleContext, IdentityType } from '@dockwalker/types';
 import { supabase } from './supabase';
 
 interface Person {
   id: string;
-  current_hat: 'crew' | 'employer' | 'agent';
-  identity_type: 'individual' | 'agent';
-  is_active: boolean;
+  current_hat: RoleContext;
+  identity_type: IdentityType;
 }
 
 interface AuthContextValue {
@@ -54,8 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function fetchPerson(userId: string) {
     const { data, error } = await supabase
       .from('persons')
-      .select('id, current_hat, identity_type, is_active')
-      .eq('user_id', userId)
+      .select('id, current_hat, identity_type')
+      .eq('id', userId)
       .maybeSingle();
 
     if (error || !data) {
