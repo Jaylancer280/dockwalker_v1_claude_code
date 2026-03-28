@@ -3,14 +3,17 @@ import { View, Text, Pressable, RefreshControl, ScrollView, Alert } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
+import { useMMKVString } from 'react-native-mmkv';
 import { SwipeCardStack } from '@/components/swipe-card-stack';
 import { DayworkJobCard, DayworkJobCardSkeleton } from '@/components/daywork-job-card';
 import { PermanentJobCard } from '@/components/permanent-job-card';
 import { JobDetailSheet } from '@/components/job-detail-sheet';
+import { PermanentDetailSheet } from '@/components/permanent-detail-sheet';
 import { DiscoverFilterPanel, ActiveFilterPills } from '@/components/discover-filters';
 import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { useDayworkDiscover, type HydratedDaywork, type DiscoverFilters } from '@/hooks/use-daywork-discover';
 import { useAvailability } from '@/hooks/use-availability';
+import { useCrewProfile } from '@/hooks/use-crew-profile';
 import { usePermanentDiscover, type HydratedPermanent } from '@/hooks/use-permanent-discover';
 import { apiPost } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
@@ -19,9 +22,13 @@ type DiscoverMode = 'daywork' | 'permanent';
 
 export default function DiscoverScreen() {
   const { person } = useAuth();
-  const [mode, setMode] = useState<DiscoverMode>('daywork');
+  const [storedMode, setStoredMode] = useMMKVString('discover-mode');
+  const mode: DiscoverMode = (storedMode as DiscoverMode) || 'daywork';
+  const setMode = (m: DiscoverMode) => setStoredMode(m);
   const [selectedDaywork, setSelectedDaywork] = useState<HydratedDaywork | null>(null);
+  const [selectedPermanent, setSelectedPermanent] = useState<HydratedPermanent | null>(null);
   const [isApplying, setIsApplying] = useState(false);
+  const crewProfile = useCrewProfile();
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showAvailability, setShowAvailability] = useState(false);
@@ -78,26 +85,28 @@ export default function DiscoverScreen() {
   );
 
   const handlePermanentPress = useCallback((posting: HydratedPermanent) => {
-    Alert.alert(
-      posting.role_name ?? 'Job Details',
-      `PM-${String(posting.job_number).padStart(5, '0')}\n${posting.poster_name ?? 'Unknown poster'}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Apply',
-          onPress: async () => {
-            const result = await apiPost(`/api/permanent/${posting.id}/apply`);
-            if (result.ok) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              permanent.refetch();
-            } else {
-              Alert.alert('Could not apply', result.error);
-            }
-          },
-        },
-      ],
-    );
-  }, [permanent]);
+    setSelectedPermanent(posting);
+  }, []);
+
+  const handlePermanentApply = useCallback(
+    async (postingId: string, message?: string) => {
+      setIsApplying(true);
+      const body: Record<string, unknown> = {};
+      if (message) body.message = message;
+
+      const result = await apiPost(`/api/permanent/${postingId}/apply`, body);
+      setIsApplying(false);
+
+      if (result.ok) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setSelectedPermanent(null);
+        permanent.refetch();
+      } else {
+        Alert.alert('Could not apply', result.error);
+      }
+    },
+    [permanent],
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -240,6 +249,15 @@ export default function DiscoverScreen() {
         job={selectedDaywork}
         onApply={handleDayworkApply}
         onDismiss={() => setSelectedDaywork(null)}
+        isApplying={isApplying}
+      />
+
+      {/* Permanent detail sheet */}
+      <PermanentDetailSheet
+        posting={selectedPermanent}
+        crewCertIds={crewProfile.data?.certification_ids ?? []}
+        onApply={handlePermanentApply}
+        onDismiss={() => setSelectedPermanent(null)}
         isApplying={isApplying}
       />
 
