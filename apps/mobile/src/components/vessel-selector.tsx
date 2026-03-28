@@ -36,20 +36,29 @@ export function VesselSelector({ value, onChange, onDismiss }: VesselSelectorPro
       return;
     }
 
+    if (!newImo.trim() || newImo.trim().length !== 7) {
+      Alert.alert('IMO number required', 'Enter a valid 7-digit IMO number');
+      return;
+    }
+    if (!newLoa.trim() || parseFloat(newLoa) <= 0) {
+      Alert.alert('LOA required', 'Enter the vessel length in metres');
+      return;
+    }
+
     setCreating(true);
     const body: Record<string, unknown> = {
       name: newName.trim(),
       vesselType: newType,
+      imoNumber: newImo.trim(),
+      loaMeters: parseFloat(newLoa),
     };
-    if (newImo.trim()) body.imoNumber = newImo.trim();
-    if (newLoa.trim()) body.loaMeters = parseFloat(newLoa);
 
-    const result = await apiPost<{ vessel: { id: string } }>('/api/vessels', body);
+    const result = await apiPost<{ id: string }>('/api/vessels', body);
     setCreating(false);
 
     if (result.ok) {
       invalidate();
-      onChange(result.data.vessel.id);
+      onChange(result.data.id);
       onDismiss();
     } else {
       Alert.alert('Error', result.error);
@@ -82,7 +91,7 @@ export function VesselSelector({ value, onChange, onDismiss }: VesselSelectorPro
               style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 10, fontSize: 14, marginBottom: 12 }}
             />
 
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 4 }}>IMO number (optional)</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 4 }}>IMO number</Text>
             <TextInput
               value={newImo}
               onChangeText={setNewImo}
@@ -110,7 +119,7 @@ export function VesselSelector({ value, onChange, onDismiss }: VesselSelectorPro
               ))}
             </View>
 
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 4 }}>LOA (metres, optional)</Text>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 4 }}>LOA (metres)</Text>
             <TextInput
               value={newLoa}
               onChangeText={setNewLoa}

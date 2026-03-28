@@ -3,72 +3,15 @@ import { View, Text, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import { apiGet } from '@/lib/api';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
+import { useMyDayworks, type MyDaywork } from '@/hooks/use-my-dayworks';
+import { useMyPermanent, type MyPermanent } from '@/hooks/use-my-permanent';
 import { currencySymbol } from '@dockwalker/shared';
 
 type TabName = 'active' | 'in_progress' | 'done' | 'templates';
 
-interface DayworkPosting {
-  id: string;
-  job_number: number;
-  status: string;
-  start_date: string;
-  end_date: string;
-  day_rate: number;
-  currency: string;
-  positions_available: number;
-  positions_filled: number;
-  yacht_roles: { name: string } | null;
-  vessels: { name: string; nda_flag: boolean; vessel_type: string } | null;
-  ports: { name: string } | null;
-}
-
-interface PermanentPosting {
-  id: string;
-  job_number: number;
-  status: string;
-  start_date: string;
-  salary_min: number | null;
-  salary_max: number | null;
-  salary_currency: string;
-  salary_period: string;
-  applicant_count: number;
-  shortlist_count: number;
-  selected_crew_name: string | null;
-  yacht_roles: { name: string } | null;
-  vessels: { name: string; nda_flag: boolean; vessel_type: string } | null;
-  ports: { name: string } | null;
-}
-
-function useMyDayworks() {
-  const { user } = useAuth();
-  return useQuery<{ dayworks: DayworkPosting[] }>({
-    queryKey: ['my-dayworks', user?.id],
-    queryFn: async () => {
-      const result = await apiGet<{ dayworks: DayworkPosting[] }>('/api/daywork/mine');
-      if (!result.ok) throw new Error(result.error);
-      return result.data;
-    },
-    enabled: !!user,
-  });
-}
-
-function useMyPermanent() {
-  const { user } = useAuth();
-  return useQuery<{ postings: PermanentPosting[] }>({
-    queryKey: ['my-permanent', user?.id],
-    queryFn: async () => {
-      const result = await apiGet<{ postings: PermanentPosting[] }>('/api/permanent/mine');
-      if (!result.ok) throw new Error(result.error);
-      return result.data;
-    },
-    enabled: !!user,
-  });
-}
-
-type AnyPosting = { type: 'daywork'; data: DayworkPosting } | { type: 'permanent'; data: PermanentPosting };
+type AnyPosting = { type: 'daywork'; data: MyDaywork } | { type: 'permanent'; data: MyPermanent };
 
 export default function MyJobsScreen() {
   const [tab, setTab] = useState<TabName>('active');
@@ -165,13 +108,13 @@ export default function MyJobsScreen() {
 
         {isDw ? (
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111' }}>
-            {currencySymbol((d as DayworkPosting).currency)}{(d as DayworkPosting).day_rate}/day
+            {currencySymbol((d as MyDaywork).currency)}{(d as MyDaywork).day_rate}/day
           </Text>
         ) : (
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111' }}>
-            {currencySymbol((d as PermanentPosting).salary_currency)}
-            {((d as PermanentPosting).salary_max ?? (d as PermanentPosting).salary_min)?.toLocaleString()}
-            /{(d as PermanentPosting).salary_period === 'annual' ? 'yr' : 'mo'}
+            {currencySymbol((d as MyPermanent).salary_currency)}
+            {((d as MyPermanent).salary_max ?? (d as MyPermanent).salary_min)?.toLocaleString()}
+            /{(d as MyPermanent).salary_period === 'annual' ? 'yr' : 'mo'}
           </Text>
         )}
 
@@ -179,14 +122,14 @@ export default function MyJobsScreen() {
           {isDw && (
             <View style={{ backgroundColor: '#f3f4f6', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
               <Text style={{ fontSize: 11, color: '#4b5563' }}>
-                {(d as DayworkPosting).positions_filled}/{(d as DayworkPosting).positions_available} filled
+                {(d as MyDaywork).positions_filled}/{(d as MyDaywork).positions_available} filled
               </Text>
             </View>
           )}
-          {!isDw && (d as PermanentPosting).applicant_count > 0 && (
+          {!isDw && (d as MyPermanent).applicant_count > 0 && (
             <View style={{ backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
               <Text style={{ fontSize: 11, color: '#2563eb' }}>
-                {(d as PermanentPosting).applicant_count} applicant{(d as PermanentPosting).applicant_count !== 1 ? 's' : ''}
+                {(d as MyPermanent).applicant_count} applicant{(d as MyPermanent).applicant_count !== 1 ? 's' : ''}
               </Text>
             </View>
           )}

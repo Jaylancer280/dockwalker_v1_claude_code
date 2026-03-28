@@ -11,21 +11,31 @@ Mobile Phase 3: Employer Flows — post jobs, my jobs, review applicants, templa
 
 ## Queue
 
-### 0. Remaining audit fix
+### 0. Stage 166 review fixes
 
-#### 0e. Person type cast masks missing columns
+#### 0a. BUG — Vessel selector response shape mismatch
 
-`apps/mobile/src/lib/auth-context.tsx:58` — `setPerson(data as Person)` casts a 3-column query result to the full `Person` type (5 fields). `created_at` and `deactivated_at` are `undefined` at runtime but TypeScript thinks they're `string` and `string | null`. If future code accesses `person.created_at`, no type error — just a runtime crash.
+`apps/mobile/src/components/vessel-selector.tsx:52` — `result.data.vessel.id` will crash. The vessel API (`POST /api/vessels`) returns `{ id: "uuid" }`, not `{ vessel: { id } }`.
 
-- [x] Changed `person` state type to `Pick<Person, 'id' | 'current_hat' | 'identity_type'> | null` in auth-context.tsx. Update `AuthContextValue.person` to match. Remove the `as Person` cast on line 58 (the query return type should now satisfy the Pick).
+- [x] Changed `result.data.vessel.id` to `result.data.id`` to `result.data.id`on line 52 of vessel-selector.tsx. Update the generic type on line 47 from`apiPost<{ vessel: { id: string } }>`to`apiPost<{ id: string }>`.
+
+#### 0b. BUG — Vessel selector treats IMO + LOA as optional
+
+`apps/mobile/src/components/vessel-selector.tsx:44-45` — IMO and LOA are conditionally sent. The vessel API requires ALL four fields: `imoNumber`, `name`, `vesselType`, `loaMeters` (returns 400 if any missing). The UI labels IMO "(optional)" and LOA "(metres, optional)" — they are not.
+
+- [x] Made IMO required: remove "(optional)" from the label on line 85. Add validation in `handleCreate`: if `!newImo.trim()` or `newImo.trim().length !== 7`, show `Alert.alert('IMO number required', 'Enter a valid 7-digit IMO number')` and return.
+- [x] Made LOA required: remove "(optional)" from the label on line 113. Add validation: if `!newLoa.trim()` or `parseFloat(newLoa) <= 0`, show `Alert.alert('LOA required', 'Enter the vessel length in metres')` and return.
+- [x] Always send both fields: remove the `if` guards on lines 44-45. Always set `body.imoNumber = newImo.trim()` and `body.loaMeters = parseFloat(newLoa)`.
+
+#### 0c. My Jobs hooks should be separate files
+
+`apps/mobile/app/(app)/(tabs)/my-jobs.tsx:45-69` inlines two data hooks. Phase 2 pattern puts hooks in `src/hooks/`. Extract for reuse (review screens may need the same data).
+
+- [x] Extracted hooks to separate files()`to`apps/mobile/src/hooks/use-my-dayworks.ts`and`useMyPermanent()`to`apps/mobile/src/hooks/use-my-permanent.ts`. Import them in my-jobs.tsx.
 
 ---
 
-### 1. Vessel selector + shared form components
-
-**Context:** Both post forms and review screens need a vessel selector and form pickers. Build these first. All writes go through Vercel API routes.
-
-#### 1a. Vessel selector
+### 1. Vessel selector + shared form components (DONE)
 
 - [x] Created `use-vessels.ts`` — TanStack Query hook, direct Supabase read of `vessels`table where`owner_person_id = user.id`. Returns list of user's vessels with name, type, size band, NDA flag.
 - [x] Created `vessel-selector.tsx`` — bottom sheet listing user's vessels as selectable cards (M/Y or S/Y prefix, name, size band). "Add vessel" button at bottom opens inline vessel creation form (name, IMO, vessel type motor/sail, LOA). Vessel creation calls `apiPost('/api/vessels')`.
