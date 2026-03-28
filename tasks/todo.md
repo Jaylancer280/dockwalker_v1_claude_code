@@ -17,30 +17,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 2. Profile edit — duplicate Display name + use hierarchical pills
-
-**Two problems in `apps/web/src/app/(app)/profile/_components/profile-edit-form.tsx` and `apps/web/src/app/(app)/profile/page.tsx`:**
-
-**A. Duplicate "Display name" field (user-reported, both hats):**
-
-- [ ] Reproduce on device or browser — confirm two "Display name" fields visible
-- [ ] Find and remove the duplicate — only ONE Display name should exist, inside the form section below the avatar
-- [ ] Verify fix on both hats
-
-**B. Checkboxes must be hierarchical pill selections:**
-
-- [ ] Replace cert checkboxes with `HierarchicalPills` — department layer → certs in department
-- [ ] Replace visa checkboxes with flat pill toggles (small list, no hierarchy needed)
-- [ ] Replace language checkboxes with flat pill toggles
-- [ ] Remove the `max-h-40 overflow-y-auto` scroll containers
-
-**Depends on:** HierarchicalPills component (now built, Stage 158).
-
-**Done condition:** One Display name field. Hierarchical pills for certs, flat pills for visas/languages. No checkboxes.
-
----
-
-### 3. Page transition speed — reduce blank-screen flash between navigations
+### 2. Page transition speed — reduce blank-screen flash between navigations
 
 **Problem:** Every tab navigation shows a blank screen or spinner for ~2 seconds before content appears. The app feels like a slow website. Root cause: all pages are `'use client'` with `useEffect` data fetching on mount. No prefetching, no data caching between navigations.
 
@@ -65,7 +42,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 4. UX hardening — confirmation dialogs, error feedback, completeness hints
+### 3. UX hardening — confirmation dialogs, error feedback, completeness hints
 
 **Batch of UX fixes found during full audit. Each is small individually.**
 
@@ -117,7 +94,7 @@ TestFlight fix sweep — all items blocking or degrading the beta experience
 
 ---
 
-### 5. Capacitor static export architecture (BLOCKING — proper TF build)
+### 4. Capacitor static export architecture (BLOCKING — proper TF build)
 
 The current Codemagic build loads the entire app remotely from Vercel. Correct architecture: static HTML locally, only API calls remote.
 
@@ -149,7 +126,7 @@ The current Codemagic build loads the entire app remotely from Vercel. Correct a
 
 ---
 
-### 6. Permanent post form — add missing fields
+### 5. Permanent post form — add missing fields
 
 Permanent posting should be richer than daywork, not thinner.
 

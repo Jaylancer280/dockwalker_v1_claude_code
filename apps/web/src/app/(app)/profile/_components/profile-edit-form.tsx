@@ -1,7 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -265,19 +264,14 @@ export function ProfileEditForm({
 
       <div className="flex flex-col gap-1.5">
         <Label>Role Specializations</Label>
-        <div className="max-h-40 overflow-y-auto rounded-md border border-border p-3">
-          {roles.map((r) => (
-            <label key={r.id} className="flex items-center gap-2 py-1.5 text-sm">
-              <Checkbox
-                checked={roleSpecializationIds.includes(r.id)}
-                onCheckedChange={() =>
-                  toggleArrayItem(roleSpecializationIds, r.id, setRoleSpecializationIds)
-                }
-              />
-              {r.name}
-            </label>
-          ))}
-        </div>
+        <HierarchicalPills
+          groups={rolesToGroups(
+            roles.filter((r): r is typeof r & { department: string } => !!r.department),
+          )}
+          value={roleSpecializationIds}
+          onValueChange={(v) => setRoleSpecializationIds(v as string[])}
+          mode="multi"
+        />
       </div>
     </div>
   );

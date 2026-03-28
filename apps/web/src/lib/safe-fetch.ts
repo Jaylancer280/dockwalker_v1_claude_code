@@ -3,6 +3,20 @@ type SafeFetchError = { ok: false; error: string };
 type SafeFetchResult<T> = SafeFetchSuccess<T> | SafeFetchError;
 
 /**
+ * Resolve a relative URL to an absolute URL.
+ * In Capacitor (NEXT_PUBLIC_API_BASE_URL set), relative /api/* calls
+ * are prefixed with the server URL so they reach Vercel.
+ * In browser (no prefix), relative URLs work as-is.
+ */
+function resolveUrl(url: string): string {
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (base && url.startsWith('/')) {
+    return `${base}${url}`;
+  }
+  return url;
+}
+
+/**
  * Thin wrapper around fetch with timeout and safe error parsing.
  * Returns a discriminated union — never throws.
  */
@@ -11,6 +25,7 @@ export async function safeFetch<T = unknown>(
   init?: RequestInit & { timeoutMs?: number },
 ): Promise<SafeFetchResult<T>> {
   const { timeoutMs = 15000, ...fetchInit } = init ?? {};
+  url = resolveUrl(url);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
