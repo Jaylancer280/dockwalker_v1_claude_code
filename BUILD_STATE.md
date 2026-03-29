@@ -285,9 +285,11 @@ v77 — Permanent post fields (77 migrations applied)
 
 - [Stage 170] Mobile UI primitives — 12 shared components in `apps/mobile/src/components/ui/` (Button, Card, Pill, FormInput, SectionHeader, ScreenHeader, EmptyState, TabBar, StarRating, YesNoPartialPicker, BoolToggle, colors.ts), 4 inline component extractions (MessageBubble, PermanentApplicantRow, ConversationRow, ProgressDots), full adoption across 27 screens/components. `#2563eb` eliminated from all non-primitive files via `colors.primary`
 
+- [Stage 171] Mobile Phase 5: Profile + Experience — profile view with hat switch + avatar upload/delete, profile edit with all field pickers (nationality, visa, flag state), experience add/edit/delete with IMO vessel lookup, vessel list/edit screens. New hooks: use-profile, use-experiences, useNationalities/useVisaTypes/useFlagStates in use-canonical. apiPatch + apiUpload utilities. 3 new picker components. expo-image-picker installed.
+
 ## In Progress
 
-Mobile Phase 4 — device testing pending (conversations, chat, realtime, engagement actions, all Phase 1-4 flows)
+Mobile Phase 5 — device testing pending
 
 ## Next Up
 

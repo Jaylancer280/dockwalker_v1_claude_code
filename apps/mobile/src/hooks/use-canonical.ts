@@ -44,6 +44,22 @@ interface SizeBand {
   max_meters: number | null;
 }
 
+interface Nationality {
+  id: string;
+  name: string;
+  flag_emoji: string;
+}
+
+interface VisaType {
+  id: string;
+  name: string;
+}
+
+interface FlagState {
+  id: string;
+  name: string;
+}
+
 const CANONICAL_STALE = Infinity;
 
 export function useRoles() {
@@ -126,6 +142,51 @@ export function useSizeBands() {
         .order('min_meters');
       if (error) throw error;
       return (data ?? []) as SizeBand[];
+    },
+    staleTime: CANONICAL_STALE,
+  });
+}
+
+export function useNationalities() {
+  return useQuery<Nationality[]>({
+    queryKey: ['canonical', 'nationalities'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('nationalities')
+        .select('id, name, flag_emoji')
+        .order('name');
+      if (error) throw error;
+      return (data ?? []) as Nationality[];
+    },
+    staleTime: CANONICAL_STALE,
+  });
+}
+
+export function useVisaTypes() {
+  return useQuery<VisaType[]>({
+    queryKey: ['canonical', 'visaTypes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('visa_types')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return (data ?? []) as VisaType[];
+    },
+    staleTime: CANONICAL_STALE,
+  });
+}
+
+export function useFlagStates() {
+  return useQuery<FlagState[]>({
+    queryKey: ['canonical', 'flagStates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('flag_states')
+        .select('id, name')
+        .order('name');
+      if (error) throw error;
+      return (data ?? []) as FlagState[];
     },
     staleTime: CANONICAL_STALE,
   });

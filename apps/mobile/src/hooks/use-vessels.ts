@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth-context';
 export interface Vessel {
   id: string;
   name: string;
+  imo_number: string;
   vessel_type: string;
   loa_meters: number | null;
   nda_flag: boolean;
@@ -20,7 +21,7 @@ export function useVessels() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vessels')
-        .select('id, name, vessel_type, loa_meters, nda_flag, vessel_size_bands(label)')
+        .select('id, name, imo_number, vessel_type, loa_meters, nda_flag, vessel_size_bands(label)')
         .eq('owner_person_id', user!.id)
         .order('created_at', { ascending: false });
 
