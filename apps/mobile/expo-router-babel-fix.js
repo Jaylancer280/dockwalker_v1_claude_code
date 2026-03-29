@@ -4,31 +4,31 @@
  * process.env.EXPO_ROUTER_APP_ROOT with the correct path, matching
  * what babel-preset-expo's expo-router-plugin would do.
  */
-const path = require('path');
+var path = require('path');
 
 module.exports = function (api) {
-  const { types: t } = api;
-  const appRoot = path.resolve(__dirname, 'app');
+  var t = api.types;
+  var appRoot = path.resolve(__dirname, 'app');
 
   return {
     name: 'expo-router-app-root-fix',
     visitor: {
-      MemberExpression(nodePath, state) {
+      MemberExpression: function (nodePath, state) {
         if (
           nodePath.get('object').matchesPattern('process.env') &&
           t.isStringLiteral(nodePath.toComputedKey())
         ) {
-          const key = nodePath.toComputedKey().value;
+          var key = nodePath.toComputedKey().value;
           if (key === 'EXPO_ROUTER_APP_ROOT') {
-            const filename = state.filename || state.file?.opts?.filename || '';
-            const relativePath = path.relative(path.dirname(filename), appRoot);
-            const posix = relativePath.split(path.sep).join('/');
+            var filename = state.filename || (state.file && state.file.opts && state.file.opts.filename) || '';
+            var relativePath = path.relative(path.dirname(filename), appRoot);
+            var posix = relativePath.split(path.sep).join('/');
             nodePath.replaceWith(t.stringLiteral(posix.startsWith('.') ? posix : './' + posix));
           } else if (key === 'EXPO_ROUTER_IMPORT_MODE') {
             nodePath.replaceWith(t.stringLiteral('sync'));
           }
-        },
-      },
-    },
+        }
+      }
+    }
   };
 };
