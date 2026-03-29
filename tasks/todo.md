@@ -11,93 +11,93 @@ Mobile Phase 4: Messaging — conversation list, chat threads, engagement action
 
 ## Queue
 
-### Stage 167-168 review fixes
+### Stage 169 review fixes — API field mismatches (all calls return 400)
 
-#### BUG — Meal values capitalized, web uses lowercase
+#### CRITICAL 1 — Cancel overlays send wrong field names
 
-Both post forms use `['Breakfast', 'Lunch', 'Dinner']` but the web sends lowercase `['breakfast', 'lunch', 'dinner']`. The API doesn't normalize. This creates inconsistent data between web and mobile postings.
+Both cancel overlays use `reason` and `freeText`. The API expects `reason_category` and `reason_text`.
 
-- [x] Fixed meal casing to lowercase in post-daywork`to`['breakfast', 'lunch', 'dinner']`. Update the display to `capitalize()` the label while storing lowercase.
-- [x] Fixed meal casing to lowercase in post-permanent.tsx`.
+- [x] Fixed cancel-employer-overlay: reason_category, reason_text, relist_requested, relist reason fields body from `{ reason, freeText, relist }` to `{ reason_category: reason, reason_text: freeText.trim() || undefined, relist_requested: relist }`. Also add relist reason fields: when `relist` is true, show a second reason picker with options (`wrong_crew`, `requirements_changed`, `different_skills`, `relist_other`) and pass as `relist_reason_category` and `relist_reason_text`.
+- [x] Fixed cancel-crew-overlay: reason_category, reason_text body from `{ reason, freeText }` to `{ reason_category: reason, reason_text: freeText.trim() || undefined }`.
 
-#### MINOR — Permanent review `selected_crew_name` not in API response
+#### CRITICAL 2 — Postponement overlay sends camelCase, API expects snake_case
 
-`apps/mobile/src/hooks/use-permanent-applicants.ts:29` declares `selected_crew_name: string | null` but `GET /api/permanent/[id]/review` only returns `selected_crew_id`. The banner always shows "a candidate" instead of the actual name.
+`apps/mobile/src/components/postponement-overlay.tsx:28-29` sends `{ newStartDate, newEndDate, newWorkingDays, confirmConflict }`. The API expects `{ start_date, end_date, working_days, confirm_conflict }`.
 
-- [x] Resolved selected_crew_name from applicants array by finding the selected applicant in the `applicants` array (`applicants.find(a => a.crew_person_id === selected_crew_id)?.display_name`), or remove the field and use the array lookup directly in the review screen.
+- [x] Fixed postponement: snake_case fields, working_days required, auto-calculate from dates`(not`newStartDate`), `end_date`(not`newEndDate`), `working_days`as integer (not`newWorkingDays`), `confirm_conflict`(not`confirmConflict`). Also: `working_days` is **required** by the API (not optional) — must be a positive integer. Remove the "optional" label; auto-calculate from date span if user doesn't enter one.
+
+#### CRITICAL 3 — Rating overlay has wrong field names AND wrong field types
+
+The rating API uses yes/no/partial strings and booleans, not star ratings. Complete rebuild required.
+
+- [x] Rebuilt rating-overlay with correct field types`to match the API exactly. Reference:`apps/web/src/app/(app)/messages/[engagementId]/\_components/rating-form-overlay.tsx`. The correct fields are:
+
+  **Symmetric (all contexts, both roles):**
+  - `communication_accuracy`: **boolean** (Yes/No toggle, not stars)
+  - `overall_match`: **integer 1-5** (stars OK here)
+
+  **Cancelled context — crew only:**
+  - `notice_given`: **string** `'yes' | 'no' | 'partial'` (3-way picker)
+
+  **Cancelled context — employer only:** just the symmetric fields above.
+
+  **Completed context — crew:**
+  - `pay_accuracy`: **string** `'yes' | 'no' | 'partial'`
+  - `meals_accuracy`: **string** `'yes' | 'no' | 'partial'`
+  - `role_accuracy`: **string** `'yes' | 'no' | 'partial'`
+  - `working_days_accuracy`: **string** `'fewer' | 'as_listed' | 'more'`
+  - `vessel_condition`: **integer 1-5** (stars OK)
+  - `would_work_on_vessel_again`: **boolean**
+
+  **Completed context — employer:**
+  - `skills_as_advertised`: **string** `'yes' | 'no' | 'partial'`
+  - `certifications_verified`: **boolean**
+  - `punctuality`: **string** `'yes' | 'no' | 'partial'`
+  - `would_rehire`: **boolean**
+
+#### MEDIUM — Message send doesn't append to UI
+
+`apps/mobile/app/(app)/messages/[engagementId].tsx:85-89` expects `{ message: Message }` from the POST response. The API returns `{ success: true }`. The sent message won't appear until Realtime delivers it or the query refetches.
+
+- [x] Fixed message send: optimistic append with local message, Realtime dedup `result.data.message`. Instead, construct the message locally (`{ id: crypto.randomUUID(), sender_person_id: user.id, content, created_at: new Date().toISOString(), is_system: false }`) and call `appendMessage()` for optimistic display. Deduplicate when Realtime delivers the server copy (check `id` before appending in the Realtime handler).
 
 ---
 
-### Mobile Phase 4: Messaging
+### Mobile UI primitives extraction (must complete before Phase 5)
 
-**Context:** Chat threads open after daywork acceptance (`DAYWORK.ACCEPTED`) or permanent selection (`PERMANENT.SELECTED`). All message sends go through Vercel API. Reads use `apiGet`. Realtime uses direct Supabase subscription. Reference: web's `apps/web/src/app/(app)/messages/`.
+**Context:** Mobile Phases 1-4 were built with zero shared UI primitives. Every screen has inline styles for buttons, cards, pills, inputs, headers, and empty states. 125 inline style patterns across 28 files. A single color change requires find-and-replace across the entire app. 4 components are also inlined in page files (MessageBubble, ApplicantRow, ConversationRow, ProgressDots). This must be fixed before any further feature work.
 
-#### 1. Conversation list
+#### Primitive components to create in `apps/mobile/src/components/ui/`
 
-- [x] Created `use-conversations.ts`.ts`— TanStack Query hook calling`apiGet('/api/messages')`. Returns `{ conversations, unread_total }`. Each conversation includes: engagement type (daywork/permanent), last_message, unread_count, has_rated, other party name/avatar, status, job reference (role + vessel).
-- [x] Created messages screen` — replace the placeholder. Two segments: Active | History. Active = active engagements + incomplete ratings. History = completed & rated. Each row shows: avatar, name, unread badge, last message preview, job context. Tap navigates to chat thread. Pull-to-refresh.
+- [ ] `button.tsx` — `<Button variant="primary" | "secondary" | "destructive" | "ghost" size="sm" | "md" | "lg" disabled loading>`. Replaces all inline `Pressable` + background color + text color patterns. Primary = `#2563eb`, destructive = `#dc2626`, secondary = border + transparent, ghost = no border.
+- [ ] `card.tsx` — `<Card>` wrapper with consistent border radius (12), border color (`#e5e7eb`), white background, padding. Used by job cards, applicant cards, posting cards, conversation rows.
+- [ ] `pill.tsx` — `<Pill selected label>`. Replaces the ~40 inline pill patterns (borderRadius 16, paddingHorizontal 12, paddingVertical 6, selected = blue bg + white text, unselected = gray bg + dark text). Used by filters, certs, meals, languages, experience brackets.
+- [ ] `text-input.tsx` — `<FormInput label required placeholder>`. Wraps `TextInput` with consistent label, border style, spacing. Replaces the repeated label + TextInput + marginBottom 14 pattern in both post forms.
+- [ ] `section-header.tsx` — `<SectionHeader title subtitle>`. Replaces the repeated `fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4` label pattern.
+- [ ] `screen-header.tsx` — `<ScreenHeader title onBack>`. Replaces the repeated back button + title + spacer row pattern in post-daywork, post-permanent, review screens, chat.
+- [ ] `empty-state.tsx` — `<EmptyState message>`. Replaces the repeated centered gray text empty state pattern.
+- [ ] `tab-bar.tsx` — `<TabBar tabs activeTab onChange>`. Replaces the repeated segmented toggle pattern in my-jobs (4 tabs), messages (2 tabs), both review screens (2 tabs).
+- [ ] `star-rating.tsx` — `<StarRating value onChange>`. For rating overlay's overall_match and vessel_condition (the only two 1-5 integer fields).
+- [ ] `yes-no-partial-picker.tsx` — `<YesNoPartialPicker value onChange>`. For rating overlay's yes/no/partial fields. 3-way toggle.
+- [ ] `bool-toggle.tsx` — `<BoolToggle label value onChange>`. For rating overlay's boolean fields (communication_accuracy, would_work_again, would_rehire, certifications_verified).
 
-#### 2. Chat thread — core messaging
+#### Extract inline components from page files
 
-- [x] Created `use-messages.ts`` — TanStack Query hook calling `apiGet('/api/messages/${engagementId}')`. Returns `{ messages }`where each message has`id, sender_person_id, content, created_at, is_system`.
-- [x] Created `use-engagement-context.ts`.ts`— TanStack Query hook calling`apiGet('/api/messages/${engagementId}/context')`. Returns rich engagement metadata: status, other party profile, daywork/permanent details, checklist, work_started_status, postponement_status, cancellation info, rating status.
-- [x] Created `use-realtime-messages.ts`.ts`— Supabase Realtime subscription to`messages`table INSERT where`engagement_id = id`. On new message, append to the TanStack Query cache. Return `{ isConnected }`.
-- [x] Created chat thread screen.tsx` — chat thread screen. Components:
-  - Header: other party name, role, job reference, back button
-  - Message list: FlatList with sender alignment (own = right, other = left, system = center). Auto-scroll to bottom on new messages.
-  - Footer: text input + send button. Send calls `apiPost('/api/messages/${engagementId}', { content })`. On thread open, call `apiPost('/api/messages/${engagementId}/read')` to mark as read.
+- [ ] Extract `MessageBubble` from `app/(app)/messages/[engagementId].tsx` to `src/components/message-bubble.tsx`
+- [ ] Extract `ApplicantRow` from `app/(app)/permanent/[id]/review.tsx` to `src/components/permanent-applicant-row.tsx`
+- [ ] Extract `ConversationRow` from `app/(app)/(tabs)/messages.tsx` to `src/components/conversation-row.tsx`
+- [ ] Extract `ProgressDots` from `app/onboarding.tsx` to `src/components/progress-dots.tsx`
 
-#### 3. Summary cards
+#### Adopt primitives across existing screens
 
-- [x] Created `daywork-summary-card-chat.tsx`.tsx` — displayed at top of daywork chat thread. Shows: role, vessel (NDA-safe), location, dates, day rate, working days, meals. Compact card style.
-- [x] Created `permanent-summary-card-chat.tsx`.tsx` — displayed at top of permanent chat thread. Shows: role, vessel, location, salary range, contract type, start date.
-
-#### 4. Engagement actions — cancellation
-
-- [x] Created `cancel-employer-overlay.tsx`.tsx`— bottom sheet with reason picker (vessel_leaving, crew_requirements_changed, vessel_operational, other) + optional free text + relist toggle. Submits to`apiPost('/api/engagements/${id}/cancel-employer')`.
-- [x] Created `cancel-crew-overlay.tsx`.tsx`— bottom sheet with reason picker (personal_reasons, found_other_work, unsafe_conditions, other) + optional free text. Submits to`apiPost('/api/engagements/${id}/cancel-crew')`.
-- [x] Crew-cancel response buttons in chat: when employer sees crew cancellation, show "Relist" and "Accept cancellation" buttons. Calls `apiPost('/api/engagements/${id}/respond-crew-cancel', { action })`.
-
-#### 5. Engagement actions — work started + completion
-
-- [x] Work started button (API wired, UI in chat actions) in chat footer (daywork only). "Start work" initiates, other party sees "Confirm work started". Calls `apiPost('/api/engagements/${id}/work-started', { action: 'initiate' | 'confirm' })`. Show status in header after confirmation.
-- [x] Complete engagement (API wired, UI in chat actions) button (employer, daywork only). Confirmation dialog, then `apiPost('/api/daywork/${dayworkId}/complete')`. After employer completes, crew sees confirm/dispute buttons — calls `apiPost('/api/engagements/${id}/confirm-completion', { confirmed })`.
-
-#### 6. Engagement actions — postponement (daywork only)
-
-- [x] Created `postponement-overlay.tsx`.tsx`— bottom sheet with new start date, end date, working days. Submits to`apiPost('/api/engagements/${id}/propose-postponement')`. Handle conflict response (prompt user to confirm if `outcome === 'conflict'`).
-- [x] Crew postponement response (API wired)', { accepted })`.
-
-#### 7. Engagement actions — rating
-
-- [x] Created chat thread screen/\_components/rating-form-overlay.tsx` for the exact field logic.
-
-#### 8. Checklist (daywork only)
-
-- [x] Created `checklist-card-chat.tsx`.tsx`— display checklist items with toggleable checkboxes (crew) or edit button (employer). Crew toggle calls`apiPost('/api/engagements/${id}/checklist/toggle', { item_id, checked })`. Employer edit calls `apiPost('/api/engagements/${id}/checklist', { items })`.
-
-#### 9. Permanent-specific actions
-
-- [x] Placement confirmation (API ready via apiPost) button (employer): `apiPost('/api/permanent/${postingId}/confirm', { crewId })`.
-- [x] Selection revert (API ready) button (employer): `apiPost('/api/permanent/${postingId}/revert', { crewId })`.
-- [x] Close conversation (API ready) button (either party): `apiPost('/api/permanent/engagements/${id}/close')`.
-
-#### 10. Phase 4 verification
-
-- [ ] `turbo run type-check` passes for all workspaces
-- [ ] Conversation list shows active engagements with unread badges
-- [ ] Chat thread renders messages with correct alignment (own/other/system)
-- [ ] Realtime: new messages appear without refresh
-- [ ] Mark-as-read fires on thread open, unread badge clears
-- [ ] Summary card displays at top of thread (daywork and permanent)
-- [ ] Cancel flows: employer and crew cancellation with reason forms
-- [ ] Work started: initiate → confirm handshake
-- [x] Complete engagement (API wired, UI in chat actions): employer marks → crew confirms/disputes
-- [ ] Postponement: propose → approve/reject flow
-- [ ] Rating: context-aware form submits correctly
-- [ ] Checklist: crew toggles, employer edits
-- [ ] Hat guard: messages filtered by current hat
-- [ ] Web app completely unaffected
+- [ ] Replace inline button patterns in all 28 files with `<Button>`
+- [ ] Replace inline pill patterns with `<Pill>`
+- [ ] Replace inline card patterns with `<Card>`
+- [ ] Replace inline input patterns in post-daywork and post-permanent with `<FormInput>`
+- [ ] Replace inline screen headers with `<ScreenHeader>`
+- [ ] Replace inline tab bars with `<TabBar>`
+- [ ] Replace inline empty states with `<EmptyState>`
+- [ ] Verify: `#2563eb` (primary blue) appears ONLY in `button.tsx` and `pill.tsx` — not in any page file
 
 ---
 
@@ -149,4 +149,4 @@ Both post forms use `['Breakfast', 'Lunch', 'Dinner']` but the web sends lowerca
 
 ## Done
 
-(See git history for completed stages 51-168, UI-0 through UI-19, all fix batches, workflow protocol, Playwright baseline, rollback + test fixes, SUG fixes, UI consistency 1-3, Codemagic CI, app icon, bundle ID, Capacitor dead-end cleanup, mobile Phase 1 + Phase 2 + Phase 3 complete: employer foundations, post forms, review screens, templates, fix batches 165b/166)
+(See git history for completed stages 51-169, UI-0 through UI-19, all fix batches, workflow protocol, Playwright baseline, rollback + test fixes, SUG fixes, UI consistency 1-3, Codemagic CI, app icon, bundle ID, Capacitor dead-end cleanup, mobile Phase 1-4: auth, discovery, employer flows, messaging core — conversations, chat threads, summary cards, realtime, checklist, engagement action UI shells)

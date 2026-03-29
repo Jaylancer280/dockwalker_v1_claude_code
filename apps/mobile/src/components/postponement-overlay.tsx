@@ -23,12 +23,19 @@ export function PostponementOverlay({ engagementId, onComplete, onDismiss }: Pro
   const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
   const handleSubmit = useCallback(async () => {
+    const dateSpan = Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1;
+    const days = workingDays.trim() ? parseInt(workingDays, 10) : dateSpan;
+    if (!days || days <= 0) {
+      Alert.alert('Invalid working days');
+      return;
+    }
+
     setSubmitting(true);
     const body: Record<string, unknown> = {
-      newStartDate: startDate.toISOString().split('T')[0],
-      newEndDate: endDate.toISOString().split('T')[0],
+      start_date: startDate.toISOString().split('T')[0],
+      end_date: endDate.toISOString().split('T')[0],
+      working_days: days,
     };
-    if (workingDays.trim()) body.newWorkingDays = parseInt(workingDays, 10);
 
     const result = await apiPost(`/api/engagements/${engagementId}/propose-postponement`, body);
     setSubmitting(false);
@@ -42,7 +49,7 @@ export function PostponementOverlay({ engagementId, onComplete, onDismiss }: Pro
           text: 'Confirm anyway',
           onPress: async () => {
             setSubmitting(true);
-            const r2 = await apiPost(`/api/engagements/${engagementId}/propose-postponement`, { ...body, confirmConflict: true });
+            const r2 = await apiPost(`/api/engagements/${engagementId}/propose-postponement`, { ...body, confirm_conflict: true });
             setSubmitting(false);
             if (r2.ok) onComplete();
             else Alert.alert('Error', r2.error);
@@ -72,8 +79,8 @@ export function PostponementOverlay({ engagementId, onComplete, onDismiss }: Pro
         </Pressable>
         {showEnd && <DateTimePicker value={endDate} mode="date" minimumDate={startDate} onChange={(_, d) => { setShowEnd(Platform.OS === 'ios'); if (d) setEndDate(d); }} />}
 
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Working days (optional)</Text>
-        <TextInput value={workingDays} onChangeText={setWorkingDays} keyboardType="number-pad" placeholder="Auto from dates" style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 14 }} />
+        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Working days</Text>
+        <TextInput value={workingDays} onChangeText={setWorkingDays} keyboardType="number-pad" placeholder="Auto-calculated from dates" style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 14 }} />
       </BottomSheetScrollView>
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
         <Pressable onPress={handleSubmit} disabled={submitting} style={{ backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>

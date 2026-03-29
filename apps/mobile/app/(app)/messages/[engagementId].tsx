@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, FlatList, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
@@ -82,13 +82,23 @@ export default function ChatScreen() {
     setSending(true);
     setInputText('');
 
-    const result = await apiPost<{ message: Message }>(`/api/messages/${engagementId}`, { content });
+    // Optimistic append — display immediately
+    const optimisticMsg: Message = {
+      id: `optimistic-${Date.now()}`,
+      sender_person_id: user?.id ?? '',
+      content,
+      created_at: new Date().toISOString(),
+      is_system: false,
+    };
+    appendMessage(optimisticMsg);
+
+    const result = await apiPost(`/api/messages/${engagementId}`, { content });
     setSending(false);
 
-    if (result.ok && result.data.message) {
-      appendMessage(result.data.message);
+    if (!result.ok) {
+      Alert.alert('Failed to send', result.error);
     }
-  }, [inputText, sending, engagementId, appendMessage]);
+  }, [inputText, sending, engagementId, appendMessage, user?.id]);
 
   const otherName = context?.other_party?.display_name ?? 'Chat';
   const jobRef = isDaywork

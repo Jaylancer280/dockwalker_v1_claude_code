@@ -27,7 +27,7 @@ export function CancelCrewOverlay({ engagementId, onComplete, onDismiss }: Props
     if (!reason) { Alert.alert('Select a reason'); return; }
     setSubmitting(true);
     const result = await apiPost(`/api/engagements/${engagementId}/cancel-crew`, {
-      reason, freeText: freeText.trim() || undefined,
+      reason_category: reason, reason_text: freeText.trim() || undefined,
     });
     setSubmitting(false);
     if (result.ok) onComplete();

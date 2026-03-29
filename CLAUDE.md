@@ -10,16 +10,21 @@ DockWalker is a two-sided hiring app for the superyacht industry covering daywor
 
 ## Stack — Locked In, Non-Negotiable
 
-| Layer                 | Technology                                |
-| --------------------- | ----------------------------------------- |
-| Frontend + API routes | Next.js 16 + TypeScript (`apps/web/`)     |
-| Database + Auth       | Supabase (PostgreSQL + RLS) (`supabase/`) |
-| Shared types          | `packages/types/`                         |
-| DB helpers            | `packages/db/`                            |
-| Hosting               | Vercel                                    |
-| CI/CD                 | GitHub Actions                            |
-| Native mobile         | Capacitor (iOS + Android)                 |
-| Push notifications    | APNs (iOS) + FCM (Android)                |
+| Layer                 | Technology                                                                                |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| Web frontend + API    | Next.js 16 + TypeScript (`apps/web/`)                                                     |
+| Native mobile         | Expo/React Native (`apps/mobile/`)                                                        |
+| Database + Auth       | Supabase (PostgreSQL + RLS) (`supabase/`)                                                 |
+| Shared types          | `packages/types/`                                                                         |
+| DB helpers            | `packages/db/` — includes `createMobileClient()` for React Native                         |
+| Shared business logic | `packages/shared/` — pure TS, zero platform deps (units, languages, epaulettes, grouping) |
+| Monorepo orchestrator | Turborepo (`turbo.json`)                                                                  |
+| Hosting (web + API)   | Vercel                                                                                    |
+| Hosting (mobile)      | EAS Build + EAS Update                                                                    |
+| CI/CD                 | GitHub Actions                                                                            |
+| Push notifications    | Expo Push Service (abstracts APNs + FCM)                                                  |
+
+**Capacitor status:** Legacy Capacitor files remain in `apps/web/` pending removal after Expo app validation (Phase 7). Do not add new Capacitor dependencies or write Capacitor-compatible code. Removal criteria: Expo app on 3+ tester devices via TestFlight, all user-facing screens functional, zero P0 bugs in 48 hours. See `tasks/mobile-web-split-spec.md` Section 9 for the file removal list.
 
 Never introduce a dependency that conflicts with the above. If a task cannot be built within this stack, stop and raise it explicitly.
 
@@ -45,11 +50,13 @@ Every migration in `supabase/migrations/` must have a corresponding rollback in 
 
 ### 5. TypeScript Strict Mode
 
-`strict: true` in tsconfig.json. No `any` types without explicit comment justification.
+`strict: true` in all `tsconfig.json` files. No `any` types without explicit comment justification.
 
-### 6. Capacitor Day-One
+### 6. Two Frontends, One Backend
 
-Every frontend slice must be Capacitor-compatible. iOS and Android are not post-launch concerns.
+`apps/web/` (Next.js on Vercel) and `apps/mobile/` (Expo/React Native) share the same Supabase backend, the same API routes, and the same shared packages. Mobile reads directly from Supabase (RLS-gated), writes via Vercel API routes. Neither app may import from the other. See `tasks/mobile-web-split-spec.md` for the full architecture.
+
+**Extraction rule:** Pure TypeScript utilities (zero React, zero platform imports) belong in `packages/shared/`. Anything requiring React, React Native, or Next.js stays in the consuming app. If a utility is used by both apps and is pure TS, extract it. If it's React-based, each app implements its own version using shared types.
 
 ## User Types and Dual-Role Model
 
@@ -81,11 +88,17 @@ PROFILE.CREATED / PROFILE.UPDATED
 AGENT.VERIFIED (placeholder, deferred)
 VESSEL.CREATED / VESSEL.UPDATED
 AVAILABILITY.SET
-DAYWORK.POSTED / DAYWORK.APPLIED / DAYWORK.VIEWED
+DAYWORK.POSTED / DAYWORK.APPLIED / DAYWORK.VIEWED / DAYWORK.SHORTLISTED
 DAYWORK.ACCEPTED / DAYWORK.REJECTED / DAYWORK.COMPLETED
-APPLICATION.WITHDRAWN / APPLICATION.SUPERSEDED
+DAYWORK.EXTENDED / DAYWORK.INVITED
 DAYWORK.CANCELLED_BY_EMPLOYER
+APPLICATION.WITHDRAWN / APPLICATION.SUPERSEDED
 ENGAGEMENT.CANCELLED_BY_CREW / ENGAGEMENT.CANCELLED_BY_EMPLOYER
+ENGAGEMENT.POSTPONEMENT_PROPOSED / ENGAGEMENT.POSTPONEMENT_ACCEPTED / ENGAGEMENT.POSTPONEMENT_REJECTED
+ENGAGEMENT.WORK_STARTED / ENGAGEMENT.WORK_STARTED_CONFIRMED
+ENGAGEMENT.COMPLETION_CONFIRMED / ENGAGEMENT.COMPLETION_DISPUTED
+ENGAGEMENT.RATED_BY_CREW / ENGAGEMENT.RATED_BY_EMPLOYER
+ENGAGEMENT.CANCELLATION_RATED_BY_CREW / ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER
 MESSAGE.SENT
 PERMANENT.POSTED / PERMANENT.APPLIED / PERMANENT.APPLICATION_BLOCKED
 PERMANENT.SHORTLISTED / PERMANENT.REJECTED / PERMANENT.SELECTED
@@ -94,11 +107,13 @@ PERMANENT.WITHDRAWN / PERMANENT.CANCELLED_BY_EMPLOYER
 PERMANENT.ENGAGEMENT_CLOSED
 ```
 
-### Application State Machine
+### Daywork Application State Machine
 
 ```
-Applied -> Viewed -> Accepted | Rejected | Withdrawn | Superseded -> Completed | Cancelled
+Applied -> Viewed -> Shortlisted -> Accepted | Rejected | Withdrawn | Superseded -> Completed | Cancelled
 ```
+
+Note: `Shortlisted` is optional — employer can accept directly from `Viewed` or `Applied`.
 
 ### Permanent Application State Machine
 
@@ -134,9 +149,30 @@ Permanent postings have no date overlap resolution. Crew can apply to unlimited 
 
 Opens after `DAYWORK.ACCEPTED` (daywork) or `PERMANENT.SELECTED` (permanent). Messages are append-only and retained server-side. Content is never deleted.
 
-## Availability Model
+## Engagement Lifecycle
 
-Daily calendar with graceful auto-expiry. `AVAILABILITY.SET` carries expiry timestamp (default 7 days). Clearing dates is implemented as immediately expiring availability through the ledger, not direct deletion. System cross-references with accepted engagements.
+Post-acceptance, engagements follow a multi-phase lifecycle with structured actions:
+
+```
+Active → Work Started (mutual 2-party confirmation) → Completed (employer marks → crew confirms/disputes) → Rated
+Active → Postponement Proposed → Accepted (dates updated) | Rejected (engagement cancelled)
+Active → Cancelled by Crew | Cancelled by Employer (structured reasons + optional relist) → Cancellation Rated
+```
+
+**Cancellations** require structured reason categories (employer: vessel_leaving, crew_requirements_changed, vessel_operational, other; crew: personal_reasons, found_other_work, unsafe_conditions, other). Employer can request relist. Crew cancellation requires employer response (relist or accept).
+
+**Ratings** are context-aware: completed engagements get a full form (crew rates pay/meals/role/days/vessel; employer rates skills/certs/punctuality), cancelled engagements get a lighter form (crew adds notice_given). Both contexts include communication_accuracy (boolean) and overall_match (1-5). Ratings use yes/no/partial strings and booleans, not numeric scales (except overall_match and vessel_condition).
+
+**Permanent engagements** have additional actions: placement confirmation, selection revert, engagement close.
+
+## Availability Model (daywork only)
+
+Rolling 14-day calendar with dual expiry. Crew selects 1-14 days of availability from a forward-looking window. Two independent mechanisms determine validity:
+
+1. **Per-date shrinkage** — each date falls off the calendar as it moves into the past. The window shrinks daily. If all selected dates are now past, availability gracefully returns to "not set."
+2. **7-day activity refresh** — the entire availability window expires 7 days after the user last set or refreshed it, regardless of how many future dates remain. This prevents stale profiles from appearing active in the discover feed. User receives a nudge notification before expiry.
+
+Both conditions must be satisfied for a crew member to appear available: at least one selected date must be in the future AND the last refresh must be within 7 days. Clearing dates is implemented as immediately expiring availability through the ledger, not direct deletion. System cross-references with accepted engagements.
 
 Permanent availability is profile-level, not date-based: `immediate`, `after_notice` (with `notice_period_days`), or `not_looking`. It is informational for employers, not an enforcement gate — except `not_looking` which excludes from the permanent discovery feed.
 
@@ -154,11 +190,13 @@ Deterministic, transparent, no learned weights. Context-dependent defaults with 
 
 ## Correctness Criteria
 
+### Web + shared
+
 1. Crew applies to a job in <5 seconds
 2. Employer posts a job in <60 seconds
 3. Employer accepts a candidate in 1-3 actions
 4. Messaging opens only after acceptance or selection
-5. All domain states are event-derived, except `daywork_templates` and `permanent_templates`
+5. All domain states are event-derived, except documented CRUD utility tables (templates, preferences, device tokens, checklists, subscriptions, advisor data, read cursors)
 6. No scoring, ranking, or hidden algorithmic biasing
 7. All filters are explicit and visible
 8. Events namespaced; `PERMANENT.*` uses separate types sharing the event ledger backbone
@@ -168,15 +206,23 @@ Deterministic, transparent, no learned weights. Context-dependent defaults with 
 12. Shortlist cap is enforced at projection layer
 13. Permanent events use `PERMANENT.*` namespace — zero daywork handler modification
 
+### Mobile-specific
+
+14. Cold start to first screen in <500ms (no network dependency for shell)
+15. Swipe gesture runs at 60fps with spring physics and haptic feedback
+16. Chat messages arrive via Supabase Realtime in <1 second
+17. Push notifications deep-link to the correct screen
+18. Offline reads work for cached data (TanStack Query persistence)
+
 ---
 
 ## Pre-Commit Hook Requirements
 
 All must pass before any commit is accepted:
 
-- `tsc --noEmit` — zero TypeScript errors
-- ESLint — zero warnings, zero errors
-- All tests pass (`vitest run`)
+- `turbo run type-check` — zero TypeScript errors across all workspaces (web, mobile, packages)
+- `turbo run lint` — ESLint zero warnings, zero errors across all workspaces (includes mobile import boundary rules)
+- All tests pass (`vitest run` in `apps/web/`)
 - No `console.log` in committed code (excluding test files)
 - No `TODO` comments in committed code (use Deferred Decisions in `BUILD_STATE.md`)
 - Every migration has a corresponding rollback file
@@ -185,13 +231,23 @@ All must pass before any commit is accepted:
 
 ## Test Requirements
 
-Tests use Vitest + Testing Library. Located in `apps/web/__tests__/`.
+### Web (`apps/web/__tests__/`)
+
+Tests use Vitest + Testing Library.
 
 **API layer** (`__tests__/api/`): Happy path, 401 unauth, 400 invalid input, edge cases.
 
 **Component layer** (`__tests__/components/`): Renders without error, critical interactions, mobile viewport.
 
 **Mocking strategy:** Mock `@/lib/supabase/server` with `vi.mock()`, call route handlers directly with mock `Request` objects.
+
+### Mobile (`apps/mobile/`)
+
+No unit test suite yet. Mobile correctness is validated by the planning agent's code review and device testing. Mobile test strategy (Jest for hooks, Detox for E2E) is deferred to post-Phase 7 — the priority is shipping to TestFlight first.
+
+### E2E (`apps/web/e2e/`)
+
+Playwright tests run by the testing agent. Registry in `tasks/playwright-test-registry.md`.
 
 ## Documentation Governance
 
@@ -201,18 +257,20 @@ Claude Code MUST update documentation as part of every session's Close step.
 
 ### File Rules
 
-| File                       | Mode                                  | Update Trigger                                                                                                                  |
-| -------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `CLAUDE.md`                | **Read-only**                         | Never edited by Claude Code. Human-edited only when architectural rules change.                                                 |
-| `dockwalker_mission.md`    | **Read-only**                         | Never edited by Claude Code. Human-edited only.                                                                                 |
-| `BUILD_STATE.md`           | **Append + Edit**                     | Every session that changes code. Append completed work, update schema version, update migration table, move deferred decisions. |
-| `README.md` (root)         | **Edit when referenced code changes** | Monorepo structure changes, new packages, changed quick-start steps.                                                            |
-| `apps/web/README.md`       | **Edit when referenced code changes** | New/removed RPCs, new env vars, new scripts, changed setup steps.                                                               |
-| `packages/types/README.md` | **Edit when referenced code changes** | New/changed/removed type exports.                                                                                               |
-| `packages/db/README.md`    | **Edit when referenced code changes** | New/changed/removed DB helpers or RPCs.                                                                                         |
-| `supabase/README.md`       | **Edit when referenced code changes** | New migrations, changed RPCs, changed conventions.                                                                              |
-| `tasks/todo.md`            | **Read + Write**                      | Every session. Read at Orient, write checklist at Plan, mark complete during Implement, clean up at Close.                      |
-| `tasks/lessons.md`         | **Read + Append**                     | Read at Orient. Append immediately after any user correction. Review and deduplicate periodically.                              |
+| File                             | Mode                                  | Update Trigger                                                                                                                  |
+| -------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE.md`                      | **Read-only**                         | Never edited by Claude Code. Human-edited only when architectural rules change.                                                 |
+| `dockwalker_mission.md`          | **Read-only**                         | Never edited by Claude Code. Human-edited only.                                                                                 |
+| `BUILD_STATE.md`                 | **Append + Edit**                     | Every session that changes code. Append completed work, update schema version, update migration table, move deferred decisions. |
+| `README.md` (root)               | **Edit when referenced code changes** | Monorepo structure changes, new packages, changed quick-start steps.                                                            |
+| `apps/web/README.md`             | **Edit when referenced code changes** | New/removed RPCs, new env vars, new scripts, changed setup steps.                                                               |
+| `packages/types/README.md`       | **Edit when referenced code changes** | New/changed/removed type exports.                                                                                               |
+| `packages/db/README.md`          | **Edit when referenced code changes** | New/changed/removed DB helpers or RPCs.                                                                                         |
+| `packages/shared/README.md`      | **Edit when referenced code changes** | New/changed/removed shared utilities.                                                                                           |
+| `supabase/README.md`             | **Edit when referenced code changes** | New migrations, changed RPCs, changed conventions.                                                                              |
+| `tasks/todo.md`                  | **Read + Write**                      | Every session. Read at Orient, write checklist at Plan, mark complete during Implement, clean up at Close.                      |
+| `tasks/lessons.md`               | **Read + Append**                     | Read at Orient. Append immediately after any user correction. Review and deduplicate periodically.                              |
+| `tasks/mobile-web-split-spec.md` | **Edit § Progress Tracker**           | When a mobile phase changes status (NOT STARTED → IN PROGRESS → DONE).                                                          |
 
 ### Catch-All Rules
 
@@ -243,6 +301,9 @@ Read these files in order:
 3. `dockwalker_mission.md` (product context and negative space)
 4. `tasks/lessons.md` (past mistakes and project-specific patterns — do not repeat these)
 5. `tasks/todo.md` (in-flight work from previous sessions)
+6. `tasks/mobile-web-split-spec.md` § Progress Tracker (which mobile phase is current)
+
+For `BUILD_STATE.md`, read only § Current Schema Version, § Deferred Decisions, § In Progress, and the last 5 entries in § Completed Stages. The full stage history is for audit, not for Orient.
 
 Verify repo state matches Build State. If `tasks/todo.md` has incomplete items from a previous session, surface them to the user before starting new work.
 
@@ -262,7 +323,9 @@ Build end-to-end, marking checklist items in `tasks/todo.md` as complete (`[x]`)
 
 **Lessons check:** Before editing any file, verify the change does not repeat a pattern documented in `tasks/lessons.md`.
 
-A task is complete when: code implemented, tests written and passing, tsc + eslint pass, no console.log/TODO.
+**API-first rule (mobile):** Before writing any mobile code that calls a Vercel API route, read the route handler file in `apps/web/src/app/api/`. Match field names, required vs optional fields, and response shapes exactly. Do not guess. Do not use camelCase where the API expects snake_case. Before writing a mobile hook that queries Supabase directly, grep for `from('table_name')` in `apps/web/src/` and match the `.select()` pattern. This rule has prevented more bugs than any other single practice.
+
+A task is complete when: code implemented, tests written and passing (web tasks — mobile has no test suite yet), tsc + eslint pass, no console.log/TODO.
 
 ### 4. Present Changes
 
@@ -303,17 +366,19 @@ After ANY correction from the user — wrong assumption, missed edge case, repea
 3. Does this change auth or RLS? Who can access what?
 4. What input would make the new tests fail?
 5. Did anything regress in the existing test suite?
+6. Does this change an API route or DB query that mobile consumes? Check both frontends.
 
-## Two-Agent Workflow
+## Three-Agent Workflow
 
-When running two terminals simultaneously, agents operate in distinct roles. Role is assigned by the user's opening message, not by this file.
+Agents operate in distinct roles assigned by the user's opening message. Full operating manuals live in `tasks/planning-agent.md`, `tasks/implementation-agent.md`, and `tasks/playwright-agent.md`.
 
 ### Planning Agent (read-only on source code)
 
-- Explores codebase, researches questions, reviews implementation output, drafts test cases
-- Writes ONLY to `tasks/todo.md` and `tasks/lessons.md`
+- Explores codebase, researches questions, reviews implementation output
+- Writes to `tasks/todo.md`, `tasks/lessons.md`, `tasks/playwright-test-registry.md` (PLANNED scenarios), `tasks/playwright-suggestions.md`
 - Never edits source files, migrations, types, or tests
 - Populates `tasks/todo.md` with detailed checklists before implementation starts
+- Triages testing agent findings before promoting to todo
 
 ### Implementation Agent (executes the plan)
 
@@ -322,16 +387,28 @@ When running two terminals simultaneously, agents operate in distinct roles. Rol
 - Marks checklist items `[x]` as completed during Implement
 - Follows the full Session Protocol (Orient through Close)
 
+### Testing Agent (verifies implementation)
+
+- Runs Playwright E2E tests against the running app
+- Updates `tasks/playwright-test-registry.md` with run results
+- Writes findings to `tasks/playwright-suggestions.md` for planning agent triage
+- Logs regressions to `## Playwright Failures` section in `tasks/todo.md`
+- Can modify seed data in `supabase/seed/` and E2E specs in `apps/web/e2e/`
+
 ### File Access by Role
 
-| File               | Planning Agent | Implementation Agent |
-| ------------------ | -------------- | -------------------- |
-| `tasks/todo.md`    | Read + Write   | Read + Mark Complete |
-| `tasks/lessons.md` | Read + Write   | Read + Append        |
-| Source code        | Read only      | Read + Write         |
-| `BUILD_STATE.md`   | Read only      | Append + Edit        |
+| File                                | Planning Agent          | Implementation Agent | Testing Agent                     |
+| ----------------------------------- | ----------------------- | -------------------- | --------------------------------- |
+| `tasks/todo.md`                     | Write checklists        | Mark `[x]` complete  | Write `## Playwright Failures`    |
+| `tasks/lessons.md`                  | Read + Write            | Read + Append        | Read only                         |
+| `tasks/playwright-suggestions.md`   | Promote/reject          | Read only            | Write suggestions                 |
+| `tasks/playwright-test-registry.md` | Add `PLANNED` scenarios | Read only            | Update run results, add scenarios |
+| Source code                         | Read only               | Read + Write         | Read only                         |
+| `BUILD_STATE.md`                    | Read only               | Append + Edit        | Read only                         |
+| `apps/web/e2e/*`                    | Read only               | Read only            | Read + Write                      |
+| `supabase/seed/*`                   | Read only               | Read + Write         | Read + Write                      |
 
-On single-agent days, one agent fulfills both roles — writes its own checklist, then implements it.
+On single-agent days, one agent fulfills both planning and implementation roles.
 
 ---
 
