@@ -4,8 +4,8 @@ apps/web/
 # Supabase local dev files
 supabase/
 
-# Assets and docs not needed for build
-assets/
+# Root-level assets (web branding) — NOT apps/mobile/assets/
+/assets/
 tasks/
 .github/
 
