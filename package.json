@@ -27,7 +27,7 @@
     ]
   },
   "overrides": {
-    "@types/react": "19.2.14"
+    "@types/react": "~19.0.10"
   },
   "devDependencies": {
     "husky": "^9.1.7",
