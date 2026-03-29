@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import type { Person } from '@dockwalker/types';
 import { supabase } from './supabase';
+import { registerPushToken, deregisterPushToken, setupNotificationListeners } from './push-notifications';
 
 type PersonIdentity = Pick<Person, 'id' | 'current_hat' | 'identity_type'>;
 
@@ -45,7 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    const cleanupListeners = setupNotificationListeners();
+
+    return () => {
+      subscription.unsubscribe();
+      cleanupListeners();
+    };
   }, []);
 
   async function fetchPerson(userId: string) {
@@ -59,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setPerson(null);
     } else {
       setPerson(data);
+      registerPushToken();
     }
     setIsLoading(false);
   }
@@ -74,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
+    await deregisterPushToken();
     await supabase.auth.signOut();
     setPerson(null);
   }

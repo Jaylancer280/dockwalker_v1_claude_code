@@ -287,9 +287,11 @@ v77 — Permanent post fields (77 migrations applied)
 
 - [Stage 171] Mobile Phase 5: Profile + Experience — profile view with hat switch + avatar upload/delete, profile edit with all field pickers (nationality, visa, flag state), experience add/edit/delete with IMO vessel lookup, vessel list/edit screens. New hooks: use-profile, use-experiences, useNationalities/useVisaTypes/useFlagStates in use-canonical. apiPatch + apiUpload utilities. 3 new picker components. expo-image-picker installed.
 
+- [Stage 172] Mobile Phase 6: Docky + Polish — Docky AI advisor (conversation list, chat with sources, usage tracking, 402 upgrade prompt), push notifications (expo-notifications, token register/deregister, tap→deep link), notifications tab with badge counts on tabs, settings (notification prefs, data export, account deletion), billing (plan status, Stripe portal, external Safari checkout), More tab rebuild.
+
 ## In Progress
 
-Mobile Phase 5 — device testing pending
+Mobile Phase 6 — device testing pending (all Phase 1-6 flows)
 
 ## Next Up
 

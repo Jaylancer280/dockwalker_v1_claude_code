@@ -5,128 +5,75 @@
 
 ## Current Task
 
-Mobile Phase 5: Profile + Experience — profile view/edit, experience CRUD, vessel management, avatar upload, hat switch
+Mobile Phase 6: Docky + Polish — AI advisor, push notifications, notifications tab, settings, billing
 
 ---
 
 ## Queue
 
-### Mobile Phase 5: Profile + Experience
+### Mobile Phase 6: Docky + Polish
 
-**Context:** Profile tab is currently a placeholder. Crew need to view/edit their profile, manage experiences (add/edit/delete with IMO vessel lookup), manage vessels, upload avatars, and switch hats. All writes go through Vercel API routes. Profile reads use `apiGet`. Canonical data hooks from Phase 2 are reused. Form pickers from Phase 3 are reused. UI primitives from Stage 170 must be used throughout.
+**Context:** Final feature phase before shipping. Covers the Docky AI advisor (crew-only), push notifications via expo-notifications, the notifications tab, settings/preferences page, billing page (external Stripe checkout), and the More tab. All API routes exist on the web backend. UI primitives from Stage 170 must be used throughout.
 
-#### 1. Profile data hooks
+#### 1. Docky AI advisor
 
-- [x] Create `apps/mobile/src/hooks/use-profile.ts` — TanStack Query hook calling `apiGet('/api/profile')`. Returns `{ person, profile }` with all joined fields (roles, nationalities, ports, cities, certs, experience bracket, vessel size exposure). Export the `Profile` type.
-- [x] Create `apps/mobile/src/hooks/use-experiences.ts` — TanStack Query hook calling `apiGet('/api/experiences')`. Returns `{ experiences }` with vessel and role joins. Export `Experience` type. Include `invalidate()` method.
+**Context:** Crew-only AI maritime advisor. Uses existing `/api/advisor/` endpoints. Free tier: 3 questions/month. Crew Pro: unlimited. RAG pipeline runs server-side — mobile just sends messages and displays responses.
 
-#### 2. Profile view screen
+- [x] Create `apps/mobile/src/hooks/use-docky-conversations.ts`
+- [x] Create `apps/mobile/src/hooks/use-docky-messages.ts`
+- [x] Create `apps/mobile/src/hooks/use-docky-usage.ts`
+- [x] Create `apps/mobile/app/(app)/docky.tsx` — conversation list with usage pill, new conversation, delete via long-press, empty state with Docky intro.
+- [x] Create `apps/mobile/app/(app)/docky/[conversationId].tsx` — chat thread with user/assistant bubbles, collapsible sources, thinking state, 402 upgrade prompt, 500 char input.
+- [x] Link Docky from the More tab.
 
-- [x] Rebuild `apps/mobile/app/(app)/(tabs)/profile.tsx` — replace placeholder. Sections (collapsible, matching web structure):
-  - **Header:** Avatar (with tap-to-upload placeholder), display name, deck name, nationality flag, hat badge
-  - **Summary:** Primary role (auto-derived, read-only), experience bracket (auto-derived, read-only), vessel size exposure pills (auto-derived, read-only), location (city + port)
-  - **Looking For:** Desired role, permanent availability status, notice period, currently employed
-  - **About:** Bio, certifications pills, languages pills, visa pills
-  - **Experience:** List of experience cards (expand/collapse, most recent auto-expanded). Each shows: vessel name (M/Y or S/Y prefix), role, date range, flag state, contract type, LOA, size band. Delete button per entry with confirmation dialog.
-  - **Agent section** (agent hat only): Agency name, role specializations
-- [x] "Edit" button in header opens profile edit screen (item 3)
-- [x] "Add Experience" button at bottom of Experience section navigates to add-experience screen (item 5)
-- [x] Hat switcher: crew identity can toggle between crew/employer. Calls `apiPost('/api/hat', { hat })`. On success, update auth context person and reload tabs. Agents see hat badge but no toggle.
-- [x] Pull-to-refresh on entire profile
+#### 2. Push notifications
 
-#### 3. Profile edit screen
+**Context:** Register Expo Push Token with the backend, handle foreground/background/tap. The backend already sends push via Expo Push Service — mobile just needs to register the token and handle incoming notifications.
 
-- [x] Create `apps/mobile/app/(app)/profile-edit.tsx` — full-screen edit form using UI primitives. Fields (all optional, partial update):
-  - Display name (`FormInput`, max 100 chars)
-  - Deck name (`FormInput`, max 50 chars)
-  - Bio (`FormInput` multiline, max 250 chars)
-  - Desired role (tap opens `FormRolePicker`, single-select)
-  - Location city (tap opens city picker from `usePorts()` canonical hook)
-  - Location port (tap opens port picker, filtered by selected city)
-  - Nationality (tap opens nationality picker — need new picker or searchable list from `GET /api/profile` nationalities data)
-  - Visas (tap opens visa picker — multi-select)
-  - Certifications (tap opens `FormCertPicker`, multi-select)
-  - Languages (tap opens `FormLanguagePicker`, multi-select)
-  - Permanent availability (3-way picker: immediate, after_notice, not_looking)
-  - Notice period days (numeric input, shown when after_notice selected)
-  - Currently employed (boolean toggle)
-  - Agent-only: Agency name (`FormInput`)
-  - Agent-only: Role specializations (tap opens `FormRolePicker`, multi-select)
-- [x] Submit calls `apiPatch('/api/profile', body)`. On success, invalidate profile query and navigate back.
-- [x] `ScreenHeader` with Cancel/Save header
+- [x] Install `expo-notifications`.
+- [x] Create `apps/mobile/src/lib/push-notifications.ts` — register/deregister token, foreground suppression, tap→deep link navigation.
+- [x] Foreground handler: suppresses native notification when app is in foreground.
+- [x] Tap handler: maps deep_link data to correct screen (chat, discover, review, profile).
+- [x] Wire push registration into auth flow: register on fetchPerson success, deregister on signOut.
 
-#### 4. Nationality + visa pickers
+#### 3. Notifications tab
 
-The profile edit needs nationality (single-select from 40 entries) and visa (multi-select from 10 entries) pickers. These don't exist yet.
+- [x] Create `apps/mobile/src/hooks/use-notifications.ts`
+- [x] Create `apps/mobile/src/hooks/use-notification-count.ts` — 30s staleTime, 60s refetchInterval.
+- [x] Rebuild `apps/mobile/app/(app)/(tabs)/notifications.tsx` — notification list with unread dot, tap→deep link, mark all read, pull-to-refresh, empty state.
+- [x] Wire unread badge count into tab navigator via `_layout.tsx` — `tabBarBadge` on Alerts and Messages tabs.
+- [x] Mark notification as read on tap via `apiPost('/api/notifications/${id}/read')`.
 
-- [x] Create `apps/mobile/src/hooks/use-nationalities.ts` — added `useNationalities()` to `use-canonical.ts`. Direct Supabase read of `nationalities` table. Infinite staleTime.
-- [x] Create `apps/mobile/src/hooks/use-visa-types.ts` — added `useVisaTypes()` to `use-canonical.ts`. Direct Supabase read of `visa_types` table. Infinite staleTime.
-- [x] Create `apps/mobile/src/components/form-nationality-picker.tsx` — bottom sheet with searchable list. Shows flag emoji + name. Single-select, returns nationality ID.
-- [x] Create `apps/mobile/src/components/form-visa-picker.tsx` — bottom sheet with multi-select pills. Returns array of visa IDs.
+#### 4. Settings page
 
-#### 5. Add experience screen
+- [x] Create `apps/mobile/src/hooks/use-preferences.ts`
+- [x] Create `apps/mobile/app/(app)/settings.tsx` — notification toggles, sign out, data export, account deletion (type DELETE), change password, version/terms/privacy/support links.
+- [x] Link from More tab.
 
-- [x] Create `apps/mobile/app/(app)/add-experience.tsx` — full form for adding a crew experience. Flow:
-  1. **IMO lookup:** Text input for IMO number. At 4+ digits, call `apiGet('/api/vessels/lookup?imo=${imo}')`. Show matching vessels as selectable cards. If exact match (7 digits), show vessel suggestion with "Use this vessel" button.
-  2. **Create vessel (if no match):** Inline vessel creation form (name, IMO, type motor/sail, LOA) — reuse `VesselSelector` component's creation form pattern. Calls `apiPost('/api/vessels')`.
-  3. **Experience fields:** Role picker (`FormRolePicker`), start date + end date (date pickers), is current toggle (disables end date), vessel operation (charter/private pills), flag state (searchable text input from `flag_states` table), contract type pills (permanent/rotational/seasonal/crossing/delivery/temporary), contract details (textarea, shown for non-permanent), description (textarea, max 250), sea time days (numeric), sea time nautical miles (numeric).
-  4. **Salary (private intelligence):** Salary amount (numeric), currency (pill selector), period (daily/monthly/annually). Label: "Private — not shown to employers".
-  5. Submit calls `apiPost('/api/experiences', body)`. On success, invalidate experiences + profile queries, navigate back to profile.
-- [x] Validation: vesselId + roleId + startDate + vesselOperation required. End date >= start date. Contract details max 100. Description max 250. Agent: endDate required, isCurrent blocked.
-- [x] `ScreenHeader` with "Add Experience" title
+#### 5. Billing page
 
-#### 6. Edit experience screen
+- [x] Create `apps/mobile/app/(app)/billing.tsx` — plan status, Crew Free/Pro tier cards, subscribe opens Safari (App Store compliance), manage subscription via Stripe portal.
+- [x] Link from More tab.
 
-- [x] Create `apps/mobile/app/(app)/edit-experience/[id].tsx` — same form as add-experience, pre-populated with existing data. Load experience by ID from the experiences hook.
-- [x] Submit calls `apiPatch('/api/experiences/${id}', body)`. On success, invalidate experiences + profile queries, navigate back.
-- [x] Delete button at bottom: confirmation dialog, then `apiDelete('/api/experiences/${id}')`. On success, invalidate and navigate back.
-- [x] `ScreenHeader` with "Edit Experience" title
+#### 6. More tab
 
-#### 7. Vessel management screen
+- [x] Rebuild `apps/mobile/app/(app)/(tabs)/more.tsx` — menu list: Docky, Settings, Billing, My Vessels (employer/agent only), Sign Out with confirmation, app version.
 
-- [x] Create `apps/mobile/app/(app)/vessels.tsx` — list of user's vessels. Reuse `useVessels()` hook from Phase 3. Each card shows: M/Y or S/Y prefix + name, IMO, LOA, size band, NDA badge. Tap navigates to vessel edit.
-- [x] "Add Vessel" button at bottom — placeholder alert pointing to post form vessel selector.
-- [x] Link from profile header (employer/agent hat) or from "More" tab — linked from profile view.
-
-#### 8. Edit vessel screen
-
-- [x] Create `apps/mobile/app/(app)/vessels/[id]/edit.tsx` — edit form for existing vessel. Fields: name, vessel type (motor/sail), LOA. IMO is read-only (immutable). NDA flag warning (immutable once set). Submit calls `apiPatch('/api/vessels/${id}', body)`. On success, invalidate vessels query, navigate back.
-
-#### 9. Avatar upload
-
-- [x] Add avatar tap handler on profile view: opens `expo-image-picker` (camera or gallery). After selection, upload to `POST /api/profile/avatar` as multipart form-data. The API returns `{ avatar_url }`. Invalidate profile query to show new avatar.
-- [x] Install `expo-image-picker` — installed via `npx expo install expo-image-picker`.
-- [x] Add delete avatar option (long-press): calls `apiDelete('/api/profile/avatar')` with confirmation dialog.
-
-#### 10. Flag state picker
-
-Experiences need a flag state selector. 39 entries in the `flag_states` table.
-
-- [x] Create `apps/mobile/src/hooks/use-flag-states.ts` — added `useFlagStates()` to `use-canonical.ts`. Direct Supabase read of `flag_states` table. Infinite staleTime.
-- [x] Create `apps/mobile/src/components/form-flag-state-picker.tsx` — bottom sheet with searchable text filter. Single-select, returns flag state name (string, not ID — the experience API accepts `flagState` as a string).
-
-#### 11. API utility: apiPatch
-
-The profile and experience PATCH routes use HTTP PATCH. Mobile's `api.ts` only has GET, POST, DELETE.
-
-- [x] Add `apiPatch<T>(path: string, body?: Record<string, unknown>): Promise<ApiResult<T>>` to `apps/mobile/src/lib/api.ts` — same pattern as `apiPost` but with `method: 'PATCH'`.
-
-#### 12. Phase 5 verification
+#### 7. Phase 6 verification
 
 - [x] `turbo run type-check` passes
-- [ ] Profile view shows all sections with real data
-- [ ] Profile edit saves changes, reflected on return to profile
-- [ ] Add experience with IMO lookup → vessel suggestion → experience creation works
-- [ ] Edit experience pre-populates and saves
-- [ ] Delete experience with confirmation works
-- [ ] Vessel list shows user's vessels
-- [ ] Vessel edit saves changes (name, type, LOA)
-- [ ] NDA flag cannot be unset once set
-- [ ] Avatar upload from gallery works, displayed on profile
-- [ ] Hat switch works (crew ↔ employer), tabs update
-- [ ] Agent cannot switch hats
-- [ ] Auto-derived fields (primary role, experience bracket, vessel size exposure) update after experience add/edit/delete
-- [ ] All new screens use UI primitives from `components/ui/` — zero inline `#2563eb`
+- [ ] Docky: conversation list, new conversation, send message, receive AI response
+- [ ] Docky: free tier limit (402) shows upgrade prompt
+- [ ] Docky: delete conversation works
+- [ ] Push: token registered on sign-in, deregistered on sign-out
+- [ ] Push: tap notification navigates to correct screen
+- [ ] Notifications tab shows notification list with unread indicators
+- [ ] Tab badges show unread counts (notifications + messages)
+- [ ] Settings: notification toggles save immediately
+- [ ] Settings: data export downloads, account deletion works
+- [ ] Billing: shows current plan, subscribe opens Safari
+- [ ] More tab: all links navigate correctly
+- [x] All new screens use UI primitives — zero inline `#2563eb` (grep verified)
 - [ ] Web app completely unaffected
 
 ---
@@ -179,4 +126,4 @@ The profile and experience PATCH routes use HTTP PATCH. Mobile's `api.ts` only h
 
 ## Done
 
-(See git history for completed stages 51-170, all fix batches. Mobile Phases 1-4 complete + UI primitives extraction + adoption across all 28 files. Fix 169: API field mismatches. Fix 165b: pre-Phase 3 audit. CLAUDE.md + BUILD_STATE.md modernisation.)
+(See git history for completed stages 51-171. Mobile Phases 1-5 complete + UI primitives. Fix batches: 165b, 166, 169. CLAUDE.md + BUILD_STATE.md modernisation.)

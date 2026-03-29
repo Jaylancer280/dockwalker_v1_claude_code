@@ -13,14 +13,14 @@
 > Updated by the planning agent at the end of each session. A fresh agent reads this first.
 
 | Phase                                                          | Status      | Notes                                                                                     |
-| -------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------- | --- |
+| -------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------- |
 | Monorepo setup (turbo.json, packages/shared, db mobile client) | DONE        | Stage 163 — turbo, shared pkg, mobile db client                                           |
 | Phase 1 — Shell + Auth                                         | DONE        | Stage 163 + Fix 163 — Expo SDK 53, NativeWind, auth context, 5-tab nav, onboarding shell. |
 | Phase 2 — Discovery + Swipe                                    | DONE        | Stage 164-165 + Fix 165. Device testing deferred to post-Phase 7.                         |
 | Phase 3 — Employer Flows                                       | DONE        | Stage 166-168 + Fix 165b/166. Post forms, My Jobs, review screens, templates.             |
 | Phase 4 — Messaging                                            | DONE        | Stage 169 + Fix 169. Conversations, chat, realtime, engagement actions, UI primitives.    |
-| Phase 5 — Profile + Experience                                 | IN PROGRESS | Checklist in todo.md. Profile view/edit, experience CRUD, vessels, avatar, hat switch.    |     |
-| Phase 6 — Docky + Polish                                       | NOT STARTED |                                                                                           |
+| Phase 5 — Profile + Experience                                 | DONE        | Stage 171. Profile view/edit, experience CRUD, vessels, avatar, hat switch, flag states.  |
+| Phase 6 — Docky + Polish                                       | DONE        | Stage 172. Docky AI, push notifications, notifications tab, settings, billing, More tab.  |
 | Phase 7 — Ship (iOS TestFlight)                                | NOT STARTED |                                                                                           |
 | Phase 8 — Android polish pass                                  | NOT STARTED |                                                                                           |
 | Capacitor removal                                              | BLOCKED     | Waiting on Phase 7 validation                                                             |

@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/lib/auth-context';
+import { useNotificationCount } from '@/hooks/use-notification-count';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -25,6 +26,10 @@ export default function TabLayout() {
   const { person } = useAuth();
   const hat = person?.current_hat ?? 'crew';
   const isEmployer = hat === 'employer' || hat === 'agent';
+  const { data: counts } = useNotificationCount();
+
+  const notificationBadge = counts?.notification_count ?? 0;
+  const messageBadge = counts?.message_count ?? 0;
 
   return (
     <Tabs
@@ -48,6 +53,10 @@ export default function TabLayout() {
                 color={color}
               />
             ),
+            tabBarBadge:
+              tab.name === 'notifications' && notificationBadge > 0 ? notificationBadge :
+              tab.name === 'messages' && messageBadge > 0 ? messageBadge :
+              undefined,
           }}
         />
       ))}
