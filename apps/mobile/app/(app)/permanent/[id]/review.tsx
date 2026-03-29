@@ -208,7 +208,7 @@ export default function PermanentReviewScreen() {
         {data?.selected_crew_id && (
           <View style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: 10, marginTop: 8 }}>
             <Text style={{ fontSize: 13, color: '#2563eb', fontWeight: '600' }}>
-              Currently in negotiation with {data.selected_crew_name ?? 'a candidate'}
+              Currently in negotiation with {data.applicants.find((a) => a.crew_person_id === data.selected_crew_id)?.display_name ?? 'a candidate'}
             </Text>
           </View>
         )}

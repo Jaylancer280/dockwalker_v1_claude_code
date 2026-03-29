@@ -17,15 +17,15 @@
 | Monorepo setup (turbo.json, packages/shared, db mobile client) | DONE        | Stage 163 — turbo, shared pkg, mobile db client                                           |
 | Phase 1 — Shell + Auth                                         | DONE        | Stage 163 + Fix 163 — Expo SDK 53, NativeWind, auth context, 5-tab nav, onboarding shell. |
 | Phase 2 — Discovery + Swipe                                    | DONE        | Stage 164-165 + Fix 165. Device testing deferred to post-Phase 7.                         |
-| Phase 3 — Employer Flows                                       | IN PROGRESS | Checklist in todo.md. Forms, my jobs, review applicants, templates.                       |
-| Phase 4 — Messaging                                            | NOT STARTED |                                                                                           |
+| Phase 3 — Employer Flows                                       | DONE        | Stage 166-168 + Fix 165b/166. Post forms, My Jobs, review screens, templates.             |
+| Phase 4 — Messaging                                            | IN PROGRESS | Checklist in todo.md. Conversations, chat threads, engagement actions.                    |
 | Phase 5 — Profile + Experience                                 | NOT STARTED |                                                                                           |
 | Phase 6 — Docky + Polish                                       | NOT STARTED |                                                                                           |
 | Phase 7 — Ship (iOS TestFlight)                                | NOT STARTED |                                                                                           |
 | Phase 8 — Android polish pass                                  | NOT STARTED |                                                                                           |
 | Capacitor removal                                              | BLOCKED     | Waiting on Phase 7 validation                                                             |
 
-**Last session:** 2026-03-28 — Stage 168: Phase 3 complete. Post forms, My Jobs, review screens, templates all built.
+**Last session:** 2026-03-29 — Stage 169: Phase 4 Messaging complete.
 
 ---
 

@@ -240,6 +240,8 @@
 
 - [Stage 168] Mobile Phase 3c — review + templates — daywork review screen (swipe stack for applicants, auto-view on top card, accept/reject/shortlist with confirmation dialogs, shortlisted tab with FlashList), permanent review screen (FlashList applicant list, shortlist/select/reject with cap indicator + negotiation banner), applicant card component, daywork + permanent applicant hooks via apiGet, template hooks + selector bottom sheet; 908 web tests pass, 5 workspaces type-check
 
+- [Stage 169] Mobile Phase 4: Messaging — conversation list (Active/History segments, unread badges, FlashList), chat thread (message bubbles with own/other/system alignment, keyboard-avoiding input, send via API, mark-as-read on mount), Supabase Realtime subscription for live messages, daywork + permanent summary cards at top of chat, engagement action overlays (cancel employer/crew with reason forms, postponement with date pickers + conflict handling, rating with context-aware star/bool fields, checklist with crew toggle), permanent actions (confirm/revert/close via API). Fix 167-168: meal casing to lowercase, selected_crew_name resolved from array. 908 web tests pass, 5 workspaces type-check
+
 ## Current Schema Version
 
 v77 — Permanent post fields (77 migrations applied)
@@ -348,7 +350,7 @@ v77 — Permanent post fields (77 migrations applied)
 
 ## In Progress
 
-Mobile Phase 3 — device testing pending (post forms, My Jobs, review screens, templates)
+Mobile Phase 4 — device testing pending (conversations, chat, realtime, engagement actions, all Phase 1-4 flows)
 
 ## Next Up
 

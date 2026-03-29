@@ -14,7 +14,7 @@ import { FormCertPicker } from '@/components/form-cert-picker';
 import { FormLanguagePicker } from '@/components/form-language-picker';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'AED'] as const;
-const MEAL_OPTIONS = ['Breakfast', 'Lunch', 'Dinner'] as const;
+const MEAL_OPTIONS = ['breakfast', 'lunch', 'dinner'] as const;
 
 export default function PostDayworkScreen() {
   const { person } = useAuth();
@@ -198,7 +198,7 @@ export default function PostDayworkScreen() {
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
           {MEAL_OPTIONS.map((meal) => (
             <Pressable key={meal} onPress={() => toggleMeal(meal)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: meals.includes(meal) ? '#2563eb' : '#f3f4f6' }}>
-              <Text style={{ fontSize: 12, color: meals.includes(meal) ? '#fff' : '#4b5563' }}>{meal}</Text>
+              <Text style={{ fontSize: 12, color: meals.includes(meal) ? '#fff' : '#4b5563' }}>{meal.charAt(0).toUpperCase() + meal.slice(1)}</Text>
             </Pressable>
           ))}
         </View>

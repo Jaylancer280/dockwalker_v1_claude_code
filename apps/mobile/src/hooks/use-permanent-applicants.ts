@@ -26,7 +26,6 @@ interface PermanentReviewResponse {
   shortlist_count: number;
   posting_status: string;
   selected_crew_id: string | null;
-  selected_crew_name: string | null;
 }
 
 export function usePermanentApplicants(postingId: string) {
