@@ -17,8 +17,14 @@ import { useCrewProfile } from '@/hooks/use-crew-profile';
 import { usePermanentDiscover, type HydratedPermanent } from '@/hooks/use-permanent-discover';
 import { apiPost } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { TabBar, Button, colors } from '@/components/ui';
 
 type DiscoverMode = 'daywork' | 'permanent';
+
+const DISCOVER_TABS = [
+  { key: 'daywork', label: 'Daywork' },
+  { key: 'permanent', label: 'Permanent' },
+];
 
 export default function DiscoverScreen() {
   const { person } = useAuth();
@@ -133,7 +139,7 @@ export default function DiscoverScreen() {
               paddingHorizontal: 12,
               paddingVertical: 6,
               borderRadius: 8,
-              backgroundColor: Object.values(filters).some(Boolean) ? '#2563eb' : '#f3f4f6',
+              backgroundColor: Object.values(filters).some(Boolean) ? colors.primary : '#f3f4f6',
             }}
           >
             <Text style={{
@@ -146,30 +152,7 @@ export default function DiscoverScreen() {
           </Pressable>
         </View>
 
-        {/* Segmented toggle */}
-        <View style={{ flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 8, padding: 2 }}>
-          {(['daywork', 'permanent'] as const).map((m) => (
-            <Pressable
-              key={m}
-              onPress={() => setMode(m)}
-              style={{
-                flex: 1,
-                paddingVertical: 6,
-                borderRadius: 6,
-                alignItems: 'center',
-                backgroundColor: mode === m ? '#fff' : 'transparent',
-              }}
-            >
-              <Text style={{
-                fontSize: 13,
-                fontWeight: mode === m ? '600' : '400',
-                color: mode === m ? '#111' : '#6b7280',
-              }}>
-                {m === 'daywork' ? 'Daywork' : 'Permanent'}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <TabBar tabs={DISCOVER_TABS} activeTab={mode} onChange={(k) => setMode(k as DiscoverMode)} />
       </View>
 
       {/* Active filter pills */}
@@ -200,12 +183,7 @@ export default function DiscoverScreen() {
                 <Text style={{ fontSize: 18, color: '#6b7280', marginBottom: 8 }}>
                   No more daywork in your area
                 </Text>
-                <Pressable
-                  onPress={handleRefresh}
-                  style={{ backgroundColor: '#2563eb', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>Refresh</Text>
-                </Pressable>
+                <Button variant="primary" size="md" label="Refresh" onPress={handleRefresh} />
               </ScrollView>
             }
           />
@@ -232,12 +210,7 @@ export default function DiscoverScreen() {
                 <Text style={{ fontSize: 18, color: '#6b7280', marginBottom: 8 }}>
                   No permanent positions available
                 </Text>
-                <Pressable
-                  onPress={handleRefresh}
-                  style={{ backgroundColor: '#2563eb', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>Refresh</Text>
-                </Pressable>
+                <Button variant="primary" size="md" label="Refresh" onPress={handleRefresh} />
               </View>
             }
           />

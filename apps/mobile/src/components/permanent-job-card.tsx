@@ -1,6 +1,7 @@
 import { View, Text, Pressable } from 'react-native';
 import { currencySymbol, getDepartmentColor } from '@dockwalker/shared';
 import type { HydratedPermanent } from '@/hooks/use-permanent-discover';
+import { colors } from '@/components/ui';
 
 function formatSalary(p: HydratedPermanent): string {
   const sym = currencySymbol(p.salary_currency);
@@ -94,7 +95,7 @@ export function PermanentJobCard({ posting, onPress }: PermanentJobCardProps) {
           </View>
           {posting.live_aboard && (
             <View style={{ backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={{ fontSize: 11, color: '#2563eb' }}>Live aboard</Text>
+              <Text style={{ fontSize: 11, color: colors.primary }}>Live aboard</Text>
             </View>
           )}
           {posting.contract_type && posting.contract_type !== 'permanent' && (

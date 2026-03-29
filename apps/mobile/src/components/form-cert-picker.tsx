@@ -3,6 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { certsToGroups } from '@dockwalker/shared';
 import { useCertifications } from '@/hooks/use-canonical';
+import { colors } from '@/components/ui';
 
 interface FormCertPickerProps {
   value: string[];
@@ -40,7 +41,7 @@ export function FormCertPicker({ value, onChange, onDismiss }: FormCertPickerPro
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Required certifications</Text>
         <Pressable onPress={onDismiss}>
-          <Text style={{ fontSize: 14, color: '#2563eb', fontWeight: '600' }}>Done ({value.length})</Text>
+          <Text style={{ fontSize: 14, color: colors.primary, fontWeight: '600' }}>Done ({value.length})</Text>
         </Pressable>
       </View>
 
@@ -57,7 +58,7 @@ export function FormCertPicker({ value, onChange, onDismiss }: FormCertPickerPro
                     onPress={() => toggle(item.id)}
                     style={{
                       paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-                      backgroundColor: isSelected ? '#2563eb' : '#f3f4f6',
+                      backgroundColor: isSelected ? colors.primary : '#f3f4f6',
                     }}
                   >
                     <Text style={{ fontSize: 13, color: isSelected ? '#fff' : '#4b5563' }}>

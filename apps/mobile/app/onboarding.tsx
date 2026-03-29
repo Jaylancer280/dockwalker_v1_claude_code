@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { View, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/lib/auth-context';
+import { ProgressDots } from '@/components/progress-dots';
 
 const STEPS = [
   'Welcome',
@@ -11,21 +12,6 @@ const STEPS = [
   'Vessel Experience',
   'Hat Selection',
 ] as const;
-
-function ProgressDots({ current, total }: { current: number; total: number }) {
-  return (
-    <View className="flex-row justify-center gap-2 py-4">
-      {Array.from({ length: total }, (_, i) => (
-        <View
-          key={i}
-          className={`w-2 h-2 rounded-full ${
-            i === current ? 'bg-blue-600' : i < current ? 'bg-blue-300' : 'bg-gray-300'
-          }`}
-        />
-      ))}
-    </View>
-  );
-}
 
 export default function OnboardingScreen() {
   const { session } = useAuth();

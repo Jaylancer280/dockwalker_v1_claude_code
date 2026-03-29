@@ -4,6 +4,7 @@ import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { currencySymbol, getDepartmentColor } from '@dockwalker/shared';
 import type { HydratedPermanent } from '@/hooks/use-permanent-discover';
 import { useCertifications } from '@/hooks/use-canonical';
+import { colors, Button } from '@/components/ui';
 
 function formatSalary(p: HydratedPermanent): string {
   const sym = currencySymbol(p.salary_currency);
@@ -121,7 +122,7 @@ export function PermanentDetailSheet({
           </View>
           {posting.live_aboard && (
             <View style={{ backgroundColor: '#eff6ff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
-              <Text style={{ fontSize: 12, color: '#2563eb' }}>Live aboard</Text>
+              <Text style={{ fontSize: 12, color: colors.primary }}>Live aboard</Text>
             </View>
           )}
           {posting.contract_type && posting.contract_type !== 'permanent' && (
@@ -179,7 +180,7 @@ export function PermanentDetailSheet({
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
               {posting.required_languages.map((lang) => (
                 <View key={lang} style={{ backgroundColor: '#eff6ff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ fontSize: 12, color: '#2563eb' }}>{lang}</Text>
+                  <Text style={{ fontSize: 12, color: colors.primary }}>{lang}</Text>
                 </View>
               ))}
             </View>
@@ -260,24 +261,18 @@ export function PermanentDetailSheet({
 
       {/* Fixed apply button */}
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
-        <Pressable
+        <Button
           onPress={handleApply}
           disabled={!canApply || isApplying}
-          style={{
-            backgroundColor: !canApply ? '#d1d5db' : isApplying ? '#93c5fd' : '#2563eb',
-            borderRadius: 12,
-            paddingVertical: 14,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: !canApply ? '#9ca3af' : '#fff', fontSize: 16, fontWeight: '600' }}>
-            {!canApply
+          loading={isApplying}
+          label={
+            !canApply
               ? 'Missing required certifications'
               : isApplying
                 ? 'Applying...'
-                : 'Apply'}
-          </Text>
-        </Pressable>
+                : 'Apply'
+          }
+        />
       </View>
     </BottomSheet>
   );

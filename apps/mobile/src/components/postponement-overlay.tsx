@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, Alert, Platform } from 'react-native'
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { apiPost } from '@/lib/api';
+import { Button, SectionHeader } from '@/components/ui';
 
 interface Props {
   engagementId: string;
@@ -67,25 +68,23 @@ export function PostponementOverlay({ engagementId, onComplete, onDismiss }: Pro
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Propose new dates</Text>
       </View>
       <BottomSheetScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>New start date</Text>
+        <SectionHeader title="New start date" />
         <Pressable onPress={() => setShowStart(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: '#111' }}>{fmt(startDate)}</Text>
         </Pressable>
         {showStart && <DateTimePicker value={startDate} mode="date" minimumDate={new Date()} onChange={(_, d) => { setShowStart(Platform.OS === 'ios'); if (d) setStartDate(d); }} />}
 
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>New end date</Text>
+        <SectionHeader title="New end date" />
         <Pressable onPress={() => setShowEnd(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: '#111' }}>{fmt(endDate)}</Text>
         </Pressable>
         {showEnd && <DateTimePicker value={endDate} mode="date" minimumDate={startDate} onChange={(_, d) => { setShowEnd(Platform.OS === 'ios'); if (d) setEndDate(d); }} />}
 
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Working days</Text>
+        <SectionHeader title="Working days" />
         <TextInput value={workingDays} onChangeText={setWorkingDays} keyboardType="number-pad" placeholder="Auto-calculated from dates" style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 14 }} />
       </BottomSheetScrollView>
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
-        <Pressable onPress={handleSubmit} disabled={submitting} style={{ backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{submitting ? 'Proposing...' : 'Propose dates'}</Text>
-        </Pressable>
+        <Button variant="primary" label={submitting ? 'Proposing...' : 'Propose dates'} loading={submitting} onPress={handleSubmit} />
       </View>
     </BottomSheet>
   );

@@ -283,6 +283,8 @@ v77 — Permanent post fields (77 migrations applied)
 - **Admin dashboard** — deferred to closer to launch. Scope: user lookup + deactivation, dispute viewer (ENGAGEMENT.COMPLETION_DISPUTED resolution), event log browser (read-only, filterable), crew list viewer, ability to send messages as "DockWalker Admin" (new sender identity, not tied to a person record). Option 2 approach: built-in `/admin` routes in the existing Next.js app behind a role check, using service role client. Not a quick CRUD panel — intended to be domain-aware with smart tooling.
 - **Docky for agents (market intelligence)** — Docky is currently crew-only (career guidance + MCA certs). For agents, Docky would surface aggregate market intelligence from ledger data: salary benchmarks per role/region, time-to-fill metrics, cert demand frequency, applicant-to-fill ratios. Requires significant posting volume to be statistically meaningful (hundreds of postings per region minimum). No agent-vs-agent competition metrics. No individual crew data. Monetisation: agent subscription tier. Prerequisites: platform data density, agent activity patterns from `agent_activity_log`. Do not build until post-traction phase.
 
+- [Stage 170] Mobile UI primitives — 12 shared components in `apps/mobile/src/components/ui/` (Button, Card, Pill, FormInput, SectionHeader, ScreenHeader, EmptyState, TabBar, StarRating, YesNoPartialPicker, BoolToggle, colors.ts), 4 inline component extractions (MessageBubble, PermanentApplicantRow, ConversationRow, ProgressDots), full adoption across 27 screens/components. `#2563eb` eliminated from all non-primitive files via `colors.primary`
+
 ## In Progress
 
 Mobile Phase 4 — device testing pending (conversations, chat, realtime, engagement actions, all Phase 1-4 flows)

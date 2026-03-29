@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Alert } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { apiPost } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { StarRating } from '@/components/ui/star-rating';
+import { BoolToggle } from '@/components/ui/bool-toggle';
+import { YesNoPartialPicker } from '@/components/ui/yes-no-partial-picker';
 
 interface Props {
   engagementId: string;
@@ -9,52 +13,6 @@ interface Props {
   isCancelled: boolean;
   onComplete: () => void;
   onDismiss: () => void;
-}
-
-function StarRow({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  return (
-    <View style={{ marginBottom: 14 }}>
-      <Text style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>{label}</Text>
-      <View style={{ flexDirection: 'row', gap: 4 }}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Pressable key={star} onPress={() => onChange(star)}>
-            <Text style={{ fontSize: 28, color: star <= value ? '#f59e0b' : '#d1d5db' }}>★</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function BoolToggle({ label, value, onChange }: { label: string; value: boolean | null; onChange: (v: boolean) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-      <Text style={{ fontSize: 13, color: '#374151', flex: 1 }}>{label}</Text>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        <Pressable onPress={() => onChange(true)} style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: value === true ? '#2563eb' : '#f3f4f6' }}>
-          <Text style={{ fontSize: 13, color: value === true ? '#fff' : '#4b5563' }}>Yes</Text>
-        </Pressable>
-        <Pressable onPress={() => onChange(false)} style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: value === false ? '#2563eb' : '#f3f4f6' }}>
-          <Text style={{ fontSize: 13, color: value === false ? '#fff' : '#4b5563' }}>No</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function ThreeWayPicker({ label, value, options, onChange }: { label: string; value: string | null; options: { value: string; label: string }[]; onChange: (v: string) => void }) {
-  return (
-    <View style={{ marginBottom: 14 }}>
-      <Text style={{ fontSize: 13, color: '#374151', marginBottom: 4 }}>{label}</Text>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        {options.map((opt) => (
-          <Pressable key={opt.value} onPress={() => onChange(opt.value)} style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16, backgroundColor: value === opt.value ? '#2563eb' : '#f3f4f6' }}>
-            <Text style={{ fontSize: 13, color: value === opt.value ? '#fff' : '#4b5563' }}>{opt.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
 }
 
 const YES_NO_PARTIAL = [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }, { value: 'partial', label: 'Partial' }];
@@ -125,36 +83,34 @@ export function RatingOverlay({ engagementId, isCrew, isCancelled, onComplete, o
       </View>
       <BottomSheetScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         <BoolToggle label="Was communication accurate?" value={communicationAccuracy} onChange={setCommunicationAccuracy} />
-        <StarRow label="Overall match (1-5)" value={overallMatch} onChange={setOverallMatch} />
+        <StarRating label="Overall match (1-5)" value={overallMatch} onChange={setOverallMatch} />
 
         {isCancelled && isCrew && (
-          <ThreeWayPicker label="Was notice given?" value={noticeGiven} options={YES_NO_PARTIAL} onChange={setNoticeGiven} />
+          <YesNoPartialPicker label="Was notice given?" value={noticeGiven} options={YES_NO_PARTIAL} onChange={setNoticeGiven} />
         )}
 
         {!isCancelled && isCrew && (
           <>
-            <ThreeWayPicker label="Pay accuracy" value={payAccuracy} options={YES_NO_PARTIAL} onChange={setPayAccuracy} />
-            <ThreeWayPicker label="Meals as described" value={mealsAccuracy} options={YES_NO_PARTIAL} onChange={setMealsAccuracy} />
-            <ThreeWayPicker label="Role as described" value={roleAccuracy} options={YES_NO_PARTIAL} onChange={setRoleAccuracy} />
-            <ThreeWayPicker label="Working days" value={workingDaysAccuracy} options={DAYS_ACCURACY} onChange={setWorkingDaysAccuracy} />
-            <StarRow label="Vessel condition (1-5)" value={vesselCondition} onChange={setVesselCondition} />
+            <YesNoPartialPicker label="Pay accuracy" value={payAccuracy} options={YES_NO_PARTIAL} onChange={setPayAccuracy} />
+            <YesNoPartialPicker label="Meals as described" value={mealsAccuracy} options={YES_NO_PARTIAL} onChange={setMealsAccuracy} />
+            <YesNoPartialPicker label="Role as described" value={roleAccuracy} options={YES_NO_PARTIAL} onChange={setRoleAccuracy} />
+            <YesNoPartialPicker label="Working days" value={workingDaysAccuracy} options={DAYS_ACCURACY} onChange={setWorkingDaysAccuracy} />
+            <StarRating label="Vessel condition (1-5)" value={vesselCondition} onChange={setVesselCondition} />
             <BoolToggle label="Would work on this vessel again?" value={wouldWorkAgain} onChange={setWouldWorkAgain} />
           </>
         )}
 
         {!isCancelled && !isCrew && (
           <>
-            <ThreeWayPicker label="Skills as advertised" value={skillsAsAdvertised} options={YES_NO_PARTIAL} onChange={setSkillsAsAdvertised} />
+            <YesNoPartialPicker label="Skills as advertised" value={skillsAsAdvertised} options={YES_NO_PARTIAL} onChange={setSkillsAsAdvertised} />
             <BoolToggle label="Certifications verified?" value={certificationsVerified} onChange={setCertificationsVerified} />
-            <ThreeWayPicker label="Punctuality" value={punctuality} options={YES_NO_PARTIAL} onChange={setPunctuality} />
+            <YesNoPartialPicker label="Punctuality" value={punctuality} options={YES_NO_PARTIAL} onChange={setPunctuality} />
             <BoolToggle label="Would rehire?" value={wouldRehire} onChange={setWouldRehire} />
           </>
         )}
       </BottomSheetScrollView>
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
-        <Pressable onPress={handleSubmit} disabled={submitting} style={{ backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{submitting ? 'Submitting...' : 'Submit rating'}</Text>
-        </Pressable>
+        <Button variant="primary" label={submitting ? 'Submitting...' : 'Submit rating'} loading={submitting} onPress={handleSubmit} />
       </View>
     </BottomSheet>
   );

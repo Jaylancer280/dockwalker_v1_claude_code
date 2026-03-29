@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, Alert, Switch } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { apiPost } from '@/lib/api';
+import { Button, SectionHeader, colors } from '@/components/ui';
 
 const REASONS = [
   { value: 'vessel_leaving', label: 'Vessel leaving' },
@@ -57,11 +58,11 @@ export function CancelEmployerOverlay({ engagementId, onComplete, onDismiss }: P
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Cancel engagement</Text>
       </View>
       <BottomSheetScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8 }}>Reason</Text>
+        <SectionHeader title="Reason" />
         {REASONS.map((r) => (
           <Pressable key={r.value} onPress={() => setReason(r.value)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
-            <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: reason === r.value ? '#2563eb' : '#d1d5db', marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
-              {reason === r.value && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563eb' }} />}
+            <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: reason === r.value ? colors.primary : '#d1d5db', marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
+              {reason === r.value && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />}
             </View>
             <Text style={{ fontSize: 14, color: '#111' }}>{r.label}</Text>
           </Pressable>
@@ -75,11 +76,13 @@ export function CancelEmployerOverlay({ engagementId, onComplete, onDismiss }: P
 
         {relistRequested && (
           <>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 8 }}>Relist reason</Text>
+            <View style={{ marginTop: 8 }}>
+              <SectionHeader title="Relist reason" />
+            </View>
             {RELIST_REASONS.map((r) => (
               <Pressable key={r.value} onPress={() => setRelistReason(r.value)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
-                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: relistReason === r.value ? '#2563eb' : '#d1d5db', marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
-                  {relistReason === r.value && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563eb' }} />}
+                <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: relistReason === r.value ? colors.primary : '#d1d5db', marginRight: 10, alignItems: 'center', justifyContent: 'center' }}>
+                  {relistReason === r.value && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary }} />}
                 </View>
                 <Text style={{ fontSize: 14, color: '#111' }}>{r.label}</Text>
               </Pressable>
@@ -89,9 +92,7 @@ export function CancelEmployerOverlay({ engagementId, onComplete, onDismiss }: P
         )}
       </BottomSheetScrollView>
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
-        <Pressable onPress={handleSubmit} disabled={submitting || !reason} style={{ backgroundColor: !reason ? '#d1d5db' : '#dc2626', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{submitting ? 'Cancelling...' : 'Cancel engagement'}</Text>
-        </Pressable>
+        <Button variant="destructive" label={submitting ? 'Cancelling...' : 'Cancel engagement'} loading={submitting} disabled={!reason} onPress={handleSubmit} />
       </View>
     </BottomSheet>
   );

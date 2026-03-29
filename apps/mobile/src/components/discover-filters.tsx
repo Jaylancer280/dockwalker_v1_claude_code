@@ -3,6 +3,7 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useRoles, useCertifications, usePorts, useExperienceBrackets, useSizeBands } from '@/hooks/use-canonical';
 import type { DiscoverFilters } from '@/hooks/use-daywork-discover';
+import { Pill, SectionHeader, Button, colors } from '@/components/ui';
 
 interface FilterPanelProps {
   filters: DiscoverFilters;
@@ -24,35 +25,17 @@ function FilterSelect({
 }) {
   return (
     <View style={{ marginBottom: 16 }}>
-      <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 }}>{label}</Text>
+      <SectionHeader title={label} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', gap: 6 }}>
-          <Pressable
-            onPress={() => onChange(undefined)}
-            style={{
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 16,
-              backgroundColor: !value ? '#2563eb' : '#f3f4f6',
-            }}
-          >
-            <Text style={{ fontSize: 12, color: !value ? '#fff' : '#4b5563' }}>All</Text>
-          </Pressable>
+          <Pill label="All" selected={!value} onPress={() => onChange(undefined)} />
           {options.map((opt) => (
-            <Pressable
+            <Pill
               key={opt.id}
+              label={opt.name}
+              selected={opt.id === value}
               onPress={() => onChange(opt.id === value ? undefined : opt.id)}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 16,
-                backgroundColor: opt.id === value ? '#2563eb' : '#f3f4f6',
-              }}
-            >
-              <Text style={{ fontSize: 12, color: opt.id === value ? '#fff' : '#4b5563' }}>
-                {opt.name}
-              </Text>
-            </Pressable>
+            />
           ))}
         </View>
       </ScrollView>
@@ -128,7 +111,7 @@ export function DiscoverFilterPanel({ filters, onApply, onDismiss, mode }: Filte
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Filters</Text>
         {activeCount > 0 && (
           <Pressable onPress={handleReset}>
-            <Text style={{ fontSize: 13, color: '#2563eb' }}>Clear all</Text>
+            <Text style={{ fontSize: 13, color: colors.primary }}>Clear all</Text>
           </Pressable>
         )}
       </View>
@@ -170,16 +153,8 @@ export function DiscoverFilterPanel({ filters, onApply, onDismiss, mode }: Filte
         />
       </BottomSheetScrollView>
 
-      {/* Apply button */}
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
-        <Pressable
-          onPress={handleApply}
-          style={{ backgroundColor: '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
-        >
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-            Apply filters{activeCount > 0 ? ` (${activeCount})` : ''}
-          </Text>
-        </Pressable>
+        <Button variant="primary" label={`Apply filters${activeCount > 0 ? ` (${activeCount})` : ''}`} onPress={handleApply} />
       </View>
     </BottomSheet>
   );
@@ -245,8 +220,8 @@ export function ActiveFilterPills({
               gap: 4,
             }}
           >
-            <Text style={{ fontSize: 12, color: '#2563eb' }}>{pill.label}</Text>
-            <Text style={{ fontSize: 14, color: '#2563eb', fontWeight: 'bold' }}>×</Text>
+            <Text style={{ fontSize: 12, color: colors.primary }}>{pill.label}</Text>
+            <Text style={{ fontSize: 14, color: colors.primary, fontWeight: 'bold' }}>×</Text>
           </Pressable>
         ))}
       </View>

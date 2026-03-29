@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { currencySymbol, getDepartmentColor } from '@dockwalker/shared';
 import type { HydratedDaywork } from '@/hooks/use-daywork-discover';
+import { colors, Button } from '@/components/ui';
 
 interface JobDetailSheetProps {
   job: HydratedDaywork | null;
@@ -120,7 +121,7 @@ export function JobDetailSheet({ job, onApply, onDismiss, isApplying }: JobDetai
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
               {job.required_languages.map((lang) => (
                 <View key={lang} style={{ backgroundColor: '#eff6ff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ fontSize: 12, color: '#2563eb' }}>{lang}</Text>
+                  <Text style={{ fontSize: 12, color: colors.primary }}>{lang}</Text>
                 </View>
               ))}
             </View>
@@ -203,20 +204,12 @@ export function JobDetailSheet({ job, onApply, onDismiss, isApplying }: JobDetai
 
       {/* Fixed apply button */}
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
-        <Pressable
+        <Button
           onPress={handleApply}
           disabled={isApplying}
-          style={{
-            backgroundColor: isApplying ? '#93c5fd' : '#2563eb',
-            borderRadius: 12,
-            paddingVertical: 14,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-            {isApplying ? 'Applying...' : 'Apply'}
-          </Text>
-        </Pressable>
+          loading={isApplying}
+          label={isApplying ? 'Applying...' : 'Apply'}
+        />
       </View>
     </BottomSheet>
   );

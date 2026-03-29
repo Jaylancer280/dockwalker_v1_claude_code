@@ -2,6 +2,7 @@ import { View, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { getDepartmentColor } from '@dockwalker/shared';
 import type { Applicant } from '@/hooks/use-daywork-applicants';
+import { colors } from '@/components/ui';
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
@@ -91,7 +92,7 @@ export function ApplicantCard({ applicant }: ApplicantCardProps) {
           ) : null}
           {applicant.source === 'invitation' && (
             <View style={{ backgroundColor: '#eff6ff', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
-              <Text style={{ fontSize: 11, color: '#2563eb' }}>Invited</Text>
+              <Text style={{ fontSize: 11, color: colors.primary }}>Invited</Text>
             </View>
           )}
         </View>

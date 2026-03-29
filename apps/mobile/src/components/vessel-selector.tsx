@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, Alert, Switch } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useVessels, type Vessel } from '@/hooks/use-vessels';
 import { apiPost } from '@/lib/api';
+import { colors, Pill, Button } from '@/components/ui';
 
 interface VesselSelectorProps {
   value: string | null;
@@ -104,18 +105,12 @@ export function VesselSelector({ value, onChange, onDismiss }: VesselSelectorPro
             <Text style={{ fontSize: 13, fontWeight: '600', color: '#6b7280', marginBottom: 4 }}>Type</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
               {(['motor', 'sail'] as const).map((t) => (
-                <Pressable
+                <Pill
                   key={t}
+                  label={t === 'motor' ? 'M/Y' : 'S/Y'}
+                  selected={newType === t}
                   onPress={() => setNewType(t)}
-                  style={{
-                    flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
-                    backgroundColor: newType === t ? '#2563eb' : '#f3f4f6',
-                  }}
-                >
-                  <Text style={{ color: newType === t ? '#fff' : '#4b5563', fontWeight: '600' }}>
-                    {t === 'motor' ? 'M/Y' : 'S/Y'}
-                  </Text>
-                </Pressable>
+                />
               ))}
             </View>
 
@@ -135,13 +130,14 @@ export function VesselSelector({ value, onChange, onDismiss }: VesselSelectorPro
               >
                 <Text style={{ color: '#4b5563', fontWeight: '600' }}>Cancel</Text>
               </Pressable>
-              <Pressable
+              <Button
                 onPress={handleCreate}
                 disabled={creating}
-                style={{ flex: 1, paddingVertical: 12, borderRadius: 8, backgroundColor: '#2563eb', alignItems: 'center' }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>{creating ? 'Creating...' : 'Create'}</Text>
-              </Pressable>
+                loading={creating}
+                label={creating ? 'Creating...' : 'Create'}
+                size="md"
+                style={{ flex: 1 }}
+              />
             </View>
           </View>
         ) : (
@@ -155,7 +151,7 @@ export function VesselSelector({ value, onChange, onDismiss }: VesselSelectorPro
                   onPress={() => handleSelect(vessel)}
                   style={{
                     padding: 12, borderRadius: 10, borderWidth: 2, marginBottom: 8,
-                    borderColor: selected ? '#2563eb' : '#e5e7eb',
+                    borderColor: selected ? colors.primary : '#e5e7eb',
                     backgroundColor: selected ? '#eff6ff' : '#fff',
                   }}
                 >
@@ -175,7 +171,7 @@ export function VesselSelector({ value, onChange, onDismiss }: VesselSelectorPro
               onPress={() => setShowCreate(true)}
               style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed', alignItems: 'center', marginTop: 4 }}
             >
-              <Text style={{ color: '#2563eb', fontWeight: '600' }}>+ Add vessel</Text>
+              <Text style={{ color: colors.primary, fontWeight: '600' }}>+ Add vessel</Text>
             </Pressable>
           </View>
         )}

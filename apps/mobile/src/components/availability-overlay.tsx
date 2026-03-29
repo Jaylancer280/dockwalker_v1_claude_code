@@ -5,6 +5,7 @@ import { apiPost } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { usePorts } from '@/hooks/use-canonical';
+import { colors, Button } from '@/components/ui';
 
 interface AvailabilityOverlayProps {
   onDismiss: () => void;
@@ -163,7 +164,7 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
         <Text style={{ fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 }}>
           Where are you?
           {selectedCityName && (
-            <Text style={{ fontWeight: '400', color: '#2563eb' }}> — {selectedCityName}</Text>
+            <Text style={{ fontWeight: '400', color: colors.primary }}> — {selectedCityName}</Text>
           )}
         </Text>
 
@@ -180,7 +181,7 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
                       paddingHorizontal: 12,
                       paddingVertical: 6,
                       borderRadius: 16,
-                      backgroundColor: city.id === selectedCityId ? '#2563eb' : '#f3f4f6',
+                      backgroundColor: city.id === selectedCityId ? colors.primary : '#f3f4f6',
                     }}
                   >
                     <Text style={{ fontSize: 13, color: city.id === selectedCityId ? '#fff' : '#4b5563' }}>
@@ -205,7 +206,7 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
                     paddingHorizontal: 12,
                     paddingVertical: 6,
                     borderRadius: 16,
-                    backgroundColor: !selectedPortId ? '#2563eb' : '#f3f4f6',
+                    backgroundColor: !selectedPortId ? colors.primary : '#f3f4f6',
                   }}
                 >
                   <Text style={{ fontSize: 13, color: !selectedPortId ? '#fff' : '#4b5563' }}>Any</Text>
@@ -218,7 +219,7 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
                       paddingHorizontal: 12,
                       paddingVertical: 6,
                       borderRadius: 16,
-                      backgroundColor: port.id === selectedPortId ? '#2563eb' : '#f3f4f6',
+                      backgroundColor: port.id === selectedPortId ? colors.primary : '#f3f4f6',
                     }}
                   >
                     <Text style={{ fontSize: 13, color: port.id === selectedPortId ? '#fff' : '#4b5563' }}>
@@ -248,14 +249,14 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
                   height: 72,
                   borderRadius: 10,
                   borderWidth: 2,
-                  borderColor: selected ? '#2563eb' : '#e5e7eb',
+                  borderColor: selected ? colors.primary : '#e5e7eb',
                   backgroundColor: selected ? '#eff6ff' : '#fff',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
                 <Text style={{ fontSize: 10, color: '#9ca3af' }}>{weekday}</Text>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: selected ? '#2563eb' : '#111' }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: selected ? colors.primary : '#111' }}>
                   {day}
                 </Text>
                 <Text style={{ fontSize: 10, color: '#9ca3af' }}>{month}</Text>
@@ -267,24 +268,18 @@ export function AvailabilityOverlay({ onDismiss, onAvailabilitySet }: Availabili
 
       {/* Submit button */}
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
-        <Pressable
+        <Button
           onPress={handleSubmit}
           disabled={submitting || !canSubmit}
-          style={{
-            backgroundColor: !canSubmit ? '#93c5fd' : '#2563eb',
-            borderRadius: 12,
-            paddingVertical: 14,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-            {submitting
+          loading={submitting}
+          label={
+            submitting
               ? 'Setting...'
               : !selectedCityId
                 ? 'Select a city first'
-                : `Confirm ${selectedDates.size} day${selectedDates.size !== 1 ? 's' : ''}`}
-          </Text>
-        </Pressable>
+                : `Confirm ${selectedDates.size} day${selectedDates.size !== 1 ? 's' : ''}`
+          }
+        />
       </View>
     </BottomSheet>
   );

@@ -3,6 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { rolesToGroups } from '@dockwalker/shared';
 import { useRoles } from '@/hooks/use-canonical';
+import { colors } from '@/components/ui';
 
 interface FormRolePickerProps {
   value: string | null;
@@ -59,7 +60,7 @@ export function FormRolePicker({ value, onChange, onDismiss }: FormRolePickerPro
                     onPress={() => handleSelect(item.id)}
                     style={{
                       paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16,
-                      backgroundColor: item.id === value ? '#2563eb' : '#f3f4f6',
+                      backgroundColor: item.id === value ? colors.primary : '#f3f4f6',
                     }}
                   >
                     <Text style={{ fontSize: 13, color: item.id === value ? '#fff' : '#4b5563' }}>

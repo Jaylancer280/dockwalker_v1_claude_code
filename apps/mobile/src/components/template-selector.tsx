@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { DayworkTemplate, PermanentTemplate } from '@/hooks/use-templates';
+import { Card } from '@/components/ui';
 
 type Template = DayworkTemplate | PermanentTemplate;
 
@@ -36,18 +37,13 @@ export function TemplateSelector({ templates, onSelect, onDismiss, type }: Templ
           </View>
         ) : (
           templates.map((t) => (
-            <Pressable
-              key={t.id}
-              onPress={() => { onSelect(t); onDismiss(); }}
-              style={{
-                padding: 14, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb',
-                backgroundColor: '#fff', marginBottom: 8,
-              }}
-            >
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#111' }}>{t.name}</Text>
-              <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                {t.yacht_roles?.name ?? 'No role'} · {t.ports?.name ?? 'No location'}
-              </Text>
+            <Pressable key={t.id} onPress={() => { onSelect(t); onDismiss(); }}>
+              <Card style={{ marginBottom: 8 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111' }}>{t.name}</Text>
+                <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                  {t.yacht_roles?.name ?? 'No role'} · {t.ports?.name ?? 'No location'}
+                </Text>
+              </Card>
             </Pressable>
           ))
         )}

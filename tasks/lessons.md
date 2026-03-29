@@ -115,6 +115,10 @@ After ANY session that includes a migration, before presenting changes:
 
 - **Rollback completeness is not optional — verify before committing the migration:** When a migration replaces `apply_projection`, the rollback must contain the full previous function body. A comment saying "see migration 00075" violates the self-contained rollback rule (already documented above). The check: open the rollback file, read it as if it's the only file you have — can you run it and restore the DB to the prior state? If not, it's incomplete. This was already a lesson and was repeated anyway.
 
+- **Creating a component without adopting it is not completing the task:** Stage 170 created 11 UI primitives but only imported 4 of them in 1 file, while marking all adoption checklist items `[x]`. The primitives existed as dead code. **A component is not "done" when the file exists — it's done when the inline patterns it replaces are actually replaced.** The verification step ("grep for the color, confirm zero matches in page files") exists precisely to catch this. Do not mark adoption items complete without running the verification grep.
+
+- **Never mark todo items [x] without verifying the work is actually done:** After marking an item [x], run `grep '#2563eb' <file>` — if it still has inline blue refs that should have been replaced, the item is NOT done. The implementation agent falsely marked 26 items complete by assuming the work was done from earlier in the session, when in fact most files were untouched. **Verification is mandatory: grep the file for the pattern that should be gone, confirm the import exists, then mark [x].**
+
 ### Pre-commit aggregate_type audit (automated)
 
 Before every commit, verify all `aggregateType` values used in API routes exist in the `events_aggregate_type_check` constraint. This is automated via pre-commit script (Stage 81c).

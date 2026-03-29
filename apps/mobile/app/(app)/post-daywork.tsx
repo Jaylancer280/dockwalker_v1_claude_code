@@ -12,6 +12,7 @@ import { FormRolePicker } from '@/components/form-role-picker';
 import { FormLocationPicker } from '@/components/form-location-picker';
 import { FormCertPicker } from '@/components/form-cert-picker';
 import { FormLanguagePicker } from '@/components/form-language-picker';
+import { Button, Pill, SectionHeader, FormInput, ScreenHeader, colors } from '@/components/ui';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'AED'] as const;
 const MEAL_OPTIONS = ['breakfast', 'lunch', 'dinner'] as const;
@@ -104,35 +105,29 @@ export default function PostDayworkScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={{ fontSize: 14, color: '#2563eb' }}>← Back</Text>
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Post Daywork</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title="Post Daywork" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         {/* Vessel */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Vessel *</Text>
+        <SectionHeader title="Vessel *" />
         <Pressable onPress={() => setShowVessel(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: vesselId ? '#111' : '#9ca3af' }}>{vesselId ? 'Vessel selected' : 'Select vessel'}</Text>
         </Pressable>
 
         {/* Role */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Role *</Text>
+        <SectionHeader title="Role *" />
         <Pressable onPress={() => setShowRole(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: roleId ? '#111' : '#9ca3af' }}>{roleId ? 'Role selected' : 'Select role'}</Text>
         </Pressable>
 
         {/* Location */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Location *</Text>
+        <SectionHeader title="Location *" />
         <Pressable onPress={() => setShowLocation(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: portId ? '#111' : '#9ca3af' }}>{portId ? 'Location selected' : 'Select port/marina'}</Text>
         </Pressable>
 
         {/* Start date */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Start date *</Text>
+        <SectionHeader title="Start date *" />
         <Pressable onPress={() => setShowStartDate(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: startDate ? '#111' : '#9ca3af' }}>{fmt(startDate)}</Text>
         </Pressable>
@@ -141,7 +136,7 @@ export default function PostDayworkScreen() {
         )}
 
         {/* End date */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>End date *</Text>
+        <SectionHeader title="End date *" />
         <Pressable onPress={() => setShowEndDate(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: endDate ? '#111' : '#9ca3af' }}>{fmt(endDate)}</Text>
         </Pressable>
@@ -150,16 +145,15 @@ export default function PostDayworkScreen() {
         )}
 
         {/* Working days */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Working days</Text>
-        <TextInput value={workingDays} onChangeText={setWorkingDays} keyboardType="number-pad" placeholder="Auto from dates" style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 14 }} />
+        <FormInput label="Working days" value={workingDays} onChangeText={setWorkingDays} keyboardType="number-pad" placeholder="Auto from dates" />
 
         {/* Day rate + currency */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Day rate *</Text>
+        <SectionHeader title="Day rate *" />
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
           <TextInput value={dayRate} onChangeText={setDayRate} keyboardType="decimal-pad" placeholder="Amount" style={{ flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 14 }} />
           <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, overflow: 'hidden' }}>
             {CURRENCIES.map((c) => (
-              <Pressable key={c} onPress={() => setCurrency(c)} style={{ paddingHorizontal: 10, paddingVertical: 12, backgroundColor: currency === c ? '#2563eb' : '#fff' }}>
+              <Pressable key={c} onPress={() => setCurrency(c)} style={{ paddingHorizontal: 10, paddingVertical: 12, backgroundColor: currency === c ? colors.primary : '#fff' }}>
                 <Text style={{ fontSize: 12, fontWeight: '600', color: currency === c ? '#fff' : '#4b5563' }}>{c}</Text>
               </Pressable>
             ))}
@@ -167,49 +161,41 @@ export default function PostDayworkScreen() {
         </View>
 
         {/* Certs */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Required certifications</Text>
+        <SectionHeader title="Required certifications" />
         <Pressable onPress={() => setShowCerts(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: certIds.length > 0 ? '#111' : '#9ca3af' }}>{certIds.length > 0 ? `${certIds.length} selected` : 'None'}</Text>
         </Pressable>
 
         {/* Languages */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Required languages</Text>
+        <SectionHeader title="Required languages" />
         <Pressable onPress={() => setShowLangs(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: langCodes.length > 0 ? '#111' : '#9ca3af' }}>{langCodes.length > 0 ? `${langCodes.length} selected` : 'None'}</Text>
         </Pressable>
 
         {/* Experience bracket */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Experience bracket</Text>
+        <SectionHeader title="Experience bracket" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Pressable onPress={() => setBracketId(null)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: !bracketId ? '#2563eb' : '#f3f4f6' }}>
-              <Text style={{ fontSize: 12, color: !bracketId ? '#fff' : '#4b5563' }}>Any</Text>
-            </Pressable>
+            <Pill label="Any" selected={!bracketId} onPress={() => setBracketId(null)} />
             {(brackets ?? []).map((b) => (
-              <Pressable key={b.id} onPress={() => setBracketId(b.id)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: b.id === bracketId ? '#2563eb' : '#f3f4f6' }}>
-                <Text style={{ fontSize: 12, color: b.id === bracketId ? '#fff' : '#4b5563' }}>{b.label}</Text>
-              </Pressable>
+              <Pill key={b.id} label={b.label} selected={b.id === bracketId} onPress={() => setBracketId(b.id)} />
             ))}
           </View>
         </ScrollView>
 
         {/* Meals */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Meals provided</Text>
+        <SectionHeader title="Meals provided" />
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
           {MEAL_OPTIONS.map((meal) => (
-            <Pressable key={meal} onPress={() => toggleMeal(meal)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: meals.includes(meal) ? '#2563eb' : '#f3f4f6' }}>
-              <Text style={{ fontSize: 12, color: meals.includes(meal) ? '#fff' : '#4b5563' }}>{meal.charAt(0).toUpperCase() + meal.slice(1)}</Text>
-            </Pressable>
+            <Pill key={meal} label={meal.charAt(0).toUpperCase() + meal.slice(1)} selected={meals.includes(meal)} onPress={() => toggleMeal(meal)} />
           ))}
         </View>
 
         {/* Notes */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Notes</Text>
-        <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Special requirements..." style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14, minHeight: 80, fontSize: 14, textAlignVertical: 'top' }} />
+        <FormInput label="Notes" value={notes} onChangeText={setNotes} multiline placeholder="Special requirements..." style={{ minHeight: 80, textAlignVertical: 'top' }} />
 
         {/* Positions */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Positions available</Text>
-        <TextInput value={positions} onChangeText={(t) => setPositions(t.replace(/[^0-9]/g, ''))} keyboardType="number-pad" style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 14 }} />
+        <FormInput label="Positions available" value={positions} onChangeText={(t: string) => setPositions(t.replace(/[^0-9]/g, ''))} keyboardType="number-pad" />
 
         {/* Permanent opportunity */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -218,9 +204,7 @@ export default function PostDayworkScreen() {
         </View>
 
         {/* Submit */}
-        <Pressable onPress={handleSubmit} disabled={submitting} style={{ backgroundColor: submitting ? '#93c5fd' : '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{submitting ? 'Posting...' : 'Post daywork'}</Text>
-        </Pressable>
+        <Button variant="primary" label={submitting ? 'Posting...' : 'Post daywork'} loading={submitting} onPress={handleSubmit} />
       </ScrollView>
 
       {/* Bottom sheet pickers */}

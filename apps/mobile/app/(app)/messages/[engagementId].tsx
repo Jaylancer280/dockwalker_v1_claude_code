@@ -8,38 +8,9 @@ import { useEngagementContext } from '@/hooks/use-engagement-context';
 import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 import { DayworkSummaryCardChat } from '@/components/daywork-summary-card-chat';
 import { PermanentSummaryCardChat } from '@/components/permanent-summary-card-chat';
+import { MessageBubble } from '@/components/message-bubble';
 import { apiPost } from '@/lib/api';
-
-function MessageBubble({ message, isOwn }: { message: Message; isOwn: boolean }) {
-  if (message.is_system) {
-    return (
-      <View style={{ alignItems: 'center', paddingVertical: 6, paddingHorizontal: 16 }}>
-        <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', fontStyle: 'italic' }}>
-          {message.content}
-        </Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ alignItems: isOwn ? 'flex-end' : 'flex-start', paddingHorizontal: 16, paddingVertical: 3 }}>
-      <View style={{
-        maxWidth: '80%',
-        backgroundColor: isOwn ? '#2563eb' : '#f3f4f6',
-        borderRadius: 16,
-        borderBottomRightRadius: isOwn ? 4 : 16,
-        borderBottomLeftRadius: isOwn ? 16 : 4,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-      }}>
-        <Text style={{ fontSize: 15, color: isOwn ? '#fff' : '#111' }}>{message.content}</Text>
-        <Text style={{ fontSize: 10, color: isOwn ? 'rgba(255,255,255,0.6)' : '#9ca3af', marginTop: 2, textAlign: 'right' }}>
-          {new Date(message.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-        </Text>
-      </View>
-    </View>
-  );
-}
+import { colors } from '@/components/ui';
 
 export default function ChatScreen() {
   const { engagementId } = useLocalSearchParams<{ engagementId: string }>();
@@ -113,7 +84,7 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' }}>
         <Pressable onPress={() => router.back()} style={{ marginRight: 12 }}>
-          <Text style={{ fontSize: 14, color: '#2563eb' }}>←</Text>
+          <Text style={{ fontSize: 14, color: colors.primary }}>←</Text>
         </Pressable>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#111' }}>{otherName}</Text>
@@ -160,7 +131,7 @@ export default function ChatScreen() {
             <Pressable
               onPress={handleSend}
               disabled={!inputText.trim() || sending}
-              style={{ marginLeft: 8, backgroundColor: inputText.trim() ? '#2563eb' : '#d1d5db', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+              style={{ marginLeft: 8, backgroundColor: inputText.trim() ? colors.primary : '#d1d5db', borderRadius: 20, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
             >
               <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>↑</Text>
             </Pressable>

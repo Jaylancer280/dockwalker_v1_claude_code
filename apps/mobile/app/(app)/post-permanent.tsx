@@ -12,6 +12,7 @@ import { FormRolePicker } from '@/components/form-role-picker';
 import { FormLocationPicker } from '@/components/form-location-picker';
 import { FormCertPicker } from '@/components/form-cert-picker';
 import { FormLanguagePicker } from '@/components/form-language-picker';
+import { Button, Pill, SectionHeader, FormInput, ScreenHeader, colors } from '@/components/ui';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'AED'] as const;
 const PERIODS = ['monthly', 'annual'] as const;
@@ -112,35 +113,29 @@ export default function PostPermanentScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
-        <Pressable onPress={() => router.back()}>
-          <Text style={{ fontSize: 14, color: '#2563eb' }}>← Back</Text>
-        </Pressable>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111' }}>Post Permanent</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title="Post Permanent" onBack={() => router.back()} />
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
         {/* Vessel */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Vessel *</Text>
+        <SectionHeader title="Vessel *" />
         <Pressable onPress={() => setShowVessel(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: vesselId ? '#111' : '#9ca3af' }}>{vesselId ? 'Vessel selected' : 'Select vessel'}</Text>
         </Pressable>
 
         {/* Role */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Role *</Text>
+        <SectionHeader title="Role *" />
         <Pressable onPress={() => setShowRole(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: roleId ? '#111' : '#9ca3af' }}>{roleId ? 'Role selected' : 'Select role'}</Text>
         </Pressable>
 
         {/* Location */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Location *</Text>
+        <SectionHeader title="Location *" />
         <Pressable onPress={() => setShowLocation(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: portId ? '#111' : '#9ca3af' }}>{portId ? 'Location selected' : 'Select port/marina'}</Text>
         </Pressable>
 
         {/* Start date */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Start date *</Text>
+        <SectionHeader title="Start date *" />
         <Pressable onPress={() => setShowStartDate(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: startDate ? '#111' : '#9ca3af' }}>{fmt(startDate)}</Text>
         </Pressable>
@@ -149,7 +144,7 @@ export default function PostPermanentScreen() {
         )}
 
         {/* Salary */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Salary range *</Text>
+        <SectionHeader title="Salary range *" />
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
           <TextInput value={salaryMin} onChangeText={setSalaryMin} keyboardType="decimal-pad" placeholder="Min" style={{ flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 14 }} />
           <TextInput value={salaryMax} onChangeText={setSalaryMax} keyboardType="decimal-pad" placeholder="Max" style={{ flex: 1, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 14 }} />
@@ -157,14 +152,14 @@ export default function PostPermanentScreen() {
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, overflow: 'hidden' }}>
             {CURRENCIES.map((c) => (
-              <Pressable key={c} onPress={() => setSalaryCurrency(c)} style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: salaryCurrency === c ? '#2563eb' : '#fff' }}>
+              <Pressable key={c} onPress={() => setSalaryCurrency(c)} style={{ paddingHorizontal: 10, paddingVertical: 8, backgroundColor: salaryCurrency === c ? colors.primary : '#fff' }}>
                 <Text style={{ fontSize: 12, fontWeight: '600', color: salaryCurrency === c ? '#fff' : '#4b5563' }}>{c}</Text>
               </Pressable>
             ))}
           </View>
           <View style={{ flexDirection: 'row', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, overflow: 'hidden' }}>
             {PERIODS.map((p) => (
-              <Pressable key={p} onPress={() => setSalaryPeriod(p)} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: salaryPeriod === p ? '#2563eb' : '#fff' }}>
+              <Pressable key={p} onPress={() => setSalaryPeriod(p)} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: salaryPeriod === p ? colors.primary : '#fff' }}>
                 <Text style={{ fontSize: 12, fontWeight: '600', color: salaryPeriod === p ? '#fff' : '#4b5563' }}>{p === 'monthly' ? '/mo' : '/yr'}</Text>
               </Pressable>
             ))}
@@ -178,82 +173,67 @@ export default function PostPermanentScreen() {
         </View>
 
         {/* Certs */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Required certifications</Text>
+        <SectionHeader title="Required certifications" />
         <Pressable onPress={() => setShowCerts(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: certIds.length > 0 ? '#111' : '#9ca3af' }}>{certIds.length > 0 ? `${certIds.length} selected` : 'None'}</Text>
         </Pressable>
 
         {/* Languages */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Required languages</Text>
+        <SectionHeader title="Required languages" />
         <Pressable onPress={() => setShowLangs(true)} style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14 }}>
           <Text style={{ color: langCodes.length > 0 ? '#111' : '#9ca3af' }}>{langCodes.length > 0 ? `${langCodes.length} selected` : 'None'}</Text>
         </Pressable>
 
         {/* Experience bracket */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Experience bracket</Text>
+        <SectionHeader title="Experience bracket" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Pressable onPress={() => setBracketId(null)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: !bracketId ? '#2563eb' : '#f3f4f6' }}>
-              <Text style={{ fontSize: 12, color: !bracketId ? '#fff' : '#4b5563' }}>Any</Text>
-            </Pressable>
+            <Pill label="Any" selected={!bracketId} onPress={() => setBracketId(null)} />
             {(brackets ?? []).map((b) => (
-              <Pressable key={b.id} onPress={() => setBracketId(b.id)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: b.id === bracketId ? '#2563eb' : '#f3f4f6' }}>
-                <Text style={{ fontSize: 12, color: b.id === bracketId ? '#fff' : '#4b5563' }}>{b.label}</Text>
-              </Pressable>
+              <Pill key={b.id} label={b.label} selected={b.id === bracketId} onPress={() => setBracketId(b.id)} />
             ))}
           </View>
         </ScrollView>
 
         {/* Shortlist cap */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Shortlist cap</Text>
-        <TextInput value={shortlistCap} onChangeText={(t) => setShortlistCap(t.replace(/[^0-9]/g, ''))} keyboardType="number-pad" style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 14 }} />
+        <FormInput label="Shortlist cap" value={shortlistCap} onChangeText={(t: string) => setShortlistCap(t.replace(/[^0-9]/g, ''))} keyboardType="number-pad" />
 
         {/* Contract type */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Contract type</Text>
+        <SectionHeader title="Contract type" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', gap: 6 }}>
             {CONTRACT_TYPES.map((ct) => (
-              <Pressable key={ct} onPress={() => setContractType(ct)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: contractType === ct ? '#2563eb' : '#f3f4f6' }}>
-                <Text style={{ fontSize: 12, color: contractType === ct ? '#fff' : '#4b5563' }}>{ct}</Text>
-              </Pressable>
+              <Pill key={ct} label={ct} selected={contractType === ct} onPress={() => setContractType(ct)} />
             ))}
           </View>
         </ScrollView>
 
         {/* Contract details (non-permanent) */}
         {contractType !== 'permanent' && (
-          <>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Contract details</Text>
-            <TextInput value={contractDetails} onChangeText={setContractDetails} multiline placeholder="Rotation, schedule details..." style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14, minHeight: 60, fontSize: 14, textAlignVertical: 'top' }} />
-          </>
+          <FormInput label="Contract details" value={contractDetails} onChangeText={setContractDetails} multiline placeholder="Rotation, schedule details..." style={{ minHeight: 60, textAlignVertical: 'top' }} />
         )}
 
         {/* Description */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Description</Text>
-        <TextInput value={description} onChangeText={setDescription} multiline placeholder="Job description..." style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14, minHeight: 80, fontSize: 14, textAlignVertical: 'top' }} />
+        <FormInput label="Description" value={description} onChangeText={setDescription} multiline placeholder="Job description..." style={{ minHeight: 80, textAlignVertical: 'top' }} />
 
         {/* Meals */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Meals provided</Text>
+        <SectionHeader title="Meals provided" />
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
           {MEAL_OPTIONS.map((meal) => (
-            <Pressable key={meal} onPress={() => toggleMeal(meal)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: meals.includes(meal) ? '#2563eb' : '#f3f4f6' }}>
-              <Text style={{ fontSize: 12, color: meals.includes(meal) ? '#fff' : '#4b5563' }}>{meal.charAt(0).toUpperCase() + meal.slice(1)}</Text>
-            </Pressable>
+            <Pill key={meal} label={meal.charAt(0).toUpperCase() + meal.slice(1)} selected={meals.includes(meal)} onPress={() => toggleMeal(meal)} />
           ))}
         </View>
 
         {/* Positions */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Positions available</Text>
-        <TextInput value={positions} onChangeText={(t) => setPositions(t.replace(/[^0-9]/g, ''))} keyboardType="number-pad" style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 14, fontSize: 14 }} />
+        <FormInput label="Positions available" value={positions} onChangeText={(t: string) => setPositions(t.replace(/[^0-9]/g, ''))} keyboardType="number-pad" />
 
         {/* Notes */}
-        <Text style={{ fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4 }}>Notes</Text>
-        <TextInput value={notes} onChangeText={setNotes} multiline placeholder="Additional notes..." style={{ borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, marginBottom: 20, minHeight: 60, fontSize: 14, textAlignVertical: 'top' }} />
+        <FormInput label="Notes" value={notes} onChangeText={setNotes} multiline placeholder="Additional notes..." style={{ minHeight: 60, textAlignVertical: 'top' }} />
 
         {/* Submit */}
-        <Pressable onPress={handleSubmit} disabled={submitting} style={{ backgroundColor: submitting ? '#93c5fd' : '#2563eb', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{submitting ? 'Posting...' : 'Post permanent'}</Text>
-        </Pressable>
+        <View style={{ marginTop: 6 }}>
+          <Button variant="primary" label={submitting ? 'Posting...' : 'Post permanent'} loading={submitting} onPress={handleSubmit} />
+        </View>
       </ScrollView>
 
       {showVessel && <VesselSelector value={vesselId} onChange={setVesselId} onDismiss={() => setShowVessel(false)} />}

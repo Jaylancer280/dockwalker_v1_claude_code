@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { View, Text, Pressable, Alert } from 'react-native';
 import { apiPost } from '@/lib/api';
+import { colors } from '@/components/ui';
 
 interface ChecklistItem {
   id: string;
@@ -54,8 +55,8 @@ export function ChecklistCardChat({ engagementId, items, acknowledgedIds, isCrew
           >
             <View style={{
               width: 22, height: 22, borderRadius: 4, borderWidth: 2, marginRight: 10,
-              borderColor: checked ? '#2563eb' : '#d1d5db',
-              backgroundColor: checked ? '#2563eb' : '#fff',
+              borderColor: checked ? colors.primary : '#d1d5db',
+              backgroundColor: checked ? colors.primary : '#fff',
               alignItems: 'center', justifyContent: 'center',
             }}>
               {checked && <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>✓</Text>}

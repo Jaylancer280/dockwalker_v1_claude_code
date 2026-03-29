@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { usePorts } from '@/hooks/use-canonical';
+import { colors } from '@/components/ui';
 
 interface FormLocationPickerProps {
   value: string | null;
@@ -70,7 +71,7 @@ export function FormLocationPicker({ value, onChange, onDismiss }: FormLocationP
         {selectedRegion && !selectedCity && (
           <View>
             <Pressable onPress={() => setSelectedRegion(null)} style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 13, color: '#2563eb' }}>← Back to regions</Text>
+              <Text style={{ fontSize: 13, color: colors.primary }}>← Back to regions</Text>
             </Pressable>
             <View style={{ gap: 8 }}>
               {citiesForRegion.map((c) => (
@@ -90,7 +91,7 @@ export function FormLocationPicker({ value, onChange, onDismiss }: FormLocationP
         {selectedCity && (
           <View>
             <Pressable onPress={() => setSelectedCity(null)} style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 13, color: '#2563eb' }}>← Back to cities</Text>
+              <Text style={{ fontSize: 13, color: colors.primary }}>← Back to cities</Text>
             </Pressable>
             <View style={{ gap: 8 }}>
               {portsForCity.map((p) => (
@@ -99,7 +100,7 @@ export function FormLocationPicker({ value, onChange, onDismiss }: FormLocationP
                   onPress={() => handleSelectPort(p.id)}
                   style={{
                     padding: 14, borderRadius: 10, borderWidth: 2,
-                    borderColor: p.id === value ? '#2563eb' : '#e5e7eb',
+                    borderColor: p.id === value ? colors.primary : '#e5e7eb',
                     backgroundColor: p.id === value ? '#eff6ff' : '#fff',
                   }}
                 >

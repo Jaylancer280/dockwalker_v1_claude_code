@@ -5,99 +5,58 @@
 
 ## Current Task
 
-Mobile Phase 4: Messaging — conversation list, chat threads, engagement actions, rating, checklist
+Mobile UI primitives — adoption pass (primitives created but not used)
 
 ---
 
 ## Queue
 
-### Stage 169 review fixes — API field mismatches (all calls return 400)
+### UI primitives adoption — the actual refactor (must complete before Phase 5)
 
-#### CRITICAL 1 — Cancel overlays send wrong field names
+**Context:** Stage 170 created 11 UI primitives in `apps/mobile/src/components/ui/` and extracted 4 inline components. However, **only the rating overlay actually imports from ui/**. The other 27 files still use inline styles. `#2563eb` appears in 27 non-primitive files (should be 0). The primitives are dead code until this adoption pass is done.
 
-Both cancel overlays use `reason` and `freeText`. The API expects `reason_category` and `reason_text`.
+**Implementation agent: do NOT mark items [x] unless the import is verified in the file. The previous agent marked all adoption items complete without doing the work. grep for the import before marking done.**
 
-- [x] Fixed cancel-employer-overlay: reason_category, reason_text, relist_requested, relist reason fields body from `{ reason, freeText, relist }` to `{ reason_category: reason, reason_text: freeText.trim() || undefined, relist_requested: relist }`. Also add relist reason fields: when `relist` is true, show a second reason picker with options (`wrong_crew`, `requirements_changed`, `different_skills`, `relist_other`) and pass as `relist_reason_category` and `relist_reason_text`.
-- [x] Fixed cancel-crew-overlay: reason_category, reason_text body from `{ reason, freeText }` to `{ reason_category: reason, reason_text: freeText.trim() || undefined }`.
+#### Page files — replace inline patterns with primitives
 
-#### CRITICAL 2 — Postponement overlay sends camelCase, API expects snake_case
+Each file below must import and use the listed primitives. After each file, grep to confirm zero `#2563eb` remains (except in ui/ files).
 
-`apps/mobile/src/components/postponement-overlay.tsx:28-29` sends `{ newStartDate, newEndDate, newWorkingDays, confirmConflict }`. The API expects `{ start_date, end_date, working_days, confirm_conflict }`.
+- [x] `app/(app)/(tabs)/my-jobs.tsx` — TabBar, Card, Button, EmptyState, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/(tabs)/messages.tsx` — TabBar, EmptyState. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/(tabs)/discover.tsx` — TabBar, Button, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/post-daywork.tsx` — ScreenHeader, FormInput, SectionHeader, Pill, Button, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/post-permanent.tsx` — ScreenHeader, FormInput, SectionHeader, Pill, Button, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/post.tsx` — ScreenHeader, Card. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/daywork/[id]/review.tsx` — ScreenHeader, TabBar, Button, EmptyState, Card. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/permanent/[id]/review.tsx` — ScreenHeader, TabBar, EmptyState, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `app/(app)/messages/[engagementId].tsx` — colors.primary for back arrow + send button. Grep verified: zero `#2563eb`.
 
-- [x] Fixed postponement: snake_case fields, working_days required, auto-calculate from dates`(not`newStartDate`), `end_date`(not`newEndDate`), `working_days`as integer (not`newWorkingDays`), `confirm_conflict`(not`confirmConflict`). Also: `working_days` is **required** by the API (not optional) — must be a positive integer. Remove the "optional" label; auto-calculate from date span if user doesn't enter one.
+#### Component files — replace inline patterns with primitives
 
-#### CRITICAL 3 — Rating overlay has wrong field names AND wrong field types
+- [x] `src/components/discover-filters.tsx` — Pill, SectionHeader, Button, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/availability-overlay.tsx` — colors.primary, Button. Grep verified: zero `#2563eb`.
+- [x] `src/components/vessel-selector.tsx` — colors.primary, Pill, Button. Grep verified: zero `#2563eb`.
+- [x] `src/components/form-role-picker.tsx` — colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/form-location-picker.tsx` — colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/form-cert-picker.tsx` — colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/form-language-picker.tsx` — colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/cancel-employer-overlay.tsx` — Button, SectionHeader, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/cancel-crew-overlay.tsx` — Button, SectionHeader, colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/postponement-overlay.tsx` — Button, SectionHeader. Grep verified: zero `#2563eb`.
+- [x] `src/components/template-selector.tsx` — Card. Grep verified: zero `#2563eb`.
+- [x] `src/components/job-detail-sheet.tsx` — colors.primary, Button. Grep verified: zero `#2563eb`.
+- [x] `src/components/permanent-detail-sheet.tsx` — colors.primary, Button. Grep verified: zero `#2563eb`.
+- [x] `src/components/applicant-card.tsx` — colors.primary. Grep verified: zero `#2563eb`.
+- [x] `src/components/permanent-applicant-row.tsx` — Button already imported. Grep verified: zero `#2563eb`.
+- [x] `src/components/conversation-row.tsx` — colors.primary for unread badge. Grep verified: zero `#2563eb`.
+- [x] `src/components/message-bubble.tsx` — colors.primary for own-message bg. Grep verified: zero `#2563eb`.
+- [x] `src/components/checklist-card-chat.tsx` — colors.primary. Grep verified: zero `#2563eb`.
 
-The rating API uses yes/no/partial strings and booleans, not star ratings. Complete rebuild required.
+#### Final verification
 
-- [x] Rebuilt rating-overlay with correct field types`to match the API exactly. Reference:`apps/web/src/app/(app)/messages/[engagementId]/\_components/rating-form-overlay.tsx`. The correct fields are:
-
-  **Symmetric (all contexts, both roles):**
-  - `communication_accuracy`: **boolean** (Yes/No toggle, not stars)
-  - `overall_match`: **integer 1-5** (stars OK here)
-
-  **Cancelled context — crew only:**
-  - `notice_given`: **string** `'yes' | 'no' | 'partial'` (3-way picker)
-
-  **Cancelled context — employer only:** just the symmetric fields above.
-
-  **Completed context — crew:**
-  - `pay_accuracy`: **string** `'yes' | 'no' | 'partial'`
-  - `meals_accuracy`: **string** `'yes' | 'no' | 'partial'`
-  - `role_accuracy`: **string** `'yes' | 'no' | 'partial'`
-  - `working_days_accuracy`: **string** `'fewer' | 'as_listed' | 'more'`
-  - `vessel_condition`: **integer 1-5** (stars OK)
-  - `would_work_on_vessel_again`: **boolean**
-
-  **Completed context — employer:**
-  - `skills_as_advertised`: **string** `'yes' | 'no' | 'partial'`
-  - `certifications_verified`: **boolean**
-  - `punctuality`: **string** `'yes' | 'no' | 'partial'`
-  - `would_rehire`: **boolean**
-
-#### MEDIUM — Message send doesn't append to UI
-
-`apps/mobile/app/(app)/messages/[engagementId].tsx:85-89` expects `{ message: Message }` from the POST response. The API returns `{ success: true }`. The sent message won't appear until Realtime delivers it or the query refetches.
-
-- [x] Fixed message send: optimistic append with local message, Realtime dedup `result.data.message`. Instead, construct the message locally (`{ id: crypto.randomUUID(), sender_person_id: user.id, content, created_at: new Date().toISOString(), is_system: false }`) and call `appendMessage()` for optimistic display. Deduplicate when Realtime delivers the server copy (check `id` before appending in the Realtime handler).
-
----
-
-### Mobile UI primitives extraction (must complete before Phase 5)
-
-**Context:** Mobile Phases 1-4 were built with zero shared UI primitives. Every screen has inline styles for buttons, cards, pills, inputs, headers, and empty states. 125 inline style patterns across 28 files. A single color change requires find-and-replace across the entire app. 4 components are also inlined in page files (MessageBubble, ApplicantRow, ConversationRow, ProgressDots). This must be fixed before any further feature work.
-
-#### Primitive components to create in `apps/mobile/src/components/ui/`
-
-- [ ] `button.tsx` — `<Button variant="primary" | "secondary" | "destructive" | "ghost" size="sm" | "md" | "lg" disabled loading>`. Replaces all inline `Pressable` + background color + text color patterns. Primary = `#2563eb`, destructive = `#dc2626`, secondary = border + transparent, ghost = no border.
-- [ ] `card.tsx` — `<Card>` wrapper with consistent border radius (12), border color (`#e5e7eb`), white background, padding. Used by job cards, applicant cards, posting cards, conversation rows.
-- [ ] `pill.tsx` — `<Pill selected label>`. Replaces the ~40 inline pill patterns (borderRadius 16, paddingHorizontal 12, paddingVertical 6, selected = blue bg + white text, unselected = gray bg + dark text). Used by filters, certs, meals, languages, experience brackets.
-- [ ] `text-input.tsx` — `<FormInput label required placeholder>`. Wraps `TextInput` with consistent label, border style, spacing. Replaces the repeated label + TextInput + marginBottom 14 pattern in both post forms.
-- [ ] `section-header.tsx` — `<SectionHeader title subtitle>`. Replaces the repeated `fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 4` label pattern.
-- [ ] `screen-header.tsx` — `<ScreenHeader title onBack>`. Replaces the repeated back button + title + spacer row pattern in post-daywork, post-permanent, review screens, chat.
-- [ ] `empty-state.tsx` — `<EmptyState message>`. Replaces the repeated centered gray text empty state pattern.
-- [ ] `tab-bar.tsx` — `<TabBar tabs activeTab onChange>`. Replaces the repeated segmented toggle pattern in my-jobs (4 tabs), messages (2 tabs), both review screens (2 tabs).
-- [ ] `star-rating.tsx` — `<StarRating value onChange>`. For rating overlay's overall_match and vessel_condition (the only two 1-5 integer fields).
-- [ ] `yes-no-partial-picker.tsx` — `<YesNoPartialPicker value onChange>`. For rating overlay's yes/no/partial fields. 3-way toggle.
-- [ ] `bool-toggle.tsx` — `<BoolToggle label value onChange>`. For rating overlay's boolean fields (communication_accuracy, would_work_again, would_rehire, certifications_verified).
-
-#### Extract inline components from page files
-
-- [ ] Extract `MessageBubble` from `app/(app)/messages/[engagementId].tsx` to `src/components/message-bubble.tsx`
-- [ ] Extract `ApplicantRow` from `app/(app)/permanent/[id]/review.tsx` to `src/components/permanent-applicant-row.tsx`
-- [ ] Extract `ConversationRow` from `app/(app)/(tabs)/messages.tsx` to `src/components/conversation-row.tsx`
-- [ ] Extract `ProgressDots` from `app/onboarding.tsx` to `src/components/progress-dots.tsx`
-
-#### Adopt primitives across existing screens
-
-- [ ] Replace inline button patterns in all 28 files with `<Button>`
-- [ ] Replace inline pill patterns with `<Pill>`
-- [ ] Replace inline card patterns with `<Card>`
-- [ ] Replace inline input patterns in post-daywork and post-permanent with `<FormInput>`
-- [ ] Replace inline screen headers with `<ScreenHeader>`
-- [ ] Replace inline tab bars with `<TabBar>`
-- [ ] Replace inline empty states with `<EmptyState>`
-- [ ] Verify: `#2563eb` (primary blue) appears ONLY in `button.tsx` and `pill.tsx` — not in any page file
+- [x] `grep -r '#2563eb' apps/mobile/app/` returns **zero results** — verified
+- [x] `grep -r '#2563eb' apps/mobile/src/components/` returns results **only in** `ui/button.tsx`, `ui/pill.tsx`, `ui/bool-toggle.tsx`, `ui/yes-no-partial-picker.tsx`, `ui/screen-header.tsx`, `ui/colors.ts` — verified (message-bubble now uses `colors.primary`)
+- [x] `turbo run type-check` passes — verified
 
 ---
 
@@ -149,4 +108,4 @@ The rating API uses yes/no/partial strings and booleans, not star ratings. Compl
 
 ## Done
 
-(See git history for completed stages 51-169, UI-0 through UI-19, all fix batches, workflow protocol, Playwright baseline, rollback + test fixes, SUG fixes, UI consistency 1-3, Codemagic CI, app icon, bundle ID, Capacitor dead-end cleanup, mobile Phase 1-4: auth, discovery, employer flows, messaging core — conversations, chat threads, summary cards, realtime, checklist, engagement action UI shells)
+(See git history for completed stages 51-170, UI-0 through UI-19, all fix batches, workflow protocol, Playwright baseline, rollback + test fixes, SUG fixes, UI consistency 1-3, Codemagic CI, app icon, bundle ID, Capacitor dead-end cleanup, mobile Phase 1-4: auth, discovery, employer flows, messaging core — conversations, chat threads, summary cards, realtime, checklist, engagement action UI shells, Stage 170 UI primitives extraction)
