@@ -57,6 +57,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4a600184-f863-416e-b781-b90cc00b0f2a"
+      }
+    },
+    "owner": "nautalink-technologies"
   }
 }
