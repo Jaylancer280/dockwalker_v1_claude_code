@@ -3,7 +3,6 @@ import { View, Text, Pressable, RefreshControl, ScrollView, Alert } from 'react-
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import * as Haptics from 'expo-haptics';
-import { useMMKVString } from 'react-native-mmkv';
 import { SwipeCardStack } from '@/components/swipe-card-stack';
 import { DayworkJobCard, DayworkJobCardSkeleton } from '@/components/daywork-job-card';
 import { PermanentJobCard } from '@/components/permanent-job-card';
@@ -28,9 +27,7 @@ const DISCOVER_TABS = [
 
 export default function DiscoverScreen() {
   const { person } = useAuth();
-  const [storedMode, setStoredMode] = useMMKVString('discover-mode');
-  const mode: DiscoverMode = (storedMode as DiscoverMode) || 'daywork';
-  const setMode = (m: DiscoverMode) => setStoredMode(m);
+  const [mode, setMode] = useState<DiscoverMode>('daywork');
   const [selectedDaywork, setSelectedDaywork] = useState<HydratedDaywork | null>(null);
   const [selectedPermanent, setSelectedPermanent] = useState<HydratedPermanent | null>(null);
   const [isApplying, setIsApplying] = useState(false);
