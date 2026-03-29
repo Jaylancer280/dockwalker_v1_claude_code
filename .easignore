@@ -1,17 +1,16 @@
 # EAS doesn't need the web app or its dependencies
-../web/
-
-# Capacitor legacy (dead architecture)
-../web/ios/
-../web/android/
+apps/web/
 
 # Supabase local dev files
-../../supabase/
+supabase/
 
 # Assets and docs not needed for build
-../../assets/
-../../tasks/
-../../.github/
+assets/
+tasks/
+.github/
 
 # Large files
 *.md
+
+# Git history
+.git/

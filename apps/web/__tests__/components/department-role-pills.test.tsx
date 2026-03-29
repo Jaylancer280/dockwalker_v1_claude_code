@@ -30,7 +30,7 @@ describe('DepartmentRolePills', () => {
     render(<DepartmentRolePills roles={roles} value="" onValueChange={vi.fn()} />);
     // Click the deck department header
     const deptButtons = screen.getAllByRole('button');
-    const deckBtn = deptButtons.find((b) => b.textContent?.toLowerCase().includes('deck'));
+    const deckBtn = deptButtons.find((b: HTMLElement) => b.textContent?.toLowerCase().includes('deck'));
     expect(deckBtn).toBeDefined();
     fireEvent.click(deckBtn!);
     expect(screen.getByText('Deckhand')).toBeInTheDocument();
@@ -42,7 +42,7 @@ describe('DepartmentRolePills', () => {
     render(<DepartmentRolePills roles={roles} value="" onValueChange={onChange} />);
     // Expand deck
     const deptButtons = screen.getAllByRole('button');
-    const deckBtn = deptButtons.find((b) => b.textContent?.toLowerCase().includes('deck'));
+    const deckBtn = deptButtons.find((b: HTMLElement) => b.textContent?.toLowerCase().includes('deck'));
     fireEvent.click(deckBtn!);
     // Click Bosun
     fireEvent.click(screen.getByText('Bosun'));
@@ -71,12 +71,12 @@ describe('DepartmentRolePills', () => {
     render(<DepartmentRolePills roles={roles} value="" onValueChange={vi.fn()} />);
     // Expand deck
     const deptButtons = screen.getAllByRole('button');
-    const deckBtn = deptButtons.find((b) => b.textContent?.toLowerCase().includes('deck'));
+    const deckBtn = deptButtons.find((b: HTMLElement) => b.textContent?.toLowerCase().includes('deck'));
     fireEvent.click(deckBtn!);
     expect(screen.getByText('Deck/Engineer')).toBeInTheDocument();
 
     // Expand engineering
-    const engBtn = deptButtons.find((b) => b.textContent?.toLowerCase().includes('engineering'));
+    const engBtn = deptButtons.find((b: HTMLElement) => b.textContent?.toLowerCase().includes('engineering'));
     fireEvent.click(engBtn!);
     // Deck/Engineer should appear here too
     const deckEngPills = screen.getAllByText('Deck/Engineer');

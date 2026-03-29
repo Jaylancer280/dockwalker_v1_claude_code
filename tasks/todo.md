@@ -5,114 +5,81 @@
 
 ## Current Task
 
-Mobile Phase 7: Ship — EAS config, TestFlight build, environment setup
+Fix EAS build + web type-check errors — unblock iOS TestFlight
 
 ---
 
 ## Queue
 
-### Mobile Phase 7: Ship (iOS TestFlight)
+### Fix web type-check errors (BLOCKING COMMIT)
 
-**Context:** All 6 feature phases complete. EAS account created, Apple API key integrated, GitHub connected to EAS. Bundle ID `io.dockwalker.app` already set in `app.json`. EAS project ID `4a600184-f863-416e-b781-b90cc00b0f2a` linked. Goal: first iOS build on TestFlight for real user validation.
+**Context:** Pre-commit hook runs `turbo run type-check` across all workspaces. The web workspace has ~15 test files importing `screen`, `fireEvent`, `waitFor` from `@testing-library/react` that fail TS resolution. This blocks ALL commits including mobile config fixes.
 
-**This phase is mostly config + human actions, not feature code. The implementation agent handles config files; the user handles App Store Connect and EAS CLI commands.**
+- [x] Diagnose why `@testing-library/react` exports are not found in `apps/web/__tests__/` — likely a `@types/react` version conflict or missing `@testing-library/jest-dom` types
+- [x] Fix the TS errors across all affected test files
+- [x] Verify `turbo run type-check` passes clean
 
-#### 1. EAS Build configuration
+### EAS build fixes (READY TO COMMIT — blocked by above)
 
-- [x] Create `apps/mobile/eas.json` with three profiles:
-  ```json
-  {
-    "cli": { "version": ">= 15.0.0", "appVersionSource": "remote" },
-    "build": {
-      "development": {
-        "developmentClient": true,
-        "distribution": "internal",
-        "ios": { "simulator": true }
-      },
-      "preview": {
-        "distribution": "internal",
-        "ios": { "buildConfiguration": "Release" }
-      },
-      "production": {
-        "autoIncrement": true
-      }
-    },
-    "submit": {
-      "production": {
-        "ios": { "appleId": "<USER_APPLE_ID>", "ascAppId": "<ASC_APP_ID>" }
-      }
-    }
-  }
-  ```
-  The user fills in `appleId` and `ascAppId` from App Store Connect.
-- [x] Add `expo-notifications` to `app.json` plugins (required for push notification entitlements in the native build):
-  ```json
-  ["expo-notifications", { "icon": "./assets/images/icon.png", "sounds": [] }]
-  ```
-- [x] Add `expo-image-picker` to `app.json` plugins (camera/photo library permissions):
-  ```json
-  [
-    "expo-image-picker",
-    { "photosPermission": "Allow DockWalker to access your photos for avatar upload" }
-  ]
-  ```
-- [x] Verify `app.json` has all required fields: name, slug, version, ios.bundleIdentifier, android.package, scheme — all present.
+**Context:** Three config fixes already applied locally, waiting for clean type-check to commit.
 
-#### 2. Environment variables in EAS
+Changes already made (unstaged):
+
+- [x] `apps/mobile/metro.config.js` — merge watchFolders with Expo defaults instead of replacing
+- [x] `apps/mobile/app.json` — explicit `"root": "app"` for router resolution
+- [x] `.easignore` — moved to repo root with corrected paths + `.git/` exclusion
+
+After commit + push:
+
+- [ ] Run `cd apps/mobile && eas build --platform ios --profile preview`
+- [ ] Verify Metro bundling passes (EXPO_ROUTER_APP_ROOT resolved)
+- [ ] Verify upload size reduced from 290MB
+
+### Mobile Phase 7: Ship (iOS TestFlight) — remaining items
+
+**Context:** EAS config done. First successful build needed before these can proceed.
+
+#### Environment variables in EAS
 
 - [ ] Set environment variables in EAS dashboard (or via `eas env:create`):
   - `EXPO_PUBLIC_SUPABASE_URL` — production Supabase project URL
   - `EXPO_PUBLIC_SUPABASE_ANON_KEY` — production Supabase anon key
   - `EXPO_PUBLIC_API_BASE_URL` — `https://dockwalker.io` (production Vercel)
-- [x] Verify `.env.example` in `apps/mobile/` documents all three variables — already present.
 
-#### 3. First iOS build (user action)
+#### First iOS build + TestFlight (user action)
 
-These are CLI commands the user runs, not implementation agent tasks.
+- [ ] First successful `eas build --platform ios --profile preview`
+- [ ] `eas submit --platform ios --profile production` to upload to TestFlight
+- [ ] App Store Connect setup: testers, metadata, privacy policy URL
 
-- [ ] Run `cd apps/mobile && eas build --platform ios --profile preview` — first build. EAS compiles native code in the cloud, signs with the Apple API key. Takes ~15 minutes.
-- [ ] If build succeeds: run `eas submit --platform ios --profile production` to upload to TestFlight. Apple processing takes ~15 minutes.
-- [ ] If build fails: diagnose from EAS build logs, fix config, retry. Common issues: missing entitlements, wrong bundle ID, native module config.
-
-#### 4. App Store Connect setup (user action)
-
-- [ ] Create app in App Store Connect with bundle ID `io.dockwalker.app` (if not already created from Capacitor era — if it exists, the Expo build replaces it)
-- [ ] Add TestFlight testers (internal group first)
-- [ ] Fill in required metadata: app name "DockWalker", primary language, category (Business or Lifestyle)
-- [ ] Privacy policy URL and Terms of Service URL (required for TestFlight)
-
-#### 5. Post-build validation checklist
-
-After TestFlight build is available to testers:
+#### Post-build validation
 
 - [ ] App launches, sign-in works against production Supabase
-- [ ] Onboarding flow completes (crew identity, hat selection)
-- [ ] Discover tab: daywork swipe + permanent scroll with real production data
-- [ ] Apply to a daywork job (if test data exists in production)
-- [ ] My Jobs tab: visible when switching to employer hat
-- [ ] Messages tab: conversation list loads (empty if no engagements)
+- [ ] Onboarding flow completes
+- [ ] Discover tab: daywork swipe + permanent scroll
+- [ ] Apply to a daywork job
+- [ ] My Jobs tab visible as employer
+- [ ] Messages tab loads
 - [ ] Profile tab: edit profile, add experience with IMO lookup
-- [ ] Push notification received when another user takes an action
+- [ ] Push notification received
 - [ ] Docky: send a question, receive AI response
 - [ ] Settings: notification toggles work
-- [ ] Billing: subscribe button opens Safari to dockwalker.io/billing
+- [ ] Billing: subscribe button opens Safari
 - [ ] Hat switch: crew ↔ employer, tabs update
 - [ ] No crashes on any screen transition
 
-#### 6. OTA update test
+#### OTA update test
 
-- [ ] After initial TestFlight validation, make a minor JS-only change (e.g. tweak a label in the More tab)
-- [ ] Run `eas update --branch preview --message "Test OTA"` from `apps/mobile/`
-- [ ] Verify the change appears in the TestFlight app without a new build (restart app)
-- [ ] This validates the OTA pipeline for rapid bug fixes during testing
+- [ ] Make a minor JS-only change
+- [ ] Run `eas update --branch preview --message "Test OTA"`
+- [ ] Verify change appears without a new build
 
-#### 7. Phase 7 sign-off
+#### Phase 7 sign-off
 
-- [ ] 3+ tester devices have the Expo app installed via TestFlight
+- [ ] 3+ tester devices via TestFlight
 - [ ] All 20 user-facing screens functional
-- [ ] Zero P0 bugs reported in 48 hours
+- [ ] Zero P0 bugs in 48 hours
 - [ ] OTA update pipeline verified
-- [ ] **After sign-off:** Capacitor removal can proceed per split spec Section 9
 
 ---
 
@@ -124,44 +91,44 @@ After TestFlight build is available to testers:
 
 ## Backlog
 
-> Active backlog. Pick items into Queue when ready. Items tagged (web), (mobile), or (both).
+> Active backlog. Pick items into Queue when ready.
 > **Implementation agent: do NOT move items here to defer them. If a todo item
 > is too hard, stop and ask — do not unilaterally deprioritise.**
 
 ### Business logic / server-side
 
-- **Permanent crew withdrawal auto-revert** (both) — when crew withdraws from a selected permanent posting, employer should decide next step, not auto-revert. Full spec in git history.
-- **Onboarding true atomicity** (both) — `onboard_person` RPC should be fully atomic; currently partial failure is possible on batch experience inserts.
-- **Negotiation timeout** (both) — auto-close permanent engagements after X days of inactivity in negotiation. Server-side cron.
+- **Permanent crew withdrawal auto-revert** (both) — when crew withdraws from a selected permanent posting, employer should decide next step, not auto-revert.
+- **Onboarding true atomicity** (both) — `onboard_person` RPC should be fully atomic.
+- **Negotiation timeout** (both) — auto-close permanent engagements after X days inactivity.
 - **Weekly check-in cron** (both) — periodic nudge for permanent postings with no employer activity.
-- **Deactivated user server-side sign-out** (both) — force session invalidation when `PERSON.DEACTIVATED` fires.
+- **Deactivated user server-side sign-out** (both) — force session invalidation on PERSON.DEACTIVATED.
 
 ### Web-only UI
 
-- **OG social sharing image** (web) — see `tasks/founder-drafts.md` § 7 for spec.
-- **Agent market as discover mode** (web) — let agents browse the full market feed, not just their own postings.
-- **Form validation — styled inline errors** (web) — replace browser-native validation with styled inline messages (SUG-012).
+- **OG social sharing image** (web) — see `tasks/founder-drafts.md` § 7.
+- **Agent market as discover mode** (web) — let agents browse full market feed.
+- **Form validation — styled inline errors** (web) — replace browser-native validation (SUG-012).
 - **Invalid URL error pages** (web) — custom error pages for garbage URLs (SUG-013).
-- **Edit experience "Unknown vessel" prefix** (web) — seed data shows "Unknown vessel" for employer-owned vessels in crew experience edit (SUG-017).
-- **Applicant count badge on My Jobs** (both) — show pending applicant count on posting cards in My Jobs.
-- **Discover filter chips** (both) — show active filters as dismissible pills above the feed.
-- **Notifications grouping** (both) — group notifications by date or engagement instead of flat list.
-- **Email: List-Unsubscribe header** (web) — add RFC 8058 header to transactional emails.
+- **Edit experience "Unknown vessel" prefix** (web) — seed data issue (SUG-017).
+- **Applicant count badge on My Jobs** (both).
+- **Discover filter chips** (both).
+- **Notifications grouping** (both).
+- **Email: List-Unsubscribe header** (web).
 
 ### Testing
 
-- **Resilience tests** (web) — network failure, timeout, and retry scenarios for API routes.
-- **Component tests for Permanent UI** (web) — unit tests for permanent posting components.
-- **Component tests for Form Pickers** (web) — unit tests for hierarchical pills, location picker, role picker.
+- **Resilience tests** (web) — network failure, timeout, retry scenarios.
+- **Component tests for Permanent UI** (web).
+- **Component tests for Form Pickers** (web).
 
 ### Superseded by mobile split
 
-- ~~Billing IAP bypass redesign~~ — replaced by `tasks/mobile-web-split-spec.md` Section 10.
-- ~~Swipe card momentum~~ — mobile builds native swipe from scratch; web swipe stays as-is.
-- ~~Haptics on toggles/filters~~ — Capacitor haptics are dead; mobile uses `expo-haptics` natively.
+- ~~Billing IAP bypass redesign~~ — replaced by split spec Section 10.
+- ~~Swipe card momentum~~ — mobile builds native swipe from scratch.
+- ~~Haptics on toggles/filters~~ — Capacitor dead; mobile uses expo-haptics.
 
 ---
 
 ## Done
 
-(See git history for completed stages 51-172. Mobile Phases 1-6 complete + UI primitives. Fix batches: 165b, 166, 169. CLAUDE.md + BUILD_STATE.md modernisation.)
+(See git history for completed stages 51-173. Mobile Phases 1-6 complete + UI primitives. EAS config stage 173.)
