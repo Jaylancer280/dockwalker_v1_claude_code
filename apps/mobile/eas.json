@@ -13,12 +13,18 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "NPM_CONFIG_ENGINE_STRICT": "false"
+      },
       "ios": {
         "buildConfiguration": "Release"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "NPM_CONFIG_ENGINE_STRICT": "false"
+      }
     }
   },
   "submit": {
