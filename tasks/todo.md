@@ -5,76 +5,114 @@
 
 ## Current Task
 
-Mobile Phase 6: Docky + Polish — AI advisor, push notifications, notifications tab, settings, billing
+Mobile Phase 7: Ship — EAS config, TestFlight build, environment setup
 
 ---
 
 ## Queue
 
-### Mobile Phase 6: Docky + Polish
+### Mobile Phase 7: Ship (iOS TestFlight)
 
-**Context:** Final feature phase before shipping. Covers the Docky AI advisor (crew-only), push notifications via expo-notifications, the notifications tab, settings/preferences page, billing page (external Stripe checkout), and the More tab. All API routes exist on the web backend. UI primitives from Stage 170 must be used throughout.
+**Context:** All 6 feature phases complete. EAS account created, Apple API key integrated, GitHub connected to EAS. Bundle ID `io.dockwalker.app` already set in `app.json`. EAS project ID `4a600184-f863-416e-b781-b90cc00b0f2a` linked. Goal: first iOS build on TestFlight for real user validation.
 
-#### 1. Docky AI advisor
+**This phase is mostly config + human actions, not feature code. The implementation agent handles config files; the user handles App Store Connect and EAS CLI commands.**
 
-**Context:** Crew-only AI maritime advisor. Uses existing `/api/advisor/` endpoints. Free tier: 3 questions/month. Crew Pro: unlimited. RAG pipeline runs server-side — mobile just sends messages and displays responses.
+#### 1. EAS Build configuration
 
-- [x] Create `apps/mobile/src/hooks/use-docky-conversations.ts`
-- [x] Create `apps/mobile/src/hooks/use-docky-messages.ts`
-- [x] Create `apps/mobile/src/hooks/use-docky-usage.ts`
-- [x] Create `apps/mobile/app/(app)/docky.tsx` — conversation list with usage pill, new conversation, delete via long-press, empty state with Docky intro.
-- [x] Create `apps/mobile/app/(app)/docky/[conversationId].tsx` — chat thread with user/assistant bubbles, collapsible sources, thinking state, 402 upgrade prompt, 500 char input.
-- [x] Link Docky from the More tab.
+- [x] Create `apps/mobile/eas.json` with three profiles:
+  ```json
+  {
+    "cli": { "version": ">= 15.0.0", "appVersionSource": "remote" },
+    "build": {
+      "development": {
+        "developmentClient": true,
+        "distribution": "internal",
+        "ios": { "simulator": true }
+      },
+      "preview": {
+        "distribution": "internal",
+        "ios": { "buildConfiguration": "Release" }
+      },
+      "production": {
+        "autoIncrement": true
+      }
+    },
+    "submit": {
+      "production": {
+        "ios": { "appleId": "<USER_APPLE_ID>", "ascAppId": "<ASC_APP_ID>" }
+      }
+    }
+  }
+  ```
+  The user fills in `appleId` and `ascAppId` from App Store Connect.
+- [x] Add `expo-notifications` to `app.json` plugins (required for push notification entitlements in the native build):
+  ```json
+  ["expo-notifications", { "icon": "./assets/images/icon.png", "sounds": [] }]
+  ```
+- [x] Add `expo-image-picker` to `app.json` plugins (camera/photo library permissions):
+  ```json
+  [
+    "expo-image-picker",
+    { "photosPermission": "Allow DockWalker to access your photos for avatar upload" }
+  ]
+  ```
+- [x] Verify `app.json` has all required fields: name, slug, version, ios.bundleIdentifier, android.package, scheme — all present.
 
-#### 2. Push notifications
+#### 2. Environment variables in EAS
 
-**Context:** Register Expo Push Token with the backend, handle foreground/background/tap. The backend already sends push via Expo Push Service — mobile just needs to register the token and handle incoming notifications.
+- [ ] Set environment variables in EAS dashboard (or via `eas env:create`):
+  - `EXPO_PUBLIC_SUPABASE_URL` — production Supabase project URL
+  - `EXPO_PUBLIC_SUPABASE_ANON_KEY` — production Supabase anon key
+  - `EXPO_PUBLIC_API_BASE_URL` — `https://dockwalker.io` (production Vercel)
+- [x] Verify `.env.example` in `apps/mobile/` documents all three variables — already present.
 
-- [x] Install `expo-notifications`.
-- [x] Create `apps/mobile/src/lib/push-notifications.ts` — register/deregister token, foreground suppression, tap→deep link navigation.
-- [x] Foreground handler: suppresses native notification when app is in foreground.
-- [x] Tap handler: maps deep_link data to correct screen (chat, discover, review, profile).
-- [x] Wire push registration into auth flow: register on fetchPerson success, deregister on signOut.
+#### 3. First iOS build (user action)
 
-#### 3. Notifications tab
+These are CLI commands the user runs, not implementation agent tasks.
 
-- [x] Create `apps/mobile/src/hooks/use-notifications.ts`
-- [x] Create `apps/mobile/src/hooks/use-notification-count.ts` — 30s staleTime, 60s refetchInterval.
-- [x] Rebuild `apps/mobile/app/(app)/(tabs)/notifications.tsx` — notification list with unread dot, tap→deep link, mark all read, pull-to-refresh, empty state.
-- [x] Wire unread badge count into tab navigator via `_layout.tsx` — `tabBarBadge` on Alerts and Messages tabs.
-- [x] Mark notification as read on tap via `apiPost('/api/notifications/${id}/read')`.
+- [ ] Run `cd apps/mobile && eas build --platform ios --profile preview` — first build. EAS compiles native code in the cloud, signs with the Apple API key. Takes ~15 minutes.
+- [ ] If build succeeds: run `eas submit --platform ios --profile production` to upload to TestFlight. Apple processing takes ~15 minutes.
+- [ ] If build fails: diagnose from EAS build logs, fix config, retry. Common issues: missing entitlements, wrong bundle ID, native module config.
 
-#### 4. Settings page
+#### 4. App Store Connect setup (user action)
 
-- [x] Create `apps/mobile/src/hooks/use-preferences.ts`
-- [x] Create `apps/mobile/app/(app)/settings.tsx` — notification toggles, sign out, data export, account deletion (type DELETE), change password, version/terms/privacy/support links.
-- [x] Link from More tab.
+- [ ] Create app in App Store Connect with bundle ID `io.dockwalker.app` (if not already created from Capacitor era — if it exists, the Expo build replaces it)
+- [ ] Add TestFlight testers (internal group first)
+- [ ] Fill in required metadata: app name "DockWalker", primary language, category (Business or Lifestyle)
+- [ ] Privacy policy URL and Terms of Service URL (required for TestFlight)
 
-#### 5. Billing page
+#### 5. Post-build validation checklist
 
-- [x] Create `apps/mobile/app/(app)/billing.tsx` — plan status, Crew Free/Pro tier cards, subscribe opens Safari (App Store compliance), manage subscription via Stripe portal.
-- [x] Link from More tab.
+After TestFlight build is available to testers:
 
-#### 6. More tab
+- [ ] App launches, sign-in works against production Supabase
+- [ ] Onboarding flow completes (crew identity, hat selection)
+- [ ] Discover tab: daywork swipe + permanent scroll with real production data
+- [ ] Apply to a daywork job (if test data exists in production)
+- [ ] My Jobs tab: visible when switching to employer hat
+- [ ] Messages tab: conversation list loads (empty if no engagements)
+- [ ] Profile tab: edit profile, add experience with IMO lookup
+- [ ] Push notification received when another user takes an action
+- [ ] Docky: send a question, receive AI response
+- [ ] Settings: notification toggles work
+- [ ] Billing: subscribe button opens Safari to dockwalker.io/billing
+- [ ] Hat switch: crew ↔ employer, tabs update
+- [ ] No crashes on any screen transition
 
-- [x] Rebuild `apps/mobile/app/(app)/(tabs)/more.tsx` — menu list: Docky, Settings, Billing, My Vessels (employer/agent only), Sign Out with confirmation, app version.
+#### 6. OTA update test
 
-#### 7. Phase 6 verification
+- [ ] After initial TestFlight validation, make a minor JS-only change (e.g. tweak a label in the More tab)
+- [ ] Run `eas update --branch preview --message "Test OTA"` from `apps/mobile/`
+- [ ] Verify the change appears in the TestFlight app without a new build (restart app)
+- [ ] This validates the OTA pipeline for rapid bug fixes during testing
 
-- [x] `turbo run type-check` passes
-- [ ] Docky: conversation list, new conversation, send message, receive AI response
-- [ ] Docky: free tier limit (402) shows upgrade prompt
-- [ ] Docky: delete conversation works
-- [ ] Push: token registered on sign-in, deregistered on sign-out
-- [ ] Push: tap notification navigates to correct screen
-- [ ] Notifications tab shows notification list with unread indicators
-- [ ] Tab badges show unread counts (notifications + messages)
-- [ ] Settings: notification toggles save immediately
-- [ ] Settings: data export downloads, account deletion works
-- [ ] Billing: shows current plan, subscribe opens Safari
-- [ ] More tab: all links navigate correctly
-- [x] All new screens use UI primitives — zero inline `#2563eb` (grep verified)
-- [ ] Web app completely unaffected
+#### 7. Phase 7 sign-off
+
+- [ ] 3+ tester devices have the Expo app installed via TestFlight
+- [ ] All 20 user-facing screens functional
+- [ ] Zero P0 bugs reported in 48 hours
+- [ ] OTA update pipeline verified
+- [ ] **After sign-off:** Capacitor removal can proceed per split spec Section 9
 
 ---
 
@@ -126,4 +164,4 @@ Mobile Phase 6: Docky + Polish — AI advisor, push notifications, notifications
 
 ## Done
 
-(See git history for completed stages 51-171. Mobile Phases 1-5 complete + UI primitives. Fix batches: 165b, 166, 169. CLAUDE.md + BUILD_STATE.md modernisation.)
+(See git history for completed stages 51-172. Mobile Phases 1-6 complete + UI primitives. Fix batches: 165b, 166, 169. CLAUDE.md + BUILD_STATE.md modernisation.)

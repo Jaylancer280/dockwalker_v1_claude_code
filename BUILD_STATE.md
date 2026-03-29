@@ -289,9 +289,11 @@ v77 — Permanent post fields (77 migrations applied)
 
 - [Stage 172] Mobile Phase 6: Docky + Polish — Docky AI advisor (conversation list, chat with sources, usage tracking, 402 upgrade prompt), push notifications (expo-notifications, token register/deregister, tap→deep link), notifications tab with badge counts on tabs, settings (notification prefs, data export, account deletion), billing (plan status, Stripe portal, external Safari checkout), More tab rebuild.
 
+- [Stage 173] Mobile Phase 7 config: EAS Build — eas.json (development/preview/production profiles), app.json plugins (expo-notifications entitlements, expo-image-picker permissions), .env.example verified. Ready for first `eas build`.
+
 ## In Progress
 
-Mobile Phase 6 — device testing pending (all Phase 1-6 flows)
+Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)
 
 ## Next Up
 

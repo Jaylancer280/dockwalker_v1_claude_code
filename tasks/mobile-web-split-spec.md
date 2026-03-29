@@ -21,7 +21,7 @@
 | Phase 4 — Messaging                                            | DONE        | Stage 169 + Fix 169. Conversations, chat, realtime, engagement actions, UI primitives.    |
 | Phase 5 — Profile + Experience                                 | DONE        | Stage 171. Profile view/edit, experience CRUD, vessels, avatar, hat switch, flag states.  |
 | Phase 6 — Docky + Polish                                       | DONE        | Stage 172. Docky AI, push notifications, notifications tab, settings, billing, More tab.  |
-| Phase 7 — Ship (iOS TestFlight)                                | NOT STARTED |                                                                                           |
+| Phase 7 — Ship (iOS TestFlight)                                | IN PROGRESS | EAS linked, Apple API key integrated. eas.json + env vars + first build next.             |
 | Phase 8 — Android polish pass                                  | NOT STARTED |                                                                                           |
 | Capacitor removal                                              | BLOCKED     | Waiting on Phase 7 validation                                                             |
 
