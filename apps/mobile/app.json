@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "dockwalker",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.dockwalker.app",
