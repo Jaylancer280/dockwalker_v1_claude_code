@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, ShieldAlert, Pencil } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
@@ -46,6 +46,14 @@ interface SizeBand {
 }
 
 export default function VesselsPage() {
+  return (
+    <Suspense>
+      <VesselsContent />
+    </Suspense>
+  );
+}
+
+function VesselsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = searchParams.get('returnTo');

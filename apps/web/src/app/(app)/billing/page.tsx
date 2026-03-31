@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Check, LifeBuoy } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
@@ -16,6 +16,14 @@ const FREE_FEATURES = ['3 questions/month', 'General MCA guidance', 'Source cita
 const PRO_FEATURES = ['Unlimited questions', 'Personalised career advice', 'Priority responses'];
 
 export default function BillingPage() {
+  return (
+    <Suspense>
+      <BillingContent />
+    </Suspense>
+  );
+}
+
+function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);

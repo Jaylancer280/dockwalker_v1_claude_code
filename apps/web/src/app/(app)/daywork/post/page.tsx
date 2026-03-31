@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -66,6 +66,14 @@ interface Template {
 type MealOption = 'breakfast' | 'lunch' | 'dinner';
 
 export default function PostDayworkPage() {
+  return (
+    <Suspense>
+      <PostDayworkContent />
+    </Suspense>
+  );
+}
+
+function PostDayworkContent() {
   const pageSearchParams = useSearchParams();
   const permanentTemplateId = pageSearchParams.get('permanentTemplateId');
   const [postingType, setPostingType] = useState<'daywork' | 'permanent' | null>(
