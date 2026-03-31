@@ -8,7 +8,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "simulator": true
+        "simulator": true,
+        "image": "latest"
       }
     },
     "preview": {
@@ -17,11 +18,15 @@
         "NPM_CONFIG_ENGINE_STRICT": "false"
       },
       "ios": {
-        "buildConfiguration": "Release"
+        "buildConfiguration": "Release",
+        "image": "latest"
       }
     },
     "production": {
       "autoIncrement": true,
+      "ios": {
+        "image": "latest"
+      },
       "env": {
         "NPM_CONFIG_ENGINE_STRICT": "false"
       }
