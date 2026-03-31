@@ -50,3 +50,4 @@ GoogleService-Info.plist
 *.mobileprovision
 *.p8
 *.p12
+eas.json
