@@ -92,7 +92,7 @@ export function JobCard({
         unoptimized
       />
       {/* White wash overlay — image visible as faded watermark */}
-      <div className="absolute inset-0 bg-white/80 dark:bg-black/75" />
+      <div className="absolute inset-0 bg-white/90 dark:bg-black/85" />
 
       {/* Card content */}
       <div className="relative flex h-full flex-col p-5">
