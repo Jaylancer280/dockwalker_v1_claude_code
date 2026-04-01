@@ -17,6 +17,8 @@ function makeRequest(body: unknown): Request {
   });
 }
 
+const mockRefreshSession = vi.fn().mockResolvedValue({ data: {}, error: null });
+
 function guardOk(overrides: Record<string, unknown> = {}) {
   return {
     ok: true,
@@ -24,7 +26,7 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       user: { id: 'u1' },
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
-      supabase: {},
+      supabase: { auth: { refreshSession: mockRefreshSession } },
       serviceClient: { rpc: mockRpc },
       ...overrides,
     },

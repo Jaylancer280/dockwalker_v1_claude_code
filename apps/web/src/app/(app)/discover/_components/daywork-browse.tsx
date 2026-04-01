@@ -4,7 +4,6 @@ import { type RefObject, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SegmentedToggle } from '@/components/ui/segmented-toggle';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
@@ -85,7 +84,6 @@ interface DayworkBrowseProps {
   onLoadCards: () => void;
   requireAvailability: () => boolean;
   browseMode: 'daywork' | 'permanent';
-  setBrowseMode: (mode: 'daywork' | 'permanent') => void;
   permanentFeed: React.ReactNode;
   feedError: string | null;
 }
@@ -131,7 +129,6 @@ export function DayworkBrowse({
   onLoadCards,
   requireAvailability,
   browseMode,
-  setBrowseMode,
   permanentFeed,
   feedError,
 }: DayworkBrowseProps) {
@@ -151,23 +148,6 @@ export function DayworkBrowse({
 
   return (
     <>
-      {/* Profile completion nudge removed — section hints on profile page serve this purpose */}
-
-      {/* Daywork / Permanent toggle */}
-      <div className="mx-auto max-w-lg mt-2 px-4">
-        <SegmentedToggle
-          options={[
-            { value: 'daywork', label: 'Daywork' },
-            { value: 'permanent', label: 'Permanent' },
-          ]}
-          value={browseMode}
-          onChange={(v) => {
-            setBrowseMode(v as 'daywork' | 'permanent');
-            localStorage.setItem('dw-browse-mode', v);
-          }}
-        />
-      </div>
-
       {browseMode === 'permanent' && permanentFeed}
 
       {browseMode === 'daywork' && (

@@ -103,15 +103,15 @@ describe('GET /api/daywork/applications', () => {
         },
       ]),
     );
-    // Vessel RPC
+    // Batch vessel RPC
     mockRpc.mockResolvedValueOnce({
-      data: {
+      data: [{
         id: 'v1',
         name: 'MY Serenity',
         vessel_type: 'motor',
         size_band_label: '40-60m',
         nda_flag: false,
-      },
+      }],
       error: null,
     });
 
@@ -163,13 +163,13 @@ describe('GET /api/daywork/applications', () => {
       ]),
     );
     mockRpc.mockResolvedValueOnce({
-      data: {
+      data: [{
         id: 'v2',
         name: 'Secret Yacht',
         vessel_type: 'sail',
         size_band_label: '60-80m',
         nda_flag: true,
-      },
+      }],
       error: null,
     });
 

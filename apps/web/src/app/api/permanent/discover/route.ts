@@ -132,19 +132,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ postings: [], has_more: false, next_cursor: null });
     }
 
-    // Hydrate vessel data
+    // Hydrate vessel data (single batch query instead of N+1)
     const vesselIds = [...new Set(rows.map((r) => r.vessel_id as string).filter(Boolean))];
-    const vesselEntries: Array<[string, PublicVesselRow | null]> = await Promise.all(
-      vesselIds.map(async (vesselId): Promise<[string, PublicVesselRow | null]> => {
-        const { data, error: vErr } = await supabase.rpc('get_vessel_public', {
-          p_vessel_id: vesselId,
-        });
-        if (vErr) return [vesselId, null];
-        const vessel = Array.isArray(data) ? data[0] : data;
-        return vessel ? [vesselId, vessel as PublicVesselRow] : [vesselId, null];
-      }),
-    );
-    const vesselMap = new Map<string, PublicVesselRow | null>(vesselEntries);
+    const vesselMap = new Map<string, PublicVesselRow | null>();
+    if (vesselIds.length > 0) {
+      const { data: vessels } = await supabase.rpc('get_vessels_public_batch', {
+        p_vessel_ids: vesselIds,
+      });
+      for (const v of (vessels ?? []) as PublicVesselRow[]) {
+        vesselMap.set(v.id, v);
+      }
+    }
 
     // Resolve poster display names
     const posterIds = [...new Set(rows.map((r) => r.employer_person_id as string))];

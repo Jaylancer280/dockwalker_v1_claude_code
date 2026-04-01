@@ -61,14 +61,50 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Try to read identity from JWT custom claims (injected by custom_access_token_hook)
+  // Falls back to DB query if claims are missing (pre-hook sessions, onboarding in progress)
+  const appMeta = user?.app_metadata as
+    | {
+        person_id?: string;
+        current_hat?: string;
+        identity_type?: string;
+        onboarded?: boolean;
+        deactivated?: boolean;
+      }
+    | undefined;
+
+  const hasClaims = !!(appMeta?.person_id && appMeta?.current_hat && appMeta?.identity_type);
+
   // Authenticated: check onboarding status
   if (user && !isPublicRoute && !path.startsWith('/onboarding')) {
-    const [{ data: person }, { data: profile }] = await Promise.all([
-      supabase.from('persons').select('id, current_hat, identity_type').eq('id', user.id).single(),
-      supabase.from('profiles').select('person_id').eq('person_id', user.id).single(),
-    ]);
+    let personId: string | null = null;
+    let currentHat: string | null = null;
+    let identityType: string | null = null;
+    let onboarded = false;
 
-    if (!person || !profile) {
+    if (hasClaims) {
+      // Fast path: read from JWT claims (zero DB queries)
+      personId = appMeta!.person_id!;
+      currentHat = appMeta!.current_hat!;
+      identityType = appMeta!.identity_type!;
+      onboarded = appMeta!.onboarded === true;
+    } else {
+      // Fallback: DB query (backward compat for sessions minted before hook was enabled)
+      const [{ data: person }, { data: profile }] = await Promise.all([
+        supabase
+          .from('persons')
+          .select('id, current_hat, identity_type')
+          .eq('id', user.id)
+          .single(),
+        supabase.from('profiles').select('person_id').eq('person_id', user.id).single(),
+      ]);
+      personId = person?.id ?? null;
+      currentHat = person?.current_hat ?? null;
+      identityType = person?.identity_type ?? null;
+      onboarded = !!(person && profile);
+    }
+
+    if (!onboarded) {
       const url = request.nextUrl.clone();
       url.pathname = '/onboarding';
       return NextResponse.redirect(url);
@@ -77,19 +113,19 @@ export async function updateSession(request: NextRequest) {
     // Hat-routed landing: redirect /dashboard (and /) to the primary action surface
     if (path === '/dashboard' || path === '/') {
       const url = request.nextUrl.clone();
-      url.pathname = person.current_hat === 'crew' ? '/discover' : '/daywork/mine';
+      url.pathname = currentHat === 'crew' ? '/discover' : '/daywork/mine';
       return NextResponse.redirect(url);
     }
 
     // Agent cannot access crew discover — redirect to market feed
-    if (person.identity_type === 'agent' && path === '/discover') {
+    if (identityType === 'agent' && path === '/discover') {
       const url = request.nextUrl.clone();
       url.pathname = '/discover/market';
       return NextResponse.redirect(url);
     }
 
     // Employer hat cannot access crew discover — redirect to mine
-    if (person.current_hat === 'employer' && path === '/discover') {
+    if (currentHat === 'employer' && path === '/discover') {
       const url = request.nextUrl.clone();
       url.pathname = '/daywork/mine';
       return NextResponse.redirect(url);
@@ -97,7 +133,7 @@ export async function updateSession(request: NextRequest) {
 
     // Crew cannot access employer review pages — redirect to discover
     if (
-      person.current_hat === 'crew' &&
+      currentHat === 'crew' &&
       (/^\/daywork\/[^/]+\/review/.test(path) || /^\/permanent\/[^/]+\/review/.test(path))
     ) {
       const url = request.nextUrl.clone();
@@ -108,21 +144,32 @@ export async function updateSession(request: NextRequest) {
 
   // On onboarding page but already onboarded → redirect by hat
   if (user && path.startsWith('/onboarding')) {
-    const { data: person } = await supabase
-      .from('persons')
-      .select('id, current_hat, identity_type')
-      .eq('id', user.id)
-      .single();
+    let currentHat: string | null = null;
+    let onboarded = false;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('person_id')
-      .eq('person_id', user.id)
-      .single();
+    if (hasClaims) {
+      currentHat = appMeta!.current_hat!;
+      onboarded = appMeta!.onboarded === true;
+    } else {
+      const { data: person } = await supabase
+        .from('persons')
+        .select('id, current_hat, identity_type')
+        .eq('id', user.id)
+        .single();
 
-    if (person && profile) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('person_id')
+        .eq('person_id', user.id)
+        .single();
+
+      currentHat = person?.current_hat ?? null;
+      onboarded = !!(person && profile);
+    }
+
+    if (onboarded) {
       const url = request.nextUrl.clone();
-      url.pathname = person.current_hat === 'crew' ? '/discover' : '/daywork/mine';
+      url.pathname = currentHat === 'crew' ? '/discover' : '/daywork/mine';
       return NextResponse.redirect(url);
     }
   }

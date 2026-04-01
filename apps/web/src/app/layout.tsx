@@ -24,8 +24,8 @@ export const metadata: Metadata = {
     'Superyacht hiring, simplified — daywork and permanent positions for crew and employers',
   manifest: '/manifest.json',
   icons: {
-    icon: '/images/brand/dw_app_icon_cropped.png',
-    apple: '/images/brand/dw_app_icon_cropped.png',
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
   },
   appleWebApp: {
     capable: true,

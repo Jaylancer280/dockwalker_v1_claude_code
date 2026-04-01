@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v77 — Permanent post fields (77 migrations applied)
+v79 — Batch vessel lookup (79 migrations applied)
 
 ## Migrations Applied
 
@@ -262,6 +262,8 @@ v77 — Permanent post fields (77 migrations applied)
 | `00074_vessels_rls_read_access.sql` | Vessels RLS fix: 3 new SELECT policies — authenticated non-NDA read, engaged user NDA read, crew experience NDA read; unblocks PostgREST embedded joins for non-owners |
 | `00075_placement_confirmed_status.sql` | Adds `placement_confirmed` to application status CHECK; updates PERMANENT.PLACEMENT_CONFIRMED handler to mark selected application as terminal |
 | `00076_seed_experience_brackets.sql` | Seeds 5 experience bracket rows via migration for production (seed files only run locally); idempotent with `ON CONFLICT DO NOTHING` |
+| `00078_custom_access_token_hook.sql` | Custom access token hook: injects `person_id`, `current_hat`, `identity_type`, `onboarded`, `deactivated` into JWT app_metadata. Requires dashboard enablement. Grants to `supabase_auth_admin`. |
+| `00079_batch_vessel_lookup.sql` | `get_vessels_public_batch(uuid[])` RPC — same NDA logic as `get_vessel_public` but operates on array of vessel IDs via `WHERE id = ANY(p_vessel_ids)` |
 
 ## Deferred Decisions
 
@@ -290,6 +292,8 @@ v77 — Permanent post fields (77 migrations applied)
 - [Stage 172] Mobile Phase 6: Docky + Polish — Docky AI advisor (conversation list, chat with sources, usage tracking, 402 upgrade prompt), push notifications (expo-notifications, token register/deregister, tap→deep link), notifications tab with badge counts on tabs, settings (notification prefs, data export, account deletion), billing (plan status, Stripe portal, external Safari checkout), More tab rebuild.
 
 - [Stage 173] Mobile Phase 7 config: EAS Build — eas.json (development/preview/production profiles), app.json plugins (expo-notifications entitlements, expo-image-picker permissions), .env.example verified. Ready for first `eas build`.
+
+- [Stage 174] Web performance + UI polish — (A) hat switcher: "Switch to {otherHat}" action text replaces ambiguous current hat name; (B) full-bleed department images on job cards: `getDepartmentImageSrc` helper extracted, daywork+permanent cards use absolute-fill background with dark gradient overlay, all text switched to white/alpha, `DepartmentChip` no longer used in cards; (C) daywork/permanent toggle relocated from browse content to sticky header bar, "Discover" title removed; (D) JWT custom claims: migration 00078 `custom_access_token_hook` injects person_id/current_hat/identity_type/onboarded into app_metadata, middleware+auth guard read claims first with DB fallback, hat switch forces token refresh, 4 new auth guard tests; (E) batch vessel lookup: migration 00079 `get_vessels_public_batch(uuid[])` replaces N+1 `get_vessel_public` calls across 5 routes (daywork+permanent discover, applications, invitations); 912 tests pass
 
 ## In Progress
 

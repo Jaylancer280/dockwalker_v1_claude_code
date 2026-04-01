@@ -4,9 +4,9 @@ import { forwardRef, useImperativeHandle } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide-react';
+import Image from 'next/image';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { DepartmentChip } from '@/components/department-chip';
-import { Badge } from '@/components/ui/badge';
+import { getDepartmentImageSrc } from '@/lib/department-image';
 import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
 
@@ -72,17 +72,31 @@ export function JobCard({
   crewCertIds,
   crewLangs,
 }: JobCardProps) {
+  const bgSrc = getDepartmentImageSrc(card.yacht_roles?.department, card.id);
+
   return (
     <div
-      className={`h-full w-full rounded-[14px] border border-[var(--border)] bg-[var(--card)] ${
+      className={`relative h-full w-full overflow-hidden rounded-[14px] border border-white/10 ${
         isPreview ? 'scale-[0.97] opacity-60' : ''
       }`}
     >
-      <div className="flex h-full flex-col p-5">
+      {/* Full-bleed department background */}
+      <Image
+        src={bgSrc}
+        alt=""
+        fill
+        className="object-cover"
+        sizes="(max-width: 640px) 100vw, 400px"
+        priority
+      />
+      {/* Dark gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/65 to-black/45" />
+
+      {/* Card content */}
+      <div className="relative flex h-full flex-col p-5 text-white">
         {/* Role + vessel */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
-            <DepartmentChip department={card.yacht_roles?.department} seed={card.id} size="sm" />
             <h3 className="flex-1 text-[15px] font-semibold tracking-[-0.3px] flex items-center gap-1.5">
               {card.yacht_roles?.name ?? 'Unknown role'}
               {card.yacht_roles?.name && (
@@ -91,7 +105,7 @@ export function JobCard({
             </h3>
             {!isPreview && (
               <button
-                className="text-muted-foreground hover:text-primary"
+                className="text-white/60 hover:text-white"
                 onClick={(e) => {
                   e.stopPropagation();
                   onViewProfile?.(card.poster_person_id);
@@ -101,7 +115,7 @@ export function JobCard({
               </button>
             )}
           </div>
-          <p className="text-[13px] text-muted-foreground">
+          <p className="text-[13px] text-white/70">
             {card.vessels?.nda_flag
               ? 'NDA Vessel'
               : `${card.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} ${card.vessels?.name ?? 'Unknown vessel'}`}
@@ -116,14 +130,14 @@ export function JobCard({
         {/* Poster name + positions */}
         <div className="mb-2 flex items-center gap-2">
           {card.poster_name && (
-            <p className="text-xs text-muted-foreground">Posted by {card.poster_name}</p>
+            <p className="text-xs text-white/60">Posted by {card.poster_name}</p>
           )}
           {card.positions_available > 1 && (
             <span
               className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                 card.positions_remaining === 1
-                  ? 'bg-[var(--warning-lo)] text-[var(--warning)]'
-                  : 'bg-[var(--accent-lo)] text-[var(--accent)]'
+                  ? 'bg-amber-500/20 text-amber-300'
+                  : 'bg-white/15 text-white/90'
               }`}
             >
               {card.positions_remaining === 1
@@ -136,7 +150,7 @@ export function JobCard({
         {/* Details */}
         <div className="flex flex-col gap-2.5">
           <div className="flex items-center gap-2 text-[13px]">
-            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <MapPin className="h-4 w-4 shrink-0 text-white/60" />
             <span>
               {card.ports?.name ?? 'Unknown'}
               {card.ports?.cities?.name && `, ${card.ports.cities.name}`}
@@ -145,7 +159,7 @@ export function JobCard({
           </div>
 
           <div className="flex items-center gap-2 text-[13px]">
-            <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <Calendar className="h-4 w-4 shrink-0 text-white/60" />
             <span>
               {card.start_date} — {card.end_date} ({card.working_days} working day
               {card.working_days !== 1 ? 's' : ''})
@@ -153,21 +167,19 @@ export function JobCard({
           </div>
 
           <div className="flex items-center gap-2 text-[13px]">
-            <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 shrink-0 text-white/60" />
             <span>
               <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
                 {currencySymbol(card.currency)}
                 {card.day_rate}
               </span>
-              <span className="text-[11px] font-medium text-[var(--muted-foreground)] opacity-60">
-                /day
-              </span>
+              <span className="text-[11px] font-medium text-white/40">/day</span>
             </span>
           </div>
 
           {card.experience_brackets?.label && (
             <div className="flex items-center gap-2 text-[13px]">
-              <Award className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <Award className="h-4 w-4 shrink-0 text-white/60" />
               <span>{card.experience_brackets.label}</span>
             </div>
           )}
@@ -185,10 +197,10 @@ export function JobCard({
                     key={certId ?? certName}
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       held
-                        ? 'bg-[var(--success-lo)] text-[var(--success)]'
+                        ? 'bg-emerald-500/20 text-emerald-300'
                         : missing
-                          ? 'bg-[var(--warning-lo)] text-[var(--warning)]'
-                          : 'border border-muted-foreground/30 text-muted-foreground'
+                          ? 'bg-amber-500/20 text-amber-300'
+                          : 'border border-white/30 text-white/70'
                     }`}
                   >
                     {certName}
@@ -207,10 +219,10 @@ export function JobCard({
                     key={code}
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       held
-                        ? 'bg-[var(--success-lo)] text-[var(--success)]'
+                        ? 'bg-emerald-500/20 text-emerald-300'
                         : missing
-                          ? 'bg-[var(--warning-lo)] text-[var(--warning)]'
-                          : 'border border-muted-foreground/30 text-muted-foreground'
+                          ? 'bg-amber-500/20 text-amber-300'
+                          : 'border border-white/30 text-white/70'
                     }`}
                   >
                     {languageLabel(code)}
@@ -226,44 +238,45 @@ export function JobCard({
           {card.meals &&
             card.meals.length > 0 &&
             card.meals.map((meal) => (
-              <Badge key={meal} variant="secondary" className="text-xs capitalize">
+              <span
+                key={meal}
+                className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-medium text-white/80 capitalize"
+              >
                 {meal}
-              </Badge>
+              </span>
             ))}
           {card.permanent_opportunity && (
-            <Badge variant="outline" className="text-xs">
+            <span className="rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80">
               Could go permanent
-            </Badge>
+            </span>
           )}
         </div>
 
         {/* Notes */}
-        {card.notes && (
-          <p className="mt-3 text-sm text-muted-foreground line-clamp-3">{card.notes}</p>
-        )}
+        {card.notes && <p className="mt-3 text-sm text-white/60 line-clamp-3">{card.notes}</p>}
 
         {/* Spacer */}
         <div className="flex-1" />
 
         {/* Footer with divider */}
-        <div className="mt-2 border-t border-[var(--border)] pt-2 flex items-center justify-between">
+        <div className="mt-2 border-t border-white/15 pt-2 flex items-center justify-between">
           {onComposeMessage ? (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onComposeMessage();
               }}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white"
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Apply with a message
             </button>
           ) : (
-            <span className="font-mono text-[11px] text-[var(--tertiary)]">
+            <span className="font-mono text-[11px] text-white/40">
               DW-{String(card.job_number).padStart(5, '0')}
             </span>
           )}
-          <span className="font-mono text-[11px] text-[var(--tertiary)]">
+          <span className="font-mono text-[11px] text-white/40">
             {onComposeMessage
               ? `DW-${String(card.job_number).padStart(5, '0')}`
               : `Posted ${new Date(card.created_at).toLocaleDateString()}`}

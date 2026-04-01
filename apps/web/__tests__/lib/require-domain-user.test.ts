@@ -93,4 +93,107 @@ describe('requireDomainUser', () => {
       expect(result.value.person.current_hat).toBe('crew');
     }
   });
+
+  // --- JWT custom claims fast path ---
+
+  it('returns ok using JWT claims without DB queries', async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'u1',
+          app_metadata: {
+            person_id: 'u1',
+            current_hat: 'employer',
+            identity_type: 'crew',
+            onboarded: true,
+          },
+        },
+      },
+    });
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.person.id).toBe('u1');
+      expect(result.value.person.current_hat).toBe('employer');
+      expect(result.value.person.identity_type).toBe('crew');
+      expect(result.value.person.is_admin).toBe(false);
+    }
+    // No DB queries should have been made (mockFrom not called)
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 via claims when user is deactivated', async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'u1',
+          app_metadata: {
+            person_id: 'u1',
+            current_hat: 'crew',
+            identity_type: 'crew',
+            onboarded: true,
+            deactivated: true,
+          },
+        },
+      },
+    });
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(403);
+    }
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 via claims when not onboarded', async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'u1',
+          app_metadata: {
+            person_id: 'u1',
+            current_hat: 'crew',
+            identity_type: 'crew',
+            onboarded: false,
+          },
+        },
+      },
+    });
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(409);
+    }
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('falls back to DB queries when claims are incomplete', async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'u1',
+          app_metadata: { person_id: 'u1' }, // missing current_hat, identity_type
+        },
+      },
+    });
+    // Fallback DB queries
+    mockFrom.mockReturnValueOnce(
+      chainBuilder({
+        id: 'u1',
+        identity_type: 'crew',
+        current_hat: 'crew',
+        is_admin: false,
+        deactivated_at: null,
+      }),
+    );
+    mockFrom.mockReturnValueOnce(chainBuilder({ person_id: 'u1' }));
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(true);
+    // DB fallback was used
+    expect(mockFrom).toHaveBeenCalledTimes(2);
+  });
 });

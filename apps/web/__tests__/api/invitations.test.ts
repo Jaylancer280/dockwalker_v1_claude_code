@@ -85,9 +85,9 @@ describe('GET /api/daywork/invitations', () => {
         }),
       }),
     });
-    // vessel RPC
+    // Batch vessel RPC
     mockRpc.mockResolvedValueOnce({
-      data: { id: 'v-1', name: 'M/Y Serenity', vessel_type: 'motor', size_band_label: '30-50m', nda_flag: false },
+      data: [{ id: 'v-1', name: 'M/Y Serenity', vessel_type: 'motor', size_band_label: '30-50m', nda_flag: false }],
       error: null,
     });
 

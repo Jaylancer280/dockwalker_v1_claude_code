@@ -62,7 +62,9 @@ The current app expects the following RPCs to exist in `public`:
 - `onboard_person`
 - `clear_availability_dates`
 - `get_vessel_public`
+- `get_vessels_public_batch` (batch version — used by discover, applications, invitations routes)
 - `increment_advisor_usage`
+- `custom_access_token_hook` (Auth hook — injects person_id/current_hat/identity_type into JWT; enable in Dashboard → Auth → Hooks)
 
 If you see errors like:
 

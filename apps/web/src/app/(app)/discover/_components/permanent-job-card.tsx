@@ -1,10 +1,10 @@
 'use client';
 
+import Image from 'next/image';
 import { MapPin, Briefcase, Award, Calendar, Users, Ship, User } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { DepartmentChip } from '@/components/department-chip';
+import { getDepartmentImageSrc } from '@/lib/department-image';
 import { currencySymbol } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
 
@@ -96,174 +96,189 @@ export function PermanentJobCard({
     ? 'NDA Vessel'
     : `${vesselPrefix} ${posting.vessel_name ?? 'Unknown'}`.trim();
 
+  const bgSrc = getDepartmentImageSrc(posting.role_department, posting.id);
+
   return (
     <div
-      className="cursor-pointer rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
+      className="relative cursor-pointer overflow-hidden rounded-[14px] border border-white/10"
       onClick={onTap}
     >
-      {/* Header: role + epaulette + vessel chip + job ref */}
-      <div className="mb-3 flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <DepartmentChip department={posting.role_department} seed={posting.id} size="sm" />
-          <span className="text-[15px] font-semibold tracking-[-0.3px]">
-            {posting.role_name ?? 'Unknown Role'}
+      {/* Full-bleed department background */}
+      <Image
+        src={bgSrc}
+        alt=""
+        fill
+        className="object-cover"
+        sizes="(max-width: 640px) 100vw, 400px"
+      />
+      {/* Dark gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/65 to-black/45" />
+
+      {/* Card content */}
+      <div className="relative p-4 text-white">
+        {/* Header: role + epaulette + job ref */}
+        <div className="mb-3 flex items-start justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-[15px] font-semibold tracking-[-0.3px]">
+              {posting.role_name ?? 'Unknown Role'}
+            </span>
+            {posting.role_name && <EpauletteBadge roleName={posting.role_name} size="sm" />}
+          </div>
+          <span className="font-mono text-[11px] text-white/40">
+            PM-{String(posting.job_number).padStart(5, '0')}
           </span>
-          {posting.role_name && <EpauletteBadge roleName={posting.role_name} size="sm" />}
         </div>
-        <span className="font-mono text-[11px] text-[var(--tertiary)]">
-          PM-{String(posting.job_number).padStart(5, '0')}
-        </span>
-      </div>
 
-      {/* Vessel */}
-      <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-        <Ship className="h-3.5 w-3.5" />
-        <span>{vesselDisplay}</span>
-        {posting.vessel_loa ? (
-          <span className="text-xs">({posting.vessel_loa}m)</span>
-        ) : posting.vessel_size_label ? (
-          <span className="text-xs">({posting.vessel_size_label})</span>
-        ) : null}
-      </div>
+        {/* Vessel */}
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-white/70">
+          <Ship className="h-3.5 w-3.5" />
+          <span>{vesselDisplay}</span>
+          {posting.vessel_loa ? (
+            <span className="text-xs">({posting.vessel_loa}m)</span>
+          ) : posting.vessel_size_label ? (
+            <span className="text-xs">({posting.vessel_size_label})</span>
+          ) : null}
+        </div>
 
-      {/* Location */}
-      <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-        <MapPin className="h-3.5 w-3.5" />
-        <span>
-          {[posting.port_name, posting.city_name, posting.region_name].filter(Boolean).join(', ')}
-        </span>
-      </div>
+        {/* Location */}
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-white/70">
+          <MapPin className="h-3.5 w-3.5" />
+          <span>
+            {[posting.port_name, posting.city_name, posting.region_name].filter(Boolean).join(', ')}
+          </span>
+        </div>
 
-      {/* Salary */}
-      <div className="mb-2 flex items-center gap-1.5 text-[13px]">
-        <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
-          {formatSalary(
-            posting.salary_min,
-            posting.salary_max,
-            posting.salary_currency,
-            posting.salary_period,
+        {/* Salary */}
+        <div className="mb-2 flex items-center gap-1.5 text-[13px]">
+          <Briefcase className="h-3.5 w-3.5 text-white/60" />
+          <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
+            {formatSalary(
+              posting.salary_min,
+              posting.salary_max,
+              posting.salary_currency,
+              posting.salary_period,
+            )}
+          </span>
+        </div>
+
+        {/* Start date */}
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-white/70">
+          <Calendar className="h-3.5 w-3.5" />
+          <span>Start: {formatStartDate(posting.start_date)}</span>
+        </div>
+
+        {/* Badges row */}
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {posting.contract_type && posting.contract_type !== 'permanent' && (
+            <span className="rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80 capitalize">
+              {posting.contract_type}
+            </span>
           )}
-        </span>
-      </div>
+          {posting.positions_available > 1 && (
+            <span className="inline-flex items-center rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80">
+              <Users className="mr-0.5 h-3 w-3" />
+              {posting.positions_available} position{posting.positions_available !== 1 ? 's' : ''}
+            </span>
+          )}
+          {posting.live_aboard && (
+            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300">
+              Live aboard
+            </span>
+          )}
+          {posting.meals?.length > 0 && (
+            <span className="rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80">
+              Meals: {posting.meals.join(', ')}
+            </span>
+          )}
+          {posting.experience_label && (
+            <span className="rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80">
+              {posting.experience_label}
+            </span>
+          )}
+          {posting.cert_names.map((name, i) => {
+            const certId = posting.required_certification_ids[i];
+            const held = crewCertIds ? crewCertIds.includes(certId) : undefined;
+            return (
+              <span
+                key={name}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  held === true
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : held === false
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'border border-white/30 text-white/70'
+                }`}
+              >
+                <Award className="mr-0.5 h-3 w-3" />
+                {name}
+              </span>
+            );
+          })}
+          {posting.required_languages?.map((code) => {
+            const held = crewLangs ? crewLangs.includes(code) : undefined;
+            return (
+              <span
+                key={code}
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                  held === true
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : held === false
+                      ? 'bg-amber-500/20 text-amber-300'
+                      : 'border border-white/30 text-white/70'
+                }`}
+              >
+                {languageLabel(code)}
+              </span>
+            );
+          })}
+        </div>
 
-      {/* Start date */}
-      <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
-        <Calendar className="h-3.5 w-3.5" />
-        <span>Start: {formatStartDate(posting.start_date)}</span>
-      </div>
+        {/* Shortlist info */}
+        <div className="mb-3 flex items-center gap-1.5 text-xs text-white/60">
+          <Users className="h-3.5 w-3.5" />
+          <span>Shortlist: up to {posting.shortlist_cap} candidates</span>
+        </div>
 
-      {/* Badges row */}
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        {posting.contract_type && posting.contract_type !== 'permanent' && (
-          <Badge variant="outline" className="capitalize">
-            {posting.contract_type}
-          </Badge>
-        )}
-        {posting.positions_available > 1 && (
-          <Badge variant="outline">
-            <Users className="mr-0.5 h-3 w-3" />
-            {posting.positions_available} position{posting.positions_available !== 1 ? 's' : ''}
-          </Badge>
-        )}
-        {posting.live_aboard && (
-          <Badge variant="secondary" className="bg-[var(--success-lo)] text-[var(--success)]">
-            Live aboard
-          </Badge>
-        )}
-        {posting.meals?.length > 0 && (
-          <Badge variant="outline" className="text-xs">
-            Meals: {posting.meals.join(', ')}
-          </Badge>
-        )}
-        {posting.experience_label && <Badge variant="outline">{posting.experience_label}</Badge>}
-        {posting.cert_names.map((name, i) => {
-          const certId = posting.required_certification_ids[i];
-          const held = crewCertIds ? crewCertIds.includes(certId) : undefined;
-          return (
-            <Badge
-              key={name}
-              variant="outline"
-              className={
-                held === true
-                  ? 'border-transparent bg-[var(--success-lo)] text-[var(--success)] text-xs'
-                  : held === false
-                    ? 'border-transparent bg-[var(--warning-lo)] text-[var(--warning)] text-xs'
-                    : 'text-xs'
-              }
+        {/* Footer: poster + time */}
+        <div className="flex items-center justify-between border-t border-white/15 pt-3 text-xs text-white/60">
+          {posting.poster_name && (
+            <button
+              className="hover:text-white hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (posting.poster_person_id && onPosterTap) {
+                  onPosterTap(posting.poster_person_id);
+                }
+              }}
             >
-              <Award className="mr-0.5 h-3 w-3" />
-              {name}
-            </Badge>
-          );
-        })}
-        {posting.required_languages?.map((code) => {
-          const held = crewLangs ? crewLangs.includes(code) : undefined;
-          return (
-            <Badge
-              key={code}
-              variant="outline"
-              className={
-                held === true
-                  ? 'border-transparent bg-[var(--success-lo)] text-[var(--success)] text-xs'
-                  : held === false
-                    ? 'border-transparent bg-[var(--warning-lo)] text-[var(--warning)] text-xs'
-                    : 'text-xs'
-              }
-            >
-              {languageLabel(code)}
-            </Badge>
-          );
-        })}
-      </div>
+              <User className="mr-1 inline h-3 w-3" />
+              Posted by {posting.poster_name}
+            </button>
+          )}
+          <span className="font-mono text-[11px] text-white/40">{daysAgo(posting.created_at)}</span>
+        </div>
 
-      {/* Shortlist info */}
-      <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Users className="h-3.5 w-3.5" />
-        <span>Shortlist: up to {posting.shortlist_cap} candidates</span>
-      </div>
-
-      {/* Footer: poster + time */}
-      <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs text-muted-foreground">
-        {posting.poster_name && (
-          <button
-            className="hover:text-primary hover:underline"
+        {/* Apply button */}
+        {canApply ? (
+          <Button
+            className="mt-3 w-full"
+            disabled={applying}
             onClick={(e) => {
               e.stopPropagation();
-              if (posting.poster_person_id && onPosterTap) {
-                onPosterTap(posting.poster_person_id);
-              }
+              if (onApply) onApply(posting.id);
             }}
           >
-            <User className="mr-1 inline h-3 w-3" />
-            Posted by {posting.poster_name}
-          </button>
-        )}
-        <span className="font-mono text-[11px] text-[var(--tertiary)]">
-          {daysAgo(posting.created_at)}
-        </span>
-      </div>
-
-      {/* Apply button */}
-      {canApply ? (
-        <Button
-          className="mt-3 w-full"
-          disabled={applying}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onApply) onApply(posting.id);
-          }}
-        >
-          {applying ? 'Applying...' : 'Apply'}
-        </Button>
-      ) : (
-        <div className="mt-3">
-          <Button className="w-full" disabled>
-            Missing certifications
+            {applying ? 'Applying...' : 'Apply'}
           </Button>
-          <p className="mt-1 text-xs text-muted-foreground">Requires: {missingCerts.join(', ')}</p>
-        </div>
-      )}
+        ) : (
+          <div className="mt-3">
+            <Button className="w-full" disabled>
+              Missing certifications
+            </Button>
+            <p className="mt-1 text-xs text-white/60">Requires: {missingCerts.join(', ')}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

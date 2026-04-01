@@ -283,13 +283,12 @@ describe('GET /api/daywork/discover', () => {
 
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
-    // v1 has size band sb-match, v2 has sb-other
+    // Batch vessel lookup returns both vessels in one call
     mockRpc.mockResolvedValueOnce({
-      data: [{ id: 'v1', imo_number: null, name: 'Vessel A', vessel_type: 'motor', size_band_id: 'sb-match', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
-      error: null,
-    });
-    mockRpc.mockResolvedValueOnce({
-      data: [{ id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'sail', size_band_id: 'sb-other', size_band_label: '20-30m', nda_flag: false, owner_person_id: 'o2' }],
+      data: [
+        { id: 'v1', imo_number: null, name: 'Vessel A', vessel_type: 'motor', size_band_id: 'sb-match', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' },
+        { id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'sail', size_band_id: 'sb-other', size_band_label: '20-30m', nda_flag: false, owner_person_id: 'o2' },
+      ],
       error: null,
     });
     mockFromAuth.mockReturnValueOnce(makeProfilesChain());

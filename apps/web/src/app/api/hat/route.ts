@@ -44,6 +44,11 @@ export async function POST(request: Request) {
       },
       personId: user.id,
     });
+
+    // Force token refresh so JWT custom claims pick up the new hat immediately.
+    // updateUser triggers a new access token with the updated current_hat claim.
+    const { supabase } = guard.value;
+    await supabase.auth.refreshSession();
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to switch hat';
     return NextResponse.json({ error: message }, { status: 500 });

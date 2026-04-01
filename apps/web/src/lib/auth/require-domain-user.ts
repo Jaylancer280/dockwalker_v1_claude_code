@@ -26,6 +26,67 @@ export async function requireDomainUser(): Promise<GuardResult> {
     };
   }
 
+  // Try JWT custom claims first (injected by custom_access_token_hook — zero DB queries)
+  const appMeta = user.app_metadata as
+    | {
+        person_id?: string;
+        current_hat?: string;
+        identity_type?: string;
+        onboarded?: boolean;
+        deactivated?: boolean;
+      }
+    | undefined;
+
+  const hasClaims = !!(
+    appMeta?.person_id &&
+    appMeta?.current_hat &&
+    appMeta?.identity_type &&
+    appMeta?.onboarded !== undefined
+  );
+
+  if (hasClaims) {
+    // Fast path: read identity from JWT claims
+    if (appMeta!.deactivated) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: 'Account deactivated' }, { status: 403 }),
+      };
+    }
+
+    if (!appMeta!.onboarded) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: 'Complete onboarding before using this feature' },
+          { status: 409 },
+        ),
+      };
+    }
+
+    const serviceClient = await createServiceClient();
+
+    // is_admin is not in claims (rare, security-sensitive) — default to false
+    // Admin routes query the DB themselves via the admin guard
+    const person = {
+      id: appMeta!.person_id!,
+      identity_type: appMeta!.identity_type!,
+      current_hat: appMeta!.current_hat! as RoleContext,
+      is_admin: false,
+    };
+
+    return {
+      ok: true,
+      value: {
+        user,
+        person,
+        profile: { person_id: appMeta!.person_id! },
+        supabase,
+        serviceClient,
+      },
+    };
+  }
+
+  // Fallback: DB queries (pre-hook sessions or claims missing)
   const { data: personRow } = await supabase
     .from('persons')
     .select('id, identity_type, current_hat, is_admin, deactivated_at')

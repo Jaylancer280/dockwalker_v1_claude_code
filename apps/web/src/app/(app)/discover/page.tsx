@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SlidersHorizontal, CalendarDays, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SegmentedToggle } from '@/components/ui/segmented-toggle';
 import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import {
   Dialog,
@@ -555,18 +556,31 @@ export default function DiscoverPage() {
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 pt-3 pb-2">
-          <div className="flex items-center gap-2">
-            <h1 className="text-[24px] font-bold tracking-[-0.5px]">Discover</h1>
-            <NotificationBell />
-          </div>
-          {activeTab === 'browse' && (
-            <div className="flex items-center gap-1.5">
-              {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearActiveFilters}>
-                  <X className="mr-1 h-3 w-3" />
-                  Clear
-                </Button>
-              )}
+          {activeTab === 'browse' ? (
+            <div className="min-w-0 flex-1">
+              <SegmentedToggle
+                options={[
+                  { value: 'daywork', label: 'Daywork' },
+                  { value: 'permanent', label: 'Permanent' },
+                ]}
+                value={browseMode}
+                onChange={(v) => {
+                  setBrowseMode(v as 'daywork' | 'permanent');
+                  localStorage.setItem('dw-browse-mode', v);
+                }}
+              />
+            </div>
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-1.5">
+            {activeTab === 'browse' && hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearActiveFilters}>
+                <X className="mr-1 h-3 w-3" />
+                Clear
+              </Button>
+            )}
+            {activeTab === 'browse' && (
               <Button
                 variant={showFilters ? 'default' : 'outline'}
                 size="sm"
@@ -576,8 +590,9 @@ export default function DiscoverPage() {
                 Filters
                 {hasActiveFilters && <span className="ml-1 text-xs">(active)</span>}
               </Button>
-            </div>
-          )}
+            )}
+            <NotificationBell />
+          </div>
         </div>
         {/* Tabs */}
         <div className="mx-auto max-w-lg border-t border-[var(--border)]">
@@ -671,7 +686,6 @@ export default function DiscoverPage() {
           onLoadCards={loadCards}
           requireAvailability={requireAvailability}
           browseMode={browseMode}
-          setBrowseMode={setBrowseMode}
           feedError={feedError}
           permanentFeed={
             <PermanentJobFeed
