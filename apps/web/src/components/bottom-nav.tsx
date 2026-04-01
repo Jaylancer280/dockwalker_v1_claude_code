@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Compass, MessageSquare, User, PenSquare, Briefcase, LifeBuoy } from 'lucide-react';
-import { safeFetch } from '@/lib/safe-fetch';
+import { useNotificationCounts } from '@/hooks/use-notification-counts';
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
@@ -35,28 +34,7 @@ interface BottomNavProps {
 export function BottomNav({ currentHat }: BottomNavProps) {
   const pathname = usePathname();
   const items = currentHat === 'crew' ? crewNav : employerNav;
-  const [messageCount, setMessageCount] = useState(0);
-
-  const fetchCount = useCallback(async () => {
-    try {
-      const result = await safeFetch<{ message_count?: number }>('/api/notifications/count');
-      if (result.ok) {
-        setMessageCount(result.data.message_count ?? 0);
-      }
-    } finally {
-      // setState guard for react-hooks/set-state-in-effect
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchCount();
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') fetchCount();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [fetchCount]);
+  const { messageCount } = useNotificationCounts();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)]">

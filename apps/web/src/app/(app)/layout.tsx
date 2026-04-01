@@ -4,6 +4,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { ToastWrapper } from '@/components/toast-wrapper';
 import { OfflineBanner } from '@/components/offline-banner';
 import { LookupsProvider } from '@/hooks/use-lookups';
+import { NotificationCountsProvider } from '@/hooks/use-notification-counts';
 
 export default async function AppLayout({
   children,
@@ -29,9 +30,11 @@ export default async function AppLayout({
   return (
     <ToastWrapper>
       <LookupsProvider>
-        <OfflineBanner />
-        <div className="pb-nav">{children}</div>
-        <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
+        <NotificationCountsProvider>
+          <OfflineBanner />
+          <div className="pb-nav">{children}</div>
+          <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
+        </NotificationCountsProvider>
       </LookupsProvider>
     </ToastWrapper>
   );

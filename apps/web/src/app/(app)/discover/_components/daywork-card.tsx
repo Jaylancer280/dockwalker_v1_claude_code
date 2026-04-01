@@ -86,14 +86,14 @@ export function JobCard({
         alt=""
         fill
         className="object-cover"
-        sizes="(max-width: 640px) 100vw, 400px"
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
         priority
       />
       {/* Dark gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/65 to-black/45" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/30 to-black/15 backdrop-blur-sm" />
 
       {/* Card content */}
-      <div className="relative flex h-full flex-col p-5 text-white">
+      <div className="relative flex h-full flex-col p-5 text-white drop-shadow-sm">
         {/* Role + vessel */}
         <div className="mb-3">
           <div className="flex items-center gap-2">

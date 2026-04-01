@@ -109,13 +109,13 @@ export function PermanentJobCard({
         alt=""
         fill
         className="object-cover"
-        sizes="(max-width: 640px) 100vw, 400px"
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
       />
       {/* Dark gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/65 to-black/45" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/30 to-black/15 backdrop-blur-sm" />
 
       {/* Card content */}
-      <div className="relative p-4 text-white">
+      <div className="relative p-4 text-white drop-shadow-sm">
         {/* Header: role + epaulette + job ref */}
         <div className="mb-3 flex items-start justify-between">
           <div className="flex items-center gap-2">

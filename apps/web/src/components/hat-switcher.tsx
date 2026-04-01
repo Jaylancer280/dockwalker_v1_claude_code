@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowRightLeft } from 'lucide-react';
 import { safeFetch } from '@/lib/safe-fetch';
+import { useNotificationCounts } from '@/hooks/use-notification-counts';
 
 interface HatSwitcherProps {
   currentHat: string;
@@ -12,34 +13,8 @@ interface HatSwitcherProps {
 
 export function HatSwitcher({ currentHat, identityType }: HatSwitcherProps) {
   const [switching, setSwitching] = useState(false);
-  const [altCount, setAltCount] = useState(0);
-
-  const fetchAltCount = useCallback(async () => {
-    try {
-      const result = await safeFetch<{
-        alt_notification_count?: number;
-        alt_message_count?: number;
-      }>('/api/notifications/count');
-      if (result.ok) {
-        setAltCount(
-          (result.data.alt_notification_count ?? 0) + (result.data.alt_message_count ?? 0),
-        );
-      }
-    } finally {
-      // setState guard for react-hooks/set-state-in-effect
-    }
-  }, []);
-
-  useEffect(() => {
-    if (identityType === 'agent') return;
-    fetchAltCount();
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') fetchAltCount();
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [fetchAltCount, identityType]);
+  const { altNotificationCount, altMessageCount } = useNotificationCounts();
+  const altCount = altNotificationCount + altMessageCount;
 
   // Agents can't switch
   if (identityType === 'agent') {

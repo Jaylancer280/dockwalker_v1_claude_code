@@ -11,11 +11,22 @@
 
 ## Queue
 
-### USER ACTION: Enable JWT claims + deploy migrations
+### Quick fix: Card background image — lighter overlay + responsive sizing
 
-- [ ] Enable the hook in Supabase dashboard (Auth → Hooks → Custom Access Token → `public.custom_access_token_hook`)
-- [ ] Deploy migrations 00076-00079 to production Supabase
-- [ ] Verify discover page loads in <1 second with 50 results (batch vessel lookup)
+**Context:** The department background image on job cards is way too dark (85% black at bottom). Needs to be significantly lighter and more frosted — the image should be noticeable as a background, not buried under a dark wall. Also the image `sizes` hint is hardcoded to `400px` which won't scale when we make the layout responsive.
+
+**Files:**
+
+- `apps/web/src/app/(app)/discover/_components/daywork-card.tsx`
+- `apps/web/src/app/(app)/discover/_components/permanent-job-card.tsx`
+
+**Checklist:**
+
+- [x] Lighten the gradient overlay on both cards. Change `from-black/85 via-black/65 to-black/45` to `from-black/50 via-black/30 to-black/15` + `drop-shadow-sm` on text container
+- [x] Add `backdrop-blur-sm` to the overlay div for a frosted glass effect instead of pure darkness
+- [x] Update the `sizes` attribute on the Image to be responsive: `sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"`
+- [x] Apply same changes to both daywork and permanent card components
+- [ ] Visually verify: the department photo should be clearly recognisable behind the text, not just a dark tint
 
 ---
 
@@ -62,4 +73,4 @@
 
 ## Done
 
-(See git history for completed stages 51-175. Mobile Phases 1-6 complete + UI primitives. EAS config stage 173. Vercel build fix. Stage 174: hat switcher copy, full-bleed cards, header toggle, JWT claims, batch vessel lookup, favicon. Stage 175: LookupsProvider, middleware header dedup, parallel fetches.)
+(See git history for completed stages 51-176. Mobile Phases 1-6 complete + UI primitives. EAS config stage 173. Vercel build fix. Stage 174: hat switcher copy, full-bleed cards, header toggle, JWT claims, batch vessel lookup, favicon. Stage 175: LookupsProvider, middleware header dedup, parallel fetches. Stage 176: NotificationCountsProvider.)

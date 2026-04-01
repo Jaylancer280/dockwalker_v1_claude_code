@@ -297,6 +297,8 @@ v79 — Batch vessel lookup (79 migrations applied)
 
 - [Stage 175] Web performance fixes 3-5 — (A) LookupsProvider: React context in app layout fetches all canonical data (roles, certs, brackets, size bands, nationalities, visas, ports, cities) once on mount with 24h revalidation; 11 pages migrated from inline Supabase queries to context; (B) middleware header dedup: API routes receive x-user-id/x-person-id/x-current-hat/x-identity-type headers from middleware, auth guard skips getUser() when headers present, spoofing prevented by stripping incoming x- headers; (C) parallel initial fetches on discover page; duplicate get_unread_counts already resolved; 914 tests pass (2 new middleware header tests)
 
+- [Stage 176] NotificationCountsProvider — single `/api/notifications/count` call shared across bottom-nav, hat-switcher, notification-bell via React context (was 3 duplicate calls per page); visibility-change revalidation; `refresh()` exposed for post-action updates; 914 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)
