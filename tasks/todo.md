@@ -22,11 +22,12 @@
 
 **Checklist:**
 
-- [x] Lighten the gradient overlay on both cards. Change `from-black/85 via-black/65 to-black/45` to `from-black/50 via-black/30 to-black/15` + `drop-shadow-sm` on text container
-- [x] Add `backdrop-blur-sm` to the overlay div for a frosted glass effect instead of pure darkness
-- [x] Update the `sizes` attribute on the Image to be responsive: `sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"`
-- [x] Apply same changes to both daywork and permanent card components
-- [ ] Visually verify: the department photo should be clearly recognisable behind the text, not just a dark tint
+- [x] ~~Frosted/blur approach~~ — WRONG DIRECTION. User wants a white wash, not blur.
+- [x] Change overlay to `bg-white/60 dark:bg-black/60` — flat semi-transparent white wash, no blur, no gradient
+- [x] Switch all text back to dark colors (`text-muted-foreground`, `var(--tertiary)`, etc). Restored Badge components for pills.
+- [x] For dark mode: `dark:bg-black/60` adapts automatically
+- [x] Apply to both daywork and permanent card components
+- [ ] Visually verify: the department photo should look like a faded watermark behind the text
 
 ---
 

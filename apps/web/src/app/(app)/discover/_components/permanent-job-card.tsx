@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { MapPin, Briefcase, Award, Calendar, Users, Ship, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { getDepartmentImageSrc } from '@/lib/department-image';
@@ -100,7 +101,7 @@ export function PermanentJobCard({
 
   return (
     <div
-      className="relative cursor-pointer overflow-hidden rounded-[14px] border border-white/10"
+      className="relative cursor-pointer overflow-hidden rounded-[14px] border border-[var(--border)]"
       onClick={onTap}
     >
       {/* Full-bleed department background */}
@@ -111,11 +112,11 @@ export function PermanentJobCard({
         className="object-cover"
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
       />
-      {/* Dark gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/30 to-black/15 backdrop-blur-sm" />
+      {/* White wash overlay — image visible as faded watermark */}
+      <div className="absolute inset-0 bg-white/60 dark:bg-black/60" />
 
       {/* Card content */}
-      <div className="relative p-4 text-white drop-shadow-sm">
+      <div className="relative p-4">
         {/* Header: role + epaulette + job ref */}
         <div className="mb-3 flex items-start justify-between">
           <div className="flex items-center gap-2">
@@ -124,13 +125,13 @@ export function PermanentJobCard({
             </span>
             {posting.role_name && <EpauletteBadge roleName={posting.role_name} size="sm" />}
           </div>
-          <span className="font-mono text-[11px] text-white/40">
+          <span className="font-mono text-[11px] text-[var(--tertiary)]">
             PM-{String(posting.job_number).padStart(5, '0')}
           </span>
         </div>
 
         {/* Vessel */}
-        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-white/70">
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <Ship className="h-3.5 w-3.5" />
           <span>{vesselDisplay}</span>
           {posting.vessel_loa ? (
@@ -141,7 +142,7 @@ export function PermanentJobCard({
         </div>
 
         {/* Location */}
-        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-white/70">
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
           <span>
             {[posting.port_name, posting.city_name, posting.region_name].filter(Boolean).join(', ')}
@@ -150,7 +151,7 @@ export function PermanentJobCard({
 
         {/* Salary */}
         <div className="mb-2 flex items-center gap-1.5 text-[13px]">
-          <Briefcase className="h-3.5 w-3.5 text-white/60" />
+          <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="font-mono text-[17px] font-bold tracking-[-0.5px]">
             {formatSalary(
               posting.salary_min,
@@ -162,7 +163,7 @@ export function PermanentJobCard({
         </div>
 
         {/* Start date */}
-        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-white/70">
+        <div className="mb-2 flex items-center gap-1.5 text-[13px] text-muted-foreground">
           <Calendar className="h-3.5 w-3.5" />
           <span>Start: {formatStartDate(posting.start_date)}</span>
         </div>
@@ -170,80 +171,78 @@ export function PermanentJobCard({
         {/* Badges row */}
         <div className="mb-3 flex flex-wrap gap-1.5">
           {posting.contract_type && posting.contract_type !== 'permanent' && (
-            <span className="rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80 capitalize">
+            <Badge variant="outline" className="capitalize">
               {posting.contract_type}
-            </span>
+            </Badge>
           )}
           {posting.positions_available > 1 && (
-            <span className="inline-flex items-center rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80">
+            <Badge variant="outline">
               <Users className="mr-0.5 h-3 w-3" />
               {posting.positions_available} position{posting.positions_available !== 1 ? 's' : ''}
-            </span>
+            </Badge>
           )}
           {posting.live_aboard && (
-            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300">
+            <Badge variant="secondary" className="bg-[var(--success-lo)] text-[var(--success)]">
               Live aboard
-            </span>
+            </Badge>
           )}
           {posting.meals?.length > 0 && (
-            <span className="rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80">
+            <Badge variant="outline" className="text-xs">
               Meals: {posting.meals.join(', ')}
-            </span>
+            </Badge>
           )}
-          {posting.experience_label && (
-            <span className="rounded-full border border-white/30 px-2 py-0.5 text-xs font-medium text-white/80">
-              {posting.experience_label}
-            </span>
-          )}
+          {posting.experience_label && <Badge variant="outline">{posting.experience_label}</Badge>}
           {posting.cert_names.map((name, i) => {
             const certId = posting.required_certification_ids[i];
             const held = crewCertIds ? crewCertIds.includes(certId) : undefined;
             return (
-              <span
+              <Badge
                 key={name}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                variant="outline"
+                className={
                   held === true
-                    ? 'bg-emerald-500/20 text-emerald-300'
+                    ? 'border-transparent bg-[var(--success-lo)] text-[var(--success)] text-xs'
                     : held === false
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'border border-white/30 text-white/70'
-                }`}
+                      ? 'border-transparent bg-[var(--warning-lo)] text-[var(--warning)] text-xs'
+                      : 'text-xs'
+                }
               >
                 <Award className="mr-0.5 h-3 w-3" />
                 {name}
-              </span>
+              </Badge>
             );
           })}
           {posting.required_languages?.map((code) => {
             const held = crewLangs ? crewLangs.includes(code) : undefined;
             return (
-              <span
+              <Badge
                 key={code}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                variant="outline"
+                className={
                   held === true
-                    ? 'bg-emerald-500/20 text-emerald-300'
+                    ? 'border-transparent bg-[var(--success-lo)] text-[var(--success)] text-xs'
                     : held === false
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'border border-white/30 text-white/70'
-                }`}
+                      ? 'border-transparent bg-[var(--warning-lo)] text-[var(--warning)] text-xs'
+                      : 'text-xs'
+                }
               >
                 {languageLabel(code)}
-              </span>
+              </Badge>
             );
           })}
         </div>
 
         {/* Shortlist info */}
-        <div className="mb-3 flex items-center gap-1.5 text-xs text-white/60">
+        <div className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground">
           <Users className="h-3.5 w-3.5" />
           <span>Shortlist: up to {posting.shortlist_cap} candidates</span>
         </div>
 
         {/* Footer: poster + time */}
-        <div className="flex items-center justify-between border-t border-white/15 pt-3 text-xs text-white/60">
+        <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs text-muted-foreground">
           {posting.poster_name && (
             <button
-              className="hover:text-white hover:underline"
+              className="hover:text-primary hover:underline"
               onClick={(e) => {
                 e.stopPropagation();
                 if (posting.poster_person_id && onPosterTap) {
@@ -255,7 +254,9 @@ export function PermanentJobCard({
               Posted by {posting.poster_name}
             </button>
           )}
-          <span className="font-mono text-[11px] text-white/40">{daysAgo(posting.created_at)}</span>
+          <span className="font-mono text-[11px] text-[var(--tertiary)]">
+            {daysAgo(posting.created_at)}
+          </span>
         </div>
 
         {/* Apply button */}
