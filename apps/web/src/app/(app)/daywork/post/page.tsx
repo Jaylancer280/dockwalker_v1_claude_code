@@ -31,6 +31,7 @@ import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hi
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
+import { useLookups } from '@/hooks/use-lookups';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { LANGUAGES } from '@dockwalker/shared';
@@ -148,10 +149,11 @@ function DayworkPostForm() {
     (draft?.permanentOpportunity as boolean) ?? false,
   );
 
-  // Lookups
-  const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [certs, setCerts] = useState<LookupItem[]>([]);
-  const [brackets, setBrackets] = useState<LookupItem[]>([]);
+  // Lookups from cached context
+  const lookups = useLookups();
+  const roles = lookups.roles as LookupItem[];
+  const certs = lookups.certifications as LookupItem[];
+  const brackets = lookups.experienceBrackets.map((b) => ({ ...b, name: b.label })) as LookupItem[];
 
   // Max working days = min(14, calendarSpan). Clamp when dates change.
   const maxWorkingDays = useMemo(() => {
@@ -220,15 +222,7 @@ function DayworkPostForm() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const [rolesRes, certsRes, bracketsRes, templatesResult] = await Promise.all([
-        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-        supabase.from('certifications').select('id, name, category').order('sort_order'),
-        supabase.from('experience_brackets').select('id, label').order('sort_order'),
-        safeFetch<{ templates?: Template[] }>('/api/daywork/templates'),
-      ]);
-      if (rolesRes.data) setRoles(rolesRes.data);
-      if (certsRes.data) setCerts(certsRes.data);
-      if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
+      const templatesResult = await safeFetch<{ templates?: Template[] }>('/api/daywork/templates');
       if (templatesResult.ok && templatesResult.data.templates)
         setTemplates(templatesResult.data.templates);
 
@@ -304,12 +298,6 @@ function DayworkPostForm() {
     } else {
       showErrorToast('Failed to delete template');
     }
-  }
-
-  function toggleCert(id: string) {
-    setRequiredCertIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
   }
 
   function toggleMeal(meal: MealOption) {

@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Mock next/headers — default: no middleware headers (direct API call path)
+const mockHeaders = new Map<string, string>();
+vi.mock('next/headers', () => ({
+  headers: () => Promise.resolve({
+    get: (key: string) => mockHeaders.get(key) ?? null,
+  }),
+}));
+
 // Mock Supabase server module
 const mockGetUser = vi.fn();
 const mockFrom = vi.fn();
@@ -30,6 +38,7 @@ function chainBuilder(data: unknown) {
 describe('requireDomainUser', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHeaders.clear();
   });
 
   it('returns 401 when no auth user', async () => {
@@ -195,5 +204,48 @@ describe('requireDomainUser', () => {
     expect(result.ok).toBe(true);
     // DB fallback was used
     expect(mockFrom).toHaveBeenCalledTimes(2);
+  });
+
+  // --- Middleware header fast path ---
+
+  it('returns ok from middleware headers without calling getUser()', async () => {
+    mockHeaders.set('x-user-id', 'u1');
+    mockHeaders.set('x-person-id', 'p1');
+    mockHeaders.set('x-current-hat', 'employer');
+    mockHeaders.set('x-identity-type', 'crew');
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.user.id).toBe('u1');
+      expect(result.value.person.id).toBe('p1');
+      expect(result.value.person.current_hat).toBe('employer');
+      expect(result.value.person.identity_type).toBe('crew');
+    }
+    // getUser() should NOT have been called
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('falls back to getUser() when middleware headers are partial', async () => {
+    mockHeaders.set('x-user-id', 'u1');
+    // Missing x-person-id — incomplete headers, fall back
+
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFrom.mockReturnValueOnce(
+      chainBuilder({
+        id: 'u1',
+        identity_type: 'crew',
+        current_hat: 'crew',
+        is_admin: false,
+        deactivated_at: null,
+      }),
+    );
+    mockFrom.mockReturnValueOnce(chainBuilder({ person_id: 'u1' }));
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(true);
+    // getUser() WAS called (fallback path)
+    expect(mockGetUser).toHaveBeenCalled();
   });
 });

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { RoleContext } from '@dockwalker/types';
@@ -14,6 +15,35 @@ export interface DomainUser {
 type GuardResult = { ok: true; value: DomainUser } | { ok: false; response: NextResponse };
 
 export async function requireDomainUser(): Promise<GuardResult> {
+  // Fast path: middleware already validated the user and passed identity via headers
+  const reqHeaders = await headers();
+  const headerUserId = reqHeaders.get('x-user-id');
+  const headerPersonId = reqHeaders.get('x-person-id');
+  const headerCurrentHat = reqHeaders.get('x-current-hat');
+  const headerIdentityType = reqHeaders.get('x-identity-type');
+
+  if (headerUserId && headerPersonId && headerCurrentHat && headerIdentityType) {
+    // Middleware already called getUser() — skip the duplicate auth check
+    const supabase = await createClient();
+    const serviceClient = await createServiceClient();
+    return {
+      ok: true,
+      value: {
+        user: { id: headerUserId },
+        person: {
+          id: headerPersonId,
+          identity_type: headerIdentityType,
+          current_hat: headerCurrentHat as RoleContext,
+          is_admin: false, // Admin routes query DB directly
+        },
+        profile: { person_id: headerPersonId },
+        supabase,
+        serviceClient,
+      },
+    };
+  }
+
+  // Fallback: full auth check (direct API calls that bypass middleware)
   const supabase = await createClient();
   const {
     data: { user },

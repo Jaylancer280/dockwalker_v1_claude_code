@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { BottomNav } from '@/components/bottom-nav';
 import { ToastWrapper } from '@/components/toast-wrapper';
 import { OfflineBanner } from '@/components/offline-banner';
+import { LookupsProvider } from '@/hooks/use-lookups';
 
 export default async function AppLayout({
   children,
@@ -27,9 +28,11 @@ export default async function AppLayout({
 
   return (
     <ToastWrapper>
-      <OfflineBanner />
-      <div className="pb-nav">{children}</div>
-      <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
+      <LookupsProvider>
+        <OfflineBanner />
+        <div className="pb-nav">{children}</div>
+        <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
+      </LookupsProvider>
     </ToastWrapper>
   );
 }

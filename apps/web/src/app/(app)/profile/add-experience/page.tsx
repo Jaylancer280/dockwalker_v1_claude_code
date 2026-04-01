@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
+import { useLookups } from '@/hooks/use-lookups';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { usePreferences } from '@/hooks/use-preferences';
@@ -36,7 +37,7 @@ export default function AddExperiencePage() {
   const router = useRouter();
   const { showError, showSuccess } = useToast();
   const { lengthUnit } = usePreferences();
-  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const roles = useLookups().roles as RoleItem[];
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [sizeBands, setSizeBands] = useState<SizeBand[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,8 +77,7 @@ export default function AddExperiencePage() {
   const loadLookups = useCallback(async () => {
     try {
       const supabase = createClient();
-      const [rolesRes, flagsRes, bandsRes, profileRes] = await Promise.all([
-        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+      const [flagsRes, bandsRes, profileRes] = await Promise.all([
         supabase.from('flag_states').select('id, name').order('sort_order'),
         supabase
           .from('vessel_size_bands')
@@ -85,7 +85,6 @@ export default function AddExperiencePage() {
           .order('sort_order'),
         safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
       ]);
-      if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
       if (flagsRes.data) setFlagStates(flagsRes.data);
       if (bandsRes.data) setSizeBands(bandsRes.data);
       if (profileRes.ok && profileRes.data.person?.identity_type === 'agent') {

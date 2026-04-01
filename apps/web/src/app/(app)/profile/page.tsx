@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { HatSwitcher } from '@/components/hat-switcher';
 import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { ProfileOverlay } from '@/components/profile-overlay';
-import { createClient } from '@/lib/supabase/client';
+import { useLookups } from '@/hooks/use-lookups';
 import { safeFetch } from '@/lib/safe-fetch';
 import { ProfileSummarySection } from './_components/profile-summary-section';
 import { ProfileLookingForSection } from './_components/profile-looking-for-section';
@@ -166,17 +166,24 @@ export default function ProfilePage() {
   const [profileLanguages, setProfileLanguages] = useState<string[]>([]);
   const [deckName, setDeckName] = useState('');
 
-  // Lookups
-  const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [certs, setCerts] = useState<LookupItem[]>([]);
-  const [nationalities, setNationalities] = useState<
-    { id: string; name: string; flag_emoji: string }[]
-  >([]);
-  const [visaTypes, setVisaTypes] = useState<{ id: string; name: string }[]>([]);
+  // Lookups from cached context
+  const lookups = useLookups();
+  const roles = lookups.roles as LookupItem[];
+  const certs = lookups.certifications as LookupItem[];
+  const nationalities = lookups.nationalities;
+  const visaTypes = lookups.visaTypes;
 
-  // Name maps for view-mode pills
-  const [certNames, setCertNames] = useState<Record<string, string>>({});
-  const [sizeBandNames, setSizeBandNames] = useState<Record<string, string>>({});
+  // Name maps for view-mode pills (derived from context)
+  const certNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of lookups.certifications) map[c.id] = c.name;
+    return map;
+  }, [lookups.certifications]);
+  const sizeBandNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const s of lookups.sizeBands) map[s.id] = s.label;
+    return map;
+  }, [lookups.sizeBands]);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -230,48 +237,11 @@ export default function ProfilePage() {
     }
   }, []);
 
-  // Load cert and size band names for view-mode pills
-  const loadLookupNames = useCallback(async (p: Profile) => {
-    const supabase = createClient();
-    // Load nationalities and visa types for view + edit modes
-    const [natRes, visaRes] = await Promise.all([
-      supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
-      supabase.from('visa_types').select('id, name').order('sort_order'),
-    ]);
-    if (natRes.data) setNationalities(natRes.data);
-    if (visaRes.data) setVisaTypes(visaRes.data);
-
-    if (p.certification_ids?.length > 0) {
-      const { data } = await supabase
-        .from('certifications')
-        .select('id, name')
-        .in('id', p.certification_ids);
-      if (data) {
-        const map: Record<string, string> = {};
-        for (const c of data) map[c.id] = c.name;
-        setCertNames(map);
-      }
-    }
-    if (p.vessel_size_exposure_ids?.length > 0) {
-      const { data } = await supabase
-        .from('vessel_size_bands')
-        .select('id, label')
-        .in('id', p.vessel_size_exposure_ids);
-      if (data) {
-        const map: Record<string, string> = {};
-        for (const s of data) map[s.id] = s.label;
-        setSizeBandNames(map);
-      }
-    }
-  }, []);
+  // Lookups loaded from LookupsProvider context — certNames and sizeBandNames derived above via useMemo
 
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
-
-  useEffect(() => {
-    if (profile) loadLookupNames(profile);
-  }, [profile, loadLookupNames]);
 
   useEffect(() => {
     if (person?.identity_type === 'crew') {
@@ -342,16 +312,6 @@ export default function ProfilePage() {
     setProfileLanguages(profile.languages ?? []);
     setDeckName(profile.deck_name ?? '');
     setEditing(true);
-
-    // Load lookups for edit mode
-    const supabase = createClient();
-    Promise.all([
-      supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-      supabase.from('certifications').select('id, name, category').order('sort_order'),
-    ]).then(([rolesRes, certsRes]) => {
-      if (rolesRes.data) setRoles(rolesRes.data);
-      if (certsRes.data) setCerts(certsRes.data);
-    });
   }
 
   async function handleSave() {

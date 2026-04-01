@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { createClient } from '@/lib/supabase/client';
+import { useLookups } from '@/hooks/use-lookups';
 import { ProfileOverlay } from '@/components/profile-overlay';
 import { MY_JOBS_TAB_STORAGE_KEY } from '@/lib/my-jobs-tab';
 import type { Applicant, AvailableCrew, TabView } from './_components/types';
@@ -56,7 +57,7 @@ export default function ReviewApplicantsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterCertId, setFilterCertId] = useState('');
   const [filterMinDays, setFilterMinDays] = useState('');
-  const [certifications, setCertifications] = useState<{ id: string; name: string }[]>([]);
+  const certifications = useLookups().certifications;
 
   // Available crew state
   const [availableCrew, setAvailableCrew] = useState<AvailableCrew[]>([]);
@@ -97,13 +98,9 @@ export default function ReviewApplicantsPage() {
     checkHat();
   }, [router]);
 
-  // Load certifications for filter dropdown + daywork meta for invite dialog
+  // Load daywork meta for invite dialog (certs from context)
   useEffect(() => {
     const supabase = createClient();
-    async function loadCerts() {
-      const { data } = await supabase.from('certifications').select('id, name').order('name');
-      if (data) setCertifications(data);
-    }
     async function loadDayworkMeta() {
       const { data } = await supabase
         .from('dayworks')
@@ -115,7 +112,6 @@ export default function ReviewApplicantsPage() {
         setDayworkMeta({ job_number: data.job_number, role_name: role?.name ?? null });
       }
     }
-    loadCerts();
     loadDayworkMeta();
   }, [dayworkId]);
 

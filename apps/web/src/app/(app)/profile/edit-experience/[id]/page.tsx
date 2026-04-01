@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
+import { useLookups } from '@/hooks/use-lookups';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Loader2 } from 'lucide-react';
@@ -25,7 +26,7 @@ export default function EditExperiencePage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const { showSuccess } = useToast();
-  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const roles = useLookups().roles as RoleItem[];
   const [flagStates, setFlagStates] = useState<FlagState[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -59,8 +60,7 @@ export default function EditExperiencePage() {
   const loadData = useCallback(async () => {
     try {
       const supabase = createClient();
-      const [rolesRes, flagsRes, expResult, profileRes] = await Promise.all([
-        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+      const [flagsRes, expResult, profileRes] = await Promise.all([
         supabase.from('flag_states').select('id, name').order('sort_order'),
         safeFetch<{
           experiences?: {
@@ -79,7 +79,6 @@ export default function EditExperiencePage() {
         }>('/api/experiences'),
         safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
       ]);
-      if (rolesRes.data) setRoles(rolesRes.data as RoleItem[]);
       if (flagsRes.data) setFlagStates(flagsRes.data);
       if (profileRes.ok && profileRes.data.person?.identity_type === 'agent') {
         setIsAgent(true);

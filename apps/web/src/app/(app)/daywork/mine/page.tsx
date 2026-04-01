@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import { SegmentedToggle } from '@/components/ui/segmented-toggle';
 import { createClient } from '@/lib/supabase/client';
+import { useLookups } from '@/hooks/use-lookups';
 import { safeFetch } from '@/lib/safe-fetch';
 import { isMyJobsTab, MY_JOBS_TAB_STORAGE_KEY, type MyJobsTab } from '@/lib/my-jobs-tab';
 import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
@@ -80,8 +81,13 @@ export default function MyPostingsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterRoleId, setFilterRoleId] = useState('');
   const [filterPortId, setFilterPortId] = useState('');
-  const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
-  const [ports, setPorts] = useState<{ id: string; name: string; cities: { name: string } }[]>([]);
+  const lookups = useLookups();
+  const roles = lookups.roles;
+  const ports = lookups.ports as unknown as {
+    id: string;
+    name: string;
+    cities: { name: string };
+  }[];
   const [isAgent, setIsAgent] = useState(false);
 
   useEffect(() => {
@@ -96,23 +102,13 @@ export default function MyPostingsPage() {
   }, [currentTab]);
 
   useEffect(() => {
-    async function loadLookups() {
-      const supabase = createClient();
-      const [rolesRes, portsRes, profileRes] = await Promise.all([
-        supabase.from('yacht_roles').select('id, name').order('sort_order'),
-        supabase.from('ports').select('id, name, cities(name)').order('name'),
-        safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
-      ]);
-      if (rolesRes.data) setRoles(rolesRes.data);
-      if (portsRes.data)
-        setPorts(
-          portsRes.data as unknown as { id: string; name: string; cities: { name: string } }[],
-        );
+    async function checkAgent() {
+      const profileRes = await safeFetch<{ person?: { identity_type?: string } }>('/api/profile');
       if (profileRes.ok && profileRes.data.person?.identity_type === 'agent') {
         setIsAgent(true);
       }
     }
-    loadLookups();
+    checkAgent();
   }, []);
 
   const loadData = useCallback(async () => {

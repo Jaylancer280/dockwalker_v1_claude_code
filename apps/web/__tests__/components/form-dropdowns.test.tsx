@@ -184,6 +184,21 @@ vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), toasts: [], dismiss: vi.fn() }),
 }));
 
+vi.mock('@/hooks/use-lookups', () => ({
+  useLookups: () => ({
+    roles: MOCK_ROLES,
+    certifications: MOCK_CERTS,
+    experienceBrackets: MOCK_BRACKETS,
+    sizeBands: MOCK_SIZE_BANDS,
+    nationalities: [],
+    visaTypes: [],
+    ports: MOCK_PORTS,
+    cities: [],
+    languages: [],
+    loading: false,
+  }),
+}));
+
 vi.mock('@/lib/haptics', () => ({
   hapticLight: vi.fn(),
   hapticMedium: vi.fn(),
@@ -404,11 +419,7 @@ describe('Post Daywork page — employer form dropdowns', () => {
     // Select daywork type from the type selector
     fireEvent.click(screen.getByText('Daywork'));
 
-    // Wait for lookups to load
-    await waitFor(() => {
-      expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
-    });
-
+    // Lookups from context — no wait needed
     // Roles — inside HierarchicalPills (department groups with items)
     expect(screen.getAllByTestId('hierarchical-pills').length).toBeGreaterThanOrEqual(1);
 
@@ -431,18 +442,15 @@ describe('Post Daywork page — employer form dropdowns', () => {
     expect(screen.getByText('dinner')).toBeInTheDocument();
   });
 
-  it('queries all 3 canonical lookup tables (location handled by LocationPicker)', async () => {
+  it('receives lookups from LookupsProvider context (no direct Supabase query for roles/certs)', async () => {
     const { default: PostDayworkPage } = await import('@/app/(app)/daywork/post/page');
     render(<PostDayworkPage />);
 
-    // Select daywork type from the type selector
     fireEvent.click(screen.getByText('Daywork'));
 
-    await waitFor(() => {
-      expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
-      expect(fromSpy).toHaveBeenCalledWith('certifications');
-      // experience_brackets no longer loaded in edit mode (auto-derived)
-    });
+    // Lookups now come from useLookups context
+    expect(fromSpy).not.toHaveBeenCalledWith('yacht_roles');
+    expect(fromSpy).not.toHaveBeenCalledWith('certifications');
   });
 });
 
@@ -451,12 +459,7 @@ describe('Discover page — filter dropdowns', () => {
     const { default: DiscoverPage } = await import('@/app/(app)/discover/page');
     render(<DiscoverPage />);
 
-    // Wait for lookups to load
-    await waitFor(() => {
-      expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
-    });
-
-    // Open filter panel
+    // Open filter panel (lookups from context, no wait needed)
     fireEvent.click(screen.getByText('Filters'));
 
     // Role filter — HierarchicalPills with "All roles" placeholder
@@ -472,13 +475,13 @@ describe('Discover page — filter dropdowns', () => {
     expect(screen.getByText('All locations')).toBeInTheDocument();
   });
 
-  it('queries roles lookup table (location handled by LocationPicker)', async () => {
+  it('receives roles from LookupsProvider context (no direct Supabase query)', async () => {
     const { default: DiscoverPage } = await import('@/app/(app)/discover/page');
     render(<DiscoverPage />);
 
-    await waitFor(() => {
-      expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
-    });
+    // Lookups now come from useLookups context, not direct Supabase queries
+    // Verify roles are NOT queried from Supabase
+    expect(fromSpy).not.toHaveBeenCalledWith('yacht_roles');
   });
 });
 
@@ -519,11 +522,7 @@ describe('Profile page — edit mode dropdowns', () => {
     fireEvent.click(editButton);
 
     // Wait for lookups to load in edit mode
-    await waitFor(() => {
-      expect(fromSpy).toHaveBeenCalledWith('yacht_roles');
-      expect(fromSpy).toHaveBeenCalledWith('certifications');
-      // experience_brackets and vessel_size_bands no longer loaded in edit mode (auto-derived)
-    });
+    // Lookups from context — no direct Supabase query for roles/certs
 
     // Roles
     for (const role of MOCK_ROLES) {

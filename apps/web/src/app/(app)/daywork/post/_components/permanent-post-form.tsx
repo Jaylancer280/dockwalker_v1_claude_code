@@ -19,7 +19,7 @@ import { usePreferences } from '@/hooks/use-preferences';
 import { currencySymbol, type CurrencyCode } from '@dockwalker/shared';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { safeFetch } from '@/lib/safe-fetch';
-import { createClient } from '@/lib/supabase/client';
+import { useLookups } from '@/hooks/use-lookups';
 import {
   RoleLocationSection,
   SalarySection,
@@ -140,33 +140,21 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     router.push('/vessels?returnTo=permanent-post');
   }
 
-  // Lookups
-  const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [certifications, setCertifications] = useState<LookupItem[]>([]);
-  const [experienceBrackets, setExperienceBrackets] = useState<LookupItem[]>([]);
+  // Lookups from cached context
+  const lookups = useLookups();
+  const roles = lookups.roles as LookupItem[];
+  const certifications = lookups.certifications as LookupItem[];
+  const experienceBrackets = lookups.experienceBrackets.map((b) => ({
+    ...b,
+    name: b.label,
+  })) as LookupItem[];
 
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch lookups and templates on mount
+  // Fetch templates on mount (lookups from context)
   useEffect(() => {
-    const supabase = createClient();
-    Promise.all([
-      supabase.from('yacht_roles').select('id, name, department').order('name'),
-      supabase.from('certifications').select('id, name, category').order('sort_order'),
-      supabase.from('experience_brackets').select('id, label').order('sort_order'),
-    ]).then(([rolesRes, certsRes, bracketsRes]) => {
-      setRoles((rolesRes.data ?? []) as LookupItem[]);
-      setCertifications((certsRes.data ?? []) as LookupItem[]);
-      setExperienceBrackets(
-        (bracketsRes.data ?? []).map((b: { id: string; label: string }) => ({
-          ...b,
-          name: b.label,
-        })) as LookupItem[],
-      );
-    });
-
     safeFetch<{ templates?: PermanentTemplate[] }>('/api/permanent/templates').then((result) => {
       if (result.ok) {
         const loaded = result.data.templates ?? [];

@@ -15,9 +15,9 @@ import {
 } from '@/components/ui/dialog';
 import { AvailabilityOverlay } from '@/components/availability-overlay';
 import { ProfileOverlay } from '@/components/profile-overlay';
-import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
+import { useLookups } from '@/hooks/use-lookups';
 import { NotificationBell } from '@/components/notification-bell';
 import { PushPrompt } from '@/components/push-prompt';
 import { PermanentJobFeed } from './_components/permanent-job-feed';
@@ -30,16 +30,6 @@ interface LookupItem {
   id: string;
   name: string;
   category?: string;
-}
-
-interface ExperienceBracketItem {
-  id: string;
-  label: string;
-}
-
-interface SizeBandItem {
-  id: string;
-  label: string;
 }
 
 export default function DiscoverPage() {
@@ -117,11 +107,12 @@ export default function DiscoverPage() {
   // Applications error
   const [appsError, setAppsError] = useState<string | null>(null);
 
-  // Lookups for filters
-  const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [certifications, setCertifications] = useState<LookupItem[]>([]);
-  const [experienceBrackets, setExperienceBrackets] = useState<ExperienceBracketItem[]>([]);
-  const [sizeBands, setSizeBands] = useState<SizeBandItem[]>([]);
+  // Lookups from cached context
+  const lookups = useLookups();
+  const roles = lookups.roles as LookupItem[];
+  const certifications = lookups.certifications as LookupItem[];
+  const experienceBrackets = lookups.experienceBrackets;
+  const sizeBands = lookups.sizeBands;
 
   // Check crew availability — only 'available' status allows applying
   const lastAvailCheckRef = useRef<number>(0);
@@ -188,11 +179,13 @@ export default function DiscoverPage() {
     sessionStorage.setItem('dockwalker:discover-tab', activeTab);
   }, [activeTab]);
 
+  // Parallel initial fetch: profile + availability fire simultaneously
   useEffect(() => {
     loadCrewCerts();
-  }, []);
+    checkAvailability();
+  }, [checkAvailability]);
 
-  // Re-fetch crew certs and availability when tab regains focus
+  // Re-fetch on tab focus
   useEffect(() => {
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
@@ -202,32 +195,6 @@ export default function DiscoverPage() {
     }
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [checkAvailability]);
-
-  // Load filter options
-  useEffect(() => {
-    async function loadLookups() {
-      const supabase = createClient();
-      const [rolesRes, certsRes, bracketsRes, bandsRes] = await Promise.all([
-        supabase.from('yacht_roles').select('id, name').order('sort_order'),
-        supabase
-          .from('certifications')
-          .select('id, name, category')
-          .order('category')
-          .order('name'),
-        supabase.from('experience_brackets').select('id, label').order('min_months'),
-        supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
-      ]);
-      if (rolesRes.data) setRoles(rolesRes.data);
-      if (certsRes.data) setCertifications(certsRes.data);
-      if (bracketsRes.data) setExperienceBrackets(bracketsRes.data);
-      if (bandsRes.data) setSizeBands(bandsRes.data);
-    }
-    loadLookups();
-  }, []);
-
-  useEffect(() => {
-    checkAvailability();
   }, [checkAvailability]);
 
   const buildFilterParams = useCallback(() => {

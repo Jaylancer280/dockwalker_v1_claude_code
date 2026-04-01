@@ -29,8 +29,39 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // API routes handle their own auth and onboarding errors.
+  // API routes: pass identity via request headers so auth guard can skip getUser()
   if (path.startsWith('/api/')) {
+    if (user) {
+      // Strip any spoofed headers from the incoming request
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.delete('x-user-id');
+      requestHeaders.delete('x-person-id');
+      requestHeaders.delete('x-current-hat');
+      requestHeaders.delete('x-identity-type');
+
+      // Set verified identity headers
+      requestHeaders.set('x-user-id', user.id);
+
+      // Try JWT claims for person identity (zero DB queries)
+      const meta = user.app_metadata as
+        | { person_id?: string; current_hat?: string; identity_type?: string }
+        | undefined;
+      if (meta?.person_id && meta?.current_hat && meta?.identity_type) {
+        requestHeaders.set('x-person-id', meta.person_id);
+        requestHeaders.set('x-current-hat', meta.current_hat);
+        requestHeaders.set('x-identity-type', meta.identity_type);
+      }
+
+      // Create new response with the modified request headers
+      supabaseResponse = NextResponse.next({
+        request: { headers: requestHeaders },
+      });
+      // Preserve cookies from the original response
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        supabaseResponse.headers.set('cookie', cookieHeader);
+      }
+    }
     return supabaseResponse;
   }
 
@@ -77,14 +108,12 @@ export async function updateSession(request: NextRequest) {
 
   // Authenticated: check onboarding status
   if (user && !isPublicRoute && !path.startsWith('/onboarding')) {
-    let personId: string | null = null;
     let currentHat: string | null = null;
     let identityType: string | null = null;
     let onboarded = false;
 
     if (hasClaims) {
       // Fast path: read from JWT claims (zero DB queries)
-      personId = appMeta!.person_id!;
       currentHat = appMeta!.current_hat!;
       identityType = appMeta!.identity_type!;
       onboarded = appMeta!.onboarded === true;
@@ -98,7 +127,6 @@ export async function updateSession(request: NextRequest) {
           .single(),
         supabase.from('profiles').select('person_id').eq('person_id', user.id).single(),
       ]);
-      personId = person?.id ?? null;
       currentHat = person?.current_hat ?? null;
       identityType = person?.identity_type ?? null;
       onboarded = !!(person && profile);

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronLeft, SlidersHorizontal } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase/client';
+import { useLookups } from '@/hooks/use-lookups';
 import { safeFetch } from '@/lib/safe-fetch';
 import { logAgentActivity } from '@/lib/agent-activity';
 import { MarketFilterPanel } from './_components/market-filter-panel';
@@ -33,8 +33,9 @@ export default function MarketFeedPage() {
   const [filterRoleId, setFilterRoleId] = useState('');
   const [filterPortId, setFilterPortId] = useState('');
   const [filterCertId, setFilterCertId] = useState('');
-  const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [certs, setCerts] = useState<LookupItem[]>([]);
+  const lookups = useLookups();
+  const roles = lookups.roles as LookupItem[];
+  const certs = lookups.certifications as LookupItem[];
 
   // Access control — redirect non-agents
   const [authorized, setAuthorized] = useState<boolean | null>(null);
@@ -70,20 +71,6 @@ export default function MarketFeedPage() {
     }
     checkAccess();
   }, [router]);
-
-  useEffect(() => {
-    if (!authorized) return;
-    async function loadLookups() {
-      const supabase = createClient();
-      const [rolesRes, certsRes] = await Promise.all([
-        supabase.from('yacht_roles').select('id, name').order('sort_order'),
-        supabase.from('certifications').select('id, name').order('sort_order'),
-      ]);
-      if (rolesRes.data) setRoles(rolesRes.data);
-      if (certsRes.data) setCerts(certsRes.data);
-    }
-    loadLookups();
-  }, [authorized]);
 
   const buildFilterParams = useCallback(() => {
     const params = new URLSearchParams();
