@@ -91,7 +91,7 @@ export function JobCard({
         priority
       />
       {/* White wash overlay — image visible as faded watermark */}
-      <div className="absolute inset-0 bg-white/60 dark:bg-black/60" />
+      <div className="absolute inset-0 bg-white/80 dark:bg-black/75" />
 
       {/* Card content */}
       <div className="relative flex h-full flex-col p-5">
