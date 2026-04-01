@@ -111,6 +111,7 @@ export function PermanentJobCard({
         fill
         className="object-cover"
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
+        unoptimized
       />
       {/* White wash overlay — image visible as faded watermark */}
       <div className="absolute inset-0 bg-white/80 dark:bg-black/75" />
