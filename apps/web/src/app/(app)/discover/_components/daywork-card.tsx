@@ -89,7 +89,6 @@ export function JobCard({
         className="object-cover"
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
         priority
-        unoptimized
       />
       {/* White wash overlay — image visible as faded watermark */}
       <div className="absolute inset-0 bg-white/90 dark:bg-black/85" />
