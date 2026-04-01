@@ -77,21 +77,19 @@ export function JobCard({
 
   return (
     <div
-      className={`relative h-full w-full overflow-hidden rounded-[14px] border border-[var(--border)] ${
+      className={`relative h-full w-full overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--card)] ${
         isPreview ? 'scale-[0.97] opacity-60' : ''
       }`}
     >
-      {/* Full-bleed department background */}
+      {/* Full-bleed department background — opacity controls how visible the image is */}
       <Image
         src={bgSrc}
         alt=""
         fill
-        className="object-cover"
+        className="object-cover opacity-10 blur-[1px]"
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
         priority
       />
-      {/* White wash overlay — image visible as faded watermark */}
-      <div className="absolute inset-0 bg-white/10 dark:bg-black/10" />
 
       {/* Card content */}
       <div className="relative flex h-full flex-col p-5">

@@ -101,19 +101,17 @@ export function PermanentJobCard({
 
   return (
     <div
-      className="relative cursor-pointer overflow-hidden rounded-[14px] border border-[var(--border)]"
+      className="relative cursor-pointer overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--card)]"
       onClick={onTap}
     >
-      {/* Full-bleed department background */}
+      {/* Full-bleed department background — opacity controls how visible the image is */}
       <Image
         src={bgSrc}
         alt=""
         fill
-        className="object-cover"
+        className="object-cover opacity-10 blur-[1px]"
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
       />
-      {/* White wash overlay — image visible as faded watermark */}
-      <div className="absolute inset-0 bg-white/10 dark:bg-black/10" />
 
       {/* Card content */}
       <div className="relative p-4">
