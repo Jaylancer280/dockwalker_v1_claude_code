@@ -111,7 +111,7 @@ export default function NotificationsPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
+        <div className="page-width flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -124,7 +124,7 @@ export default function NotificationsPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
+      <div className="page-width flex w-full flex-1 flex-col px-4 py-4">
         {error && (
           <div className="mb-4 flex flex-col items-center gap-2 text-center">
             <p className="text-sm text-destructive">{error}</p>

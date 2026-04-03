@@ -11,7 +11,7 @@ export interface WelcomeStepProps {
 export function WelcomeStep({ onNext }: WelcomeStepProps) {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4">
-      <div className="flex w-full max-w-sm flex-col items-center gap-8">
+      <div className="flex w-full max-w-sm flex-col items-center gap-8 md:max-w-lg">
         <Image
           src="/images/brand/dw_app_icon_cropped.png"
           alt="DockWalker"

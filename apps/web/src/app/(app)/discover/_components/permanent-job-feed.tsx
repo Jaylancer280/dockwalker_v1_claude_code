@@ -234,7 +234,7 @@ export function PermanentJobFeed({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-4">
+    <div className="page-width flex w-full flex-1 flex-col gap-4 px-4 py-4">
       {/* Filters */}
       {showFilters && (
         <Card>

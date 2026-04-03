@@ -204,8 +204,8 @@ export default function PermanentReviewPage() {
   return (
     <main className="flex min-h-screen flex-col bg-background pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center gap-2">
+      <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+        <div className="page-width flex items-center gap-2">
           <Link href="/daywork/mine" className="rounded-full p-1 hover:bg-muted">
             <ChevronLeft className="h-5 w-5" />
           </Link>
@@ -215,7 +215,7 @@ export default function PermanentReviewPage() {
 
       {/* Negotiation banner */}
       {postingStatus === 'in_negotiation' && selectedCrewId && (
-        <div className="mx-auto w-full max-w-lg border-b border-[var(--warning)]/20 bg-[var(--warning-lo)] px-4 py-2">
+        <div className="page-width w-full border-b border-[var(--warning)]/20 bg-[var(--warning-lo)] px-4 py-2">
           <div className="flex items-center gap-2 text-sm text-[var(--warning)]">
             <AlertCircle className="h-4 w-4" />
             <span>
@@ -228,7 +228,7 @@ export default function PermanentReviewPage() {
       )}
 
       {/* Tabs */}
-      <div className="mx-auto w-full max-w-lg">
+      <div className="page-width w-full ">
         <UnderlineTabs
           options={[
             { value: 'applicants', label: `Applicants (${applied.length})` },
@@ -240,7 +240,7 @@ export default function PermanentReviewPage() {
       </div>
 
       {/* Content */}
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-4">
+      <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 py-4">
         {loading && (
           <div className="flex flex-1 items-center justify-center pt-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

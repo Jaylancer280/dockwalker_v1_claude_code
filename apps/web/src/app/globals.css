@@ -134,6 +134,14 @@
 :root {
   --radius: 0.75rem;
   --nav-height: 4rem;
+  --sidebar-width: 16rem;
+  --content-inset-left: 0px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --content-inset-left: var(--sidebar-width);
+  }
 }
 
 @theme inline {
@@ -240,5 +248,45 @@
 @layer utilities {
   .pb-nav {
     padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 768px) {
+    .pb-nav {
+      padding-bottom: 0;
+    }
+  }
+  .page-width {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 32rem;
+  }
+  @media (min-width: 768px) {
+    .page-width {
+      max-width: 48rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .page-width {
+      max-width: 56rem;
+    }
+  }
+  .page-width-narrow {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 32rem;
+  }
+  .page-width-wide {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 32rem;
+  }
+  @media (min-width: 768px) {
+    .page-width-wide {
+      max-width: 64rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .page-width-wide {
+      max-width: 72rem;
+    }
   }
 }

@@ -468,7 +468,7 @@ export default function ChatPage() {
   // -----------------------------------------------------------------------
 
   return (
-    <main className="flex h-[calc(100svh-var(--nav-height)-env(safe-area-inset-bottom))] flex-col bg-background">
+    <main className="flex h-[calc(100svh-var(--nav-height)-env(safe-area-inset-bottom))] flex-col bg-background md:h-svh">
       <ChatHeader
         context={context}
         isCrew={isCrew ?? false}

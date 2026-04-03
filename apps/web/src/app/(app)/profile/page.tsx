@@ -393,10 +393,12 @@ export default function ProfilePage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between">
+        <div className="page-width flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-[24px] font-bold tracking-[-0.5px]">Profile</h1>
-            <NotificationBell />
+            <span className="md:hidden">
+              <NotificationBell />
+            </span>
           </div>
           <div className="flex items-center gap-1">
             {!editing && (
@@ -438,7 +440,7 @@ export default function ProfilePage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
+      <div className="page-width flex w-full flex-col gap-6 px-4 py-6">
         {/* Avatar + Name */}
         {editing && (
           <AvatarUpload
@@ -492,10 +494,12 @@ export default function ProfilePage() {
                       {profile.identity_type}
                     </Badge>
                   )}
-                  <HatSwitcher
-                    currentHat={person.current_hat}
-                    identityType={person.identity_type}
-                  />
+                  <span className="md:hidden">
+                    <HatSwitcher
+                      currentHat={person.current_hat}
+                      identityType={person.identity_type}
+                    />
+                  </span>
                 </div>
               </>
             ) : null}

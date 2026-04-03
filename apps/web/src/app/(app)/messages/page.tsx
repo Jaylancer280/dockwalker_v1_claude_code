@@ -101,11 +101,13 @@ export default function MessagesPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 bg-[var(--surface)]">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-4 pt-3 pb-2">
+        <div className="page-width flex items-center justify-between px-4 pt-3 pb-2">
           <h1 className="text-[24px] font-bold tracking-[-0.5px]">Messages</h1>
-          <NotificationBell />
+          <span className="md:hidden">
+            <NotificationBell />
+          </span>
         </div>
-        <div className="mx-auto max-w-lg border-t border-[var(--border)]">
+        <div className="page-width border-t border-[var(--border)]">
           <UnderlineTabs
             options={[
               { value: 'active', label: 'Active', count: active.length },
@@ -117,7 +119,7 @@ export default function MessagesPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-2 px-4 py-4">
+      <div className="page-width-wide flex w-full flex-1 flex-col gap-2 px-4 py-4">
         {error && (
           <div className="mb-4 flex flex-col items-center gap-2 text-center">
             <p className="text-sm text-destructive">{error}</p>

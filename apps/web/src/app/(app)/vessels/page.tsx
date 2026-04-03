@@ -108,7 +108,7 @@ function VesselsContent() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between">
+        <div className="page-width flex items-center justify-between">
           <h1 className="text-[24px] font-bold tracking-[-0.5px]">Your Vessels</h1>
           <Button size="sm" onClick={() => setShowForm((v) => !v)}>
             <Plus className="mr-1 h-4 w-4" />
@@ -117,7 +117,7 @@ function VesselsContent() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-6">
+      <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 py-6">
         {showForm && (
           <Card>
             <CardHeader className="pb-2">

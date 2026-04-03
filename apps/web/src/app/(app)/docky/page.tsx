@@ -147,9 +147,9 @@ export default function DockyPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen max-w-lg pb-[var(--nav-height)]">
+    <main className="page-width min-h-screen pb-[var(--nav-height)]">
       {/* Header */}
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-[var(--surface)] px-4 py-3">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[var(--surface)] px-4 py-3">
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold">Docky</h1>
           {usagePill && (

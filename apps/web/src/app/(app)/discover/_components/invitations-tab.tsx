@@ -58,7 +58,7 @@ export function InvitationsTab({
   onSwitchToBrowse,
 }: InvitationsTabProps) {
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-3 px-4 py-4">
+    <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 py-4">
       {loadingInvitations && <LoadingSpinner size="md" text="Loading invitations..." />}
 
       {invitationError && <p className="text-center text-sm text-destructive">{invitationError}</p>}

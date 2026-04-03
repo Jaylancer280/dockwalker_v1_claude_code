@@ -23,7 +23,7 @@ export function HatSelectionStep(props: HatSelectionStepProps) {
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+      <div className="flex w-full max-w-sm flex-col gap-6 md:max-w-lg">
         <button
           onClick={() => {
             if (skipping) {

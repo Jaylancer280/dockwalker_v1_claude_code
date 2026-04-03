@@ -56,7 +56,7 @@ export function ImageCropper({ imageSrc, onConfirm, onCancel }: ImageCropperProp
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black/90">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-black/90 md:left-[var(--content-inset-left)]">
       <div className="relative flex-1 overflow-hidden">
         <Cropper
           image={imageSrc}

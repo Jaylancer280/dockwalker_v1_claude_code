@@ -82,9 +82,9 @@ function BillingContent() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col pb-[var(--nav-height)]">
+    <main className="flex min-h-svh flex-col pb-[var(--nav-height)]">
       {/* Header */}
-      <div className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-background px-2 py-3">
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-background px-2 py-3">
         <button
           onClick={() => router.back()}
           className="rounded-full p-1 transition-colors hover:bg-accent"
@@ -94,7 +94,7 @@ function BillingContent() {
         <h1 className="text-lg font-semibold">Plans</h1>
       </div>
 
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-6">
+      <div className="page-width flex w-full flex-col gap-4 px-4 py-6">
         {showSuccess && (
           <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-4 py-3 text-sm text-green-700 dark:text-green-400">
             <Check className="h-4 w-4 shrink-0" />

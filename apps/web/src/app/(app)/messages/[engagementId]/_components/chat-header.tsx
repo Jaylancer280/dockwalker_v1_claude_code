@@ -73,7 +73,7 @@ export function ChatHeader({
 
   return (
     <header className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-      <div className="mx-auto flex max-w-lg items-center gap-3">
+      <div className="page-width-wide flex  items-center gap-3">
         <Link href="/messages" className="text-muted-foreground hover:text-foreground">
           <ChevronLeft className="h-5 w-5" />
         </Link>

@@ -21,7 +21,7 @@ export function IdentityStep({
 }: IdentityStepProps) {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+      <div className="flex w-full max-w-sm flex-col gap-6 md:max-w-lg">
         <button
           onClick={onBack}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"

@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
   // Still checking session
   if (hasSession === null) {
     return (
-      <main className="flex min-h-svh items-center justify-center bg-background">
+      <main className="flex min-h-svh items-center justify-center bg-background md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
         <p className="text-sm text-muted-foreground">Loading...</p>
       </main>
     );
@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
   // No session — link expired or invalid
   if (!hasSession) {
     return (
-      <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4">
+      <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
         <div className="flex w-full max-w-sm flex-col items-center gap-6">
           <div className="flex flex-col items-center gap-2">
             <Image

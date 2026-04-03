@@ -311,7 +311,7 @@ export default function ReviewApplicantsPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
+        <div className="page-width flex items-center gap-3">
           <Link href="/daywork/mine" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Link>
@@ -340,7 +340,7 @@ export default function ReviewApplicantsPage() {
       </header>
 
       {/* Tabs */}
-      <div className="mx-auto w-full max-w-lg">
+      <div className="page-width w-full ">
         <UnderlineTabs
           options={[
             { value: 'applicants', label: 'Applicants', count: applicants.length },
@@ -356,7 +356,7 @@ export default function ReviewApplicantsPage() {
         />
       </div>
 
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-4 px-4 py-6">
+      <div className="page-width flex w-full flex-1 flex-col gap-4 px-4 py-6">
         {/* Filters panel */}
         {showFilters && (
           <ReviewFilterPanel

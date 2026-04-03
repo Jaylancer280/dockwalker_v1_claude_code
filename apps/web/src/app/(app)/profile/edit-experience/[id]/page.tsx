@@ -160,7 +160,7 @@ export default function EditExperiencePage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center">
+        <div className="page-width flex items-center">
           <button
             onClick={() => router.push('/profile')}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -171,7 +171,7 @@ export default function EditExperiencePage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
+      <div className="page-width flex w-full flex-col gap-6 px-4 py-6">
         <div>
           <h1 className="text-xl font-bold tracking-tight">
             {isAgent ? 'Edit Maritime Background' : 'Edit experience'}

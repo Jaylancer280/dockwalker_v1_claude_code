@@ -37,7 +37,7 @@ export function BottomNav({ currentHat }: BottomNavProps) {
   const { messageCount } = useNotificationCounts();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-[var(--border)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--surface)] pb-[env(safe-area-inset-bottom)] md:hidden">
       <div className="mx-auto flex h-[var(--nav-height)] max-w-lg items-center justify-around">
         {items.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/');

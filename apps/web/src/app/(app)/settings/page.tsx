@@ -102,7 +102,7 @@ export default function SettingsPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
+        <div className="page-width flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.push('/profile')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -110,7 +110,7 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-6">
+      <div className="page-width flex w-full flex-col gap-6 px-4 py-6">
         <AccountSection email={email} />
 
         <NotificationsSection

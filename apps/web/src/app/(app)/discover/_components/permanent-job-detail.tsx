@@ -50,7 +50,7 @@ export function PermanentJobDetail({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div className="fixed inset-0 z-60 flex flex-col bg-background md:left-[var(--content-inset-left)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h2 className="text-lg font-bold">PM-{String(posting.job_number).padStart(5, '0')}</h2>
@@ -61,7 +61,7 @@ export function PermanentJobDetail({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="mx-auto max-w-lg space-y-4">
+          <div className="page-width space-y-4">
             {/* Role */}
             <div className="flex items-center gap-2">
               <h3 className="text-2xl font-bold">{posting.role_name ?? 'Unknown Role'}</h3>

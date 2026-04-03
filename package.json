@@ -11,7 +11,8 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "screenshots": "npx tsx scripts/screenshot-responsive.ts"
   },
   "packageManager": "npm@11.6.2",
   "engines": {

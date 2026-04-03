@@ -521,8 +521,8 @@ export default function DiscoverPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)]">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-4 pt-3 pb-2">
+      <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)]">
+        <div className="page-width flex items-center justify-between px-4 pt-3 pb-2">
           {activeTab === 'browse' ? (
             <div className="min-w-0 flex-1">
               <SegmentedToggle
@@ -558,11 +558,13 @@ export default function DiscoverPage() {
                 {hasActiveFilters && <span className="ml-1 text-xs">(active)</span>}
               </Button>
             )}
-            <NotificationBell />
+            <span className="md:hidden">
+              <NotificationBell />
+            </span>
           </div>
         </div>
         {/* Tabs */}
-        <div className="mx-auto max-w-lg border-t border-[var(--border)]">
+        <div className="page-width border-t border-[var(--border)]">
           <UnderlineTabs
             options={[
               { value: 'browse', label: 'Browse' },

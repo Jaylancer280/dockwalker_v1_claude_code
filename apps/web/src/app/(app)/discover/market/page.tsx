@@ -233,7 +233,7 @@ export default function MarketFeedPage() {
             Back to market
           </button>
         </header>
-        <div className="mx-auto w-full max-w-lg p-4">
+        <div className="page-width w-full p-4">
           <CardDetail card={selectedCard} />
         </div>
       </main>
@@ -243,7 +243,7 @@ export default function MarketFeedPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between">
+        <div className="page-width flex items-center justify-between">
           <button
             onClick={() => router.push('/daywork/mine')}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -258,7 +258,7 @@ export default function MarketFeedPage() {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-lg flex-1 px-4 py-4">
+      <div className="page-width w-full flex-1 px-4 py-4">
         {showFilters && (
           <MarketFilterPanel
             filterRoleId={filterRoleId}

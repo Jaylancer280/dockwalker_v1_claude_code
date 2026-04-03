@@ -153,7 +153,7 @@ export function PermanentMineSection() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-lg px-4 pb-20">
+    <div className="page-width w-full px-4 pb-20">
       {/* Tabs */}
       <div className="flex overflow-x-auto border-b">
         {tabs.map((t) => (

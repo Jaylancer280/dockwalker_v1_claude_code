@@ -417,7 +417,7 @@ export default function MyPostingsPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between">
+        <div className="page-width flex items-center justify-between">
           <h1 className="text-[24px] font-bold tracking-[-0.5px]">My Jobs</h1>
           <div className="flex gap-2">
             <Button
@@ -439,7 +439,7 @@ export default function MyPostingsPage() {
       </header>
 
       {/* Daywork / Permanent toggle */}
-      <div className="mx-auto max-w-lg mt-2 px-4">
+      <div className="page-width mt-2 px-4">
         <SegmentedToggle
           options={[
             { value: 'daywork', label: 'Daywork' },
@@ -455,7 +455,7 @@ export default function MyPostingsPage() {
 
       {/* Agent market feed button */}
       {isAgent && (
-        <div className="mx-auto mt-2 max-w-lg px-4">
+        <div className="page-width mt-2 px-4">
           <Button
             variant="outline"
             size="sm"
@@ -472,7 +472,7 @@ export default function MyPostingsPage() {
 
       {mineMode === 'daywork' && (
         <>
-          <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-4">
+          <div className="page-width flex w-full flex-1 flex-col px-4 py-4">
             {error && (
               <div className="mb-4 flex flex-col items-center gap-2 text-center">
                 <p className="text-sm text-destructive">{error}</p>

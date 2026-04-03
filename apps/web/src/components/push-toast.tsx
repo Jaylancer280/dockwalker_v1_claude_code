@@ -55,7 +55,8 @@ export function PushToast() {
         }
         dismiss();
       }}
-      className={`fixed left-2 right-2 top-2 z-[9999] cursor-pointer rounded-xl bg-slate-900 px-4 py-3 shadow-lg transition-transform duration-300 safe-top ${
+      style={{ marginLeft: 'var(--content-inset-left, 0px)' }}
+      className={`fixed left-2 right-2 top-2 z-80 cursor-pointer rounded-xl bg-slate-900 px-4 py-3 shadow-lg transition-transform duration-300 safe-top ${
         visible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >

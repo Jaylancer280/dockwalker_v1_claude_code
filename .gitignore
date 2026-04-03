@@ -35,6 +35,9 @@ Thumbs.db
 # claude code sessions
 .claude/
 
+# temporary files
+tmp/
+
 # turbo
 .turbo
 

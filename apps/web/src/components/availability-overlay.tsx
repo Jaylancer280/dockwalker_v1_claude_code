@@ -214,7 +214,7 @@ export function AvailabilityOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 md:left-[var(--content-inset-left)]"
       style={{ bottom: 'calc(var(--nav-height, 0px) + env(safe-area-inset-bottom))' }}
     >
       <div className="flex w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-[14px] bg-background">

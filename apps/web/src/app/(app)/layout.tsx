@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { BottomNav } from '@/components/bottom-nav';
+import { SidebarNav } from '@/components/sidebar-nav';
 import { ToastWrapper } from '@/components/toast-wrapper';
 import { OfflineBanner } from '@/components/offline-banner';
 import { LookupsProvider } from '@/hooks/use-lookups';
@@ -32,7 +33,8 @@ export default async function AppLayout({
       <LookupsProvider>
         <NotificationCountsProvider>
           <OfflineBanner />
-          <div className="pb-nav">{children}</div>
+          <SidebarNav currentHat={person.current_hat} identityType={person.identity_type} />
+          <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
           <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
         </NotificationCountsProvider>
       </LookupsProvider>

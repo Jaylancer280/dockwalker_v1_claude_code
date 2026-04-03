@@ -196,7 +196,7 @@ export default function DockyConversationPage() {
   return (
     <main className="flex min-h-screen flex-col pb-[var(--nav-height)]">
       {/* Header */}
-      <div className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-[var(--surface)] px-2 py-3">
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-[var(--surface)] px-2 py-3">
         <button
           onClick={() => router.push('/docky')}
           className="rounded-full p-1 transition-colors hover:bg-[var(--accent-lo)]"

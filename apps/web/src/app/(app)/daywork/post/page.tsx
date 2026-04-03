@@ -399,7 +399,7 @@ function DayworkPostForm() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
-        <div className="mx-auto flex max-w-lg items-center gap-3">
+        <div className="page-width flex items-center gap-3">
           <Link href="/daywork/mine" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Link>
@@ -407,10 +407,7 @@ function DayworkPostForm() {
         </div>
       </header>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-6"
-      >
+      <form onSubmit={handleSubmit} className="page-width flex w-full flex-col gap-4 px-4 py-6">
         {/* Load template */}
         {templates.length > 0 && (
           <div className="flex flex-col gap-1.5">

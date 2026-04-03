@@ -301,6 +301,10 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 177] Smoker + visible tattoos profile fields — migration 00080 adds two nullable boolean columns to profiles; `apply_projection` updated (PROFILE.CREATED uses direct cast, PROFILE.UPDATED uses `CASE WHEN ? THEN` pattern to support explicit false/null); onboarding, profile GET/PATCH, view-only profile API all updated; onboarding UI, profile about section, profile edit form all wired; 1 new PATCH test; 915 tests pass
 
+- [Stage 178] Responsive Redesign Phase 0 (Foundation) — CSS variables (`--sidebar-width`, `--content-inset-left`), 3 width utility classes (`page-width`, `page-width-narrow`, `page-width-wide`); new `SidebarNav` component (hidden mobile, visible md+); `BottomNav` hidden on desktop; app layout wires sidebar + content offset; 8 viewport-positioned components fixed for sidebar offset (dialog, toast, bottom-sheet, profile-overlay, availability-overlay, image-cropper, permanent-job-detail, push-toast); z-index normalisation across 11 components; duplicate nav elements hidden on desktop; swipe animation proportional to container width; mechanical `max-w-lg` → `page-width`/`page-width-wide` migration across 30+ files; viewport meta allows zoom; screenshot utility script; 915 tests pass
+
+- [Stage 179] Responsive Redesign Phase 1 (Landing + Auth + Onboarding) — landing hero: 2-column flex layout on desktop with larger logo, left-aligned text, wider description; value props: 3-column row on md+; footer wrapped in page-width-wide; auth pages: subtle radial glow background on desktop; onboarding steps: wider containers on desktop (max-w-sm→max-w-lg, vessel step max-w-md→max-w-2xl); 915 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)

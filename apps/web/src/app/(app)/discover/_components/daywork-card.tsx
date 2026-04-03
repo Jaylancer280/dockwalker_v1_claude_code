@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide-react';
@@ -48,7 +48,8 @@ export interface DayworkCard {
   permanent_opportunity: boolean;
 }
 
-const SWIPE_THRESHOLD = 100;
+const SWIPE_THRESHOLD_RATIO = 0.33;
+const EXIT_RATIO = 1.3;
 
 export interface SwipeableCardHandle {
   triggerApplySwipe: () => void;
@@ -320,22 +321,28 @@ export const SwipeableCard = forwardRef<
   },
   ref,
 ) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
+  const getWidth = () => containerRef.current?.offsetWidth ?? 300;
+  const getThreshold = () => getWidth() * SWIPE_THRESHOLD_RATIO;
+  const getExit = () => getWidth() * EXIT_RATIO;
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
-  const applyOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
-  const passOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
+  const applyOpacity = useTransform(x, [0, 100], [0, 1]);
+  const passOpacity = useTransform(x, [-100, 0], [1, 0]);
 
   useImperativeHandle(ref, () => ({
     triggerApplySwipe() {
       hapticMedium();
-      animate(x, 400, { duration: 0.3 });
+      animate(x, getExit(), { duration: 0.3 });
     },
   }));
 
   function handleDragEnd(_: unknown, info: PanInfo) {
     if (disabled || composing) return;
+    const threshold = getThreshold();
+    const exit = getExit();
 
-    if (info.offset.x > SWIPE_THRESHOLD) {
+    if (info.offset.x > threshold) {
       // Right swipe = apply — check availability first
       if (!canApply) {
         // Snap back and show availability gate
@@ -344,11 +351,11 @@ export const SwipeableCard = forwardRef<
         return;
       }
       hapticMedium();
-      animate(x, 400, { duration: 0.3 });
+      animate(x, exit, { duration: 0.3 });
       setTimeout(onApply, 300);
-    } else if (info.offset.x < -SWIPE_THRESHOLD) {
+    } else if (info.offset.x < -threshold) {
       hapticLight();
-      animate(x, -400, { duration: 0.3 });
+      animate(x, -exit, { duration: 0.3 });
       setTimeout(onPass, 300);
     } else {
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
@@ -357,6 +364,7 @@ export const SwipeableCard = forwardRef<
 
   return (
     <motion.div
+      ref={containerRef}
       className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
       style={{ x, rotate }}
       drag={composing ? false : 'x'}

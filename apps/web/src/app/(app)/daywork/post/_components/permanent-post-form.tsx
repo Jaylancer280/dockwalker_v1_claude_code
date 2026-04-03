@@ -317,7 +317,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   }
 
   return (
-    <div className="mx-auto max-w-lg px-4 pb-24 pt-4">
+    <div className="page-width px-4 pb-24 pt-4">
       {/* Header */}
       <div className="mb-6 flex items-center gap-2">
         <button onClick={onBack} className="rounded-full p-2 hover:bg-muted">

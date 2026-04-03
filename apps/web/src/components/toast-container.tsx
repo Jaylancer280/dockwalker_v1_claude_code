@@ -8,7 +8,14 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 z-[60] flex -translate-x-1/2 flex-col gap-2">
+    <div
+      className="fixed z-70 flex flex-col gap-2"
+      style={{
+        bottom: 'calc(var(--nav-height, 4rem) + env(safe-area-inset-bottom, 0px) + 0.5rem)',
+        left: 'calc(var(--content-inset-left) + (100vw - var(--content-inset-left)) / 2)',
+        transform: 'translateX(-50%)',
+      }}
+    >
       {toasts.map((toast) => (
         <button
           key={toast.id}

@@ -185,7 +185,7 @@ export function ProfileStep(props: ProfileStepProps) {
 
   return (
     <main className="flex min-h-svh flex-col items-start justify-start bg-background px-4 py-8">
-      <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
+      <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-lg">
         <button
           onClick={onBack}
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
