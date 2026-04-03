@@ -309,6 +309,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 181] Responsive Redesign Phase 3 (Profile) — crew profile 2-column layout on lg+ (main content + sticky QuickStats sidebar with avatar, role, location, career status, completeness bar); edit form pairs fields side-by-side on md+ (name+deck, city+port, nationality+visas); smoker/tattoos checkboxes flex-wrap; agent form pairs name+agency; 915 tests pass
 
+- [Stage 182] Responsive Redesign Phase 4 (Messages) — chat page 2-column layout on lg+ (chat left + engagement sidebar right with summary card + action buttons); ChatSidebarActions component mirrors kebab menu logic as vertical buttons; summary card hidden in MessageList on desktop; kebab menu hidden on desktop; 915 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)

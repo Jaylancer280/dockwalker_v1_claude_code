@@ -41,23 +41,25 @@ export function MessageList({
           </div>
         )}
 
-        {!loading &&
-          context &&
-          (context.type === 'permanent' ? (
-            <PermanentSummaryCard context={context} />
-          ) : context.dayworks ? (
-            <DayworkSummaryCard context={context} />
-          ) : (
-            <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3">
-              <p className="text-sm font-medium">Job details unavailable</p>
-              <p className="text-xs text-muted-foreground">
-                {context.start_date && context.end_date
-                  ? `${context.start_date} — ${context.end_date}`
-                  : 'Engagement dates not available'}
-                {context.status && ` · ${context.status}`}
-              </p>
-            </div>
-          ))}
+        <div className="lg:hidden">
+          {!loading &&
+            context &&
+            (context.type === 'permanent' ? (
+              <PermanentSummaryCard context={context} />
+            ) : context.dayworks ? (
+              <DayworkSummaryCard context={context} />
+            ) : (
+              <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+                <p className="text-sm font-medium">Job details unavailable</p>
+                <p className="text-xs text-muted-foreground">
+                  {context.start_date && context.end_date
+                    ? `${context.start_date} — ${context.end_date}`
+                    : 'Engagement dates not available'}
+                  {context.status && ` · ${context.status}`}
+                </p>
+              </div>
+            ))}
+        </div>
 
         {!loading && context?.checklist && (
           <ChecklistCard

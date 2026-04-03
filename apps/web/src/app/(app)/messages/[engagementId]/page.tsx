@@ -18,6 +18,9 @@ import { ChatHeader } from './_components/chat-header';
 import { MessageList } from './_components/message-list';
 import { ChatFooter } from './_components/chat-footer';
 import { ChatDialogs } from './_components/chat-dialogs';
+import { ChatSidebarActions } from './_components/chat-sidebar-actions';
+import { DayworkSummaryCard } from './_components/daywork-summary-card';
+import { PermanentSummaryCard } from './_components/permanent-summary-card';
 
 export default function ChatPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -468,81 +471,131 @@ export default function ChatPage() {
   // -----------------------------------------------------------------------
 
   return (
-    <main className="flex h-[calc(100svh-var(--nav-height)-env(safe-area-inset-bottom))] flex-col bg-background md:h-svh">
-      <ChatHeader
-        context={context}
-        isCrew={isCrew ?? false}
-        isEmployer={isEmployer ?? false}
-        isPermanent={isPermanent ?? false}
-        permPostingStatus={permPostingStatus}
-        cancelLabel={cancelLabel}
-        showActionMenu={showActionMenu}
-        setShowActionMenu={setShowActionMenu}
-        menuRef={menuRef}
-        showCancelForm={showCancelForm}
-        showCrewCancelForm={showCrewCancelForm}
-        completing={completing}
-        workStarting={workStarting}
-        onViewProfile={setViewProfileId}
-        onShowCancelForm={() => setShowCancelForm(true)}
-        onShowCrewCancelForm={() => setShowCrewCancelForm(true)}
-        onShowChecklistForm={() => setShowChecklistForm(true)}
-        onShowCompleteConfirm={() => setShowCompleteConfirm(true)}
-        onShowPostponementForm={() => setShowPostponementForm(true)}
-        onShowConfirmPlacement={() => setShowConfirmPlacement(true)}
-        onShowRevertSelection={() => setShowRevertSelection(true)}
-        onShowCloseConversation={() => setShowCloseConversation(true)}
-        onCancelPosting={setCancelPostingId}
-        onCrewWithdraw={async () => {
-          if (!permPostingId) return;
-          const r = await safeFetch(`/api/permanent/${permPostingId}/withdraw`, {
-            method: 'POST',
-          });
-          if (r.ok) {
-            showSuccess('Application withdrawn');
-            router.push('/messages');
-          } else {
-            showError(r.error);
-          }
-        }}
-        onWorkStarted={handleWorkStarted}
-      />
+    <main className="flex h-[calc(100svh-var(--nav-height)-env(safe-area-inset-bottom))] flex-col bg-background md:h-svh lg:flex-row">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <ChatHeader
+          context={context}
+          isCrew={isCrew ?? false}
+          isEmployer={isEmployer ?? false}
+          isPermanent={isPermanent ?? false}
+          permPostingStatus={permPostingStatus}
+          cancelLabel={cancelLabel}
+          showActionMenu={showActionMenu}
+          setShowActionMenu={setShowActionMenu}
+          menuRef={menuRef}
+          showCancelForm={showCancelForm}
+          showCrewCancelForm={showCrewCancelForm}
+          completing={completing}
+          workStarting={workStarting}
+          onViewProfile={setViewProfileId}
+          onShowCancelForm={() => setShowCancelForm(true)}
+          onShowCrewCancelForm={() => setShowCrewCancelForm(true)}
+          onShowChecklistForm={() => setShowChecklistForm(true)}
+          onShowCompleteConfirm={() => setShowCompleteConfirm(true)}
+          onShowPostponementForm={() => setShowPostponementForm(true)}
+          onShowConfirmPlacement={() => setShowConfirmPlacement(true)}
+          onShowRevertSelection={() => setShowRevertSelection(true)}
+          onShowCloseConversation={() => setShowCloseConversation(true)}
+          onCancelPosting={setCancelPostingId}
+          onCrewWithdraw={async () => {
+            if (!permPostingId) return;
+            const r = await safeFetch(`/api/permanent/${permPostingId}/withdraw`, {
+              method: 'POST',
+            });
+            if (r.ok) {
+              showSuccess('Application withdrawn');
+              router.push('/messages');
+            } else {
+              showError(r.error);
+            }
+          }}
+          onWorkStarted={handleWorkStarted}
+        />
 
-      <MessageList
-        messages={messages}
-        context={context}
-        userId={userId}
-        loading={loading}
-        isCrew={isCrew ?? false}
-        isEmployer={isEmployer ?? false}
-        scrollContainerRef={scrollContainerRef}
-        messagesEndRef={messagesEndRef}
-        onChecklistToggle={handleChecklistToggle}
-        onEditChecklist={() => setShowChecklistForm(true)}
-      />
+        <MessageList
+          messages={messages}
+          context={context}
+          userId={userId}
+          loading={loading}
+          isCrew={isCrew ?? false}
+          isEmployer={isEmployer ?? false}
+          scrollContainerRef={scrollContainerRef}
+          messagesEndRef={messagesEndRef}
+          onChecklistToggle={handleChecklistToggle}
+          onEditChecklist={() => setShowChecklistForm(true)}
+        />
 
-      <ChatFooter
-        context={context}
-        userId={userId}
-        isCrew={isCrew ?? false}
-        isEmployer={isEmployer ?? false}
-        canRate={canRate ?? false}
-        input={input}
-        sending={sending}
-        confirming={confirming}
-        workStarting={workStarting}
-        respondingPostponement={respondingPostponement}
-        relistingAfterRejection={relistingAfterRejection}
-        respondingCrewCancel={respondingCrewCancel}
-        onInputChange={setInput}
-        onSend={handleSend}
-        onConfirmCompletion={handleConfirmCompletion}
-        onOpenRating={() => setShowRating(true)}
-        onRespondPostponement={handleRespondPostponement}
-        onWorkStartedConfirm={() => handleWorkStarted('confirm')}
-        onRelistAfterRejection={handleRelistAfterRejection}
-        onRespondCrewCancel={handleRespondCrewCancel}
-      />
+        <ChatFooter
+          context={context}
+          userId={userId}
+          isCrew={isCrew ?? false}
+          isEmployer={isEmployer ?? false}
+          canRate={canRate ?? false}
+          input={input}
+          sending={sending}
+          confirming={confirming}
+          workStarting={workStarting}
+          respondingPostponement={respondingPostponement}
+          relistingAfterRejection={relistingAfterRejection}
+          respondingCrewCancel={respondingCrewCancel}
+          onInputChange={setInput}
+          onSend={handleSend}
+          onConfirmCompletion={handleConfirmCompletion}
+          onOpenRating={() => setShowRating(true)}
+          onRespondPostponement={handleRespondPostponement}
+          onWorkStartedConfirm={() => handleWorkStarted('confirm')}
+          onRelistAfterRejection={handleRelistAfterRejection}
+          onRespondCrewCancel={handleRespondCrewCancel}
+        />
+      </div>
+
+      {/* Desktop engagement sidebar */}
+      {context && (
+        <aside className="hidden lg:flex lg:w-[320px] lg:shrink-0 lg:flex-col lg:border-l lg:border-[var(--border)] lg:overflow-y-auto">
+          <div className="p-4">
+            {context.type === 'permanent' ? (
+              <PermanentSummaryCard context={context} />
+            ) : context.dayworks ? (
+              <DayworkSummaryCard context={context} />
+            ) : null}
+          </div>
+          {context.status === 'active' && (
+            <ChatSidebarActions
+              context={context}
+              isCrew={isCrew ?? false}
+              isEmployer={isEmployer ?? false}
+              isPermanent={isPermanent ?? false}
+              permPostingStatus={permPostingStatus}
+              cancelLabel={cancelLabel}
+              completing={completing}
+              workStarting={workStarting}
+              onViewProfile={setViewProfileId}
+              onShowCancelForm={() => setShowCancelForm(true)}
+              onShowCrewCancelForm={() => setShowCrewCancelForm(true)}
+              onShowChecklistForm={() => setShowChecklistForm(true)}
+              onShowCompleteConfirm={() => setShowCompleteConfirm(true)}
+              onShowPostponementForm={() => setShowPostponementForm(true)}
+              onShowConfirmPlacement={() => setShowConfirmPlacement(true)}
+              onShowRevertSelection={() => setShowRevertSelection(true)}
+              onShowCloseConversation={() => setShowCloseConversation(true)}
+              onCancelPosting={setCancelPostingId}
+              onCrewWithdraw={async () => {
+                if (!permPostingId) return;
+                const r = await safeFetch(`/api/permanent/${permPostingId}/withdraw`, {
+                  method: 'POST',
+                });
+                if (r.ok) {
+                  showSuccess('Application withdrawn');
+                  router.push('/messages');
+                } else {
+                  showError(r.error);
+                }
+              }}
+              onWorkStarted={handleWorkStarted}
+            />
+          )}
+        </aside>
+      )}
 
       {/* Form overlays */}
       {showCancelForm && context && isEmployer && (

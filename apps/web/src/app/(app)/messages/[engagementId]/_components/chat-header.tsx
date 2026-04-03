@@ -83,7 +83,7 @@ export function ChatHeader({
           </h1>
         </div>
         {context && context.status === 'active' && !showCancelForm && !showCrewCancelForm && (
-          <div ref={menuRef} className="relative shrink-0">
+          <div ref={menuRef} className="relative shrink-0 lg:hidden">
             <Button variant="ghost" size="sm" onClick={() => setShowActionMenu(!showActionMenu)}>
               <MoreVertical className="h-4 w-4" />
             </Button>
