@@ -16,4 +16,13 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
+// css-interop is nested inside nativewind's node_modules — Metro can't find it
+// from root-hoisted packages like expo-router. Map it explicitly.
+config.resolver.extraNodeModules = {
+  'react-native-css-interop': path.resolve(
+    projectRoot,
+    'node_modules/nativewind/node_modules/react-native-css-interop'
+  ),
+};
+
 module.exports = withNativeWind(config, { input: './global.css' });

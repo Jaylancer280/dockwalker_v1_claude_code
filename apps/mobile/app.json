@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "dockwalker",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "io.dockwalker.app",
@@ -17,11 +17,15 @@
     },
     "android": {
       "package": "io.dockwalker.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
+    },
+    "developmentClient": {
+      "silentLaunch": false
     },
     "web": {
       "bundler": "metro",
