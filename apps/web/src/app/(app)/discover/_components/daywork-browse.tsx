@@ -280,7 +280,7 @@ export function DayworkBrowse({
 
             {!loading && cards.length > 0 && (
               <motion.div
-                className="relative h-[420px] w-full overflow-hidden"
+                className="relative mx-auto h-[420px] w-full max-w-md overflow-hidden"
                 initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
@@ -329,7 +329,7 @@ export function DayworkBrowse({
 
           {/* Action buttons or message compose */}
           {!loading && topCard && !composingMessage && (
-            <div className="flex items-center justify-center gap-6 pb-4">
+            <div className="mx-auto flex max-w-md items-center justify-center gap-6 pb-4">
               <button
                 onClick={() => onPass(topCard.id)}
                 disabled={applying}
@@ -350,7 +350,7 @@ export function DayworkBrowse({
           )}
 
           {!loading && topCard && composingMessage && (
-            <div className="flex flex-col gap-2 pb-4">
+            <div className="mx-auto flex max-w-md flex-col gap-2 pb-4">
               <div className="relative">
                 <textarea
                   value={messageText}

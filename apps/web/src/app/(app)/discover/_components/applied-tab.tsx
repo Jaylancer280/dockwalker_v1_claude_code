@@ -110,26 +110,29 @@ export function AppliedTab({
         />
       )}
 
-      {!loadingApps &&
-        applications.map((app) =>
-          app.type === 'permanent' ? (
-            <PermanentApplicationCard
-              key={app.id}
-              application={app as import('./permanent-application-card').PermanentApplication}
-              withdrawing={withdrawingId === app.permanent_posting_id}
-              onWithdraw={(pid) => onPermanentWithdraw(pid)}
-              onViewProfile={onViewProfile}
-            />
-          ) : (
-            <ApplicationCard
-              key={app.id}
-              application={app}
-              withdrawing={withdrawingId === app.daywork_id}
-              onWithdraw={() => onWithdraw(app.daywork_id!)}
-              onViewProfile={onViewProfile}
-            />
-          ),
-        )}
+      {!loadingApps && applications.length > 0 && (
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
+          {applications.map((app) =>
+            app.type === 'permanent' ? (
+              <PermanentApplicationCard
+                key={app.id}
+                application={app as import('./permanent-application-card').PermanentApplication}
+                withdrawing={withdrawingId === app.permanent_posting_id}
+                onWithdraw={(pid) => onPermanentWithdraw(pid)}
+                onViewProfile={onViewProfile}
+              />
+            ) : (
+              <ApplicationCard
+                key={app.id}
+                application={app}
+                withdrawing={withdrawingId === app.daywork_id}
+                onWithdraw={() => onWithdraw(app.daywork_id!)}
+                onViewProfile={onViewProfile}
+              />
+            ),
+          )}
+        </div>
+      )}
     </div>
   );
 }

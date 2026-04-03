@@ -76,17 +76,20 @@ export function InvitationsTab({
         />
       )}
 
-      {!loadingInvitations &&
-        invitations.map((inv) => (
-          <InvitationCard
-            key={inv.id}
-            invitation={inv}
-            responding={respondingId === inv.id}
-            onAccept={() => onAccept(inv)}
-            onDecline={() => onDecline(inv)}
-            onViewProfile={onViewProfile}
-          />
-        ))}
+      {!loadingInvitations && invitations.length > 0 && (
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
+          {invitations.map((inv) => (
+            <InvitationCard
+              key={inv.id}
+              invitation={inv}
+              responding={respondingId === inv.id}
+              onAccept={() => onAccept(inv)}
+              onDecline={() => onDecline(inv)}
+              onViewProfile={onViewProfile}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

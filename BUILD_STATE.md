@@ -305,6 +305,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 179] Responsive Redesign Phase 1 (Landing + Auth + Onboarding) — landing hero: 2-column flex layout on desktop with larger logo, left-aligned text, wider description; value props: 3-column row on md+; footer wrapped in page-width-wide; auth pages: subtle radial glow background on desktop; onboarding steps: wider containers on desktop (max-w-sm→max-w-lg, vessel step max-w-md→max-w-2xl); 915 tests pass
 
+- [Stage 180] Responsive Redesign Phase 1 fix + Phase 2 (Discover) — reset-password form gradient fix; daywork card stack constrained to max-w-md on desktop with centred action buttons; permanent job feed, applied tab, and invitations tab use 2-column grid on lg+; 915 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)
