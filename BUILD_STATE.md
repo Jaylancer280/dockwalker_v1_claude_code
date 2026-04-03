@@ -311,6 +311,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 182] Responsive Redesign Phase 4 (Messages) — chat page 2-column layout on lg+ (chat left + engagement sidebar right with summary card + action buttons); ChatSidebarActions component mirrors kebab menu logic as vertical buttons; summary card hidden in MessageList on desktop; kebab menu hidden on desktop; 915 tests pass
 
+- [Stage 183] Responsive Redesign Phase 5 (My Jobs + Review) — daywork mine tabs use 2-column grid on lg+; permanent mine section grids for templates and postings; daywork review card stack constrained to max-w-md with proportional swipe; permanent review applicant cards in 2-column grid; permanent review min-h-svh fix; 915 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)

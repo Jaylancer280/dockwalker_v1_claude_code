@@ -547,7 +547,10 @@ export default function MyPostingsPage() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="active" className="flex flex-col gap-3 pt-2">
+              <TabsContent
+                value="active"
+                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
+              >
                 <DayworkActiveSection
                   loading={loading}
                   postings={activePostings}
@@ -555,7 +558,10 @@ export default function MyPostingsPage() {
                 />
               </TabsContent>
 
-              <TabsContent value="in_progress" className="flex flex-col gap-3 pt-2">
+              <TabsContent
+                value="in_progress"
+                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
+              >
                 <DayworkInProgressSection
                   loading={loading}
                   postings={inProgressPostings}
@@ -563,7 +569,10 @@ export default function MyPostingsPage() {
                 />
               </TabsContent>
 
-              <TabsContent value="completed" className="flex flex-col gap-3 pt-2">
+              <TabsContent
+                value="completed"
+                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
+              >
                 <DayworkCompletedSection
                   loading={loading}
                   postings={completedPostings}
@@ -571,7 +580,10 @@ export default function MyPostingsPage() {
                 />
               </TabsContent>
 
-              <TabsContent value="templates" className="flex flex-col gap-3 pt-2">
+              <TabsContent
+                value="templates"
+                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
+              >
                 <DayworkTemplatesSection
                   loading={loading}
                   templates={templates}

@@ -174,7 +174,7 @@ export function PermanentMineSection() {
 
       {/* Templates tab */}
       {tab === 'templates' && (
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {templates.length === 0 && (
             <p className="pt-8 text-center text-sm text-muted-foreground">
               No saved templates. Save a template when posting a permanent job.
@@ -217,7 +217,7 @@ export function PermanentMineSection() {
 
       {/* Posting tabs */}
       {tab !== 'templates' && (
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {currentPostings.length === 0 && (
             <p className="pt-8 text-center text-sm text-muted-foreground">
               No {tab.replace('_', ' ')} postings

@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { MapPin, Award, Briefcase, Calendar, Check, X, User, Star } from 'lucide-react';
@@ -11,7 +12,8 @@ import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import type { Applicant, TabView } from './types';
 
-const SWIPE_THRESHOLD = 100;
+const SWIPE_THRESHOLD_RATIO = 0.33;
+const EXIT_RATIO = 1.3;
 
 export function ApplicantsTab({
   tab,
@@ -103,7 +105,7 @@ export function ApplicantsTab({
         )}
 
         {!loading && currentStack.length > 0 && (
-          <div className="relative h-[440px] w-full">
+          <div className="relative mx-auto h-[440px] w-full max-w-md">
             {nextCard && (
               <div className="absolute inset-0 z-0">
                 <ApplicantCard applicant={nextCard} isPreview />
@@ -128,7 +130,7 @@ export function ApplicantsTab({
 
       {/* Action buttons */}
       {!loading && topCard && (
-        <div className="flex items-center justify-center gap-6 pb-4">
+        <div className="mx-auto flex max-w-md items-center justify-center gap-6 pb-4">
           <button
             onClick={() => handleReject(topCard.crew_person_id)}
             disabled={acting}
@@ -183,32 +185,34 @@ function SwipeableApplicant({
   disabled: boolean;
   onViewProfile?: (personId: string) => void;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
+  const getWidth = () => containerRef.current?.offsetWidth ?? 300;
+  const getThreshold = () => getWidth() * SWIPE_THRESHOLD_RATIO;
+  const getExit = () => getWidth() * EXIT_RATIO;
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
-  const acceptOpacity = useTransform(x, [0, SWIPE_THRESHOLD], [0, 1]);
-  const rejectOpacity = useTransform(x, [-SWIPE_THRESHOLD, 0], [1, 0]);
-  const shortlistOpacity = useTransform(y, [-SWIPE_THRESHOLD, 0], [1, 0]);
+  const acceptOpacity = useTransform(x, [0, 100], [0, 1]);
+  const rejectOpacity = useTransform(x, [-100, 0], [1, 0]);
+  const shortlistOpacity = useTransform(y, [-100, 0], [1, 0]);
 
   function handleDragEnd(_: unknown, info: PanInfo) {
     if (disabled) return;
+    const threshold = getThreshold();
+    const exit = getExit();
 
     // Upward swipe = shortlist (only on applicants tab)
-    if (
-      tab === 'applicants' &&
-      info.offset.y < -SWIPE_THRESHOLD &&
-      Math.abs(info.offset.x) < SWIPE_THRESHOLD
-    ) {
+    if (tab === 'applicants' && info.offset.y < -threshold && Math.abs(info.offset.x) < threshold) {
       hapticLight();
-      animate(y, -400, { duration: 0.3 });
+      animate(y, -exit, { duration: 0.3 });
       setTimeout(onShortlist, 300);
-    } else if (info.offset.x > SWIPE_THRESHOLD) {
+    } else if (info.offset.x > threshold) {
       hapticMedium();
-      animate(x, 400, { duration: 0.3 });
+      animate(x, exit, { duration: 0.3 });
       setTimeout(onAccept, 300);
-    } else if (info.offset.x < -SWIPE_THRESHOLD) {
+    } else if (info.offset.x < -threshold) {
       hapticLight();
-      animate(x, -400, { duration: 0.3 });
+      animate(x, -exit, { duration: 0.3 });
       setTimeout(onReject, 300);
     } else {
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
@@ -218,6 +222,7 @@ function SwipeableApplicant({
 
   return (
     <motion.div
+      ref={containerRef}
       className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
       style={{ x, y, rotate }}
       drag

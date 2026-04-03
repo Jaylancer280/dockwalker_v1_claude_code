@@ -202,7 +202,7 @@ export default function PermanentReviewPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-background pb-20">
+    <main className="flex min-h-svh flex-col bg-background pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="page-width flex items-center gap-2">
@@ -257,115 +257,118 @@ export default function PermanentReviewPage() {
           </p>
         )}
 
-        {!loading &&
-          (activeTab === 'applicants' ? applied : shortlisted).map((app) => (
-            <div
-              key={app.id}
-              className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
-            >
-              {/* Header */}
-              <div className="mb-2 flex items-start gap-3">
-                <Avatar src={app.avatar_url} name={app.display_name ?? '?'} size="md" />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[15px] font-semibold tracking-[-0.3px]">
-                      {app.display_name ?? 'Unknown'}
-                    </span>
-                    {app.role_name && <EpauletteBadge roleName={app.role_name} size="sm" />}
-                    {app.status === 'selected' && (
-                      <Badge variant="status-filling" className="text-xs">
-                        In negotiation
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap gap-1.5 text-[13px] text-[var(--muted-foreground)]">
-                    {app.experience_label && <span>{app.experience_label}</span>}
-                    {app.nationality_flag && <span>{app.nationality_flag}</span>}
-                    {app.languages.length > 0 && (
-                      <span>
-                        {app.languages.length} language{app.languages.length !== 1 ? 's' : ''}
+        {!loading && (activeTab === 'applicants' ? applied : shortlisted).length > 0 && (
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
+            {(activeTab === 'applicants' ? applied : shortlisted).map((app) => (
+              <div
+                key={app.id}
+                className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
+              >
+                {/* Header */}
+                <div className="mb-2 flex items-start gap-3">
+                  <Avatar src={app.avatar_url} name={app.display_name ?? '?'} size="md" />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px] font-semibold tracking-[-0.3px]">
+                        {app.display_name ?? 'Unknown'}
                       </span>
-                    )}
+                      {app.role_name && <EpauletteBadge roleName={app.role_name} size="sm" />}
+                      {app.status === 'selected' && (
+                        <Badge variant="status-filling" className="text-xs">
+                          In negotiation
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="mt-0.5 flex flex-wrap gap-1.5 text-[13px] text-[var(--muted-foreground)]">
+                      {app.experience_label && <span>{app.experience_label}</span>}
+                      {app.nationality_flag && <span>{app.nationality_flag}</span>}
+                      {app.languages.length > 0 && (
+                        <span>
+                          {app.languages.length} language{app.languages.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => setProfileId(app.crew_person_id)}
+                    className="rounded-full p-1.5 hover:bg-muted"
+                  >
+                    <User className="h-4 w-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setProfileId(app.crew_person_id)}
-                  className="rounded-full p-1.5 hover:bg-muted"
-                >
-                  <User className="h-4 w-4" />
-                </button>
-              </div>
 
-              {/* Availability */}
-              {(() => {
-                const avail = availabilityLabel(app);
-                return (
-                  <p className={`mb-1 text-xs ${avail.color}`}>
-                    {avail.text}
-                    {app.currently_employed && ' · Currently employed'}
+                {/* Availability */}
+                {(() => {
+                  const avail = availabilityLabel(app);
+                  return (
+                    <p className={`mb-1 text-xs ${avail.color}`}>
+                      {avail.text}
+                      {app.currently_employed && ' · Currently employed'}
+                    </p>
+                  );
+                })()}
+
+                {/* Message */}
+                {app.message && (
+                  <p className="mb-2 line-clamp-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs italic text-[var(--foreground)]">
+                    &quot;{app.message}&quot;
                   </p>
-                );
-              })()}
+                )}
 
-              {/* Message */}
-              {app.message && (
-                <p className="mb-2 line-clamp-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs italic text-[var(--foreground)]">
-                  &quot;{app.message}&quot;
+                {/* Applied date */}
+                <p className="mb-3 font-mono text-[11px] text-[var(--tertiary)]">
+                  Applied {daysAgo(app.applied_at)}
                 </p>
-              )}
 
-              {/* Applied date */}
-              <p className="mb-3 font-mono text-[11px] text-[var(--tertiary)]">
-                Applied {daysAgo(app.applied_at)}
-              </p>
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                {activeTab === 'applicants' && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={actioningId === app.crew_person_id}
-                      onClick={() => handleReject(app.crew_person_id)}
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={
-                        actioningId === app.crew_person_id || shortlistCount >= shortlistCap
-                      }
-                      onClick={() => handleShortlist(app.crew_person_id)}
-                    >
-                      {shortlistCount >= shortlistCap ? 'Shortlist full' : 'Shortlist'}
-                    </Button>
-                  </>
-                )}
-                {activeTab === 'shortlisted' && app.status !== 'selected' && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={actioningId === app.crew_person_id}
-                      onClick={() => handleReject(app.crew_person_id)}
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={
-                        actioningId === app.crew_person_id || postingStatus === 'in_negotiation'
-                      }
-                      onClick={() => setSelectConfirm(app)}
-                    >
-                      {postingStatus === 'in_negotiation' ? 'In negotiation' : 'Select'}
-                    </Button>
-                  </>
-                )}
+                {/* Actions */}
+                <div className="flex gap-2">
+                  {activeTab === 'applicants' && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={actioningId === app.crew_person_id}
+                        onClick={() => handleReject(app.crew_person_id)}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={
+                          actioningId === app.crew_person_id || shortlistCount >= shortlistCap
+                        }
+                        onClick={() => handleShortlist(app.crew_person_id)}
+                      >
+                        {shortlistCount >= shortlistCap ? 'Shortlist full' : 'Shortlist'}
+                      </Button>
+                    </>
+                  )}
+                  {activeTab === 'shortlisted' && app.status !== 'selected' && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={actioningId === app.crew_person_id}
+                        onClick={() => handleReject(app.crew_person_id)}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={
+                          actioningId === app.crew_person_id || postingStatus === 'in_negotiation'
+                        }
+                        onClick={() => setSelectConfirm(app)}
+                      >
+                        {postingStatus === 'in_negotiation' ? 'In negotiation' : 'Select'}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Select confirmation dialog */}
