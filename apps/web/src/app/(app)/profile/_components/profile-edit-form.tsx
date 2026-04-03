@@ -113,22 +113,24 @@ export function ProfileEditForm({
   if (identityType === 'crew') {
     return (
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <Label>Display name</Label>
-          <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label>Display name</Label>
+            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Name on deck</Label>
-          <Input
-            placeholder="What your crew calls you"
-            value={deckName}
-            onChange={(e) => setDeckName(e.target.value)}
-            maxLength={50}
-          />
-          <p className="text-xs text-muted-foreground">
-            Optional &mdash; shown alongside your name
-          </p>
+          <div className="flex flex-col gap-1.5">
+            <Label>Name on deck</Label>
+            <Input
+              placeholder="What your crew calls you"
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              maxLength={50}
+            />
+            <p className="text-xs text-muted-foreground">
+              Optional &mdash; shown alongside your name
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -143,24 +145,26 @@ export function ProfileEditForm({
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Where are you based?</Label>
-          <LocationPicker
-            mode="port-optional"
-            value={locationCityId ? { cityId: locationCityId } : null}
-            onValueChange={(v) => setLocationCityId(v.cityId ?? '')}
-            placeholder="Select city"
-          />
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label>Where are you based?</Label>
+            <LocationPicker
+              mode="port-optional"
+              value={locationCityId ? { cityId: locationCityId } : null}
+              onValueChange={(v) => setLocationCityId(v.cityId ?? '')}
+              placeholder="Select city"
+            />
+          </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Daywork port</Label>
-          <LocationPicker
-            mode="port-required"
-            value={locationPortId ? { portId: locationPortId } : null}
-            onValueChange={(v) => setLocationPortId(v.portId ?? '')}
-            placeholder="Select port/marina"
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label>Daywork port</Label>
+            <LocationPicker
+              mode="port-required"
+              value={locationPortId ? { portId: locationPortId } : null}
+              onValueChange={(v) => setLocationPortId(v.portId ?? '')}
+              placeholder="Select port/marina"
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -190,39 +194,41 @@ export function ProfileEditForm({
           <p className="text-xs text-muted-foreground">Auto-derived from your vessel experience</p>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Nationality</Label>
-          <Select value={nationalityId} onValueChange={setNationalityId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select nationality" />
-            </SelectTrigger>
-            <SelectContent>
-              {nationalities.map((n) => (
-                <SelectItem key={n.id} value={n.id}>
-                  {n.flag_emoji} {n.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <Label>Nationality</Label>
+            <Select value={nationalityId} onValueChange={setNationalityId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select nationality" />
+              </SelectTrigger>
+              <SelectContent>
+                {nationalities.map((n) => (
+                  <SelectItem key={n.id} value={n.id}>
+                    {n.flag_emoji} {n.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label>Visas</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {visaTypes.map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                  visaIds.includes(v.id)
-                    ? 'bg-[var(--accent)] text-white'
-                    : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
-                }`}
-                onClick={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
-              >
-                {v.name}
-              </button>
-            ))}
+          <div className="flex flex-col gap-1.5">
+            <Label>Visas</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {visaTypes.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                    visaIds.includes(v.id)
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+                  }`}
+                  onClick={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -246,7 +252,7 @@ export function ProfileEditForm({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={smoker === true} onCheckedChange={(v) => setSmoker(v === true)} />
             Smoker
@@ -266,14 +272,16 @@ export function ProfileEditForm({
   // Agent edit form
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label>Display name</Label>
-        <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label>Display name</Label>
+          <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+        </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>Agency Name</Label>
-        <Input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} />
+        <div className="flex flex-col gap-1.5">
+          <Label>Agency Name</Label>
+          <Input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} />
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">

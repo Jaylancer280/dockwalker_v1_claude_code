@@ -22,6 +22,7 @@ import { ProfileAboutSection } from './_components/profile-about-section';
 import { ProfileExperienceSection } from './_components/profile-experience-section';
 import { ProfileEditForm } from './_components/profile-edit-form';
 import { AgentProfileSection } from './_components/agent-profile-section';
+import { ProfileQuickStats } from './_components/profile-quick-stats';
 
 interface LookupItem {
   id: string;
@@ -554,67 +555,77 @@ export default function ProfilePage() {
 
         <Separator />
 
-        {/* Crew view mode — collapsible semantic sections */}
+        {/* Crew view mode — 2-column on desktop */}
         {profile.identity_type === 'crew' && !editing && (
-          <div className="flex flex-col gap-2">
-            <ProfileSummarySection
-              profile={profile}
-              experiences={experiences}
-              expandedSections={expandedSections}
-              toggleSection={toggleSection}
-              sizeBandNames={sizeBandNames}
-              onAddExperience={() => router.push('/profile/add-experience')}
-              onEnterEdit={enterEdit}
-            />
+          <div className="lg:flex lg:gap-6">
+            <div className="flex flex-1 flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <ProfileSummarySection
+                  profile={profile}
+                  experiences={experiences}
+                  expandedSections={expandedSections}
+                  toggleSection={toggleSection}
+                  sizeBandNames={sizeBandNames}
+                  onAddExperience={() => router.push('/profile/add-experience')}
+                  onEnterEdit={enterEdit}
+                />
 
-            <ProfileLookingForSection
-              profile={profile}
-              expandedSections={expandedSections}
-              toggleSection={toggleSection}
-              availStatus={availStatus}
-              availSummary={availSummary}
-              permAvail={permAvail}
-              setPermAvail={setPermAvail}
-              noticeDays={noticeDays}
-              setNoticeDays={setNoticeDays}
-              employed={employed}
-              setEmployed={setEmployed}
-              editingCareer={editingCareer}
-              setEditingCareer={setEditingCareer}
-              savingCareer={savingCareer}
-              setSavingCareer={setSavingCareer}
-              isCrewHat={isCrewHat}
-              setShowAvailOverlay={setShowAvailOverlay}
-              onEnterEdit={enterEdit}
-            />
+                <ProfileLookingForSection
+                  profile={profile}
+                  expandedSections={expandedSections}
+                  toggleSection={toggleSection}
+                  availStatus={availStatus}
+                  availSummary={availSummary}
+                  permAvail={permAvail}
+                  setPermAvail={setPermAvail}
+                  noticeDays={noticeDays}
+                  setNoticeDays={setNoticeDays}
+                  employed={employed}
+                  setEmployed={setEmployed}
+                  editingCareer={editingCareer}
+                  setEditingCareer={setEditingCareer}
+                  savingCareer={savingCareer}
+                  setSavingCareer={setSavingCareer}
+                  isCrewHat={isCrewHat}
+                  setShowAvailOverlay={setShowAvailOverlay}
+                  onEnterEdit={enterEdit}
+                />
 
-            <ProfileAboutSection
-              profile={profile}
-              certNames={certNames}
-              visaIds={visaIds}
-              visaTypes={visaTypes}
-              expandedSections={expandedSections}
-              toggleSection={toggleSection}
-              onEnterEdit={enterEdit}
-            />
+                <ProfileAboutSection
+                  profile={profile}
+                  certNames={certNames}
+                  visaIds={visaIds}
+                  visaTypes={visaTypes}
+                  expandedSections={expandedSections}
+                  toggleSection={toggleSection}
+                  onEnterEdit={enterEdit}
+                />
+              </div>
+
+              <ProfileExperienceSection
+                experiences={experiences}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                expandedExpId={expandedExpId}
+                setExpandedExpId={setExpandedExpId}
+                deletingExpId={deletingExpId}
+                confirmDeleteExpId={confirmDeleteExpId}
+                setConfirmDeleteExpId={setConfirmDeleteExpId}
+                handleDeleteExperience={handleDeleteExperience}
+                onAddExperience={() => router.push('/profile/add-experience')}
+                onEditExperience={(id) => router.push(`/profile/edit-experience/${id}`)}
+              />
+            </div>
+
+            <aside className="hidden shrink-0 lg:sticky lg:top-16 lg:block lg:w-[300px] lg:self-start">
+              <ProfileQuickStats
+                profile={profile}
+                experiences={experiences}
+                permAvail={permAvail}
+                noticeDays={noticeDays}
+              />
+            </aside>
           </div>
-        )}
-
-        {/* Section 4: Experience history — crew view mode */}
-        {profile.identity_type === 'crew' && !editing && (
-          <ProfileExperienceSection
-            experiences={experiences}
-            expandedSections={expandedSections}
-            toggleSection={toggleSection}
-            expandedExpId={expandedExpId}
-            setExpandedExpId={setExpandedExpId}
-            deletingExpId={deletingExpId}
-            confirmDeleteExpId={confirmDeleteExpId}
-            setConfirmDeleteExpId={setConfirmDeleteExpId}
-            handleDeleteExperience={handleDeleteExperience}
-            onAddExperience={() => router.push('/profile/add-experience')}
-            onEditExperience={(id) => router.push(`/profile/edit-experience/${id}`)}
-          />
         )}
 
         {/* Crew edit form */}

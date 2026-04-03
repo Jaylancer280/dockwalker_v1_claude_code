@@ -307,6 +307,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 180] Responsive Redesign Phase 1 fix + Phase 2 (Discover) — reset-password form gradient fix; daywork card stack constrained to max-w-md on desktop with centred action buttons; permanent job feed, applied tab, and invitations tab use 2-column grid on lg+; 915 tests pass
 
+- [Stage 181] Responsive Redesign Phase 3 (Profile) — crew profile 2-column layout on lg+ (main content + sticky QuickStats sidebar with avatar, role, location, career status, completeness bar); edit form pairs fields side-by-side on md+ (name+deck, city+port, nationality+visas); smoker/tattoos checkboxes flex-wrap; agent form pairs name+agency; 915 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)
