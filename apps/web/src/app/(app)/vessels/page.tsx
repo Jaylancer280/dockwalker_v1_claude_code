@@ -117,9 +117,9 @@ function VesselsContent() {
         </div>
       </header>
 
-      <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 py-6">
+      <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 py-6 lg:flex-row lg:gap-6">
         {showForm && (
-          <Card>
+          <Card className="lg:w-[400px] lg:shrink-0">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Add a vessel</CardTitle>
               <p className="text-xs text-muted-foreground">
@@ -136,73 +136,77 @@ function VesselsContent() {
           </Card>
         )}
 
-        {loading && <LoadingSpinner size="md" />}
+        <div className="flex flex-1 flex-col gap-3">
+          {loading && <LoadingSpinner size="md" />}
 
-        {error && (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" size="sm" onClick={loadVessels}>
-              Retry
-            </Button>
-          </div>
-        )}
+          {error && (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="outline" size="sm" onClick={loadVessels}>
+                Retry
+              </Button>
+            </div>
+          )}
 
-        {!loading && vessels.length === 0 && (
-          <EmptyState
-            imageSrc="/images/empty-states/vessels.jpg"
-            title="No vessels yet"
-            description="Add a vessel to start posting daywork."
-          />
-        )}
+          {!loading && vessels.length === 0 && (
+            <EmptyState
+              imageSrc="/images/empty-states/vessels.jpg"
+              title="No vessels yet"
+              description="Add a vessel to start posting daywork."
+            />
+          )}
 
-        {vessels.map((vessel) => {
-          const prefix = vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
-          const loaDisplay =
-            vessel.loa_meters != null
-              ? prefs.lengthUnit === 'ft'
-                ? `${Math.round(metersToFeet(vessel.loa_meters))}ft`
-                : `${vessel.loa_meters}m`
+          {vessels.map((vessel) => {
+            const prefix = vessel.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
+            const loaDisplay =
+              vessel.loa_meters != null
+                ? prefs.lengthUnit === 'ft'
+                  ? `${Math.round(metersToFeet(vessel.loa_meters))}ft`
+                  : `${vessel.loa_meters}m`
+                : null;
+            const bandDisplay = vessel.vessel_size_bands?.label
+              ? convertSizeBandLabel(vessel.vessel_size_bands.label, prefs.lengthUnit)
               : null;
-          const bandDisplay = vessel.vessel_size_bands?.label
-            ? convertSizeBandLabel(vessel.vessel_size_bands.label, prefs.lengthUnit)
-            : null;
-          const meta = [
-            vessel.vessel_type === 'sail' ? 'Sail' : 'Motor',
-            loaDisplay,
-            bandDisplay,
-          ].filter(Boolean);
+            const meta = [
+              vessel.vessel_type === 'sail' ? 'Sail' : 'Motor',
+              loaDisplay,
+              bandDisplay,
+            ].filter(Boolean);
 
-          return (
-            <Card key={vessel.id} className="relative">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm">
-                      <span className="text-muted-foreground">{prefix}</span> {vessel.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">IMO {vessel.imo_number}</p>
-                    {meta.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">{meta.join(' · ')}</p>
-                    )}
+            return (
+              <Card key={vessel.id} className="relative">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">
+                        <span className="text-muted-foreground">{prefix}</span> {vessel.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        IMO {vessel.imo_number}
+                      </p>
+                      {meta.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">{meta.join(' · ')}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {vessel.nda_flag && (
+                        <Badge variant="outline" className="gap-1 text-xs">
+                          <ShieldAlert className="h-3 w-3" />
+                          NDA
+                        </Badge>
+                      )}
+                      <Link href={`/vessels/${vessel.id}/edit`}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {vessel.nda_flag && (
-                      <Badge variant="outline" className="gap-1 text-xs">
-                        <ShieldAlert className="h-3 w-3" />
-                        NDA
-                      </Badge>
-                    )}
-                    <Link href={`/vessels/${vessel.id}/edit`}>
-                      <Button variant="ghost" size="icon" className="h-7 w-7">
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </main>
   );

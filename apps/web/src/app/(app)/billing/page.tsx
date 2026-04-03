@@ -102,58 +102,60 @@ function BillingContent() {
           </div>
         )}
 
-        {/* Free plan */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Free</h2>
-            {!isSubscribed && (
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
-                Current plan
-              </span>
-            )}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Free plan */}
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Free</h2>
+              {!isSubscribed && (
+                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
+                  Current plan
+                </span>
+              )}
+            </div>
+            <ul className="flex flex-col gap-2">
+              {FREE_FEATURES.map((f) => (
+                <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <LifeBuoy className="h-3.5 w-3.5 shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="flex flex-col gap-2">
-            {FREE_FEATURES.map((f) => (
-              <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <LifeBuoy className="h-3.5 w-3.5 shrink-0" />
-                {f}
-              </li>
-            ))}
-          </ul>
-        </div>
 
-        {/* Crew Pro plan */}
-        <div className="rounded-xl border-2 border-primary bg-card p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Crew Pro</h2>
-            {isSubscribed && (
-              <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
-                Current plan
-              </span>
+          {/* Crew Pro plan */}
+          <div className="rounded-xl border-2 border-primary bg-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Crew Pro</h2>
+              {isSubscribed && (
+                <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
+                  Current plan
+                </span>
+              )}
+            </div>
+            <ul className="mb-5 flex flex-col gap-2">
+              {PRO_FEATURES.map((f) => (
+                <li key={f} className="flex items-center gap-2 text-sm">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            {isSubscribed ? (
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={handleManage}
+                disabled={redirecting}
+              >
+                {redirecting ? 'Redirecting...' : 'Manage subscription'}
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={handleSubscribe} disabled={redirecting}>
+                {redirecting ? 'Redirecting...' : 'Subscribe'}
+              </Button>
             )}
           </div>
-          <ul className="mb-5 flex flex-col gap-2">
-            {PRO_FEATURES.map((f) => (
-              <li key={f} className="flex items-center gap-2 text-sm">
-                <Check className="h-3.5 w-3.5 shrink-0 text-primary" />
-                {f}
-              </li>
-            ))}
-          </ul>
-          {isSubscribed ? (
-            <Button
-              className="w-full"
-              variant="outline"
-              onClick={handleManage}
-              disabled={redirecting}
-            >
-              {redirecting ? 'Redirecting...' : 'Manage subscription'}
-            </Button>
-          ) : (
-            <Button className="w-full" onClick={handleSubscribe} disabled={redirecting}>
-              {redirecting ? 'Redirecting...' : 'Subscribe'}
-            </Button>
-          )}
         </div>
       </div>
     </main>

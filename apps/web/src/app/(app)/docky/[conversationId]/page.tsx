@@ -187,14 +187,14 @@ export default function DockyConversationPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center pb-[var(--nav-height)]">
+      <main className="flex min-h-svh items-center justify-center pb-nav">
         <LoadingSpinner size="md" />
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen flex-col pb-[var(--nav-height)]">
+    <main className="flex min-h-svh flex-col pb-nav">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-[var(--surface)] px-2 py-3">
         <button
@@ -311,7 +311,7 @@ export default function DockyConversationPage() {
       </div>
 
       {/* Input */}
-      <div className="sticky bottom-[var(--nav-height)] border-t border-border bg-[var(--surface)] px-4 py-3">
+      <div className="sticky bottom-[var(--nav-height)] border-t border-border bg-[var(--surface)] px-4 py-3 md:bottom-0">
         <div className="flex items-center gap-2">
           <input
             type="text"

@@ -86,31 +86,33 @@ export function ExperienceDetailsSection({
         />
       </div>
 
-      {/* Vessel operation during tenure */}
-      <div className="flex flex-col gap-1.5">
-        <Label>Vessel operation (during your time)</Label>
-        <Select
-          value={expVesselOperation}
-          onValueChange={(v) => setExpVesselOperation(v as 'charter' | 'private')}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="charter">Charter</SelectItem>
-            <SelectItem value="private">Private</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Vessel operation during tenure */}
+        <div className="flex flex-col gap-1.5">
+          <Label>Vessel operation (during your time)</Label>
+          <Select
+            value={expVesselOperation}
+            onValueChange={(v) => setExpVesselOperation(v as 'charter' | 'private')}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="charter">Charter</SelectItem>
+              <SelectItem value="private">Private</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* Flag state — searchable picker */}
-      <div className="flex flex-col gap-1.5">
-        <Label>Flag state</Label>
-        <FlagStatePicker flagStates={flagStates} value={flagState} onValueChange={setFlagState} />
+        {/* Flag state — searchable picker */}
+        <div className="flex flex-col gap-1.5">
+          <Label>Flag state</Label>
+          <FlagStatePicker flagStates={flagStates} value={flagState} onValueChange={setFlagState} />
+        </div>
       </div>
 
       {/* Dates — day-level precision */}
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label>Start date</Label>
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />

@@ -149,21 +149,36 @@ export function ContractTermsSection({
 }: ContractTermsSectionProps) {
   return (
     <>
-      {/* Contract type */}
-      <div>
-        <Label>Contract type</Label>
-        <Select value={contractType} onValueChange={setContractType}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select contract type" />
-          </SelectTrigger>
-          <SelectContent>
-            {CONTRACT_TYPES.map((ct) => (
-              <SelectItem key={ct.value} value={ct.value}>
-                {ct.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Contract type */}
+        <div>
+          <Label>Contract type</Label>
+          <Select value={contractType} onValueChange={setContractType}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select contract type" />
+            </SelectTrigger>
+            <SelectContent>
+              {CONTRACT_TYPES.map((ct) => (
+                <SelectItem key={ct.value} value={ct.value}>
+                  {ct.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Positions available */}
+        <div>
+          <Label>Positions available</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={positionsAvailable}
+            onChange={(e) => setPositionsAvailable(e.target.value)}
+            className="w-24"
+          />
+        </div>
       </div>
 
       {/* Description */}
@@ -179,29 +194,34 @@ export function ContractTermsSection({
         />
       </div>
 
-      {/* Positions available */}
-      <div>
-        <Label>Positions available</Label>
-        <Input
-          type="number"
-          min={1}
-          max={20}
-          value={positionsAvailable}
-          onChange={(e) => setPositionsAvailable(e.target.value)}
-          className="w-24"
-        />
-      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Live aboard */}
+        <div className="flex items-center gap-2 md:self-end md:pb-1">
+          <Checkbox
+            id="liveAboard"
+            checked={liveAboard}
+            onCheckedChange={(v) => setLiveAboard(v === true)}
+          />
+          <Label htmlFor="liveAboard" className="cursor-pointer">
+            Live aboard included
+          </Label>
+        </div>
 
-      {/* Live aboard */}
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="liveAboard"
-          checked={liveAboard}
-          onCheckedChange={(v) => setLiveAboard(v === true)}
-        />
-        <Label htmlFor="liveAboard" className="cursor-pointer">
-          Live aboard included
-        </Label>
+        {/* Shortlist cap */}
+        <div>
+          <Label>Shortlist cap</Label>
+          <Input
+            type="number"
+            min={1}
+            max={20}
+            value={shortlistCap}
+            onChange={(e) => setShortlistCap(e.target.value)}
+            className="w-24"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Maximum candidates on your shortlist (1-20).
+          </p>
+        </div>
       </div>
 
       {/* Meals */}
@@ -222,22 +242,6 @@ export function ContractTermsSection({
             </label>
           ))}
         </div>
-      </div>
-
-      {/* Shortlist cap */}
-      <div>
-        <Label>Shortlist cap</Label>
-        <Input
-          type="number"
-          min={1}
-          max={20}
-          value={shortlistCap}
-          onChange={(e) => setShortlistCap(e.target.value)}
-          className="w-24"
-        />
-        <p className="mt-1 text-xs text-muted-foreground">
-          Maximum candidates on your shortlist (1-20).
-        </p>
       </div>
 
       {/* Notes */}

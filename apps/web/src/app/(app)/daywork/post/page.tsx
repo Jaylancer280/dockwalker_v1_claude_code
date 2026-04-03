@@ -498,38 +498,40 @@ function DayworkPostForm() {
           </div>
         </div>
 
-        {/* Working days */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="workingDays">Working days</Label>
-          <Input
-            id="workingDays"
-            type="number"
-            min="1"
-            max={maxWorkingDays}
-            placeholder={`1-${maxWorkingDays}`}
-            value={workingDays}
-            onChange={(e) => setWorkingDays(e.target.value)}
-            required
-          />
-          {startDate && endDate && (
-            <p className="text-xs text-muted-foreground">
-              Up to {maxWorkingDays} days for this date range
-            </p>
-          )}
-        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {/* Working days */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="workingDays">Working days</Label>
+            <Input
+              id="workingDays"
+              type="number"
+              min="1"
+              max={maxWorkingDays}
+              placeholder={`1-${maxWorkingDays}`}
+              value={workingDays}
+              onChange={(e) => setWorkingDays(e.target.value)}
+              required
+            />
+            {startDate && endDate && (
+              <p className="text-xs text-muted-foreground">
+                Up to {maxWorkingDays} days for this date range
+              </p>
+            )}
+          </div>
 
-        {/* Crew needed */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="positionsAvailable">Crew needed</Label>
-          <Input
-            id="positionsAvailable"
-            type="number"
-            min="1"
-            max="20"
-            placeholder="1"
-            value={positionsAvailable}
-            onChange={(e) => setPositionsAvailable(e.target.value)}
-          />
+          {/* Crew needed */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="positionsAvailable">Crew needed</Label>
+            <Input
+              id="positionsAvailable"
+              type="number"
+              min="1"
+              max="20"
+              placeholder="1"
+              value={positionsAvailable}
+              onChange={(e) => setPositionsAvailable(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Experience bracket */}

@@ -140,14 +140,14 @@ export default function DockyPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center pb-[var(--nav-height)]">
+      <main className="flex min-h-svh items-center justify-center pb-nav">
         <LoadingSpinner size="md" />
       </main>
     );
   }
 
   return (
-    <main className="page-width min-h-screen pb-[var(--nav-height)]">
+    <main className="page-width min-h-svh pb-nav">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[var(--surface)] px-4 py-3">
         <div className="flex items-center gap-2">

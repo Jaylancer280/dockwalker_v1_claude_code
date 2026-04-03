@@ -313,6 +313,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 183] Responsive Redesign Phase 5 (My Jobs + Review) — daywork mine tabs use 2-column grid on lg+; permanent mine section grids for templates and postings; daywork review card stack constrained to max-w-md with proportional swipe; permanent review applicant cards in 2-column grid; permanent review min-h-svh fix; 915 tests pass
 
+- [Stage 184] Responsive Redesign Phase 6 (Forms + Simple Pages) — FINAL PHASE. Daywork post form pairs working days + crew needed; permanent form pairs contract type + positions, live aboard + shortlist cap; experience form pairs dates and vessel operation + flag state; vessels page side-by-side form + list on lg+; billing plan cards side-by-side on md+; docky min-h-svh + pb-nav consistency; docky conversation sticky input md:bottom-0; 915 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)
