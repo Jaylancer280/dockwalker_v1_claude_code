@@ -11,23 +11,7 @@
 
 ## Queue
 
-### Quick fix: Card background image — lighter overlay + responsive sizing
-
-**Context:** The department background image on job cards is way too dark (85% black at bottom). Needs to be significantly lighter and more frosted — the image should be noticeable as a background, not buried under a dark wall. Also the image `sizes` hint is hardcoded to `400px` which won't scale when we make the layout responsive.
-
-**Files:**
-
-- `apps/web/src/app/(app)/discover/_components/daywork-card.tsx`
-- `apps/web/src/app/(app)/discover/_components/permanent-job-card.tsx`
-
-**Checklist:**
-
-- [x] ~~Frosted/blur approach~~ — WRONG DIRECTION. User wants a white wash, not blur.
-- [x] Change overlay to `bg-white/60 dark:bg-black/60` — flat semi-transparent white wash, no blur, no gradient
-- [x] Switch all text back to dark colors (`text-muted-foreground`, `var(--tertiary)`, etc). Restored Badge components for pills.
-- [x] For dark mode: `dark:bg-black/60` adapts automatically
-- [x] Apply to both daywork and permanent card components
-- [ ] Visually verify: the department photo should look like a faded watermark behind the text
+(empty — next task: Responsive Redesign Phase 0. See `tasks/responsive-redesign-spec.md`.)
 
 ---
 
