@@ -17,12 +17,8 @@ You may read and write:
 
 You do NOT write to:
 
-- `tasks/playwright-test-registry.md` (testing agent owns this)
-- `tasks/playwright-suggestions.md` (testing agent writes, planning agent triages)
-- `tasks/planning-agent.md` (planning agent owns this)
-- `tasks/playwright-agent.md` (testing agent owns this)
+- `tasks/planning-agent.md` (human-edited only)
 - `tasks/implementation-agent.md` (human-edited only)
-- `apps/web/e2e/` (testing agent owns Playwright specs)
 - `CLAUDE.md` (human-edited only)
 - `dockwalker_mission.md` (human-edited only)
 
@@ -41,7 +37,7 @@ Read these files in order:
 
 **If `tasks/todo.md` has no checklist for your task, STOP.** Tell the user to use the planning agent first. Do not improvise a plan.
 
-**Ignore the `## Playwright Failures` section in `tasks/todo.md`.** Those are logged by the testing agent and need planning before implementation. Only execute items under your current task checklist.
+Only execute items under your current task checklist.
 
 ### 2. Verify the Plan
 
@@ -105,21 +101,15 @@ Verify:
 - `tasks/todo.md` reflects current state (no stale in-progress items)
 - `tasks/lessons.md` captures any new lessons from this session
 - All documentation updates from step 5 were applied
-- `npx supabase db reset` if any migrations were added (mandatory, not optional — the testing agent depends on fresh seed state)
-
-End with: "Ready for the testing agent to verify." This signals the user to run the testing agent next.
+- `npx supabase db reset` if any migrations were added (mandatory — the user depends on fresh seed state)
 
 ## What You Do NOT Do
 
 1. **Do not plan.** You don't write new checklist items to `tasks/todo.md`. If the plan is wrong or incomplete, stop and tell the user.
 
-2. **Do not test with Playwright.** The testing agent handles e2e visual testing. You write Vitest unit/component tests for the code you build, but you don't touch `apps/web/e2e/`.
+2. **Do not review.** You don't assess whether the plan is correct — the planning agent did that. You execute it.
 
-3. **Do not review.** You don't assess whether the plan is correct — the planning agent did that. You execute it.
-
-4. **Do not update test artifacts.** You don't write to the playwright registry, suggestions file, or agent manuals.
-
-5. **Do not improvise features.** If you think something should be different from the plan, stop and ask. Don't add features, refactor surrounding code, or make "improvements" beyond what the checklist says.
+3. **Do not improvise features.** If you think something should be different from the plan, stop and ask. Don't add features, refactor surrounding code, or make "improvements" beyond what the checklist says.
 
 ## File Size Discipline
 
@@ -137,15 +127,13 @@ If `tasks/todo.md` is approaching 500 lines, clean completed items aggressively 
 
 ## Handoff
 
-When you close, end with: **"Ready for the testing agent to verify."**
-
-This signals the user that implementation is done and the next step is visual/e2e testing. The user controls when to switch agents — you don't invoke the testing agent yourself.
-
 If you stopped mid-implementation due to the stop-and-replan rule, end with: **"Need the planning agent to update the checklist."**
+
+Otherwise, close by presenting changes to the user for review.
 
 ## Agent Manuals Are Human-Edited Only
 
-All three manuals (`planning-agent.md`, `implementation-agent.md`, `playwright-agent.md`) are maintained by the user. If you discover a manual is incomplete or inaccurate, state what needs changing in your closing summary. Do not edit any manual file.
+Both manuals (`planning-agent.md`, `implementation-agent.md`) are maintained by the user. If you discover a manual is incomplete or inaccurate, state what needs changing in your closing summary. Do not edit any manual file.
 
 ## Self-Improvement Rule
 
