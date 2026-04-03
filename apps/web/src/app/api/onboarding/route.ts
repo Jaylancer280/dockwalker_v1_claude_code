@@ -110,6 +110,10 @@ export async function POST(request: Request) {
       notice_period_days:
         profile.permanentAvailability === 'after_notice' ? (profile.noticePeriodDays ?? 30) : null,
       currently_employed: profile.currentlyEmployed ?? false,
+      ...(profile.smoker === true || profile.smoker === false ? { smoker: profile.smoker } : {}),
+      ...(profile.visibleTattoos === true || profile.visibleTattoos === false
+        ? { visible_tattoos: profile.visibleTattoos }
+        : {}),
     };
 
     // Step 1: Create person + profile atomically (skip on retry)

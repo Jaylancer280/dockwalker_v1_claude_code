@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { LANGUAGES } from '@dockwalker/shared';
@@ -54,6 +55,10 @@ interface ProfileEditFormProps {
   setVisaIds: (v: string[]) => void;
   profileLanguages: string[];
   setProfileLanguages: (v: string[]) => void;
+  smoker: boolean | null;
+  setSmoker: (v: boolean | null) => void;
+  visibleTattoos: boolean | null;
+  setVisibleTattoos: (v: boolean | null) => void;
   // Agent fields
   agencyName: string;
   setAgencyName: (v: string) => void;
@@ -92,6 +97,10 @@ export function ProfileEditForm({
   setVisaIds,
   profileLanguages,
   setProfileLanguages,
+  smoker,
+  setSmoker,
+  visibleTattoos,
+  setVisibleTattoos,
   agencyName,
   setAgencyName,
   roleSpecializationIds,
@@ -235,6 +244,20 @@ export function ProfileEditForm({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={smoker === true} onCheckedChange={(v) => setSmoker(v === true)} />
+            Smoker
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={visibleTattoos === true}
+              onCheckedChange={(v) => setVisibleTattoos(v === true)}
+            />
+            Visible tattoos
+          </label>
         </div>
       </div>
     );

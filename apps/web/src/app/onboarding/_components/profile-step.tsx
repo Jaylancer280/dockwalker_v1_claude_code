@@ -73,6 +73,10 @@ export interface ProfileStepProps {
   setNoticePeriodDays: (v: number) => void;
   currentlyEmployed: boolean;
   setCurrentlyEmployed: (v: boolean) => void;
+  smoker: boolean | null;
+  setSmoker: (v: boolean | null) => void;
+  visibleTattoos: boolean | null;
+  setVisibleTattoos: (v: boolean | null) => void;
   nationalityId: string;
   setNationalityId: (v: string) => void;
   visaIds: string[];
@@ -149,6 +153,10 @@ export function ProfileStep(props: ProfileStepProps) {
     setNoticePeriodDays,
     currentlyEmployed,
     setCurrentlyEmployed,
+    smoker,
+    setSmoker,
+    visibleTattoos,
+    setVisibleTattoos,
     nationalityId,
     setNationalityId,
     visaIds,
@@ -507,6 +515,20 @@ export function ProfileStep(props: ProfileStepProps) {
                       onCheckedChange={(v) => setCurrentlyEmployed(v === true)}
                     />
                     Currently employed
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={smoker === true}
+                      onCheckedChange={(v) => setSmoker(v === true)}
+                    />
+                    Smoker
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={visibleTattoos === true}
+                      onCheckedChange={(v) => setVisibleTattoos(v === true)}
+                    />
+                    Visible tattoos
                   </label>
                 </div>
               </div>

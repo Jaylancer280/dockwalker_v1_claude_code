@@ -105,6 +105,8 @@ export default function OnboardingPage() {
   const [permanentAvailability, setPermanentAvailability] = useState<string | null>(null);
   const [noticePeriodDays, setNoticePeriodDays] = useState(30);
   const [currentlyEmployed, setCurrentlyEmployed] = useState(false);
+  const [smoker, setSmoker] = useState<boolean | null>(null);
+  const [visibleTattoos, setVisibleTattoos] = useState<boolean | null>(null);
 
   // Nationality & visas
   const [nationalityId, setNationalityId] = useState('');
@@ -229,6 +231,8 @@ export default function OnboardingPage() {
           profileData.noticePeriodDays = noticePeriodDays;
         }
         profileData.currentlyEmployed = currentlyEmployed || undefined;
+        if (smoker !== null) profileData.smoker = smoker;
+        if (visibleTattoos !== null) profileData.visibleTattoos = visibleTattoos;
 
         if (isGreen) {
           profileData.experienceBracketId = experienceBracketId || undefined;
@@ -422,6 +426,10 @@ export default function OnboardingPage() {
           setNoticePeriodDays={setNoticePeriodDays}
           currentlyEmployed={currentlyEmployed}
           setCurrentlyEmployed={setCurrentlyEmployed}
+          smoker={smoker}
+          setSmoker={setSmoker}
+          visibleTattoos={visibleTattoos}
+          setVisibleTattoos={setVisibleTattoos}
           nationalityId={nationalityId}
           setNationalityId={setNationalityId}
           visaIds={visaIds}

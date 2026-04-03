@@ -22,6 +22,7 @@ export async function GET() {
       vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, visa_ids,
       languages,
       permanent_availability, notice_period_days, currently_employed,
+      smoker, visible_tattoos,
       agency_name, role_specialization_ids,
       yacht_roles!profiles_primary_role_id_fkey(id, name, department),
       desired_roles:yacht_roles!profiles_desired_role_id_fkey(id, name),
@@ -106,6 +107,13 @@ export async function PATCH(request: Request) {
   }
   if (body.currentlyEmployed !== undefined) {
     payload.currently_employed = body.currentlyEmployed === true;
+  }
+  if (body.smoker !== undefined) {
+    payload.smoker = body.smoker === true ? true : body.smoker === false ? false : null;
+  }
+  if (body.visibleTattoos !== undefined) {
+    payload.visible_tattoos =
+      body.visibleTattoos === true ? true : body.visibleTattoos === false ? false : null;
   }
 
   if (Object.keys(payload).length === 0) {

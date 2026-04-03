@@ -41,6 +41,8 @@ export interface CrewProfile {
   permanent_availability: PermanentAvailability | null;
   notice_period_days: number | null;
   currently_employed: boolean;
+  smoker: boolean | null;
+  visible_tattoos: boolean | null;
   created_at: string;
   updated_at: string;
 }

@@ -60,8 +60,8 @@ describe('GET /api/daywork/invitations', () => {
             {
               id: 'dw-1',
               job_number: 1,
-              start_date: '2026-04-01',
-              end_date: '2026-04-05',
+              start_date: '2099-04-01',
+              end_date: '2099-04-05',
               working_days: 5,
               day_rate: 300,
               currency: 'EUR',

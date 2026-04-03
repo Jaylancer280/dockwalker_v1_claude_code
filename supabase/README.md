@@ -106,6 +106,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Permanent Post Fields                         | 00077     | Adds `contract_type`, `contract_details`, `description`, `meals`, `positions_available`, `positions_filled` to permanent_postings + templates; updates PERMANENT.POSTED handler                                                                                                                   |
 | Custom Access Token Hook                      | 00078     | `custom_access_token_hook(jsonb)` — injects `person_id`, `current_hat`, `identity_type`, `onboarded`, `deactivated` into JWT `app_metadata`. Requires dashboard enablement (Auth → Hooks → Custom Access Token).                                                                                  |
 | Batch Vessel Lookup                           | 00079     | `get_vessels_public_batch(uuid[])` — batch version of `get_vessel_public`, same NDA logic, `WHERE id = ANY(p_vessel_ids)`                                                                                                                                                                         |
+| Smoker + Visible Tattoos                      | 00080     | Adds nullable `smoker boolean` and `visible_tattoos boolean` to profiles; updates `apply_projection` PROFILE.CREATED/UPDATED handlers                                                                                                                                                             |
 
 ## Daywork Status Lifecycle
 

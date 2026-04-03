@@ -8,6 +8,8 @@ interface Profile {
   certification_ids: string[];
   visa_ids: string[];
   languages: string[];
+  smoker: boolean | null;
+  visible_tattoos: boolean | null;
 }
 
 interface VisaType {
@@ -53,11 +55,17 @@ export function ProfileAboutSection({
                   : null,
                 visaIds.length > 0 ? `${visaIds.length} visas` : null,
                 profile.languages?.length > 0 ? `${profile.languages.length} languages` : null,
+                profile.smoker !== null ? `Smoker: ${profile.smoker ? 'Yes' : 'No'}` : null,
+                profile.visible_tattoos !== null
+                  ? `Tattoos: ${profile.visible_tattoos ? 'Yes' : 'No'}`
+                  : null,
               ].filter(Boolean);
               const missing = [
                 !(profile.certification_ids?.length > 0) && 'certifications',
                 !profile.bio && 'bio',
                 !(profile.languages?.length > 0) && 'languages',
+                profile.smoker === null && 'smoker',
+                profile.visible_tattoos === null && 'visible tattoos',
               ].filter(Boolean);
               return (
                 <p className="mt-0.5 text-sm text-muted-foreground">
@@ -171,6 +179,32 @@ export function ProfileAboutSection({
               Add your languages — helps employers find crew who speak their guests&apos; languages
             </button>
           )}
+          <div>
+            <p className="text-xs text-muted-foreground">Smoker</p>
+            {profile.smoker !== null ? (
+              <p className="text-sm font-medium">{profile.smoker ? 'Yes' : 'No'}</p>
+            ) : (
+              <button
+                onClick={onEnterEdit}
+                className="text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
+              >
+                Not set
+              </button>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Visible tattoos</p>
+            {profile.visible_tattoos !== null ? (
+              <p className="text-sm font-medium">{profile.visible_tattoos ? 'Yes' : 'No'}</p>
+            ) : (
+              <button
+                onClick={onEnterEdit}
+                className="text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
+              >
+                Not set
+              </button>
+            )}
+          </div>
         </div>
       )}
     </>

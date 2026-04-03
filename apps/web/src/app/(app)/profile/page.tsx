@@ -51,6 +51,8 @@ interface Profile {
   languages: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
   deck_name: string | null;
+  smoker: boolean | null;
+  visible_tattoos: boolean | null;
   yacht_roles: { id: string; name: string; department: string } | null;
   desired_roles: { id: string; name: string } | null;
   experience_brackets: { id: string; label: string } | null;
@@ -165,6 +167,8 @@ export default function ProfilePage() {
   const [visaIds, setVisaIds] = useState<string[]>([]);
   const [profileLanguages, setProfileLanguages] = useState<string[]>([]);
   const [deckName, setDeckName] = useState('');
+  const [smoker, setSmoker] = useState<boolean | null>(null);
+  const [visibleTattoos, setVisibleTattoos] = useState<boolean | null>(null);
 
   // Lookups from cached context
   const lookups = useLookups();
@@ -311,6 +315,8 @@ export default function ProfilePage() {
     setVisaIds(profile.visa_ids ?? []);
     setProfileLanguages(profile.languages ?? []);
     setDeckName(profile.deck_name ?? '');
+    setSmoker(profile.smoker ?? null);
+    setVisibleTattoos(profile.visible_tattoos ?? null);
     setEditing(true);
   }
 
@@ -331,6 +337,8 @@ export default function ProfilePage() {
       body.nationalityId = nationalityId || null;
       body.visaIds = visaIds;
       body.languages = profileLanguages;
+      body.smoker = smoker;
+      body.visibleTattoos = visibleTattoos;
     } else {
       body.agencyName = agencyName || null;
       body.roleSpecializationIds = roleSpecializationIds;
@@ -629,6 +637,10 @@ export default function ProfilePage() {
             setVisaIds={setVisaIds}
             profileLanguages={profileLanguages}
             setProfileLanguages={setProfileLanguages}
+            smoker={smoker}
+            setSmoker={setSmoker}
+            visibleTattoos={visibleTattoos}
+            setVisibleTattoos={setVisibleTattoos}
             agencyName={agencyName}
             setAgencyName={setAgencyName}
             roleSpecializationIds={roleSpecializationIds}

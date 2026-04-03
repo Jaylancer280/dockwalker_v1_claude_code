@@ -164,6 +164,14 @@ describe('PATCH /api/profile', () => {
     expect(res.status).toBe(200);
   });
 
+  it('updates smoker and visibleTattoos', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await PATCH(makeRequest({ smoker: true, visibleTattoos: false }));
+    expect(res.status).toBe(200);
+  });
+
   it('agent clearing agencyName returns 400', async () => {
     mockRequireDomainUser.mockResolvedValue(
       guardOk({ person: { id: 'u1', identity_type: 'agent', current_hat: 'agent' } }),

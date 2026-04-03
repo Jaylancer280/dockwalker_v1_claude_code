@@ -122,6 +122,8 @@ export interface EventPayloadMap {
     desired_role_id?: string | null;
     deck_name?: string | null;
     location_city_id?: string | null;
+    smoker?: boolean | null;
+    visible_tattoos?: boolean | null;
   };
   'PROFILE.UPDATED': {
     display_name?: string;
@@ -146,6 +148,8 @@ export interface EventPayloadMap {
     desired_role_id?: string | null;
     deck_name?: string | null;
     location_city_id?: string | null;
+    smoker?: boolean | null;
+    visible_tattoos?: boolean | null;
   };
   'AGENT.VERIFIED': Record<string, never>;
   'VESSEL.CREATED': {
