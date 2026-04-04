@@ -3,6 +3,12 @@
 -- =============================================================================
 
 -- *** DATA CLEANUP: remove permanent data before restoring pre-permanent constraints ***
+-- Order matters: child tables first (FK constraints), then parents, then events.
+-- 4 tables FK-reference active_engagements: messages, engagement_ratings, engagement_checklists, message_read_cursors
+DELETE FROM public.messages WHERE engagement_id IN (SELECT id FROM public.active_engagements WHERE daywork_id IS NULL);
+DELETE FROM public.engagement_ratings WHERE engagement_id IN (SELECT id FROM public.active_engagements WHERE daywork_id IS NULL);
+DELETE FROM public.engagement_checklists WHERE engagement_id IN (SELECT id FROM public.active_engagements WHERE daywork_id IS NULL);
+DELETE FROM public.message_read_cursors WHERE engagement_id IN (SELECT id FROM public.active_engagements WHERE daywork_id IS NULL);
 DELETE FROM public.active_engagements WHERE daywork_id IS NULL;
 DELETE FROM public.applications WHERE daywork_id IS NULL;
 DELETE FROM public.events WHERE aggregate_type = 'permanent';
