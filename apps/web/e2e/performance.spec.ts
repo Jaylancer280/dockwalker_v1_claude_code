@@ -25,7 +25,7 @@ interface TimingResult {
   load: number;
 }
 
-async function measureTiming(page: any, route: string): Promise<TimingResult> {
+async function measureTiming(page: import('@playwright/test').Page, route: string): Promise<TimingResult> {
   await page.goto(route, { waitUntil: 'load' });
   const timing = await page.evaluate(() => {
     const nav = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;

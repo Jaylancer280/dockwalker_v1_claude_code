@@ -7,7 +7,7 @@ if [ -z "$STAGED" ]; then
   exit 0
 fi
 
-FOUND=$(echo "$STAGED" | xargs grep -nE '<<<<<<<|=======|>>>>>>>' 2>/dev/null)
+FOUND=$(echo "$STAGED" | xargs grep -nE '^<{7}|^={7}|^>{7}' 2>/dev/null)
 
 if [ -n "$FOUND" ]; then
   echo ""
