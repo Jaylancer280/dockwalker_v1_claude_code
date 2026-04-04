@@ -3,7 +3,7 @@
 drop trigger if exists trg_desired_role_from_event on public.events;
 drop function if exists apply_desired_role_from_event();
 
-alter table public.profiles drop column desired_role_id;
+alter table public.profiles drop column if exists desired_role_id;
 
 -- Restore derive_experience_profile without primary_role_id derivation
 create or replace function public.derive_experience_profile(p_person_id uuid)

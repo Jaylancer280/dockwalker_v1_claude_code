@@ -5,6 +5,9 @@
 -- Drop is_admin column
 alter table public.persons drop column if exists is_admin;
 
+-- Clean up admin events before tightening CHECK constraint
+DELETE FROM public.events WHERE aggregate_type = 'admin';
+
 -- Restore previous CHECK constraint (without 'admin')
 alter table public.events drop constraint events_aggregate_type_check;
 alter table public.events add constraint events_aggregate_type_check

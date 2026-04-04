@@ -2,6 +2,11 @@
 -- Rollback 00059: Reverse permanent jobs schema + types + events
 -- =============================================================================
 
+-- *** DATA CLEANUP: remove permanent data before restoring pre-permanent constraints ***
+DELETE FROM public.active_engagements WHERE daywork_id IS NULL;
+DELETE FROM public.applications WHERE daywork_id IS NULL;
+DELETE FROM public.events WHERE aggregate_type = 'permanent';
+
 -- Drop RLS policies on permanent_postings
 drop policy if exists "Users can read active/in_negotiation or own permanent postings" on public.permanent_postings;
 

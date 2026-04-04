@@ -2,4 +2,8 @@
 -- Rollback 00052: Remove messages from Realtime publication
 -- =============================================================================
 
-alter publication supabase_realtime drop table public.messages;
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime DROP TABLE public.messages;
+EXCEPTION WHEN undefined_object THEN
+  NULL;
+END $$;
