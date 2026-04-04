@@ -29,7 +29,7 @@ vi.mock('@/lib/require-subscription', () => ({
   requireSubscription: () => Promise.resolve({ ok: true, plan: 'crew_pro' }),
 }));
 
-import { POST } from '@/app/api/advisor/conversations/[id]/messages/route';
+import { POST } from '@/app/api/advisor/thread/messages/route';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mockChain(data: unknown, error: unknown = null): any {
@@ -54,12 +54,10 @@ function guardOk(fromFn: ReturnType<typeof vi.fn>, serviceFromFn?: ReturnType<ty
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: fromFn },
-      serviceClient: { from: serviceFromFn ?? fromFn },
+      serviceClient: { from: serviceFromFn ?? fromFn, rpc: vi.fn() },
     },
   };
 }
-
-const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 function makeRequest(content: string) {
   return new Request('http://localhost', {
@@ -83,7 +81,7 @@ const MOCK_LLM_RESPONSE = {
   model: 'claude-haiku-4-5-20251001',
 };
 
-describe('POST /api/advisor/conversations/[id]/messages — personalisation', () => {
+describe('POST /api/advisor/thread/messages — personalisation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchMcaDocs.mockResolvedValue([]);
@@ -93,18 +91,21 @@ describe('POST /api/advisor/conversations/[id]/messages — personalisation', ()
   });
 
   it('passes crew context to askDocky', async () => {
-    const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
+    const now = new Date().toISOString();
+    // Supabase: find thread, then fetch history
+    const threadChain = mockChain({ id: 'thread-1', created_at: now });
     const historyChain = mockChain([]);
     const supabaseFrom = vi.fn()
-      .mockReturnValueOnce(convChain)
+      .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
+    // Service: insert user msg, insert assistant msg, update conv
     const insertUserChain = mockChain({ id: 'msg-1' });
     const insertAssistantChain = mockChain({
       id: 'msg-2',
       content: MOCK_LLM_RESPONSE.answer,
       sources: [],
-      created_at: '2026-03-18T00:00:00Z',
+      created_at: now,
     });
     const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
@@ -114,10 +115,9 @@ describe('POST /api/advisor/conversations/[id]/messages — personalisation', ()
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
-    const res = await POST(makeRequest('What should I do next?'), makeParams('conv-1'));
+    const res = await POST(makeRequest('What should I do next?'));
     expect(res.status).toBe(200);
 
-    // Verify askDocky was called with the crew context
     expect(mockAskDocky).toHaveBeenCalledOnce();
     const callArgs = mockAskDocky.mock.calls[0];
     expect(callArgs[3]).toContain('Crew Profile');
@@ -129,7 +129,7 @@ describe('POST /api/advisor/conversations/[id]/messages — personalisation', ()
     guard.value.person.current_hat = 'employer' as 'crew';
     mockRequireDomainUser.mockResolvedValue(guard);
 
-    const res = await POST(makeRequest('Hello'), makeParams('conv-1'));
+    const res = await POST(makeRequest('Hello'));
     expect(res.status).toBe(403);
 
     expect(mockBuildCrewContext).not.toHaveBeenCalled();
@@ -141,14 +141,14 @@ describe('POST /api/advisor/conversations/[id]/messages — personalisation', ()
       ...MOCK_CREW_CONTEXT,
       markdown: MOCK_CREW_CONTEXT.markdown + '\nSalary: 3000 EUR',
     };
-    // Even if crew-context somehow included salary, cert-analysis must not
     mockBuildCrewContext.mockResolvedValue(contextWithSalary);
     mockBuildCertGapContext.mockReturnValue('');
 
-    const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
+    const now = new Date().toISOString();
+    const threadChain = mockChain({ id: 'thread-1', created_at: now });
     const historyChain = mockChain([]);
     const supabaseFrom = vi.fn()
-      .mockReturnValueOnce(convChain)
+      .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
     const insertUserChain = mockChain({ id: 'msg-1' });
@@ -156,7 +156,7 @@ describe('POST /api/advisor/conversations/[id]/messages — personalisation', ()
       id: 'msg-2',
       content: 'answer',
       sources: [],
-      created_at: '2026-03-18T00:00:00Z',
+      created_at: now,
     });
     const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
@@ -166,13 +166,9 @@ describe('POST /api/advisor/conversations/[id]/messages — personalisation', ()
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
-    await POST(makeRequest('What certs?'), makeParams('conv-1'));
+    await POST(makeRequest('What certs?'));
 
-    // The crew-context builder should NEVER include salary — but if it did,
-    // we verify the test catches it. This test documents the contract.
     const callArgs = mockAskDocky.mock.calls[0];
-    // Note: the real buildCrewContext never selects salary columns.
-    // This test verifies the full flow passes crewContext to askDocky.
     expect(callArgs[3]).toBeDefined();
   });
 });

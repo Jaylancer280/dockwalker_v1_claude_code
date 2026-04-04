@@ -317,6 +317,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 185] Audit fixes — codebase quality sweep: bio validation raised to 1000 chars, try/catch on 5 route handlers (availability GET, messages GET/POST, messages/read POST, notifications/read POST), hat cast hardening on availability DELETE + avatar POST/DELETE, theme color constants extracted to shared module, aria-expanded on accordion/toggle buttons, aria-label on icon-only buttons; 915 tests pass
 
+- [Stage 186] Docky single-thread migration — replaced multi-conversation API (`/conversations`, `/conversations/[id]`, `/conversations/[id]/messages`) with single-thread API (`/thread` GET, `/thread/messages` POST, `/thread/clear` POST); 72h auto-expiry on threads; merged conversation list + chat into single `/docky` page with expiry countdown, new-conversation dialog, suggestion chips on empty state; deleted old routes and `[conversationId]` page; loading skeleton; rewrote all advisor tests (5 thread + 2 clear + 7 messages + 3 personalised + 5 usage); 914 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)

@@ -28,10 +28,7 @@ vi.mock('@/lib/require-subscription', () => ({
   requireSubscription: () => Promise.resolve({ ok: true, plan: 'crew_pro' }),
 }));
 
-import {
-  POST,
-  GET,
-} from '@/app/api/advisor/conversations/[id]/messages/route';
+import { POST } from '@/app/api/advisor/thread/messages/route';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mockChain(data: unknown, error: unknown = null): any {
@@ -39,6 +36,7 @@ function mockChain(data: unknown, error: unknown = null): any {
   chain.insert = vi.fn().mockReturnValue(chain);
   chain.update = vi.fn().mockReturnValue(chain);
   chain.select = vi.fn().mockReturnValue(chain);
+  chain.delete = vi.fn().mockReturnValue(chain);
   chain.eq = vi.fn().mockReturnValue(chain);
   chain.order = vi.fn().mockReturnValue(chain);
   chain.limit = vi.fn().mockReturnValue(chain);
@@ -46,11 +44,6 @@ function mockChain(data: unknown, error: unknown = null): any {
   chain.then = (resolve: (v: unknown) => void) =>
     Promise.resolve({ data: Array.isArray(data) ? data : [], error }).then(resolve);
   return chain;
-}
-
-/** Build a from() that returns different chains for different tables */
-function multiTableFrom(tableMap: Record<string, ReturnType<typeof mockChain>>) {
-  return vi.fn().mockImplementation((table: string) => tableMap[table] ?? mockChain(null));
 }
 
 function guardOk(fromFn: ReturnType<typeof vi.fn>, serviceFromFn?: ReturnType<typeof vi.fn>) {
@@ -61,7 +54,7 @@ function guardOk(fromFn: ReturnType<typeof vi.fn>, serviceFromFn?: ReturnType<ty
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: fromFn },
-      serviceClient: { from: serviceFromFn ?? fromFn },
+      serviceClient: { from: serviceFromFn ?? fromFn, rpc: vi.fn() },
     },
   };
 }
@@ -72,8 +65,6 @@ function guardUnauth() {
     response: new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 }),
   };
 }
-
-const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 function makeRequest(content: string) {
   return new Request('http://localhost', {
@@ -93,7 +84,7 @@ const MOCK_LLM_RESPONSE = {
   model: 'claude-haiku-4-5-20251001',
 };
 
-describe('POST /api/advisor/conversations/[id]/messages', () => {
+describe('POST /api/advisor/thread/messages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchMcaDocs.mockResolvedValue([]);
@@ -101,32 +92,32 @@ describe('POST /api/advisor/conversations/[id]/messages', () => {
     mockBuildCrewContext.mockResolvedValue({ markdown: '', certNames: [], roleName: '' });
   });
 
-  it('returns 200 with assistant message on happy path', async () => {
-    // Supabase: ownership check
-    const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
-    // Supabase: history fetch
+  it('returns 200 with assistant message on happy path (existing thread)', async () => {
+    const now = new Date().toISOString();
+    // Supabase: find existing thread, then fetch history
+    const threadChain = mockChain({ id: 'thread-1', created_at: now });
     const historyChain = mockChain([]);
     const supabaseFrom = vi.fn()
-      .mockReturnValueOnce(convChain) // advisor_conversations ownership
-      .mockReturnValueOnce(historyChain); // advisor_messages history
+      .mockReturnValueOnce(threadChain) // find thread
+      .mockReturnValueOnce(historyChain); // history
 
-    // Service client: insert user msg, insert assistant msg, update conversation
+    // Service client: insert user msg, insert assistant msg, update conv
     const insertUserChain = mockChain({ id: 'msg-1' });
     const insertAssistantChain = mockChain({
       id: 'msg-2',
       content: 'Mock answer from Docky',
       sources: MOCK_LLM_RESPONSE.sources,
-      created_at: '2026-03-17T00:00:00Z',
+      created_at: now,
     });
     const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(insertUserChain) // advisor_messages insert (user)
-      .mockReturnValueOnce(insertAssistantChain) // advisor_messages insert (assistant)
-      .mockReturnValueOnce(updateChain); // advisor_conversations update
+      .mockReturnValueOnce(insertUserChain) // insert user msg
+      .mockReturnValueOnce(insertAssistantChain) // insert assistant msg
+      .mockReturnValueOnce(updateChain); // update conv
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
-    const res = await POST(makeRequest('What certs do I need?'), makeParams('conv-1'));
+    const res = await POST(makeRequest('What certs do I need?'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.role).toBe('assistant');
@@ -134,31 +125,49 @@ describe('POST /api/advisor/conversations/[id]/messages', () => {
     expect(mockAskDocky).toHaveBeenCalledOnce();
   });
 
-  it('returns 400 for empty content', async () => {
-    const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
-    const supabaseFrom = vi.fn().mockReturnValue(convChain);
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom));
+  it('auto-creates thread if none exists', async () => {
+    // Supabase: no existing thread, then fetch history
+    const noThreadChain = mockChain(null, { code: 'PGRST116' });
+    const historyChain = mockChain([]);
+    const supabaseFrom = vi.fn()
+      .mockReturnValueOnce(noThreadChain) // no thread found
+      .mockReturnValueOnce(historyChain); // history (empty for new thread)
 
-    const res = await POST(makeRequest(''), makeParams('conv-1'));
+    const now = new Date().toISOString();
+    // Service client: create thread, insert user msg, insert assistant msg, update conv
+    const createThreadChain = mockChain({ id: 'new-thread' });
+    const insertUserChain = mockChain({ id: 'msg-1' });
+    const insertAssistantChain = mockChain({
+      id: 'msg-2',
+      content: 'Mock answer from Docky',
+      sources: MOCK_LLM_RESPONSE.sources,
+      created_at: now,
+    });
+    const updateChain = mockChain(null);
+    const serviceFrom = vi.fn()
+      .mockReturnValueOnce(createThreadChain) // create thread
+      .mockReturnValueOnce(insertUserChain) // insert user msg
+      .mockReturnValueOnce(insertAssistantChain) // insert assistant msg
+      .mockReturnValueOnce(updateChain); // update conv
+
+    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
+
+    const res = await POST(makeRequest('Hello'));
+    expect(res.status).toBe(200);
+  });
+
+  it('returns 400 for empty content', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk(vi.fn()));
+
+    const res = await POST(makeRequest(''));
     expect(res.status).toBe(400);
   });
 
   it('returns 400 for content over 500 chars', async () => {
-    const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
-    const supabaseFrom = vi.fn().mockReturnValue(convChain);
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom));
+    mockRequireDomainUser.mockResolvedValue(guardOk(vi.fn()));
 
-    const res = await POST(makeRequest('a'.repeat(501)), makeParams('conv-1'));
+    const res = await POST(makeRequest('a'.repeat(501)));
     expect(res.status).toBe(400);
-  });
-
-  it('returns 404 when conversation not found', async () => {
-    const convChain = mockChain(null);
-    const supabaseFrom = vi.fn().mockReturnValue(convChain);
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom));
-
-    const res = await POST(makeRequest('Hello'), makeParams('conv-999'));
-    expect(res.status).toBe(404);
   });
 
   it('returns 403 when employer hat', async () => {
@@ -166,23 +175,24 @@ describe('POST /api/advisor/conversations/[id]/messages', () => {
     guard.value.person.current_hat = 'employer' as 'crew';
     mockRequireDomainUser.mockResolvedValue(guard);
 
-    const res = await POST(makeRequest('Hello'), makeParams('conv-1'));
+    const res = await POST(makeRequest('Hello'));
     expect(res.status).toBe(403);
   });
 
   it('returns 401 when unauthenticated', async () => {
     mockRequireDomainUser.mockResolvedValue(guardUnauth());
-    const res = await POST(makeRequest('Hello'), makeParams('conv-1'));
+    const res = await POST(makeRequest('Hello'));
     expect(res.status).toBe(401);
   });
 
   it('returns 503 when LLM throws and user message is still saved', async () => {
     mockAskDocky.mockRejectedValue(new Error('API down'));
 
-    const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
+    const now = new Date().toISOString();
+    const threadChain = mockChain({ id: 'thread-1', created_at: now });
     const historyChain = mockChain([]);
     const supabaseFrom = vi.fn()
-      .mockReturnValueOnce(convChain)
+      .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
     const insertUserChain = mockChain({ id: 'msg-1' });
@@ -191,40 +201,9 @@ describe('POST /api/advisor/conversations/[id]/messages', () => {
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
-    const res = await POST(makeRequest('Hello'), makeParams('conv-1'));
+    const res = await POST(makeRequest('Hello'));
     expect(res.status).toBe(503);
-    // User message was saved (serviceFrom was called for the insert)
+    // User message was saved (serviceFrom called for insert)
     expect(serviceFrom).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe('GET /api/advisor/conversations/[id]/messages', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('returns 200 with messages ordered by created_at', async () => {
-    const msgs = [
-      { id: 'msg-1', role: 'user', content: 'Hello', sources: null, created_at: '2026-03-17T00:00:00Z' },
-      { id: 'msg-2', role: 'assistant', content: 'Hi', sources: [], created_at: '2026-03-17T00:01:00Z' },
-    ];
-
-    // First call: ownership check; second call: messages list
-    const convChain = mockChain({ id: 'conv-1', person_id: 'u1' });
-    const msgsChain = mockChain(msgs);
-    msgsChain.order = vi.fn().mockReturnValue({
-      ...msgsChain,
-      then: (resolve: (v: unknown) => void) =>
-        Promise.resolve({ data: msgs, error: null }).then(resolve),
-    });
-    const supabaseFrom = vi.fn()
-      .mockReturnValueOnce(convChain)
-      .mockReturnValueOnce(msgsChain);
-
-    mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom));
-
-    const res = await GET(new Request('http://localhost'), makeParams('conv-1'));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.messages).toHaveLength(2);
-    expect(body.messages[0].role).toBe('user');
   });
 });

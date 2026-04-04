@@ -5,7 +5,7 @@
 
 ## Current Task
 
-Audit Fixes (Stage 185) — Codebase quality sweep
+Docky Refactor Session A — Single-Thread Migration (Stage 186)
 
 ---
 
@@ -46,99 +46,22 @@ Audit Fixes (Stage 185) — Codebase quality sweep
 
 ---
 
-### Session A — Single-Thread Migration (structural, no DB migration)
+### Session A — Single-Thread Migration (Stage 186) ✓ COMPLETE
 
-> Biggest change. Rewrites API surface, merges UI pages. Must go first — later sessions modify this code.
-> No database migration needed — same tables, new API routes.
-
-**Pre-flight checks:**
-
-- [ ] Read current `apply_projection` DATA_SCRUBBED handler — note that advisor tables are NOT scrubbed (pre-existing GDPR gap, fixed in Session C)
-- [ ] Read `apps/web/src/app/api/account/export/route.ts` lines 87-90 — confirm data export includes advisor_conversations (no change needed, works with single-thread)
-
-**New API routes:**
-
-- [ ] Create `apps/web/src/app/api/advisor/thread/route.ts` — GET handler:
-  - Auth guard + crew hat check
-  - Query `advisor_conversations` for user's most recent thread (`ORDER BY created_at DESC LIMIT 1`)
-  - If thread exists and age > 72h from `created_at`: delete it (messages cascade), return empty state `{ thread: null, messages: [] }`
-  - If thread exists and age ≤ 72h: fetch messages from `advisor_messages`, return `{ thread: { id, created_at }, messages: [...] }`
-  - If no thread: return `{ thread: null, messages: [] }`
-  - Client never needs conversation ID — the API always operates on "the user's current thread"
-
-- [ ] Create `apps/web/src/app/api/advisor/thread/messages/route.ts` — POST handler:
-  - Auth guard + crew hat check
-  - Validate content (required, max 500 chars, trimmed)
-  - Find user's active thread (most recent, ≤72h old)
-  - If no active thread: auto-create one (`INSERT INTO advisor_conversations`)
-  - Subscription check via `requireSubscription(supabase, personId, 'crew_pro')`
-  - Usage gate: call `increment_advisor_usage` RPC (free tier: limit 3 — updated to 15 in Session C)
-  - Save user message to `advisor_messages` (BEFORE LLM call — survives LLM failure)
-  - Parallel fetch: `buildCrewContext()` + `searchMcaDocs()`
-  - `buildCertGapContext()` from chunks + crew certs
-  - Call `askDocky()` — wraps in try/catch, returns 503 on failure
-  - Save assistant message to `advisor_messages` with sources + token counts
-  - Return `{ id, role, content, sources, created_at }`
-
-- [ ] Create `apps/web/src/app/api/advisor/thread/clear/route.ts` — POST handler:
-  - Auth guard + crew hat check
-  - Find user's most recent thread
-  - Delete it (messages cascade via ON DELETE CASCADE)
-  - Return 204
-
-**Rewrite web UI:**
-
-- [ ] Rewrite `apps/web/src/app/(app)/docky/page.tsx` — merge conversation list + chat into single-page:
-  - On mount: GET `/api/advisor/thread` — loads active thread or empty state
-  - Empty state: suggestion chips (reuse `useProfileChips`), encouragement text
-  - Chat state: message list with user/assistant bubbles, sources collapsible, markdown rendering, DOMPurify
-  - Input: Enter to send, Shift+Enter newline, 500 char max, disabled while sending
-  - "New conversation" button: confirmation dialog ("Start a new conversation? Current messages will be cleared."), POST `/api/advisor/thread/clear`, reload empty state
-  - Disable "New conversation" while a message is sending (prevents FK race)
-  - Expiry countdown: muted text "This conversation expires in Xh Ym" calculated from `thread.created_at + 72h - now`. Hide when <1 min remains.
-  - Keep: profile completeness nudge (`useDockyReadiness`), usage pill, staged thinking indicator ("reading your profile" → "thinking..."), auto-scroll to bottom
-  - Limit reached state: lock input, show upgrade CTA to `/billing`
-
-- [ ] Create `apps/web/src/app/(app)/docky/loading.tsx` — skeleton loader for the docky page
-
-**Remove old routes + pages:**
-
-- [ ] Delete `apps/web/src/app/api/advisor/conversations/route.ts`
-- [ ] Delete `apps/web/src/app/api/advisor/conversations/[id]/route.ts`
-- [ ] Delete `apps/web/src/app/api/advisor/conversations/[id]/messages/route.ts`
-- [ ] Delete `apps/web/src/app/(app)/docky/[conversationId]/page.tsx`
-- [ ] Verify: bottom nav links to `/docky` (confirmed — no change needed)
-- [ ] Verify: sidebar nav links to `/docky` (confirmed — no change needed)
-- [ ] Verify: no push notification deep links to `/docky/[id]` (confirmed — none exist)
-
-**Rewrite tests:**
-
-- [ ] Rewrite `advisor-conversations.test.ts` → `advisor-thread.test.ts`:
-  - GET /thread: returns active thread + messages (200)
-  - GET /thread: auto-erases expired thread (>72h), returns empty (200)
-  - GET /thread: returns empty when no thread exists (200)
-  - GET /thread: returns 401 unauthenticated
-  - GET /thread: returns 403 employer hat
-  - POST /thread/clear: deletes thread (204)
-  - POST /thread/clear: returns 204 even when no thread exists (idempotent)
-- [ ] Rewrite `advisor-messages.test.ts` → test POST /thread/messages:
-  - Happy path: sends message, returns assistant response (200)
-  - Auto-creates thread if none exists
-  - Empty content: returns 400
-  - Content > 500 chars: returns 400
-  - Employer hat: returns 403
-  - Unauthenticated: returns 401
-  - LLM error: returns 503, user message still saved
-- [ ] Update `advisor-personalised.test.ts` — new route import path, same crew context assertions
-- [ ] Update `advisor-usage.test.ts` — new route import path, same usage gating assertions
-- [ ] `advisor-usage-route.test.ts` — unchanged (usage GET route doesn't change)
-
-**Verify:**
-
-- [ ] `turbo run type-check` passes
-- [ ] `turbo run lint` passes
-- [ ] All vitest tests pass
-- [ ] No `console.log` in committed code
+- [x] Pre-flight checks (DATA_SCRUBBED gap confirmed, data export compatible)
+- [x] GET /api/advisor/thread — single-thread with 72h auto-expiry
+- [x] POST /api/advisor/thread/messages — auto-create, usage gate, LLM, save
+- [x] POST /api/advisor/thread/clear — idempotent delete
+- [x] Docky page rewritten as single-page (empty state + chat + expiry countdown + new conv dialog)
+- [x] loading.tsx skeleton
+- [x] Old routes + pages deleted (conversations/_, [conversationId]/_)
+- [x] Nav links verified (bottom nav + sidebar both /docky, no deep links)
+- [x] advisor-thread.test.ts (5 tests), advisor-thread-clear.test.ts (2 tests)
+- [x] advisor-messages.test.ts rewritten for thread route (7 tests)
+- [x] advisor-personalised.test.ts updated (3 tests)
+- [x] advisor-usage.test.ts updated (5 tests)
+- [x] advisor-usage-route.test.ts unchanged
+- [x] type-check passes, 914 tests pass, no console.log
 
 ---
 
@@ -242,11 +165,63 @@ Audit Fixes (Stage 185) — Codebase quality sweep
 
 ---
 
+### MCA Corpus Ingestion Script
+
+> Populates the empty `mca_document_chunks` table. PDFs go in `corpus/mca/`. No migration needed — table already exists (00043).
+> Prerequisite: `OPENAI_API_KEY` in `.env.local` (already required for Docky).
+
+**Script: `scripts/ingest-mca-docs.ts`**
+
+- [ ] Create `scripts/ingest-mca-docs.ts` — standalone Node/TS script, runs with `npx tsx scripts/ingest-mca-docs.ts`
+- [ ] Add `pdf-parse` dependency to root `package.json` (lightweight PDF text extraction, ~200KB)
+- [ ] Add `dotenv` import to load `.env.local` for `OPENAI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY`
+
+**PDF reading + chunking:**
+
+- [ ] Scan `corpus/mca/` for all `.pdf` files
+- [ ] For each PDF: extract full text via `pdf-parse`, preserving page boundaries
+- [ ] Derive `source_document` from filename (e.g., `MIN-599.pdf` → `MIN 599`, `MSN-1856.pdf` → `MSN 1856`)
+- [ ] Split text into chunks using section-based strategy:
+  - Primary split: detect section headers (numbered sections like `1.`, `1.1`, `SECTION 2`, `Annex A`, uppercase headers)
+  - If a section exceeds 500 tokens (~2000 chars): sub-split at paragraph boundaries
+  - If a paragraph exceeds 500 tokens: hard split at sentence boundaries
+  - Target: ~400-500 tokens per chunk (estimate as `Math.ceil(text.length / 4)`)
+  - Overlap: prepend last 50 tokens of previous chunk to maintain cross-boundary context
+- [ ] Extract metadata per chunk: `section_title` (nearest header above), `page_number` (from PDF page boundaries), `chunk_index` (sequential per document)
+
+**Embedding + storage:**
+
+- [ ] For each chunk: call OpenAI `text-embedding-3-small` to generate 1536-dim embedding
+- [ ] Rate limit: batch 20 embeddings per API call (OpenAI supports batch input), 100ms delay between batches
+- [ ] Before inserting a document's chunks: DELETE existing rows with matching `source_document` (idempotent re-ingestion)
+- [ ] INSERT chunks into `mca_document_chunks` via Supabase service client (RLS is read-only for authenticated, writes need service role)
+- [ ] Log progress: `[MIN 599] 23 chunks extracted, 23 embeddings generated, 23 rows inserted`
+
+**Validation + summary:**
+
+- [ ] After all documents processed: query total row count from `mca_document_chunks`
+- [ ] Run a smoke test query: embed "What STCW certificates do I need?" and call `match_mca_documents` — verify results return with similarity > 0.7
+- [ ] Print summary: documents processed, total chunks, total tokens estimated, any failures
+- [ ] If smoke test passes: print instruction to set `DOCKY_CORPUS_READY=true` in `.env.local`
+
+**Source URLs (optional, manual):**
+
+- [ ] Create `corpus/mca/source-urls.json` — maps `source_document` to MCA web URL (e.g., `{ "MIN 599": "https://www.gov.uk/..." }`)
+- [ ] Script reads this file and populates `source_url` column if a match exists, otherwise `null`
+
+**Verify:**
+
+- [ ] Script runs to completion with at least one test PDF
+- [ ] `mca_document_chunks` has rows with valid embeddings
+- [ ] `searchMcaDocs()` returns relevant results for a maritime question
+- [ ] No hardcoded keys — all from environment variables
+
+---
+
 ## Deferred items
 
 - [ ] Visually verify card background image watermark effect
 - [ ] Run screenshot script (blocked by port 54322 — needs system restart)
-- [ ] MCA corpus ingestion script (`scripts/ingest-mca-docs.ts`) — blocked on obtaining PDF documents
 - [ ] `DOCKY_CORPUS_READY=true` — only set after corpus ingestion + quality validation
 - [ ] Interaction logging 90-day cleanup cron — build when data volume warrants it
 - [ ] Subscription plan in JWT custom access token hook — future optimisation to eliminate `requireSubscription` DB query

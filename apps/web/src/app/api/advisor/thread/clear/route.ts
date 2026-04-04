@@ -2,34 +2,36 @@ import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 
 /**
- * DELETE /api/advisor/conversations/[id]
- * Deletes an advisor conversation owned by the current user.
+ * POST /api/advisor/thread/clear
+ * Deletes the user's most recent thread. Messages cascade via ON DELETE CASCADE.
+ * Returns 204 even when no thread exists (idempotent).
  */
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST() {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
 
   try {
-    const { id } = await params;
-    const { user, person, supabase } = guard.value;
+    const { user, person, serviceClient } = guard.value;
 
     if (person.current_hat !== 'crew') {
       return NextResponse.json({ error: 'Crew hat required' }, { status: 403 });
     }
 
-    const { data, error } = await supabase
+    // Find most recent thread
+    const { data: thread } = await serviceClient
       .from('advisor_conversations')
-      .delete()
-      .eq('id', id)
+      .select('id')
       .eq('person_id', user.id)
-      .select('id');
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    if (!data || data.length === 0) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    if (thread) {
+      await serviceClient
+        .from('advisor_conversations')
+        .delete()
+        .eq('id', thread.id)
+        .eq('person_id', user.id);
     }
 
     return new NextResponse(null, { status: 204 });

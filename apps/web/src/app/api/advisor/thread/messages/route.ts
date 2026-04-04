@@ -6,34 +6,22 @@ import { buildCrewContext } from '@/lib/advisor/crew-context';
 import { buildCertGapContext } from '@/lib/advisor/cert-analysis';
 import { requireSubscription } from '@/lib/require-subscription';
 
+const THREAD_TTL_MS = 72 * 60 * 60 * 1000; // 72 hours
+
 /**
- * POST /api/advisor/conversations/[id]/messages
- * Sends a message in an advisor conversation and gets an AI response.
+ * POST /api/advisor/thread/messages
+ * Send a message in the user's current thread and get an AI response.
+ * Auto-creates a thread if none exists or the current one is expired.
  */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: Request) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
 
   try {
-    const { id } = await params;
     const { user, person, supabase, serviceClient } = guard.value;
 
     if (person.current_hat !== 'crew') {
       return NextResponse.json({ error: 'Crew hat required' }, { status: 403 });
-    }
-
-    // Validate ownership
-    const { data: conv } = await supabase
-      .from('advisor_conversations')
-      .select('id, person_id')
-      .eq('id', id)
-      .single();
-
-    if (!conv) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-    }
-    if (conv.person_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Validate content
@@ -50,11 +38,59 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
-    // Fetch conversation history before saving user message
+    // Find or create active thread
+    let threadId: string;
+
+    const { data: existing } = await supabase
+      .from('advisor_conversations')
+      .select('id, created_at')
+      .eq('person_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (existing) {
+      const age = Date.now() - new Date(existing.created_at).getTime();
+      if (age > THREAD_TTL_MS) {
+        // Expired — delete and create fresh
+        await serviceClient
+          .from('advisor_conversations')
+          .delete()
+          .eq('id', existing.id)
+          .eq('person_id', user.id);
+
+        const { data: newThread, error: createErr } = await serviceClient
+          .from('advisor_conversations')
+          .insert({ person_id: user.id })
+          .select('id')
+          .single();
+
+        if (createErr || !newThread) {
+          return NextResponse.json({ error: 'Failed to create thread' }, { status: 500 });
+        }
+        threadId = newThread.id;
+      } else {
+        threadId = existing.id;
+      }
+    } else {
+      // No thread exists — create one
+      const { data: newThread, error: createErr } = await serviceClient
+        .from('advisor_conversations')
+        .insert({ person_id: user.id })
+        .select('id')
+        .single();
+
+      if (createErr || !newThread) {
+        return NextResponse.json({ error: 'Failed to create thread' }, { status: 500 });
+      }
+      threadId = newThread.id;
+    }
+
+    // Fetch conversation history
     const { data: historyRows } = await supabase
       .from('advisor_messages')
       .select('role, content')
-      .eq('conversation_id', id)
+      .eq('conversation_id', threadId)
       .order('created_at', { ascending: true })
       .limit(10);
 
@@ -69,7 +105,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!isPro) {
       const currentMonth = new Date().toISOString().slice(0, 7);
 
-      // Atomic check-and-increment: prevents concurrent requests from bypassing limit
       const { data: newCount } = await serviceClient.rpc('increment_advisor_usage', {
         p_person_id: user.id,
         p_month: currentMonth,
@@ -84,10 +119,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    // Save user message (after usage check passes)
+    // Save user message (after usage check passes — survives LLM failure)
     const { error: insertErr } = await serviceClient
       .from('advisor_messages')
-      .insert({ conversation_id: id, role: 'user', content })
+      .insert({ conversation_id: threadId, role: 'user', content })
       .select('id')
       .single();
 
@@ -120,7 +155,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { data: assistantMsg, error: assistantErr } = await serviceClient
       .from('advisor_messages')
       .insert({
-        conversation_id: id,
+        conversation_id: threadId,
         role: 'assistant',
         content: response.answer,
         sources: response.sources,
@@ -135,8 +170,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: assistantErr.message }, { status: 500 });
     }
 
-    // Usage already incremented atomically before LLM call (via increment_advisor_usage RPC)
-
     // Update conversation title + updated_at
     const isFirstMessage = history.length === 0;
     const updateFields: Record<string, string> = {
@@ -145,7 +178,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (isFirstMessage) {
       updateFields.title = content.slice(0, 60);
     }
-    await serviceClient.from('advisor_conversations').update(updateFields).eq('id', id);
+    await serviceClient.from('advisor_conversations').update(updateFields).eq('id', threadId);
 
     return NextResponse.json({
       id: assistantMsg.id,
@@ -154,53 +187,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       sources: response.sources,
       created_at: assistantMsg.created_at,
     });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
-}
-
-/**
- * GET /api/advisor/conversations/[id]/messages
- * Returns all messages in an advisor conversation.
- */
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireDomainUser();
-  if (!guard.ok) return guard.response;
-
-  try {
-    const { id } = await params;
-    const { user, person, supabase } = guard.value;
-
-    if (person.current_hat !== 'crew') {
-      return NextResponse.json({ error: 'Crew hat required' }, { status: 403 });
-    }
-
-    // Validate ownership
-    const { data: conv } = await supabase
-      .from('advisor_conversations')
-      .select('id, person_id')
-      .eq('id', id)
-      .single();
-
-    if (!conv) {
-      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-    }
-    if (conv.person_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const { data, error } = await supabase
-      .from('advisor_messages')
-      .select('id, role, content, sources, created_at')
-      .eq('conversation_id', id)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ messages: data ?? [] });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
