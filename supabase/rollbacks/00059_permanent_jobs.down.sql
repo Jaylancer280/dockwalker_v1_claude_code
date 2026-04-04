@@ -11,7 +11,9 @@ DELETE FROM public.engagement_checklists WHERE engagement_id IN (SELECT id FROM 
 DELETE FROM public.message_read_cursors WHERE engagement_id IN (SELECT id FROM public.active_engagements WHERE daywork_id IS NULL);
 DELETE FROM public.active_engagements WHERE daywork_id IS NULL;
 DELETE FROM public.applications WHERE daywork_id IS NULL;
+ALTER TABLE public.events DISABLE TRIGGER prevent_event_mutation;
 DELETE FROM public.events WHERE aggregate_type = 'permanent';
+ALTER TABLE public.events ENABLE TRIGGER prevent_event_mutation;
 
 -- Drop RLS policies on permanent_postings
 drop policy if exists "Users can read active/in_negotiation or own permanent postings" on public.permanent_postings;
