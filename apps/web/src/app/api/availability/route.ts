@@ -10,83 +10,89 @@ import { appendEvent } from '@dockwalker/db';
 export async function GET() {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase } = guard.value;
 
-  // Get availability windows (only non-expired), include city_id, port_id and not_available
-  const { data: windows, error: windowsError } = await supabase
-    .from('availability_windows')
-    .select('id, date, expires_at, city_id, port_id, not_available')
-    .eq('person_id', user.id)
-    .gt('expires_at', new Date().toISOString().split('T')[0])
-    .order('date');
+  try {
+    const { user, supabase } = guard.value;
 
-  if (windowsError) {
-    return NextResponse.json({ error: windowsError.message }, { status: 500 });
-  }
+    // Get availability windows (only non-expired), include city_id, port_id and not_available
+    const { data: windows, error: windowsError } = await supabase
+      .from('availability_windows')
+      .select('id, date, expires_at, city_id, port_id, not_available')
+      .eq('person_id', user.id)
+      .gt('expires_at', new Date().toISOString().split('T')[0])
+      .order('date');
 
-  // Determine availability status: 'available' | 'not_available' | null
-  const notAvailableRow = (windows ?? []).find((w) => w.not_available);
-  const availableWindows = (windows ?? []).filter((w) => !w.not_available);
-  let status: 'available' | 'not_available' | null = null;
-  if (notAvailableRow) {
-    status = 'not_available';
-  } else if (availableWindows.length > 0) {
-    status = 'available';
-  }
-
-  // Resolve city name for the windows (use the first non-null city_id from any window)
-  let city: { id: string; name: string; region_name: string } | null = null;
-  const firstCityId = (windows ?? []).find((w) => w.city_id)?.city_id;
-  if (firstCityId) {
-    const { data: cityData } = await supabase
-      .from('cities')
-      .select('id, name, regions(name)')
-      .eq('id', firstCityId)
-      .single();
-    if (cityData) {
-      const regions = cityData.regions as unknown as { name: string } | null;
-      city = {
-        id: cityData.id,
-        name: cityData.name,
-        region_name: regions?.name ?? '',
-      };
+    if (windowsError) {
+      return NextResponse.json({ error: windowsError.message }, { status: 500 });
     }
-  }
 
-  // Get accepted engagements (blocked days)
-  const { data: engagements, error: engError } = await supabase
-    .from('active_engagements')
-    .select(
-      'id, start_date, end_date, daywork_id, permanent_posting_id, dayworks(yacht_roles(name)), permanent_postings(yacht_roles(name))',
-    )
-    .eq('crew_person_id', user.id)
-    .eq('status', 'active');
-
-  if (engError) {
-    return NextResponse.json({ error: engError.message }, { status: 500 });
-  }
-
-  // Resolve port name if any window has port_id
-  let port: { id: string; name: string } | null = null;
-  const firstPortId = (windows ?? []).find((w) => w.port_id)?.port_id;
-  if (firstPortId) {
-    const { data: portData } = await supabase
-      .from('ports')
-      .select('id, name')
-      .eq('id', firstPortId)
-      .single();
-    if (portData) {
-      port = { id: portData.id, name: portData.name };
+    // Determine availability status: 'available' | 'not_available' | null
+    const notAvailableRow = (windows ?? []).find((w) => w.not_available);
+    const availableWindows = (windows ?? []).filter((w) => !w.not_available);
+    let status: 'available' | 'not_available' | null = null;
+    if (notAvailableRow) {
+      status = 'not_available';
+    } else if (availableWindows.length > 0) {
+      status = 'available';
     }
-  }
 
-  return NextResponse.json({
-    windows: availableWindows,
-    engagements: engagements ?? [],
-    city,
-    port,
-    status,
-  });
+    // Resolve city name for the windows (use the first non-null city_id from any window)
+    let city: { id: string; name: string; region_name: string } | null = null;
+    const firstCityId = (windows ?? []).find((w) => w.city_id)?.city_id;
+    if (firstCityId) {
+      const { data: cityData } = await supabase
+        .from('cities')
+        .select('id, name, regions(name)')
+        .eq('id', firstCityId)
+        .single();
+      if (cityData) {
+        const regions = cityData.regions as unknown as { name: string } | null;
+        city = {
+          id: cityData.id,
+          name: cityData.name,
+          region_name: regions?.name ?? '',
+        };
+      }
+    }
+
+    // Get accepted engagements (blocked days)
+    const { data: engagements, error: engError } = await supabase
+      .from('active_engagements')
+      .select(
+        'id, start_date, end_date, daywork_id, permanent_posting_id, dayworks(yacht_roles(name)), permanent_postings(yacht_roles(name))',
+      )
+      .eq('crew_person_id', user.id)
+      .eq('status', 'active');
+
+    if (engError) {
+      return NextResponse.json({ error: engError.message }, { status: 500 });
+    }
+
+    // Resolve port name if any window has port_id
+    let port: { id: string; name: string } | null = null;
+    const firstPortId = (windows ?? []).find((w) => w.port_id)?.port_id;
+    if (firstPortId) {
+      const { data: portData } = await supabase
+        .from('ports')
+        .select('id, name')
+        .eq('id', firstPortId)
+        .single();
+      if (portData) {
+        port = { id: portData.id, name: portData.name };
+      }
+    }
+
+    return NextResponse.json({
+      windows: availableWindows,
+      engagements: engagements ?? [],
+      city,
+      port,
+      status,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 /**
@@ -292,6 +298,11 @@ export async function DELETE(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, person, serviceClient } = guard.value;
 
+  if (!['crew', 'employer', 'agent'].includes(person.current_hat)) {
+    return NextResponse.json({ error: 'Invalid hat' }, { status: 403 });
+  }
+  const roleContext = person.current_hat as 'crew' | 'employer' | 'agent';
+
   const body = await request.json().catch(() => ({}));
   const { dates, clearAll } = body;
 
@@ -317,7 +328,7 @@ export async function DELETE(request: Request) {
         eventType: 'AVAILABILITY.SET',
         aggregateId: user.id,
         aggregateType: 'person',
-        roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
+        roleContext,
         payload: {
           start_date: todayStr,
           end_date: todayStr,

@@ -38,6 +38,11 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
   const { user, person, supabase, serviceClient } = guard.value;
 
+  if (!['crew', 'employer', 'agent'].includes(person.current_hat)) {
+    return NextResponse.json({ error: 'Invalid hat' }, { status: 403 });
+  }
+  const roleContext = person.current_hat as 'crew' | 'employer' | 'agent';
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -98,7 +103,7 @@ export async function POST(request: Request) {
       eventType: 'PROFILE.UPDATED',
       aggregateId: user.id,
       aggregateType: 'person',
-      roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
+      roleContext,
       payload: { avatar_url: avatarUrl },
       personId: user.id,
     });
@@ -119,6 +124,11 @@ export async function DELETE() {
   if (!guard.ok) return guard.response;
   const { user, person, supabase, serviceClient } = guard.value;
 
+  if (!['crew', 'employer', 'agent'].includes(person.current_hat)) {
+    return NextResponse.json({ error: 'Invalid hat' }, { status: 403 });
+  }
+  const roleContext = person.current_hat as 'crew' | 'employer' | 'agent';
+
   try {
     // Remove all avatar files for this user
     const { data: existing } = await supabase.storage.from('avatars').list(user.id);
@@ -132,7 +142,7 @@ export async function DELETE() {
       eventType: 'PROFILE.UPDATED',
       aggregateId: user.id,
       aggregateType: 'person',
-      roleContext: person.current_hat as 'crew' | 'employer' | 'agent',
+      roleContext,
       payload: { avatar_url: null },
       personId: user.id,
     });

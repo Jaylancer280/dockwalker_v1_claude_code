@@ -315,6 +315,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 184] Responsive Redesign Phase 6 (Forms + Simple Pages) — FINAL PHASE. Daywork post form pairs working days + crew needed; permanent form pairs contract type + positions, live aboard + shortlist cap; experience form pairs dates and vessel operation + flag state; vessels page side-by-side form + list on lg+; billing plan cards side-by-side on md+; docky min-h-svh + pb-nav consistency; docky conversation sticky input md:bottom-0; 915 tests pass
 
+- [Stage 185] Audit fixes — codebase quality sweep: bio validation raised to 1000 chars, try/catch on 5 route handlers (availability GET, messages GET/POST, messages/read POST, notifications/read POST), hat cast hardening on availability DELETE + avatar POST/DELETE, theme color constants extracted to shared module, aria-expanded on accordion/toggle buttons, aria-label on icon-only buttons; 915 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)

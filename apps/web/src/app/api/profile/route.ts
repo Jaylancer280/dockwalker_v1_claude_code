@@ -61,7 +61,12 @@ export async function PATCH(request: Request) {
     payload.experience_bracket_id = body.experienceBracketId;
   if (body.vesselSizeExposureIds !== undefined)
     payload.vessel_size_exposure_ids = body.vesselSizeExposureIds;
-  if (body.bio !== undefined) payload.bio = body.bio;
+  if (body.bio !== undefined) {
+    if (body.bio !== null && typeof body.bio === 'string' && body.bio.length > 1000) {
+      return NextResponse.json({ error: 'Bio must be 1000 characters or fewer' }, { status: 400 });
+    }
+    payload.bio = body.bio;
+  }
   if (body.deckName !== undefined)
     payload.deck_name = body.deckName ? String(body.deckName).slice(0, 50) : null;
   if (body.agencyName !== undefined) {
@@ -130,15 +135,6 @@ export async function PATCH(request: Request) {
       { error: 'Display name must be between 1 and 100 characters' },
       { status: 400 },
     );
-  }
-
-  if (
-    payload.bio !== undefined &&
-    payload.bio !== null &&
-    typeof payload.bio === 'string' &&
-    payload.bio.length > 250
-  ) {
-    return NextResponse.json({ error: 'Bio must be 250 characters or fewer' }, { status: 400 });
   }
 
   try {

@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { THEME_COLOR_DARK, THEME_COLOR_LIGHT } from '@/lib/theme-colors';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -31,7 +32,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const resolved = resolveTheme(theme);
     document.documentElement.dataset.theme = resolved;
     const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', resolved === 'dark' ? '#111a24' : '#eef2f8');
+    if (meta)
+      meta.setAttribute('content', resolved === 'dark' ? THEME_COLOR_DARK : THEME_COLOR_LIGHT);
   }, [theme]);
 
   useEffect(() => {

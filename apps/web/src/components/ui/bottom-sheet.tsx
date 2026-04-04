@@ -29,6 +29,7 @@ export function BottomSheet({
           <h2 className="text-sm font-bold">{title}</h2>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="rounded-full p-1 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />

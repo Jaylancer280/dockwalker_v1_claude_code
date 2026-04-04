@@ -5,6 +5,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { NativeInit } from '@/components/native-init';
 import { PushToast } from '@/components/push-toast';
 import { ThemeProvider } from '@/components/theme-provider';
+import { THEME_COLOR_DARK } from '@/lib/theme-colors';
 import './globals.css';
 
 const geist = localFont({
@@ -55,7 +56,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
   userScalable: true,
   viewportFit: 'cover',
-  themeColor: '#111a24',
+  themeColor: THEME_COLOR_DARK,
 };
 
 export default function RootLayout({

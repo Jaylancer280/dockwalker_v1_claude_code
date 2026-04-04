@@ -117,7 +117,11 @@ export function ProfileOverlay({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3 rounded-t-[14px]">
           <h2 className="text-sm font-bold">Profile</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            aria-label="Close profile"
+            className="text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -312,6 +316,7 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
               <div key={idx} className="rounded-lg border border-border">
                 <button
                   onClick={() => setExpandedIdx(isExpanded ? null : idx)}
+                  aria-expanded={isExpanded}
                   className="flex w-full items-center gap-3 p-3 text-left"
                 >
                   <Ship className="h-4 w-4 flex-shrink-0 text-muted-foreground" />

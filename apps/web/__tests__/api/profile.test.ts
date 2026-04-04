@@ -139,20 +139,20 @@ describe('PATCH /api/profile', () => {
     expect(res.status).toBe(200);
   });
 
-  it('returns 400 when bio exceeds 250 characters', async () => {
+  it('returns 400 when bio exceeds 1000 characters', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    const res = await PATCH(makeRequest({ bio: 'b'.repeat(251) }));
+    const res = await PATCH(makeRequest({ bio: 'b'.repeat(1001) }));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain('250');
+    expect(body.error).toContain('1000');
   });
 
-  it('allows bio of exactly 250 characters', async () => {
+  it('allows bio of exactly 1000 characters', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockRpc.mockResolvedValueOnce({ error: null });
 
-    const res = await PATCH(makeRequest({ bio: 'b'.repeat(250) }));
+    const res = await PATCH(makeRequest({ bio: 'b'.repeat(1000) }));
     expect(res.status).toBe(200);
   });
 

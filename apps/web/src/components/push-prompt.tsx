@@ -54,7 +54,7 @@ export function PushPrompt() {
             </Button>
           </div>
         </div>
-        <button onClick={dismiss} className="text-muted-foreground">
+        <button onClick={dismiss} aria-label="Dismiss" className="text-muted-foreground">
           <X className="h-4 w-4" />
         </button>
       </div>

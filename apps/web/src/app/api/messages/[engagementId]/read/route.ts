@@ -13,35 +13,41 @@ export async function POST(
   const { engagementId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase } = guard.value;
 
-  // Verify user is part of this engagement
-  const { data: engagement } = await supabase
-    .from('active_engagements')
-    .select('id, crew_person_id, employer_person_id')
-    .eq('id', engagementId)
-    .single();
+  try {
+    const { user, supabase } = guard.value;
 
-  if (!engagement) {
-    return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
+    // Verify user is part of this engagement
+    const { data: engagement } = await supabase
+      .from('active_engagements')
+      .select('id, crew_person_id, employer_person_id')
+      .eq('id', engagementId)
+      .single();
+
+    if (!engagement) {
+      return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
+    }
+
+    if (engagement.crew_person_id !== user.id && engagement.employer_person_id !== user.id) {
+      return NextResponse.json({ error: 'Not a participant in this engagement' }, { status: 403 });
+    }
+
+    const { error } = await supabase.from('message_read_cursors').upsert(
+      {
+        person_id: user.id,
+        engagement_id: engagementId,
+        last_read_at: new Date().toISOString(),
+      },
+      { onConflict: 'person_id,engagement_id' },
+    );
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  if (engagement.crew_person_id !== user.id && engagement.employer_person_id !== user.id) {
-    return NextResponse.json({ error: 'Not a participant in this engagement' }, { status: 403 });
-  }
-
-  const { error } = await supabase.from('message_read_cursors').upsert(
-    {
-      person_id: user.id,
-      engagement_id: engagementId,
-      last_read_at: new Date().toISOString(),
-    },
-    { onConflict: 'person_id,engagement_id' },
-  );
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
 }

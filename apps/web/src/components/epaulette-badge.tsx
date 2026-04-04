@@ -1,7 +1,8 @@
 import { getEpaulette, getDepartmentColor } from '@dockwalker/shared';
+import { EPAULETTE_GOLD, EPAULETTE_SILVER } from '@/lib/theme-colors';
 
-const GOLD = '#D4AF37';
-const SILVER = '#C0C0C0';
+const GOLD = EPAULETTE_GOLD;
+const SILVER = EPAULETTE_SILVER;
 
 function colorHex(c: 'gold' | 'silver'): string {
   return c === 'gold' ? GOLD : SILVER;

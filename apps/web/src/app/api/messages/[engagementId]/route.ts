@@ -15,34 +15,40 @@ export async function GET(
   const { engagementId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase } = guard.value;
 
-  // Verify user is part of this engagement
-  const { data: engagement } = await supabase
-    .from('active_engagements')
-    .select('id, crew_person_id, employer_person_id, status')
-    .eq('id', engagementId)
-    .single();
+  try {
+    const { user, supabase } = guard.value;
 
-  if (!engagement) {
-    return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
+    // Verify user is part of this engagement
+    const { data: engagement } = await supabase
+      .from('active_engagements')
+      .select('id, crew_person_id, employer_person_id, status')
+      .eq('id', engagementId)
+      .single();
+
+    if (!engagement) {
+      return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
+    }
+
+    if (engagement.crew_person_id !== user.id && engagement.employer_person_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { data: messages, error } = await supabase
+      .from('messages')
+      .select('id, sender_person_id, content, created_at, is_system')
+      .eq('engagement_id', engagementId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ messages: messages ?? [] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  if (engagement.crew_person_id !== user.id && engagement.employer_person_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  const { data: messages, error } = await supabase
-    .from('messages')
-    .select('id, sender_person_id, content, created_at, is_system')
-    .eq('engagement_id', engagementId)
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ messages: messages ?? [] });
 }
 
 /**
@@ -57,45 +63,46 @@ export async function POST(
   const { engagementId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, supabase, serviceClient } = guard.value;
-
-  // Verify user is part of this engagement and it's active
-  const { data: engagement } = await supabase
-    .from('active_engagements')
-    .select('id, crew_person_id, employer_person_id, status')
-    .eq('id', engagementId)
-    .single();
-
-  if (!engagement) {
-    return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
-  }
-
-  if (engagement.crew_person_id !== user.id && engagement.employer_person_id !== user.id) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  if (engagement.status !== 'active') {
-    return NextResponse.json({ error: 'This engagement is no longer active' }, { status: 400 });
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const { content } = body;
-
-  if (!content || typeof content !== 'string' || content.trim().length === 0) {
-    return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
-  }
-
-  const trimmed = content.trim();
-
-  if (trimmed.length > 2000) {
-    return NextResponse.json(
-      { error: 'Message content must be 2000 characters or fewer' },
-      { status: 400 },
-    );
-  }
-  const messageId = randomUUID();
 
   try {
+    const { user, supabase, serviceClient } = guard.value;
+
+    // Verify user is part of this engagement and it's active
+    const { data: engagement } = await supabase
+      .from('active_engagements')
+      .select('id, crew_person_id, employer_person_id, status')
+      .eq('id', engagementId)
+      .single();
+
+    if (!engagement) {
+      return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
+    }
+
+    if (engagement.crew_person_id !== user.id && engagement.employer_person_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (engagement.status !== 'active') {
+      return NextResponse.json({ error: 'This engagement is no longer active' }, { status: 400 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { content } = body;
+
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
+    }
+
+    const trimmed = content.trim();
+
+    if (trimmed.length > 2000) {
+      return NextResponse.json(
+        { error: 'Message content must be 2000 characters or fewer' },
+        { status: 400 },
+      );
+    }
+    const messageId = randomUUID();
+
     await appendEvent(serviceClient, {
       eventType: 'MESSAGE.SENT',
       aggregateId: engagementId,

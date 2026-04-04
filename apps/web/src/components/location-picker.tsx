@@ -296,6 +296,7 @@ export function LocationPicker({
                   <button
                     type="button"
                     onClick={() => toggleRegion(region.id)}
+                    aria-expanded={regionExpanded}
                     className="flex w-full items-center gap-1.5 rounded px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:bg-accent"
                   >
                     {regionExpanded ? (
@@ -340,6 +341,8 @@ export function LocationPicker({
                                       e.stopPropagation();
                                       toggleCity(city.id);
                                     }}
+                                    aria-expanded={cityExpanded}
+                                    aria-label="Toggle ports"
                                     className="rounded p-1.5 text-muted-foreground hover:bg-accent"
                                   >
                                     {cityExpanded ? (
@@ -355,6 +358,7 @@ export function LocationPicker({
                               <button
                                 type="button"
                                 onClick={() => toggleCity(city.id)}
+                                aria-expanded={hasPorts ? cityExpanded : undefined}
                                 className="flex flex-1 items-center gap-2 rounded py-1.5 pl-6 pr-2 text-sm hover:bg-accent"
                               >
                                 <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
