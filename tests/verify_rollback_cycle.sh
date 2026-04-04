@@ -23,7 +23,7 @@ fi
 echo "Step 1: Applying rollbacks in reverse order..."
 for rollback in $ROLLBACKS; do
   echo "  Applying: $rollback"
-  if ! psql "$DB_URL" -f "$rollback" -v ON_ERROR_STOP=1 > /dev/null 2>&1; then
+  if ! psql "$DB_URL" -f "$rollback" -v ON_ERROR_STOP=1 2>&1; then
     echo ""
     echo "ERROR: Rollback failed: $rollback"
     echo "Run manually for details: psql \"$DB_URL\" -f \"$rollback\""
