@@ -5,21 +5,20 @@
 
 ## Current Task
 
-CI/CD — Automated Supabase Migration Deploy (Stage 191)
+Production Corpus Ingestion (Stage 192)
 
 ---
 
 ## Queue
 
-### CI/CD — Automated Supabase Migration Deploy (Stage 191) ✓ COMPLETE
+### Production Corpus Ingestion (Stage 192) ✓ SCRIPT READY
 
-- [x] `deploy-migrations` job added to `.github/workflows/ci.yml`
-- [x] Only runs on push to main, depends on all 4 quality gates
-- [x] Uses `supabase/setup-cli@v1`, `supabase link`, `supabase db push`
-- [x] Secrets via `${{ secrets.SUPABASE_ACCESS_TOKEN }}` and `${{ secrets.SUPABASE_DB_PASSWORD }}`
-- [x] Existing CI jobs unchanged
-- [ ] USER ACTION: Create `SUPABASE_ACCESS_TOKEN` secret in repo Settings → Secrets → Actions
-- [ ] USER ACTION: Create `SUPABASE_DB_PASSWORD` secret in repo Settings → Secrets → Actions
+- [x] `--production` flag: loads from `.env.production.local`, 3-second countdown with abort option
+- [x] `.env.production.local` confirmed gitignored (`.env.*.local` pattern)
+- [ ] USER ACTION: Create `apps/web/.env.production.local` with production Supabase URL, service role key, OpenAI key
+- [ ] USER ACTION: Run `npx tsx scripts/ingest-mca-docs.ts --production`
+- [ ] USER ACTION: Set `DOCKY_CORPUS_READY=true` in Vercel env vars after smoke test passes
+- [ ] USER ACTION: Redeploy on Vercel
 
 ---
 

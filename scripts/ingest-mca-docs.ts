@@ -3,11 +3,12 @@
  *
  * Populates the `mca_document_chunks` table with chunked + embedded MCA PDFs.
  * Run with: npx tsx scripts/ingest-mca-docs.ts
+ * Production: npx tsx scripts/ingest-mca-docs.ts --production
  *
  * Prerequisites:
- * - OPENAI_API_KEY in .env.local
- * - SUPABASE_SERVICE_ROLE_KEY in .env.local
- * - NEXT_PUBLIC_SUPABASE_URL in .env.local
+ * - OPENAI_API_KEY in .env.local (or .env.production.local for --production)
+ * - SUPABASE_SERVICE_ROLE_KEY in .env.local (or .env.production.local)
+ * - NEXT_PUBLIC_SUPABASE_URL in .env.local (or .env.production.local)
  * - PDF files in corpus/mca/
  */
 
@@ -17,15 +18,17 @@ import { readdirSync, readFileSync, existsSync } from 'fs';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
-// Load .env.local from apps/web (where the app env lives)
-config({ path: resolve(__dirname, '../apps/web/.env.local') });
+const isProduction = process.argv.includes('--production');
+const envFile = isProduction ? '.env.production.local' : '.env.local';
+
+config({ path: resolve(__dirname, `../apps/web/${envFile}`) });
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env.local');
+  console.error(`Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in ${envFile}`);
   process.exit(1);
 }
 if (!OPENAI_KEY) {
@@ -327,7 +330,20 @@ async function main() {
   }
 }
 
-main().catch((err) => {
+async function start() {
+  if (isProduction) {
+    console.log('\n\u26a0  PRODUCTION MODE \u2014 writing to live database.');
+    console.log(`   Target: ${SUPABASE_URL}`);
+    for (let i = 3; i > 0; i--) {
+      process.stdout.write(`   Starting in ${i}... (Ctrl+C to abort)\r`);
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    console.log('   Starting now.                              ');
+  }
+  await main();
+}
+
+start().catch((err) => {
   console.error('Fatal error:', err);
   process.exit(1);
 });
