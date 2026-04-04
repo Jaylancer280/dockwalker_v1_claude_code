@@ -6,9 +6,9 @@
 alter table public.persons drop column if exists is_admin;
 
 -- Clean up admin events before tightening CHECK constraint
-ALTER TABLE public.events DISABLE TRIGGER prevent_event_mutation;
+ALTER TABLE public.events DISABLE TRIGGER events_no_delete;
 DELETE FROM public.events WHERE aggregate_type = 'admin';
-ALTER TABLE public.events ENABLE TRIGGER prevent_event_mutation;
+ALTER TABLE public.events ENABLE TRIGGER events_no_delete;
 
 -- Restore previous CHECK constraint (without 'admin')
 alter table public.events drop constraint events_aggregate_type_check;
