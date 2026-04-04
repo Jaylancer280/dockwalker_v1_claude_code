@@ -583,23 +583,3 @@ begin
   end case;
 end;
 $$;
-
--- Drop the 6 supplementary triggers and their functions, now consolidated into apply_projection
-
-drop trigger trg_sea_time_from_event on public.events;
-drop function apply_sea_time_from_event();
-
-drop trigger trg_desired_role_from_event on public.events;
-drop function apply_desired_role_from_event();
-
-drop trigger trg_deck_name_from_event on public.events;
-drop function apply_deck_name_from_event();
-
-drop trigger trg_career_status_from_event on public.events;
-drop function apply_career_status_from_event();
-
-drop trigger trg_location_city_from_event on public.events;
-drop function apply_location_city_from_event();
-
-drop trigger trg_required_languages_from_event on public.events;
-drop function apply_required_languages_from_event();
