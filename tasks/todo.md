@@ -5,77 +5,22 @@
 
 ## Current Task
 
-Session C — Rate Limits + Streaming + Interaction Logging (Stage 188)
+MCA Corpus Ingestion Script (Stage 189)
 
 ---
 
 ## Queue
 
-### Session C — Rate Limits + Streaming + Interaction Logging (Stage 188) ✓ COMPLETE
+### MCA Corpus Ingestion Script (Stage 189) ✓ COMPLETE
 
-- [x] Rate limits: always track usage (free 15, pro 500), usage route returns tracked counts for both tiers
-- [x] streamDocky() in llm.ts — SSE stream with delta events + done event with sources
-- [x] Thread messages route streams response, saves assistant msg + interaction log in completion callback
-- [x] Docky page client reads SSE stream incrementally, updates message state per delta
-- [x] Migration 00081: docky_interactions table (service-role only, RLS enabled)
-- [x] Migration 00081: GDPR DATA_SCRUBBED handler fixed — deletes advisor_conversations, scrubs interactions
-- [x] Rollback 00081: full self-contained apply_projection from 00080 (560 lines)
-- [x] All tests updated for streamDocky mock, usage limits 15/500
-- [x] type-check passes, 921 tests pass
-- [ ] `npx supabase db reset` — PENDING (user to run after session)
-
----
-
-### MCA Corpus Ingestion Script
-
-> Populates the empty `mca_document_chunks` table. PDFs go in `corpus/mca/`. No migration needed — table already exists (00043).
-> Prerequisite: `OPENAI_API_KEY` in `.env.local` (already required for Docky).
-
-**Script: `scripts/ingest-mca-docs.ts`**
-
-- [ ] Create `scripts/ingest-mca-docs.ts` — standalone Node/TS script, runs with `npx tsx scripts/ingest-mca-docs.ts`
-- [ ] Add `pdf-parse` dependency to root `package.json` (lightweight PDF text extraction, ~200KB)
-- [ ] Add `dotenv` import to load `.env.local` for `OPENAI_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY`
-
-**PDF reading + chunking:**
-
-- [ ] Scan `corpus/mca/` for all `.pdf` files
-- [ ] For each PDF: extract full text via `pdf-parse`, preserving page boundaries
-- [ ] Derive `source_document` from filename (e.g., `MIN-599.pdf` → `MIN 599`, `MSN-1856.pdf` → `MSN 1856`)
-- [ ] Split text into chunks using section-based strategy:
-  - Primary split: detect section headers (numbered sections like `1.`, `1.1`, `SECTION 2`, `Annex A`, uppercase headers)
-  - If a section exceeds 500 tokens (~2000 chars): sub-split at paragraph boundaries
-  - If a paragraph exceeds 500 tokens: hard split at sentence boundaries
-  - Target: ~400-500 tokens per chunk (estimate as `Math.ceil(text.length / 4)`)
-  - Overlap: prepend last 50 tokens of previous chunk to maintain cross-boundary context
-- [ ] Extract metadata per chunk: `section_title` (nearest header above), `page_number` (from PDF page boundaries), `chunk_index` (sequential per document)
-
-**Embedding + storage:**
-
-- [ ] For each chunk: call OpenAI `text-embedding-3-small` to generate 1536-dim embedding
-- [ ] Rate limit: batch 20 embeddings per API call (OpenAI supports batch input), 100ms delay between batches
-- [ ] Before inserting a document's chunks: DELETE existing rows with matching `source_document` (idempotent re-ingestion)
-- [ ] INSERT chunks into `mca_document_chunks` via Supabase service client (RLS is read-only for authenticated, writes need service role)
-- [ ] Log progress: `[MIN 599] 23 chunks extracted, 23 embeddings generated, 23 rows inserted`
-
-**Validation + summary:**
-
-- [ ] After all documents processed: query total row count from `mca_document_chunks`
-- [ ] Run a smoke test query: embed "What STCW certificates do I need?" and call `match_mca_documents` — verify results return with similarity > 0.7
-- [ ] Print summary: documents processed, total chunks, total tokens estimated, any failures
-- [ ] If smoke test passes: print instruction to set `DOCKY_CORPUS_READY=true` in `.env.local`
-
-**Source URLs (optional, manual):**
-
-- [ ] Create `corpus/mca/source-urls.json` — maps `source_document` to MCA web URL (e.g., `{ "MIN 599": "https://www.gov.uk/..." }`)
-- [ ] Script reads this file and populates `source_url` column if a match exists, otherwise `null`
-
-**Verify:**
-
-- [ ] Script runs to completion with at least one test PDF
-- [ ] `mca_document_chunks` has rows with valid embeddings
-- [ ] `searchMcaDocs()` returns relevant results for a maritime question
-- [ ] No hardcoded keys — all from environment variables
+- [x] `scripts/ingest-mca-docs.ts` — standalone script, runs with `npx tsx scripts/ingest-mca-docs.ts`
+- [x] `pdf-parse` added to root package.json devDependencies
+- [x] Section-based chunking (headers → paragraphs → sentences), ~450 token target, 50 token overlap
+- [x] Batch embedding (20 per call, 100ms delay), idempotent re-ingestion (DELETE before INSERT)
+- [x] Smoke test query, summary output, DOCKY_CORPUS_READY instruction
+- [x] `corpus/mca/source-urls.json` with URLs for all 16 PDFs
+- [x] No hardcoded keys, type-check clean, 921 tests pass
+- [ ] Script execution pending — requires Docker (Supabase) + OPENAI_API_KEY in .env.local
 
 ---
 

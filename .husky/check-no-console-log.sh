@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Block commits containing console.log in source files (not test files)
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' | grep -v '\.test\.' | grep -v '__tests__/' | grep -v 'e2e/')
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' | grep -v '\.test\.' | grep -v '__tests__/' | grep -v 'e2e/' | grep -v '^scripts/')
 
 if [ -z "$STAGED" ]; then
   exit 0

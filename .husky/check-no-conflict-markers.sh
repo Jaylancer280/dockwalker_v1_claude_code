@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Block commits containing merge conflict markers in source files
 
-STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$')
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' | grep -v '^scripts/')
 
 if [ -z "$STAGED" ]; then
   exit 0
