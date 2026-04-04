@@ -5,16 +5,22 @@
 
 ## Current Task
 
-Production Corpus Ingestion (Stage 192)
+CI Pipeline Fixes (Stage 193)
 
 ---
 
 ## Queue
 
-### Production Corpus Ingestion (Stage 192) ✓ SCRIPT READY
+### CI Pipeline Fixes (Stage 193) ✓ COMPLETE
 
-- [x] `--production` flag: loads from `.env.production.local`, 3-second countdown with abort option
-- [x] `.env.production.local` confirmed gitignored (`.env.*.local` pattern)
+- [x] CI lint excludes mobile: `npx turbo run lint --filter='!mobile'`
+- [x] Rollback 00076: SET NULL on 5 FK tables before DELETE from experience_brackets
+- [ ] Push to main and verify CI passes all gates + deploy-migrations runs
+
+---
+
+### Production Corpus Ingestion (user actions after CI green)
+
 - [ ] USER ACTION: Create `apps/web/.env.production.local` with production Supabase URL, service role key, OpenAI key
 - [ ] USER ACTION: Run `npx tsx scripts/ingest-mca-docs.ts --production`
 - [ ] USER ACTION: Set `DOCKY_CORPUS_READY=true` in Vercel env vars after smoke test passes
