@@ -5,30 +5,21 @@
 
 ## Current Task
 
-MCA Corpus Ingestion Script (Stage 189)
+CI/CD — Automated Supabase Migration Deploy (Stage 191)
 
 ---
 
 ## Queue
 
-### MCA Corpus Ingestion Script (Stage 189) ✓ COMPLETE
+### CI/CD — Automated Supabase Migration Deploy (Stage 191) ✓ COMPLETE
 
-- [x] `scripts/ingest-mca-docs.ts` — standalone script, runs with `npx tsx scripts/ingest-mca-docs.ts`
-- [x] `pdf-parse` added to root package.json devDependencies
-- [x] Section-based chunking (headers → paragraphs → sentences), ~450 token target, 50 token overlap
-- [x] Batch embedding (20 per call, 100ms delay), idempotent re-ingestion (DELETE before INSERT)
-- [x] Smoke test query, summary output, DOCKY_CORPUS_READY instruction
-- [x] `corpus/mca/source-urls.json` with URLs for all 16 PDFs
-- [x] No hardcoded keys, type-check clean, 921 tests pass
-- [ ] Script execution pending — requires Docker (Supabase) + OPENAI_API_KEY in .env.local
-
----
-
-### Docky Off-Topic Guard (Stage 190) ✓ COMPLETE
-
-- [x] Off-topic refusal rule added to BASE_SYSTEM_PROMPT
-- [x] Refusal marker verified — matches `was_refused` detection in interaction logging
-- [x] Test deferred — refusal detection is in the completion callback (fire-and-forget), covered by interaction logging integration test when DB is available
+- [x] `deploy-migrations` job added to `.github/workflows/ci.yml`
+- [x] Only runs on push to main, depends on all 4 quality gates
+- [x] Uses `supabase/setup-cli@v1`, `supabase link`, `supabase db push`
+- [x] Secrets via `${{ secrets.SUPABASE_ACCESS_TOKEN }}` and `${{ secrets.SUPABASE_DB_PASSWORD }}`
+- [x] Existing CI jobs unchanged
+- [ ] USER ACTION: Create `SUPABASE_ACCESS_TOKEN` secret in repo Settings → Secrets → Actions
+- [ ] USER ACTION: Create `SUPABASE_DB_PASSWORD` secret in repo Settings → Secrets → Actions
 
 ---
 

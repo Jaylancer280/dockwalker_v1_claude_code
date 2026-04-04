@@ -327,7 +327,9 @@ v81 — Docky interactions + GDPR fix (81 migrations applied)
 
 - [Stage 189] MCA corpus ingestion script
 
-- [Stage 190] Docky off-topic guard — refusal rule in BASE_SYSTEM_PROMPT directs non-maritime questions away; refusal marker matches `was_refused` detection in interaction logging — `scripts/ingest-mca-docs.ts` reads PDFs from `corpus/mca/`, section-based chunking with overlap, batch OpenAI embeddings, idempotent Supabase insert via service role, smoke test query, source URL mapping; `pdf-parse` devDep added; 16 MCA PDFs present in corpus; execution pending Docker + API key — usage always tracked (free 15/mo, pro 500/mo); streamDocky() SSE stream with text deltas + done event; client reads stream incrementally; migration 00081 creates docky_interactions table (service-role only) + restores GDPR DATA_SCRUBBED handler (deletes advisor_conversations, scrubs interactions); interaction log inserted after stream completion with latency, token counts, refusal detection; 921 tests pass
+- [Stage 190] Docky off-topic guard
+
+- [Stage 191] CI/CD automated Supabase migration deploy — `deploy-migrations` job in `.github/workflows/ci.yml` runs `supabase db push` on merge to main after all quality gates pass; requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` GitHub secrets — refusal rule in BASE_SYSTEM_PROMPT directs non-maritime questions away; refusal marker matches `was_refused` detection in interaction logging — `scripts/ingest-mca-docs.ts` reads PDFs from `corpus/mca/`, section-based chunking with overlap, batch OpenAI embeddings, idempotent Supabase insert via service role, smoke test query, source URL mapping; `pdf-parse` devDep added; 16 MCA PDFs present in corpus; execution pending Docker + API key — usage always tracked (free 15/mo, pro 500/mo); streamDocky() SSE stream with text deltas + done event; client reads stream incrementally; migration 00081 creates docky_interactions table (service-role only) + restores GDPR DATA_SCRUBBED handler (deletes advisor_conversations, scrubs interactions); interaction log inserted after stream completion with latency, token counts, refusal detection; 921 tests pass
 
 ## In Progress
 
