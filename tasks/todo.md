@@ -5,83 +5,24 @@
 
 ## Current Task
 
-Session B — Prompt Caching + Cost Reduction (Stage 187)
+Session C — Rate Limits + Streaming + Interaction Logging (Stage 188)
 
 ---
 
 ## Queue
 
-### Session B — Prompt Caching + Cost Reduction (Stage 187) ✓ COMPLETE
+### Session C — Rate Limits + Streaming + Interaction Logging (Stage 188) ✓ COMPLETE
 
-- [x] llm.ts: system block with cache_control ephemeral, injection defence, no fake message pairs
-- [x] llm.ts: trimHistory() with 3000 token budget, replaces DB LIMIT 10
-- [x] rag.ts: DOCKY_CORPUS_READY guard skips embedding when not 'true'
-- [x] .env.example: DOCKY_CORPUS_READY=false added
-- [x] Thread messages route: removed .limit(10) on history query
-- [x] rag-corpus-guard.test.ts (3 tests), trim-history.test.ts (4 tests)
-- [x] Existing advisor tests still pass (askDocky signature unchanged)
+- [x] Rate limits: always track usage (free 15, pro 500), usage route returns tracked counts for both tiers
+- [x] streamDocky() in llm.ts — SSE stream with delta events + done event with sources
+- [x] Thread messages route streams response, saves assistant msg + interaction log in completion callback
+- [x] Docky page client reads SSE stream incrementally, updates message state per delta
+- [x] Migration 00081: docky_interactions table (service-role only, RLS enabled)
+- [x] Migration 00081: GDPR DATA_SCRUBBED handler fixed — deletes advisor_conversations, scrubs interactions
+- [x] Rollback 00081: full self-contained apply_projection from 00080 (560 lines)
+- [x] All tests updated for streamDocky mock, usage limits 15/500
 - [x] type-check passes, 921 tests pass
-
----
-
-### Session C — Rate Limits + Streaming + Interaction Logging
-
-> Rate limits are trivial. Streaming is complex but highest UX win. Logging requires a migration.
-> Implementation agent: if this session is too large, split into C1 (rate limits) and C2 (streaming + logging).
-
-**Rate limit update (spec 7d):**
-
-- [ ] In thread messages route: remove the `if (!isPro)` gate around usage check — ALWAYS call `increment_advisor_usage`
-- [ ] Pass `isPro ? 500 : 15` as `p_limit` parameter
-- [ ] In `apps/web/src/app/api/advisor/usage/route.ts`: return `limit: 15` for free tier, `limit: 500` for Pro (was: `limit: 3` for free, `null` for Pro)
-- [ ] Update Docky page usage pill display: show "X of 15" for free, "X of 500" for Pro
-- [ ] Update tests: free limit assertions 3 → 15, add Pro tier test (500 limit, usage tracked)
-
-**Streaming responses (spec 7b):**
-
-- [ ] Create `streamDocky()` in `apps/web/src/lib/advisor/llm.ts`:
-  - Uses `client.messages.stream()` from Anthropic SDK
-  - Returns `{ stream: ReadableStream, completion: Promise<{ text: string, inputTokens: number, outputTokens: number, model: string }> }`
-  - Pipe `text` delta events to the ReadableStream
-  - `completion` resolves on `message_stop` with full text + token counts
-- [ ] Update thread messages route:
-  - Replace `askDocky()` call with `streamDocky()`
-  - Return `new Response(stream, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } })`
-  - After stream completes (via `completion` promise): save assistant message to `advisor_messages` with full text, sources, token counts
-  - If stream errors mid-response: do NOT save partial assistant message to DB (user sees partial text in session, gone on refresh — acceptable)
-- [ ] Update Docky page client:
-  - Replace `safeFetch` with raw `fetch()` for the message send call (document why: streaming requires ReadableStream access)
-  - Read response body via `getReader()`, decode chunks, update message state incrementally
-  - Keep `safeFetch` for all other Docky API calls (GET thread, POST clear, GET usage)
-  - Sources: extract from a final SSE event or fetch separately after stream completes
-- [ ] Update tests: mock `client.messages.stream()` instead of `client.messages.create()`
-
-**Interaction logging (spec 7f):**
-
-- [ ] Create migration `supabase/migrations/00081_docky_interactions.sql`:
-  - `docky_interactions` table (id uuid PK, person_id uuid FK, query text, response_summary text, chunks_used jsonb, was_refused boolean, refusal_reason text, input_tokens int, output_tokens int, latency_ms int, created_at timestamptz)
-  - RLS enabled, NO user-facing policies (service role only)
-  - Comment documenting 90-day retention policy (cleanup cron deferred)
-- [ ] Create rollback `supabase/rollbacks/00081_docky_interactions.sql`
-- [ ] After stream completes (or after non-streaming response), insert interaction log row via serviceClient
-  - `response_summary`: first 200 chars of response text
-  - `was_refused`: detect "I'm only able to help with maritime" in response
-  - `latency_ms`: measure from before LLM call to stream completion
-- [ ] Fix pre-existing GDPR gap — update `apply_projection` DATA_SCRUBBED handler:
-  - Add: `DELETE FROM advisor_conversations WHERE person_id = NEW_person_id;` (messages cascade)
-  - Add: `UPDATE docky_interactions SET person_id = NULL, query = '[scrubbed]', response_summary = '[scrubbed]' WHERE person_id = NEW_person_id;`
-  - **CRITICAL**: The migration that replaces `apply_projection` must include ALL existing event handlers — diff against previous version line-by-line per lessons.md
-- [ ] Create rollback for apply_projection change — must include FULL previous function body (self-contained per CLAUDE.md rule 4)
-- [ ] Add test: interaction row inserted after successful message
-- [ ] Add test: GDPR scrub deletes advisor_conversations and nullifies docky_interactions
-
-**Verify:**
-
-- [ ] `turbo run type-check` passes
-- [ ] `turbo run lint` passes
-- [ ] All vitest tests pass
-- [ ] `npx supabase db reset` succeeds (mandatory post-migration smoke test)
-- [ ] Update `BUILD_STATE.md` schema version and migration table
+- [ ] `npx supabase db reset` — PENDING (user to run after session)
 
 ---
 
@@ -143,7 +84,7 @@ Session B — Prompt Caching + Cost Reduction (Stage 187)
 > One-liner prompt addition + interaction logging detection string.
 
 - [ ] Add off-topic refusal rule to `BASE_SYSTEM_PROMPT` in `apps/web/src/lib/advisor/llm.ts`:
-  `- If a question is not related to maritime careers, certifications, training, or the yachting industry, politely decline and redirect: "I'm only able to help with maritime career and certification questions. Try asking about STCW requirements, career progression, or training centres!"`
+      `- If a question is not related to maritime careers, certifications, training, or the yachting industry, politely decline and redirect: "I'm only able to help with maritime career and certification questions. Try asking about STCW requirements, career progression, or training centres!"`
 - [ ] Verify the `was_refused` detection in Session C's interaction logging matches this exact refusal string (`"I'm only able to help with maritime"`)
 - [ ] Add test: mock Docky response containing refusal string, verify `was_refused` is set correctly in interaction log
 

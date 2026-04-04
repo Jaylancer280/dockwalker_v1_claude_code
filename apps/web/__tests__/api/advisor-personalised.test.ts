@@ -10,9 +10,9 @@ vi.mock('@/lib/advisor/rag', () => ({
   searchMcaDocs: (...args: unknown[]) => mockSearchMcaDocs(...args),
 }));
 
-const mockAskDocky = vi.fn();
+const mockStreamDocky = vi.fn();
 vi.mock('@/lib/advisor/llm', () => ({
-  askDocky: (...args: unknown[]) => mockAskDocky(...args),
+  streamDocky: (...args: unknown[]) => mockStreamDocky(...args),
 }));
 
 const mockBuildCrewContext = vi.fn();
@@ -54,7 +54,7 @@ function guardOk(fromFn: ReturnType<typeof vi.fn>, serviceFromFn?: ReturnType<ty
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: fromFn },
-      serviceClient: { from: serviceFromFn ?? fromFn, rpc: vi.fn() },
+      serviceClient: { from: serviceFromFn ?? fromFn, rpc: vi.fn().mockResolvedValue({ data: 1 }) },
     },
   };
 }
@@ -67,59 +67,56 @@ function makeRequest(content: string) {
   });
 }
 
+function makeMockStream(text = 'Personalised answer about deckhand progression') {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', sources: [] })}\n\n`));
+      controller.close();
+    },
+  });
+  return {
+    stream,
+    completion: Promise.resolve({ text, inputTokens: 200, outputTokens: 100, model: 'claude-haiku-4-5-20251001' }),
+  };
+}
+
 const MOCK_CREW_CONTEXT = {
   markdown: '## Crew Profile\n**Role:** Deckhand | **Experience:** 6-12 months\n**Certifications:** STCW Basic Safety, ENG1',
   certNames: ['STCW Basic Safety', 'ENG1'],
   roleName: 'Deckhand',
 };
 
-const MOCK_LLM_RESPONSE = {
-  answer: 'Personalised answer about deckhand progression',
-  sources: [],
-  inputTokens: 200,
-  outputTokens: 100,
-  model: 'claude-haiku-4-5-20251001',
-};
-
 describe('POST /api/advisor/thread/messages — personalisation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchMcaDocs.mockResolvedValue([]);
-    mockAskDocky.mockResolvedValue(MOCK_LLM_RESPONSE);
+    mockStreamDocky.mockReturnValue(makeMockStream());
     mockBuildCrewContext.mockResolvedValue(MOCK_CREW_CONTEXT);
     mockBuildCertGapContext.mockReturnValue('');
   });
 
-  it('passes crew context to askDocky', async () => {
+  it('passes crew context to streamDocky', async () => {
     const now = new Date().toISOString();
-    // Supabase: find thread, then fetch history
     const threadChain = mockChain({ id: 'thread-1', created_at: now });
     const historyChain = mockChain([]);
     const supabaseFrom = vi.fn()
       .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
-    // Service: insert user msg, insert assistant msg, update conv
     const insertUserChain = mockChain({ id: 'msg-1' });
-    const insertAssistantChain = mockChain({
-      id: 'msg-2',
-      content: MOCK_LLM_RESPONSE.answer,
-      sources: [],
-      created_at: now,
-    });
-    const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(insertUserChain)
-      .mockReturnValueOnce(insertAssistantChain)
-      .mockReturnValueOnce(updateChain);
+      .mockReturnValueOnce(insertUserChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
     const res = await POST(makeRequest('What should I do next?'));
     expect(res.status).toBe(200);
 
-    expect(mockAskDocky).toHaveBeenCalledOnce();
-    const callArgs = mockAskDocky.mock.calls[0];
+    expect(mockStreamDocky).toHaveBeenCalledOnce();
+    const callArgs = mockStreamDocky.mock.calls[0];
+    // 4th arg is crewContext string
     expect(callArgs[3]).toContain('Crew Profile');
     expect(callArgs[3]).toContain('Deckhand');
   });
@@ -133,7 +130,7 @@ describe('POST /api/advisor/thread/messages — personalisation', () => {
     expect(res.status).toBe(403);
 
     expect(mockBuildCrewContext).not.toHaveBeenCalled();
-    expect(mockAskDocky).not.toHaveBeenCalled();
+    expect(mockStreamDocky).not.toHaveBeenCalled();
   });
 
   it('never includes salary data in prompt content', async () => {
@@ -152,23 +149,14 @@ describe('POST /api/advisor/thread/messages — personalisation', () => {
       .mockReturnValueOnce(historyChain);
 
     const insertUserChain = mockChain({ id: 'msg-1' });
-    const insertAssistantChain = mockChain({
-      id: 'msg-2',
-      content: 'answer',
-      sources: [],
-      created_at: now,
-    });
-    const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(insertUserChain)
-      .mockReturnValueOnce(insertAssistantChain)
-      .mockReturnValueOnce(updateChain);
+      .mockReturnValueOnce(insertUserChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
     await POST(makeRequest('What certs?'));
 
-    const callArgs = mockAskDocky.mock.calls[0];
+    const callArgs = mockStreamDocky.mock.calls[0];
     expect(callArgs[3]).toBeDefined();
   });
 });

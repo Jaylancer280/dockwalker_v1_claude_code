@@ -176,38 +176,39 @@ export default function DockyPage() {
       created_at: new Date().toISOString(),
     };
 
-    const result = await safeFetch<{
-      id: string;
-      content: string;
-      sources?: Source[] | null;
-      created_at: string;
-    }>('/api/advisor/thread/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: trimmed }),
-    });
-
-    if (!result.ok && result.error === 'limit_reached') {
-      setLimitReached(true);
+    // Raw fetch for streaming (safeFetch doesn't support ReadableStream)
+    let res: Response;
+    try {
+      res = await fetch('/api/advisor/thread/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: trimmed }),
+      });
+    } catch {
+      showError('Network error');
       setSending(false);
       return;
     }
 
-    // User message was saved — add it to local state
-    setMessages((prev) => [...prev, userMsg]);
-
-    // If this was first message, we have a thread now — reload to get thread metadata
-    if (!thread) {
-      const threadResult = await safeFetch<{ thread: Thread | null }>('/api/advisor/thread');
-      if (threadResult.ok && threadResult.data.thread) {
-        setThread(threadResult.data.thread);
+    // Non-streaming error responses (JSON)
+    if (!res.ok) {
+      const text = await res.text();
+      const parsed = (() => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          return {};
+        }
+      })();
+      if (parsed.error === 'limit_reached') {
+        setLimitReached(true);
+        setSending(false);
+        return;
       }
-    }
-
-    if (!result.ok) {
-      if (result.error?.includes('temporarily unavailable')) {
+      if (res.status === 503) {
         setMessages((prev) => [
           ...prev,
+          userMsg,
           {
             id: `err-${crypto.randomUUID()}`,
             role: 'assistant',
@@ -223,16 +224,76 @@ export default function DockyPage() {
       return;
     }
 
+    // User message was saved — add it to local state
+    setMessages((prev) => [...prev, userMsg]);
+
+    // If this was first message, reload thread metadata
+    if (!thread) {
+      const threadResult = await safeFetch<{ thread: Thread | null }>('/api/advisor/thread');
+      if (threadResult.ok && threadResult.data.thread) {
+        setThread(threadResult.data.thread);
+      }
+    }
+
+    // Read SSE stream
+    const assistantId = `stream-${crypto.randomUUID()}`;
+    let streamedContent = '';
+    let streamedSources: Source[] | null = null;
+
+    // Add empty assistant message that we'll update incrementally
     setMessages((prev) => [
       ...prev,
       {
-        id: result.data.id,
+        id: assistantId,
         role: 'assistant',
-        content: result.data.content,
-        sources: result.data.sources,
-        created_at: result.data.created_at,
+        content: '',
+        created_at: new Date().toISOString(),
       },
     ]);
+
+    const reader = res.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (reader) {
+      try {
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const json = line.slice(6);
+            try {
+              const event = JSON.parse(json);
+              if (event.type === 'delta') {
+                streamedContent += event.text;
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === assistantId ? { ...m, content: streamedContent } : m)),
+                );
+              } else if (event.type === 'done') {
+                streamedSources = event.sources ?? null;
+              }
+            } catch {
+              // Skip malformed SSE lines
+            }
+          }
+        }
+      } catch {
+        // Stream interrupted — keep whatever was received
+      }
+    }
+
+    // Final update with sources
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === assistantId ? { ...m, content: streamedContent, sources: streamedSources } : m,
+      ),
+    );
     setSending(false);
   }
 
@@ -432,10 +493,10 @@ export default function DockyPage() {
                 <Lock className="absolute -bottom-1 -right-1 h-4 w-4 text-muted-foreground" />
               </div>
               <p className="text-sm font-medium">
-                You&apos;ve used your 3 free questions this month
+                You&apos;ve reached your question limit this month
               </p>
               <p className="text-xs text-muted-foreground">
-                Upgrade to Crew Pro for unlimited access to Docky
+                Upgrade to Crew Pro for 500 questions per month
               </p>
               <Button onClick={() => router.push('/billing')} className="w-full">
                 Upgrade

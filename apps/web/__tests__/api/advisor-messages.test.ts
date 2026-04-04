@@ -10,9 +10,9 @@ vi.mock('@/lib/advisor/rag', () => ({
   searchMcaDocs: (...args: unknown[]) => mockSearchMcaDocs(...args),
 }));
 
-const mockAskDocky = vi.fn();
+const mockStreamDocky = vi.fn();
 vi.mock('@/lib/advisor/llm', () => ({
-  askDocky: (...args: unknown[]) => mockAskDocky(...args),
+  streamDocky: (...args: unknown[]) => mockStreamDocky(...args),
 }));
 
 const mockBuildCrewContext = vi.fn();
@@ -54,7 +54,7 @@ function guardOk(fromFn: ReturnType<typeof vi.fn>, serviceFromFn?: ReturnType<ty
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: fromFn },
-      serviceClient: { from: serviceFromFn ?? fromFn, rpc: vi.fn() },
+      serviceClient: { from: serviceFromFn ?? fromFn, rpc: vi.fn().mockResolvedValue({ data: 1 }) },
     },
   };
 }
@@ -74,81 +74,72 @@ function makeRequest(content: string) {
   });
 }
 
-const MOCK_LLM_RESPONSE = {
-  answer: 'Mock answer from Docky',
-  sources: [
-    { document: 'MIN 599', section: 'Section 1', url: 'https://example.com', relevance: 0.85 },
-  ],
-  inputTokens: 100,
-  outputTokens: 50,
-  model: 'claude-haiku-4-5-20251001',
-};
+function makeMockStream(text = 'Mock answer from Docky') {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', sources: [] })}\n\n`));
+      controller.close();
+    },
+  });
+  return {
+    stream,
+    completion: Promise.resolve({
+      text,
+      inputTokens: 100,
+      outputTokens: 50,
+      model: 'claude-haiku-4-5-20251001',
+    }),
+  };
+}
 
 describe('POST /api/advisor/thread/messages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchMcaDocs.mockResolvedValue([]);
-    mockAskDocky.mockResolvedValue(MOCK_LLM_RESPONSE);
+    mockStreamDocky.mockReturnValue(makeMockStream());
     mockBuildCrewContext.mockResolvedValue({ markdown: '', certNames: [], roleName: '' });
   });
 
-  it('returns 200 with assistant message on happy path (existing thread)', async () => {
+  it('returns streaming response on happy path (existing thread)', async () => {
     const now = new Date().toISOString();
-    // Supabase: find existing thread, then fetch history
     const threadChain = mockChain({ id: 'thread-1', created_at: now });
     const historyChain = mockChain([]);
     const supabaseFrom = vi.fn()
-      .mockReturnValueOnce(threadChain) // find thread
-      .mockReturnValueOnce(historyChain); // history
+      .mockReturnValueOnce(threadChain)
+      .mockReturnValueOnce(historyChain);
 
-    // Service client: insert user msg, insert assistant msg, update conv
     const insertUserChain = mockChain({ id: 'msg-1' });
-    const insertAssistantChain = mockChain({
-      id: 'msg-2',
-      content: 'Mock answer from Docky',
-      sources: MOCK_LLM_RESPONSE.sources,
-      created_at: now,
-    });
+    const insertAssistantChain = mockChain({ id: 'msg-2' });
     const updateChain = mockChain(null);
+    const interactionChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(insertUserChain) // insert user msg
-      .mockReturnValueOnce(insertAssistantChain) // insert assistant msg
-      .mockReturnValueOnce(updateChain); // update conv
+      .mockReturnValueOnce(insertUserChain)
+      .mockReturnValueOnce(insertAssistantChain)
+      .mockReturnValueOnce(updateChain)
+      .mockReturnValueOnce(interactionChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
     const res = await POST(makeRequest('What certs do I need?'));
     expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.role).toBe('assistant');
-    expect(body.content).toBe('Mock answer from Docky');
-    expect(mockAskDocky).toHaveBeenCalledOnce();
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    expect(mockStreamDocky).toHaveBeenCalledOnce();
   });
 
   it('auto-creates thread if none exists', async () => {
-    // Supabase: no existing thread, then fetch history
     const noThreadChain = mockChain(null, { code: 'PGRST116' });
     const historyChain = mockChain([]);
     const supabaseFrom = vi.fn()
-      .mockReturnValueOnce(noThreadChain) // no thread found
-      .mockReturnValueOnce(historyChain); // history (empty for new thread)
+      .mockReturnValueOnce(noThreadChain)
+      .mockReturnValueOnce(historyChain);
 
-    const now = new Date().toISOString();
-    // Service client: create thread, insert user msg, insert assistant msg, update conv
     const createThreadChain = mockChain({ id: 'new-thread' });
     const insertUserChain = mockChain({ id: 'msg-1' });
-    const insertAssistantChain = mockChain({
-      id: 'msg-2',
-      content: 'Mock answer from Docky',
-      sources: MOCK_LLM_RESPONSE.sources,
-      created_at: now,
-    });
-    const updateChain = mockChain(null);
     const serviceFrom = vi.fn()
-      .mockReturnValueOnce(createThreadChain) // create thread
-      .mockReturnValueOnce(insertUserChain) // insert user msg
-      .mockReturnValueOnce(insertAssistantChain) // insert assistant msg
-      .mockReturnValueOnce(updateChain); // update conv
+      .mockReturnValueOnce(createThreadChain)
+      .mockReturnValueOnce(insertUserChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
@@ -185,8 +176,8 @@ describe('POST /api/advisor/thread/messages', () => {
     expect(res.status).toBe(401);
   });
 
-  it('returns 503 when LLM throws and user message is still saved', async () => {
-    mockAskDocky.mockRejectedValue(new Error('API down'));
+  it('returns 503 when streamDocky throws and user message is still saved', async () => {
+    mockStreamDocky.mockImplementation(() => { throw new Error('API down'); });
 
     const now = new Date().toISOString();
     const threadChain = mockChain({ id: 'thread-1', created_at: now });

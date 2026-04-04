@@ -39,7 +39,7 @@ function guardOk(fromFn: ReturnType<typeof vi.fn>) {
 describe('GET /api/advisor/usage', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('free tier returns used and limit', async () => {
+  it('free tier returns used and limit 15', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const usageChain = mockChain({ question_count: 2 });
@@ -50,20 +50,21 @@ describe('GET /api/advisor/usage', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.used).toBe(2);
-    expect(body.limit).toBe(3);
+    expect(body.limit).toBe(15);
   });
 
-  it('pro tier returns plan with null usage', async () => {
+  it('pro tier returns used, limit 500, and plan', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: true, plan: 'crew_pro' });
 
-    const fromFn = vi.fn();
+    const usageChain = mockChain({ question_count: 42 });
+    const fromFn = vi.fn().mockReturnValue(usageChain);
     mockRequireDomainUser.mockResolvedValue(guardOk(fromFn));
 
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.used).toBeNull();
-    expect(body.limit).toBeNull();
+    expect(body.used).toBe(42);
+    expect(body.limit).toBe(500);
     expect(body.plan).toBe('crew_pro');
   });
 

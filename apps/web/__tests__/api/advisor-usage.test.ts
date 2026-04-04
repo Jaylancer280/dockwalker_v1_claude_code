@@ -10,9 +10,9 @@ vi.mock('@/lib/advisor/rag', () => ({
   searchMcaDocs: (...args: unknown[]) => mockSearchMcaDocs(...args),
 }));
 
-const mockAskDocky = vi.fn();
+const mockStreamDocky = vi.fn();
 vi.mock('@/lib/advisor/llm', () => ({
-  askDocky: (...args: unknown[]) => mockAskDocky(...args),
+  streamDocky: (...args: unknown[]) => mockStreamDocky(...args),
 }));
 
 vi.mock('@/lib/advisor/crew-context', () => ({
@@ -71,15 +71,21 @@ function makeRequest(content: string) {
   });
 }
 
-const MOCK_LLM_RESPONSE = {
-  answer: 'Mock answer',
-  sources: [],
-  inputTokens: 100,
-  outputTokens: 50,
-  model: 'claude-haiku-4-5-20251001',
-};
+function makeMockStream(text = 'Mock answer') {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', sources: [] })}\n\n`));
+      controller.close();
+    },
+  });
+  return {
+    stream,
+    completion: Promise.resolve({ text, inputTokens: 100, outputTokens: 50, model: 'claude-haiku-4-5-20251001' }),
+  };
+}
 
-/** Helper: builds supabase mock that returns an existing active thread + empty history */
 function supabaseWithThread() {
   const now = new Date().toISOString();
   const threadChain = mockChain({ id: 'thread-1', created_at: now });
@@ -89,31 +95,26 @@ function supabaseWithThread() {
     .mockReturnValueOnce(historyChain);
 }
 
-/** Helper: builds service mock for insert user + insert assistant + update conv */
 function serviceForFullFlow() {
-  const now = new Date().toISOString();
   const insertUserChain = mockChain({ id: 'msg-1' });
-  const insertAssistantChain = mockChain({
-    id: 'msg-2',
-    content: 'Mock answer',
-    sources: [],
-    created_at: now,
-  });
+  const insertAssistantChain = mockChain({ id: 'msg-2' });
   const updateChain = mockChain(null);
+  const interactionChain = mockChain(null);
   return vi.fn()
     .mockReturnValueOnce(insertUserChain)
     .mockReturnValueOnce(insertAssistantChain)
-    .mockReturnValueOnce(updateChain);
+    .mockReturnValueOnce(updateChain)
+    .mockReturnValueOnce(interactionChain);
 }
 
 describe('POST /api/advisor/thread/messages — usage gating', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchMcaDocs.mockResolvedValue([]);
-    mockAskDocky.mockResolvedValue(MOCK_LLM_RESPONSE);
+    mockStreamDocky.mockReturnValue(makeMockStream());
   });
 
-  it('free tier question 1-3 succeeds (200)', async () => {
+  it('free tier question within limit succeeds (200)', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const supabaseFrom = supabaseWithThread();
@@ -124,9 +125,14 @@ describe('POST /api/advisor/thread/messages — usage gating', () => {
 
     const res = await POST(makeRequest('Hello'));
     expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith('increment_advisor_usage', {
+      p_person_id: 'u1',
+      p_month: expect.stringMatching(/^\d{4}-\d{2}$/),
+      p_limit: 15,
+    });
   });
 
-  it('free tier question 4 returns 402 limit_reached', async () => {
+  it('free tier over limit returns 402 limit_reached', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const supabaseFrom = supabaseWithThread();
@@ -139,27 +145,30 @@ describe('POST /api/advisor/thread/messages — usage gating', () => {
     expect(res.status).toBe(402);
     const body = await res.json();
     expect(body.error).toBe('limit_reached');
-    expect(body.used).toBe(3);
-    expect(body.limit).toBe(3);
-    expect(mockAskDocky).not.toHaveBeenCalled();
+    expect(body.limit).toBe(15);
+    expect(mockStreamDocky).not.toHaveBeenCalled();
   });
 
-  it('pro tier has unlimited questions', async () => {
+  it('pro tier tracks usage with 500 limit', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: true, plan: 'crew_pro' });
 
     const supabaseFrom = supabaseWithThread();
-    const mockRpc = vi.fn();
+    const mockRpc = vi.fn().mockResolvedValue({ data: 42 });
     const serviceFrom = serviceForFullFlow();
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
     const res = await POST(makeRequest('Hello'));
     expect(res.status).toBe(200);
-    expect(mockRpc).not.toHaveBeenCalled();
-    expect(serviceFrom).toHaveBeenCalledTimes(3);
+    // Pro users now have usage tracked too, with 500 limit
+    expect(mockRpc).toHaveBeenCalledWith('increment_advisor_usage', {
+      p_person_id: 'u1',
+      p_month: expect.stringMatching(/^\d{4}-\d{2}$/),
+      p_limit: 500,
+    });
   });
 
-  it('usage increments atomically via RPC on successful response', async () => {
+  it('usage increments atomically via RPC', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const supabaseFrom = supabaseWithThread();
@@ -171,15 +180,9 @@ describe('POST /api/advisor/thread/messages — usage gating', () => {
     const res = await POST(makeRequest('Question'));
     expect(res.status).toBe(200);
     expect(mockRpc).toHaveBeenCalledOnce();
-    expect(mockRpc).toHaveBeenCalledWith('increment_advisor_usage', {
-      p_person_id: 'u1',
-      p_month: expect.stringMatching(/^\d{4}-\d{2}$/),
-      p_limit: 3,
-    });
-    expect(serviceFrom).toHaveBeenCalledTimes(3);
   });
 
-  it('month rollover resets count (RPC inserts fresh row)', async () => {
+  it('month rollover resets count', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const supabaseFrom = supabaseWithThread();

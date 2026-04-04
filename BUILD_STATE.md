@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v80 — Smoker + visible tattoos (80 migrations applied)
+v81 — Docky interactions + GDPR fix (81 migrations applied)
 
 ## Migrations Applied
 
@@ -264,6 +264,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 | `00076_seed_experience_brackets.sql` | Seeds 5 experience bracket rows via migration for production (seed files only run locally); idempotent with `ON CONFLICT DO NOTHING` |
 | `00078_custom_access_token_hook.sql` | Custom access token hook: injects `person_id`, `current_hat`, `identity_type`, `onboarded`, `deactivated` into JWT app_metadata. Requires dashboard enablement. Grants to `supabase_auth_admin`. |
 | `00079_batch_vessel_lookup.sql` | `get_vessels_public_batch(uuid[])` RPC — same NDA logic as `get_vessel_public` but operates on array of vessel IDs via `WHERE id = ANY(p_vessel_ids)` |
+| `00080_smoker_visible_tattoos.sql` | Add `smoker` and `visible_tattoos` nullable boolean columns to profiles; updated apply_projection PROFILE.CREATED and PROFILE.UPDATED handlers |
+| `00081_docky_interactions.sql` | `docky_interactions` table (service-role only analytics); GDPR DATA_SCRUBBED handler restored + extended (deletes advisor_conversations, scrubs interactions) |
 
 ## Deferred Decisions
 
@@ -320,6 +322,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 - [Stage 186] Docky single-thread migration — replaced multi-conversation API (`/conversations`, `/conversations/[id]`, `/conversations/[id]/messages`) with single-thread API (`/thread` GET, `/thread/messages` POST, `/thread/clear` POST); 72h auto-expiry on threads; merged conversation list + chat into single `/docky` page with expiry countdown, new-conversation dialog, suggestion chips on empty state; deleted old routes and `[conversationId]` page; loading skeleton; rewrote all advisor tests (5 thread + 2 clear + 7 messages + 3 personalised + 5 usage); 914 tests pass
 
 - [Stage 187] Docky prompt caching + cost reduction — system block with cache_control ephemeral replaces fake user/assistant message pairs; injection defence appended; trimHistory() with 3000-token budget replaces DB LIMIT 10; DOCKY_CORPUS_READY guard in rag.ts skips OpenAI embedding call when corpus not ingested; 921 tests pass
+
+- [Stage 188] Docky rate limits + streaming + interaction logging — usage always tracked (free 15/mo, pro 500/mo); streamDocky() SSE stream with text deltas + done event; client reads stream incrementally; migration 00081 creates docky_interactions table (service-role only) + restores GDPR DATA_SCRUBBED handler (deletes advisor_conversations, scrubs interactions); interaction log inserted after stream completion with latency, token counts, refusal detection; 921 tests pass
 
 ## In Progress
 

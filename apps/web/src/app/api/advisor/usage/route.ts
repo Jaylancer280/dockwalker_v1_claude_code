@@ -19,10 +19,6 @@ export async function GET() {
 
     const subResult = await requireSubscription(supabase, user.id, 'crew_pro');
 
-    if (subResult.ok) {
-      return NextResponse.json({ used: null, limit: null, plan: subResult.plan });
-    }
-
     const currentMonth = new Date().toISOString().slice(0, 7);
     const { data: usage } = await supabase
       .from('advisor_usage')
@@ -31,7 +27,13 @@ export async function GET() {
       .eq('month', currentMonth)
       .single();
 
-    return NextResponse.json({ used: usage?.question_count ?? 0, limit: 3 });
+    const used = usage?.question_count ?? 0;
+
+    if (subResult.ok) {
+      return NextResponse.json({ used, limit: 500, plan: subResult.plan });
+    }
+
+    return NextResponse.json({ used, limit: 15 });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

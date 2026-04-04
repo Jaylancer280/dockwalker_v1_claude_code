@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { searchMcaDocs } from '@/lib/advisor/rag';
-import { askDocky } from '@/lib/advisor/llm';
+import { streamDocky } from '@/lib/advisor/llm';
 import { buildCrewContext } from '@/lib/advisor/crew-context';
 import { buildCertGapContext } from '@/lib/advisor/cert-analysis';
 import { requireSubscription } from '@/lib/require-subscription';
@@ -101,21 +101,20 @@ export async function POST(request: Request) {
     // Subscription + usage check (before saving user message)
     const subResult = await requireSubscription(supabase, user.id, 'crew_pro');
     const isPro = subResult.ok;
-    if (!isPro) {
-      const currentMonth = new Date().toISOString().slice(0, 7);
+    const usageLimit = isPro ? 500 : 15;
+    const currentMonth = new Date().toISOString().slice(0, 7);
 
-      const { data: newCount } = await serviceClient.rpc('increment_advisor_usage', {
-        p_person_id: user.id,
-        p_month: currentMonth,
-        p_limit: 3,
-      });
+    const { data: newCount } = await serviceClient.rpc('increment_advisor_usage', {
+      p_person_id: user.id,
+      p_month: currentMonth,
+      p_limit: usageLimit,
+    });
 
-      if (newCount === null || newCount === undefined) {
-        return NextResponse.json(
-          { error: 'limit_reached', used: 3, limit: 3, upgrade_url: '/billing' },
-          { status: 402 },
-        );
-      }
+    if (newCount === null || newCount === undefined) {
+      return NextResponse.json(
+        { error: 'limit_reached', used: usageLimit, limit: usageLimit, upgrade_url: '/billing' },
+        { status: 402 },
+      );
     }
 
     // Save user message (after usage check passes — survives LLM failure)
@@ -139,10 +138,11 @@ export async function POST(request: Request) {
     const certGap = buildCertGapContext(crewCtx.certNames, crewCtx.roleName, chunks);
     const fullCrewContext = [crewCtx.markdown, certGap].filter(Boolean).join('\n\n');
 
-    // LLM call
-    let response;
+    // Streaming LLM call
+    const llmStartTime = Date.now();
+    let streamResult;
     try {
-      response = await askDocky(content, chunks, history, fullCrewContext || undefined);
+      streamResult = streamDocky(content, chunks, history, fullCrewContext || undefined);
     } catch {
       return NextResponse.json(
         { error: 'Docky is temporarily unavailable. Please try again.' },
@@ -150,41 +150,66 @@ export async function POST(request: Request) {
       );
     }
 
-    // Save assistant message
-    const { data: assistantMsg, error: assistantErr } = await serviceClient
-      .from('advisor_messages')
-      .insert({
-        conversation_id: threadId,
-        role: 'assistant',
-        content: response.answer,
-        sources: response.sources,
-        model_used: response.model,
-        input_tokens: response.inputTokens,
-        output_tokens: response.outputTokens,
-      })
-      .select('id, content, sources, created_at')
-      .single();
+    const { stream, completion } = streamResult;
 
-    if (assistantErr) {
-      return NextResponse.json({ error: assistantErr.message }, { status: 500 });
-    }
-
-    // Update conversation title + updated_at
+    // Save assistant message + interaction log after stream completes (background)
     const isFirstMessage = history.length === 0;
-    const updateFields: Record<string, string> = {
-      updated_at: new Date().toISOString(),
-    };
-    if (isFirstMessage) {
-      updateFields.title = content.slice(0, 60);
-    }
-    await serviceClient.from('advisor_conversations').update(updateFields).eq('id', threadId);
+    const REFUSAL_MARKER = "I'm only able to help with maritime";
+    completion
+      .then(async (result) => {
+        const latencyMs = Date.now() - llmStartTime;
+        const sources = chunks.map((c) => ({
+          document: c.source_document,
+          section: c.section_title,
+          url: c.source_url,
+          relevance: c.similarity,
+        }));
 
-    return NextResponse.json({
-      id: assistantMsg.id,
-      role: 'assistant',
-      content: response.answer,
-      sources: response.sources,
-      created_at: assistantMsg.created_at,
+        await serviceClient.from('advisor_messages').insert({
+          conversation_id: threadId,
+          role: 'assistant',
+          content: result.text,
+          sources,
+          model_used: result.model,
+          input_tokens: result.inputTokens,
+          output_tokens: result.outputTokens,
+        });
+
+        const updateFields: Record<string, string> = {
+          updated_at: new Date().toISOString(),
+        };
+        if (isFirstMessage) {
+          updateFields.title = content.slice(0, 60);
+        }
+        await serviceClient.from('advisor_conversations').update(updateFields).eq('id', threadId);
+
+        // Interaction log (fire-and-forget)
+        const wasRefused = result.text.includes(REFUSAL_MARKER);
+        await serviceClient.from('docky_interactions').insert({
+          person_id: user.id,
+          query: content,
+          response_summary: result.text.slice(0, 200),
+          chunks_used:
+            chunks.length > 0
+              ? chunks.map((c) => ({ doc: c.source_document, section: c.section_title }))
+              : null,
+          was_refused: wasRefused,
+          refusal_reason: wasRefused ? 'off_topic' : null,
+          input_tokens: result.inputTokens,
+          output_tokens: result.outputTokens,
+          latency_ms: latencyMs,
+        });
+      })
+      .catch(() => {
+        // Stream error — do NOT save partial assistant message (per spec)
+      });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';

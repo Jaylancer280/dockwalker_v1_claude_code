@@ -139,3 +139,105 @@ export async function askDocky(
     model,
   };
 }
+
+export interface StreamDockyResult {
+  stream: ReadableStream<Uint8Array>;
+  completion: Promise<{
+    text: string;
+    inputTokens: number;
+    outputTokens: number;
+    model: string;
+  }>;
+}
+
+/**
+ * Streaming variant of askDocky. Returns a ReadableStream of text deltas
+ * and a completion promise that resolves with full text + token counts.
+ */
+export function streamDocky(
+  question: string,
+  mcaContext: MCAChunk[],
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  crewContext?: string,
+): StreamDockyResult {
+  const client = getAnthropicClient();
+  if (!client) throw new Error('Anthropic not configured');
+
+  const systemBlock = buildSystemBlock(crewContext, mcaContext);
+  const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
+  if (conversationHistory && conversationHistory.length > 0) {
+    const trimmed = trimHistory(conversationHistory);
+    messages.push(...trimmed);
+  }
+  messages.push({ role: 'user', content: question });
+
+  const model = process.env.DOCKY_MODEL ?? 'claude-haiku-4-5-20251001';
+  const encoder = new TextEncoder();
+
+  let resolveCompletion: (v: {
+    text: string;
+    inputTokens: number;
+    outputTokens: number;
+    model: string;
+  }) => void;
+  let rejectCompletion: (err: Error) => void;
+
+  const completion = new Promise<{
+    text: string;
+    inputTokens: number;
+    outputTokens: number;
+    model: string;
+  }>((resolve, reject) => {
+    resolveCompletion = resolve;
+    rejectCompletion = reject;
+  });
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        const sdkStream = client.messages.stream({
+          model,
+          max_tokens: 1024,
+          system: [{ type: 'text', text: systemBlock, cache_control: { type: 'ephemeral' } }],
+          messages,
+        });
+
+        let fullText = '';
+
+        sdkStream.on('text', (text) => {
+          fullText += text;
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify({ type: 'delta', text })}\n\n`),
+          );
+        });
+
+        const finalMessage = await sdkStream.finalMessage();
+
+        const sources = mcaContext.map((c) => ({
+          document: c.source_document,
+          section: c.section_title,
+          url: c.source_url,
+          relevance: c.similarity,
+        }));
+
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: 'done', sources })}\n\n`),
+        );
+        controller.close();
+
+        resolveCompletion({
+          text: fullText,
+          inputTokens: finalMessage.usage.input_tokens,
+          outputTokens: finalMessage.usage.output_tokens,
+          model,
+        });
+      } catch (err) {
+        controller.error(err);
+        rejectCompletion(err instanceof Error ? err : new Error(String(err)));
+      }
+    },
+  });
+
+  return { stream, completion };
+}
