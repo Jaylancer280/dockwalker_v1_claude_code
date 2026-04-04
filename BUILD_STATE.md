@@ -319,6 +319,8 @@ v80 — Smoker + visible tattoos (80 migrations applied)
 
 - [Stage 186] Docky single-thread migration — replaced multi-conversation API (`/conversations`, `/conversations/[id]`, `/conversations/[id]/messages`) with single-thread API (`/thread` GET, `/thread/messages` POST, `/thread/clear` POST); 72h auto-expiry on threads; merged conversation list + chat into single `/docky` page with expiry countdown, new-conversation dialog, suggestion chips on empty state; deleted old routes and `[conversationId]` page; loading skeleton; rewrote all advisor tests (5 thread + 2 clear + 7 messages + 3 personalised + 5 usage); 914 tests pass
 
+- [Stage 187] Docky prompt caching + cost reduction — system block with cache_control ephemeral replaces fake user/assistant message pairs; injection defence appended; trimHistory() with 3000-token budget replaces DB LIMIT 10; DOCKY_CORPUS_READY guard in rag.ts skips OpenAI embedding call when corpus not ingested; 921 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)

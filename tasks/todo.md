@@ -5,102 +5,22 @@
 
 ## Current Task
 
-Docky Refactor Session A — Single-Thread Migration (Stage 186)
+Session B — Prompt Caching + Cost Reduction (Stage 187)
 
 ---
 
 ## Queue
 
-### Audit Fixes (Stage 185) — Codebase quality sweep
+### Session B — Prompt Caching + Cost Reduction (Stage 187) ✓ COMPLETE
 
-> Found during full web app audit (2026-04-04). Fix before next feature work.
-
-**HIGH — Security / Pattern Violations:**
-
-- [x] Add max length validation to `bio` field in `apps/web/src/app/api/profile/route.ts` — enforce 1000-char limit
-- [x] Add top-level try/catch to `apps/web/src/app/api/availability/route.ts` GET handler
-- [x] Add top-level try/catch to `apps/web/src/app/api/messages/[engagementId]/route.ts` GET and POST handlers
-- [x] Add top-level try/catch to `apps/web/src/app/api/messages/[engagementId]/read/route.ts` POST handler
-- [x] Add top-level try/catch to `apps/web/src/app/api/notifications/read/route.ts` POST handler
-
-**MEDIUM — Auth / Validation:**
-
-- [x] Verify `/api/auth/me` — intentional: lightweight auth check returning only userId, no domain data exposed. Comment added.
-- [x] Fix hat cast in `apps/web/src/app/api/availability/route.ts` DELETE handler — explicit hat validation before roleContext
-- [x] Fix hat cast in `apps/web/src/app/api/profile/avatar/route.ts` POST and DELETE handlers — explicit hat validation
-
-**LOW — Polish / Accessibility:**
-
-- [x] Extract hardcoded theme colors to `apps/web/src/lib/theme-colors.ts` — THEME_COLOR_DARK/LIGHT, EPAULETTE_GOLD/SILVER
-- [x] Add `aria-expanded` to profile-overlay experience accordion, location-picker region/city toggles
-- [x] Add `aria-label` to icon-only close buttons (profile-overlay, bottom-sheet, push-prompt) and icon-only toggle (location-picker ports chevron)
-
-**Tests (add alongside fixes):**
-
-- [x] Updated bio length validation tests — 1001 chars returns 400, 1000 chars accepted (was 250)
-- [x] All 915 tests pass, type-check clean, web lint clean (1 pre-existing error in unrelated test file)
-
-**Documentation (human edit required — flag for user):**
-
-- [x] CLAUDE.md event catalog updated with 12 missing event types (one-time permission from user)
-
----
-
-### Session A — Single-Thread Migration (Stage 186) ✓ COMPLETE
-
-- [x] Pre-flight checks (DATA_SCRUBBED gap confirmed, data export compatible)
-- [x] GET /api/advisor/thread — single-thread with 72h auto-expiry
-- [x] POST /api/advisor/thread/messages — auto-create, usage gate, LLM, save
-- [x] POST /api/advisor/thread/clear — idempotent delete
-- [x] Docky page rewritten as single-page (empty state + chat + expiry countdown + new conv dialog)
-- [x] loading.tsx skeleton
-- [x] Old routes + pages deleted (conversations/_, [conversationId]/_)
-- [x] Nav links verified (bottom nav + sidebar both /docky, no deep links)
-- [x] advisor-thread.test.ts (5 tests), advisor-thread-clear.test.ts (2 tests)
-- [x] advisor-messages.test.ts rewritten for thread route (7 tests)
-- [x] advisor-personalised.test.ts updated (3 tests)
-- [x] advisor-usage.test.ts updated (5 tests)
-- [x] advisor-usage-route.test.ts unchanged
-- [x] type-check passes, 914 tests pass, no console.log
-
----
-
-### Session B — Prompt Caching + Cost Reduction (library changes only)
-
-> Low risk, high impact. No API surface change, no UI change, no migration.
-
-**Prompt restructure + caching (spec 7a):**
-
-- [ ] Refactor `apps/web/src/lib/advisor/llm.ts`:
-  - Remove fake user/assistant message pairs for crew context and MCA chunks
-  - Build single `systemBlock` string: BASE_SYSTEM_PROMPT + crew context + MCA chunks + cert gap analysis + injection defence
-  - Pass as `system: [{ type: 'text', text: systemBlock, cache_control: { type: 'ephemeral' } }]`
-  - `messages` array now contains ONLY real conversation turns (history + current question)
-  - Keep `askDocky()` function signature compatible with Session A's route
-
-**Skip empty corpus embedding (spec 7c):**
-
-- [ ] In `apps/web/src/lib/advisor/rag.ts`: check `process.env.DOCKY_CORPUS_READY === 'true'` before calling `generateEmbedding()`. If not true, return empty array immediately.
-- [ ] Add `DOCKY_CORPUS_READY=false` to `.env.example` with comment
-
-**History token budget (spec 7e):**
-
-- [ ] Add `trimHistory()` function in `apps/web/src/lib/advisor/llm.ts`:
-  - Budget: 3,000 tokens, estimate as `Math.ceil(text.length / 4)`
-  - Walk backwards from most recent message, keep adding until budget exceeded
-  - Replace the current 10-message `LIMIT` with token budget trim
-- [ ] Apply `trimHistory()` to conversation history before building messages array
-
-**Update tests:**
-
-- [ ] Update `advisor-messages.test.ts` (or renamed file from Session A) — verify `askDocky()` receives system block parameter, not fake message pairs
-- [ ] Update `advisor-personalised.test.ts` — verify crew context appears in system block
-- [ ] Add test: when DOCKY_CORPUS_READY is not 'true', `searchMcaDocs` returns empty without calling OpenAI
-
-**Verify:**
-
-- [ ] `turbo run type-check` passes
-- [ ] All vitest tests pass
+- [x] llm.ts: system block with cache_control ephemeral, injection defence, no fake message pairs
+- [x] llm.ts: trimHistory() with 3000 token budget, replaces DB LIMIT 10
+- [x] rag.ts: DOCKY_CORPUS_READY guard skips embedding when not 'true'
+- [x] .env.example: DOCKY_CORPUS_READY=false added
+- [x] Thread messages route: removed .limit(10) on history query
+- [x] rag-corpus-guard.test.ts (3 tests), trim-history.test.ts (4 tests)
+- [x] Existing advisor tests still pass (askDocky signature unchanged)
+- [x] type-check passes, 921 tests pass
 
 ---
 
@@ -215,6 +135,17 @@ Docky Refactor Session A — Single-Thread Migration (Stage 186)
 - [ ] `mca_document_chunks` has rows with valid embeddings
 - [ ] `searchMcaDocs()` returns relevant results for a maritime question
 - [ ] No hardcoded keys — all from environment variables
+
+---
+
+### Docky Off-Topic Guard
+
+> One-liner prompt addition + interaction logging detection string.
+
+- [ ] Add off-topic refusal rule to `BASE_SYSTEM_PROMPT` in `apps/web/src/lib/advisor/llm.ts`:
+  `- If a question is not related to maritime careers, certifications, training, or the yachting industry, politely decline and redirect: "I'm only able to help with maritime career and certification questions. Try asking about STCW requirements, career progression, or training centres!"`
+- [ ] Verify the `was_refused` detection in Session C's interaction logging matches this exact refusal string (`"I'm only able to help with maritime"`)
+- [ ] Add test: mock Docky response containing refusal string, verify `was_refused` is set correctly in interaction log
 
 ---
 

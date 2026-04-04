@@ -91,8 +91,7 @@ export async function POST(request: Request) {
       .from('advisor_messages')
       .select('role, content')
       .eq('conversation_id', threadId)
-      .order('created_at', { ascending: true })
-      .limit(10);
+      .order('created_at', { ascending: true });
 
     const history = (historyRows ?? []) as Array<{
       role: 'user' | 'assistant';

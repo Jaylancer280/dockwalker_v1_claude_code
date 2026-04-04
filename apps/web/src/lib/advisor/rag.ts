@@ -15,6 +15,9 @@ export async function searchMcaDocs(
   limit?: number,
 ): Promise<MCAChunk[]> {
   try {
+    // Skip embedding call when corpus is not ready (empty table)
+    if (process.env.DOCKY_CORPUS_READY !== 'true') return [];
+
     const embedding = await generateEmbedding(query);
     const { data, error } = await supabase.rpc('match_mca_documents', {
       query_embedding: JSON.stringify(embedding),
