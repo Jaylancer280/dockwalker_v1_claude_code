@@ -42,6 +42,7 @@ import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
 import { usePreferences } from '@/hooks/use-preferences';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
+import { ShareJobButton } from '@/components/share-job-button';
 import { PermanentMineSection } from './_components/permanent-mine-section';
 import { DayworkActiveSection } from './_components/daywork-active-section';
 import { DayworkInProgressSection } from './_components/daywork-in-progress-section';
@@ -345,6 +346,15 @@ export default function MyPostingsPage() {
           )}
 
           {posting.notes && <p className="text-sm text-muted-foreground">{posting.notes}</p>}
+
+          {posting.status === 'active' && (
+            <ShareJobButton
+              jobNumber={`DW-${String(posting.job_number).padStart(5, '0')}`}
+              roleName={posting.yacht_roles?.name ?? 'Daywork'}
+              location={posting.ports?.cities?.name ?? posting.ports?.name ?? ''}
+              rate={`${currencySymbol(posting.currency)}${posting.day_rate}/day`}
+            />
+          )}
 
           {showActions && (posting.status === 'active' || posting.status === 'in_progress') && (
             <>

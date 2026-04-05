@@ -74,7 +74,8 @@ export async function updateSession(request: NextRequest) {
     '/auth/forgot-password',
     '/auth/reset-password',
   ];
-  const isPublicRoute = publicRoutes.some((route) => path.startsWith(route));
+  const isPublicRoute =
+    publicRoutes.some((route) => path.startsWith(route)) || path.startsWith('/jobs');
   const isAuthEntryRoute = authEntryRoutes.some((route) => path.startsWith(route));
   const isLandingPage = path === '/';
 

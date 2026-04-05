@@ -11,59 +11,87 @@
 
 ## Queue
 
-### Invitation = direct hire (daywork invitation rework)
+### Share Job to Social (Stage 200)
 
-> Currently: crew accepts invitation -> application created (status 'shortlisted') -> employer must still accept from review page. New flow: crew accepts invitation -> engagement created directly, message thread opens, position slot filled. The employer already chose this crew member by inviting them — forcing them back through the applicant pipeline is redundant and unfair to Pro crew who paid for visibility.
+> Primary organic acquisition channel. No migration, no event model changes. Public job page + OG tags + share button.
+> **Full spec:** `tasks/share-job-to-social-spec.md` — read the entire spec before starting.
 
-**Migration (new migration required):**
+**Middleware (do first — unblocks the public routes):**
 
-- [ ] Update `apply_projection` to change the `DAYWORK.INVITATION_ACCEPTED` handler. Currently it just updates the invitation row status. New behaviour: it must also create the engagement, increment positions_filled, supersede overlapping applications, and (if positions now full) reject remaining applicants and revoke pending invitations — i.e., the same logic as `DAYWORK.ACCEPTED` but triggered by invitation acceptance instead of employer review action.
-- [ ] The `DAYWORK.INVITATION_ACCEPTED` payload must be extended to include `daywork_id`, `crew_person_id`, `employer_person_id`, `start_date`, `end_date` (currently only has `daywork_id` and `invitation_id`). The route must populate these from the daywork row before appending the event.
-- [ ] Rollback must restore the previous `apply_projection` body (self-contained, per CLAUDE.md rule 4).
+- [ ] In `apps/web/src/middleware.ts`: add `/jobs/:path*` to the public route allowlist (alongside `/`, `/auth/*`, etc.)
+- [ ] Also add `/api/jobs/:path*` to the API public allowlist (no auth required)
 
-**API route changes:**
+**Public API route:**
 
-- [ ] In `apps/web/src/app/api/daywork/invitations/[id]/respond/route.ts` — when `action === 'accept'`:
-  - **Remove** the second event (`DAYWORK.APPLIED` with `source: 'invitation'`). No application should be created.
-  - **Keep** `DAYWORK.INVITATION_ACCEPTED` as the single event, but enrich the payload with `crew_person_id`, `employer_person_id` (from daywork's `poster_person_id`), `start_date`, `end_date` (from the daywork row).
-  - **Add** a positions-full check before accepting: query `dayworks` for `positions_filled >= positions_available`. If full, return 409 with `{ error: 'position_filled' }` instead of creating the engagement.
-  - **After** appending the event, fetch the newly created engagement from `active_engagements` (same pattern as the accept applicant route at `apps/web/src/app/api/daywork/[id]/applicants/[crewId]/accept/route.ts` ~line 85-90).
-  - **Return** `{ success: true, engagementId }` instead of `{ application: { id, status } }`.
-  - **Keep** all existing validation: ownership check, invitation status === 'pending', daywork status === 'active' (not 'in_progress' — but NOTE: if multi-crew, 'in_progress' means some positions filled but not all, so this check may need updating to allow acceptance when `positions_filled < positions_available`), availability overlap check via `check_no_overlap`.
+- [ ] Create `apps/web/src/app/api/jobs/[jobNumber]/route.ts` — GET handler:
+  - No auth required (public endpoint)
+  - Parse job number: `DW-XXXXX` → query `dayworks`, `PM-XXXXX` → query `permanent_postings`
+  - Validate format with regex (`/^(DW|PM)-\d{5}$/`) — return 404 immediately for malformed input
+  - Query with `status = 'active'` only — inactive/cancelled/completed jobs return 404
+  - Use `serviceClient` (no auth context available)
+  - Hydrate: join role name (`yacht_roles`), port/city/region names, cert names (`certifications`), experience bracket label, vessel data via `get_vessel_public` (NDA-safe — no caller auth means NDA vessels show "NDA Vessel", no IMO)
+  - Response shape: see spec § Components → 1. Public Job Detail API Route
+  - Do NOT return: `poster_person_id`, `poster_name`, `imo_number`, `positions_filled`
+  - Top-level try/catch with 500 JSON response
 
-- [ ] In `apps/web/src/app/api/daywork/invitations/[id]/respond/route.ts` — `notifyOnEvent` call: pass the `engagement_id` in the notification payload so the deep link can go to `/messages/{engagementId}` instead of `/daywork/{id}/review`. The employer should land in the chat, not the review page — the crew is already hired.
+**Public page + layout:**
 
-**Projection handler detail (what `DAYWORK.INVITATION_ACCEPTED` must do in `apply_projection`):**
+- [ ] Create `apps/web/src/app/jobs/[jobNumber]/layout.tsx` — minimal layout:
+  - DockWalker logo (top-left), no sidebar, no bottom nav, no auth context
+  - Simple footer: "DockWalker — Superyacht hiring, simplified"
+- [ ] Create `apps/web/src/app/jobs/[jobNumber]/page.tsx` — server-rendered:
+  - Fetch from the public API route (or query directly server-side with service client)
+  - Department background image (same `getDepartmentImageSrc` helper from discover cards)
+  - Role name + epaulette badge
+  - Vessel name + type + size band (NDA-safe)
+  - Location: port, city, region
+  - Key details grid (daywork: dates, rate, positions, meals, experience | permanent: salary, contract, live aboard, start date)
+  - Required certs as pill badges
+  - Required languages as pill badges
+  - Notes/description if present
+  - Posted date + job reference
+  - CTA section (sticky on mobile): "Sign up to apply on DockWalker" → `/auth/signup?returnTo=/discover`
+  - "Already have an account? Log in" → `/auth/login?returnTo=/discover`
+  - `robots: 'noindex'` in metadata (no search indexing initially)
+  - `<link rel="canonical" href="https://www.dockwalker.io/jobs/{jobNumber}" />`
+- [ ] Fallback state when job not found/inactive: "This job is no longer available" + "Browse jobs" CTA → `/auth/signup`
+- [ ] `generateMetadata()` with dynamic OG tags:
+  - Daywork title: `"{Role} — {City}, {days} days, {currency symbol}{rate}/day — DockWalker"`
+  - Permanent title: `"{Role} — {City}, {currency symbol}{salaryMin}-{salaryMax}/month — DockWalker"`
+  - Description: `"{Vessel} is looking for a {role} in {port}, {city}. {dateRange or 'Start ASAP'}. Apply on DockWalker."`
+  - NDA description: `"A {sizeBand} {vesselType} yacht is looking for a {role} in {city}. Apply on DockWalker."`
+  - `openGraph.images`: `/images/brand/og-image.png` (1200x630)
+  - `twitter:card`: `summary_large_image`
 
-1. Update `daywork_invitations` set `status = 'accepted'` where `id = invitation_id`
-2. Insert into `active_engagements` (crew_person_id, employer_person_id, daywork_id, start_date, end_date) — NO application_id FK since no application exists
-3. Increment `dayworks.positions_filled` by 1
-4. Supersede overlapping pending applications for this crew member (same date range logic as `DAYWORK.ACCEPTED`)
-5. If `positions_filled >= positions_available` after increment: set daywork status to `in_progress`, reject remaining pending applications, revoke remaining pending invitations
+**Share button component:**
 
-**Important:** The `active_engagements` table has `application_id` as a FK. Check if it's nullable — if NOT NULL, the migration must make it nullable first (since invitation-based engagements have no application). Grep for `application_id` in `active_engagements` to check the constraint. If it's NOT NULL, add `ALTER TABLE active_engagements ALTER COLUMN application_id DROP NOT NULL` to the migration.
+- [ ] Create `apps/web/src/components/share-job-button.tsx`:
+  - Props: `jobNumber`, `roleName`, `location`, `rate` (formatted string like "€250/day")
+  - Constructs URL: `https://www.dockwalker.io/jobs/${jobNumber}`
+  - Constructs text: `"{roleName} needed in {location} — {rate}. Apply on DockWalker."`
+  - Tap: `navigator.share({ title, text, url })` if available
+  - Fallback: copy URL to clipboard, show toast "Link copied"
+  - Small share icon, unobtrusive
+- [ ] Place on My Jobs cards (employer/agent view) — PRIMARY placement, prominent
+- [ ] Place on discover card detail view or permanent job card (crew view) — secondary
+- [ ] Place on the public job detail page itself (re-sharing)
 
-**Push notification changes:**
+**Static OG image:**
 
-- [ ] In `apps/web/src/lib/push-triggers/daywork-handlers.ts` — `handleInvitationAccepted()`: change the deep link from `/daywork/${dayworkId}/review` to `/messages/${engagementId}`. The notification body should say something like "Invitation accepted for {role} — {jobNumber}. Chat is now open." The handler needs the engagement_id passed in the event payload or fetched from `active_engagements` after the projection runs.
+- [ ] Create `apps/web/public/images/brand/og-image.png` — 1200x630, dark navy background, DockWalker logo centred, tagline "Superyacht hiring, simplified". See `tasks/founder-drafts.md` § 7 for spec. If you can't generate the image, create a placeholder and flag for the user.
 
-**Client-side changes:**
+**Tests:**
 
-- [ ] In `apps/web/src/app/(app)/discover/page.tsx` (invitations tab): when crew accepts an invitation and the response contains `engagementId`, redirect to `/messages/${engagementId}` instead of staying on the invitations tab. The invitation is now a hire, not an application.
-- [ ] Update any UI copy that says "You've been shortlisted" or references application status after invitation acceptance — the crew member is now engaged, not shortlisted.
+- [ ] Test public API route: happy path daywork (200 + correct shape), happy path permanent (200), inactive job (404), malformed job number (404), NDA vessel returns "NDA Vessel" name
+- [ ] `turbo run type-check` passes
+- [ ] `turbo run lint` passes (filtered)
+- [ ] All vitest tests pass
 
-**Type changes:**
+**Verify:**
 
-- [ ] In `packages/types/src/events.ts`: extend `DAYWORK.INVITATION_ACCEPTED` payload type to include `crew_person_id`, `employer_person_id`, `start_date`, `end_date` (all required strings) alongside existing `daywork_id` and `invitation_id`.
-
-**Test changes:**
-
-- [ ] Update/rewrite invitation response tests in `apps/web/__tests__/api/` to expect:
-  - Accept returns `{ success: true, engagementId }` (not `{ application }`)
-  - Only one event appended (`DAYWORK.INVITATION_ACCEPTED`, not two)
-  - Engagement created (mock `active_engagements` query)
-  - 409 returned when positions full
-- [ ] Add integration test: invitation accept creates engagement row, increments positions_filled, supersedes overlapping applications
+- [ ] Open `https://localhost:3000/jobs/DW-00001` (or whatever seed job number exists) — page renders without auth
+- [ ] Check OG tags: `curl -s https://localhost:3000/jobs/DW-00001 | grep 'og:'`
+- [ ] Share button copies link on desktop, opens share sheet on mobile
 
 ---
 
@@ -111,4 +139,4 @@
 
 ## Done
 
-(See git history for completed stages 51-198. Stages 185-198: audit fixes, Docky refactor Sessions A/B/C, MCA ingestion + production corpus, off-topic guard, CI/CD deploy-migrations, rollback hardening, availability fix, NDA vessel name masking, RAG threshold, production Docky launch, crew context diagnostics, usage pill refresh, experience fields, gear icon, auto-scroll, Pro gating, hallucination guard, tier messaging, smoker/tattoos in review cards.)
+(See git history for completed stages 51-199. Stages 185-199: audit fixes, Docky refactor Sessions A/B/C, MCA ingestion + production corpus, off-topic guard, CI/CD deploy-migrations, rollback hardening, availability fix, NDA vessel name masking, RAG threshold, production Docky launch, crew context diagnostics, usage pill refresh, experience fields, gear icon, auto-scroll, Pro gating, hallucination guard, tier messaging, smoker/tattoos, Available Crew Pro gate + tests, invitation direct hire.)
