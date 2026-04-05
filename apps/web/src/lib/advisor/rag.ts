@@ -22,7 +22,7 @@ export async function searchMcaDocs(
     const { data, error } = await supabase.rpc('match_mca_documents', {
       query_embedding: JSON.stringify(embedding),
       match_count: limit ?? 5,
-      match_threshold: 0.7,
+      match_threshold: 0.6,
     });
     if (error || !data) return [];
     return data as MCAChunk[];
