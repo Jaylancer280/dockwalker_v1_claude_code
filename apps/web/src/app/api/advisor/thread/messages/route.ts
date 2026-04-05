@@ -145,7 +145,8 @@ export async function POST(request: Request) {
     let streamResult;
     try {
       streamResult = streamDocky(content, chunks, history, fullCrewContext || undefined);
-    } catch {
+    } catch (err) {
+      console.error('Docky streamDocky() error:', err);
       return NextResponse.json(
         { error: 'Docky is temporarily unavailable. Please try again.' },
         { status: 503 },

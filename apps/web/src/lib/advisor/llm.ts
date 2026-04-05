@@ -234,6 +234,7 @@ export function streamDocky(
           model,
         });
       } catch (err) {
+        console.error('Docky stream error:', err);
         controller.error(err);
         rejectCompletion(err instanceof Error ? err : new Error(String(err)));
       }
