@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v82 — Availability expires_at regression fix (82 migrations applied)
+v83 — NDA vessel name masking fix (83 migrations applied)
 
 ## Migrations Applied
 
@@ -267,6 +267,7 @@ v82 — Availability expires_at regression fix (82 migrations applied)
 | `00080_smoker_visible_tattoos.sql` | Add `smoker` and `visible_tattoos` nullable boolean columns to profiles; updated apply_projection PROFILE.CREATED and PROFILE.UPDATED handlers |
 | `00081_docky_interactions.sql` | `docky_interactions` table (service-role only analytics); GDPR DATA_SCRUBBED handler restored + extended (deletes advisor_conversations, scrubs interactions) |
 | `00082_fix_availability_expires_at.sql` | Fixes AVAILABILITY.SET normal path regression — restores `d::date + interval '1 day'` for per-date expiry (regressed by 00075/00077/00080/00081 back to client-sent expires_at which is NULL) |
+| `00083_fix_nda_vessel_name.sql` | Adds name masking to `get_vessel_public` + `get_vessels_public_batch` — NDA vessel names return 'NDA Vessel' unless caller is owner or has active engagement. Bug introduced in 00027 when `loa_meters` was added |
 
 ## Deferred Decisions
 

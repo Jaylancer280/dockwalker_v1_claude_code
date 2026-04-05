@@ -109,6 +109,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Smoker + Visible Tattoos                      | 00080     | Adds nullable `smoker boolean` and `visible_tattoos boolean` to profiles; updates `apply_projection` PROFILE.CREATED/UPDATED handlers                                                                                                                                                             |
 | Docky Interactions                            | 00081     | `docky_interactions` table (service-role only analytics); GDPR DATA_SCRUBBED handler restored + extended (deletes advisor_conversations, scrubs interactions)                                                                                                                                     |
 | Fix Availability expires_at                   | 00082     | Restores AVAILABILITY.SET normal path `d::date + interval '1 day'` for per-date expiry — regressed by 00075/00077/00080/00081 back to client-sent `expires_at` (NULL in normal path)                                                                                                              |
+| Fix NDA Vessel Name                           | 00083     | Adds name masking to `get_vessel_public` + `get_vessels_public_batch` — NDA vessels return 'NDA Vessel' unless caller is owner or has active engagement (bug since 00027)                                                                                                                         |
 
 ## Daywork Status Lifecycle
 
