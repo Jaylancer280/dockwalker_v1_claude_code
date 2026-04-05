@@ -94,7 +94,7 @@ end $$;
 -- (superuser/postgres bypasses RLS, so SET ROLE is required)
 -- =========================================================================
 SET ROLE authenticated;
-SET request.jwt.claim.sub TO current_setting('test.nda_crew_id');
+SELECT set_config('request.jwt.claim.sub', current_setting('test.nda_crew_id'), false);
 
 DO $test3$
 DECLARE
