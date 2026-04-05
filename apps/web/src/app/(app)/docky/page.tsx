@@ -71,7 +71,7 @@ export default function DockyPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [thinkingPhase, setThinkingPhase] = useState<'profile' | 'thinking' | null>(null);
+  const [thinkingPhase, setThinkingPhase] = useState<'thinking' | null>(null);
   const [input, setInput] = useState('');
   const [limitReached, setLimitReached] = useState(false);
   const [usagePill, setUsagePill] = useState<string | null>(null);
@@ -92,15 +92,9 @@ export default function DockyPage() {
     scrollToBottom();
   }, [messages, sending, scrollToBottom]);
 
-  // Staged thinking indicator
+  // Thinking indicator
   useEffect(() => {
-    if (sending) {
-      setThinkingPhase('profile');
-      const timer = setTimeout(() => setThinkingPhase('thinking'), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setThinkingPhase(null);
-    }
+    setThinkingPhase(sending ? 'thinking' : null);
   }, [sending]);
 
   // Expiry countdown timer
@@ -413,10 +407,25 @@ export default function DockyPage() {
               />
             </div>
             <h2 className="mb-2 text-xl font-semibold">Ask Docky</h2>
-            <p className="mb-8 text-sm text-muted-foreground">
-              Your maritime career advisor. Ask about certifications, career paths, and training
-              requirements.
-            </p>
+            {usagePill === 'Pro' ? (
+              <p className="mb-8 text-sm text-muted-foreground">
+                Docky can give you personalised career advice based on your profile, certifications,
+                and work history.
+              </p>
+            ) : (
+              <div className="mb-8 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Docky can answer questions and cite MCA documentation.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <a href="/billing" className="text-[var(--accent)] underline">
+                    Upgrade to Crew Pro
+                  </a>{' '}
+                  for personalised advice — Docky will read your profile, certifications, and work
+                  history to give tailored guidance.
+                </p>
+              </div>
+            )}
             <div className="grid w-full grid-cols-2 gap-3">
               {suggestionChips.map((chip) => (
                 <button
@@ -467,11 +476,7 @@ export default function DockyPage() {
               </div>
               <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-sm text-[var(--muted-foreground)]">
                 <span className="inline-flex items-center gap-1">
-                  {thinkingPhase === 'profile'
-                    ? !dockyReadiness.ready
-                      ? 'Docky works best with a complete profile \u2014 add your certs and role for personalised advice'
-                      : 'Docky is reading your profile'
-                    : 'Docky is thinking'}
+                  Docky is thinking
                   <span className="inline-flex gap-0.5">
                     <span className="animate-bounce" style={{ animationDelay: '0ms' }}>
                       .

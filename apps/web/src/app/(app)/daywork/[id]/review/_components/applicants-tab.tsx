@@ -392,6 +392,16 @@ export function ApplicantCard({
           <p className="mt-3 text-sm text-muted-foreground line-clamp-3">{profile.bio}</p>
         )}
 
+        {/* Smoker / Tattoos */}
+        {(profile?.smoker != null || profile?.visible_tattoos != null) && (
+          <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+            {profile?.smoker != null && <span>{profile.smoker ? 'Smoker' : 'Non-smoker'}</span>}
+            {profile?.visible_tattoos != null && (
+              <span>{profile.visible_tattoos ? 'Visible tattoos' : 'No visible tattoos'}</span>
+            )}
+          </div>
+        )}
+
         {/* Application message */}
         {applicant.message && (
           <div className="mt-3 rounded-md bg-[var(--surface)] px-2.5 py-1.5">

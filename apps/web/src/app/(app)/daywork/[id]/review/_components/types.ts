@@ -13,6 +13,8 @@ export interface ApplicantProfile {
   languages: string[];
   vessel_size_exposure_ids: string[];
   nationalities: { name: string; flag_emoji: string } | null;
+  smoker: boolean | null;
+  visible_tattoos: boolean | null;
 }
 
 export interface Applicant {

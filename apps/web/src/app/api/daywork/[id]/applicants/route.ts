@@ -48,6 +48,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         vessel_size_exposure_ids,
         bio,
         location_port_id,
+        smoker, visible_tattoos,
         yacht_roles:primary_role_id(name, department),
         experience_brackets:experience_bracket_id(label),
         ports:location_port_id(name, cities(name, regions(name))),
