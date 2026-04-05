@@ -125,6 +125,19 @@ export default function DockyPage() {
     }
   }, [dockyReadiness.loaded, dockyReadiness.missing]);
 
+  const refreshUsage = useCallback(async () => {
+    const result = await safeFetch<{ plan?: string; limit?: number; used?: number }>(
+      '/api/advisor/usage',
+    );
+    if (result.ok) {
+      if (result.data.plan) {
+        setUsagePill('Pro');
+      } else if (result.data.limit != null) {
+        setUsagePill(`${result.data.used ?? 0} of ${result.data.limit}`);
+      }
+    }
+  }, []);
+
   // Load thread + usage on mount
   useEffect(() => {
     async function loadThread() {
@@ -144,21 +157,8 @@ export default function DockyPage() {
       }
     }
 
-    async function loadUsage() {
-      const result = await safeFetch<{ plan?: string; limit?: number; used?: number }>(
-        '/api/advisor/usage',
-      );
-      if (result.ok) {
-        if (result.data.plan) {
-          setUsagePill('Pro');
-        } else if (result.data.limit != null) {
-          setUsagePill(`${result.data.used ?? 0} of ${result.data.limit}`);
-        }
-      }
-    }
-
     loadThread();
-    loadUsage();
+    refreshUsage();
   }, [showError]);
 
   async function sendMessage(content: string) {
@@ -295,6 +295,7 @@ export default function DockyPage() {
       ),
     );
     setSending(false);
+    refreshUsage();
   }
 
   async function handleClear() {

@@ -39,12 +39,14 @@ function HelmIcon({ color, size }: { color: string; size: number }) {
 }
 
 /** Wrench — engineering. Open-ended spanner, thick stroke for clarity at 14px. */
-function WrenchIcon({ color, size }: { color: string; size: number }) {
+/** Gear — engineering. 6-tooth cog silhouette, bold at small sizes. */
+function GearIcon({ color, size }: { color: string; size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M14 4.5a4 4 0 0 0-3-3.8l.5 2.3-1.5 1.5-2.3-.5a4 4 0 0 0 3.8 5L5.2 15.2a1.5 1.5 0 0 1-2.1 0l-.3-.3a1.5 1.5 0 0 1 0-2.1L9 6.5a4 4 0 0 0 5-2z"
+        d="M6.5 1h3l.4 2.1a5 5 0 0 1 1.3.8L13.2 3l1.5 2.6-1.6 1.3a5 5 0 0 1 0 1.5l1.6 1.3-1.5 2.6-2-1a5 5 0 0 1-1.3.8L9.5 15h-3l-.4-2.1a5 5 0 0 1-1.3-.8L2.8 13l-1.5-2.6 1.6-1.3a5 5 0 0 1 0-1.5L1.3 6.3 2.8 3.7l2 1a5 5 0 0 1 1.3-.8L6.5 1zM8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"
         fill={color}
+        fillRule="evenodd"
       />
     </svg>
   );
@@ -81,7 +83,7 @@ function DeptIcon({ department, size }: { department: string; size: number }) {
     case 'bridge':
       return <HelmIcon color={color} size={size} />;
     case 'engineering':
-      return <WrenchIcon color={color} size={size} />;
+      return <GearIcon color={color} size={size} />;
     case 'interior':
       return <DiamondIcon color={color} size={size} />;
     case 'galley':

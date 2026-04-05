@@ -74,6 +74,11 @@ export default function EditExperiencePage() {
             contract_type: string;
             contract_details: string;
             description: string;
+            sea_time_days: number | null;
+            sea_time_nautical_miles: number | null;
+            salary_amount: number | null;
+            salary_currency: string | null;
+            salary_period: string | null;
             vessels: { name: string; vessel_type: string } | null;
           }[];
         }>('/api/experiences'),
@@ -96,6 +101,14 @@ export default function EditExperiencePage() {
           setContractType(exp.contract_type ?? '');
           setContractDetails(exp.contract_details ?? '');
           setDescription(exp.description ?? '');
+          setSeaTimeDays(exp.sea_time_days != null ? String(exp.sea_time_days) : '');
+          setSeaTimeNauticalMiles(
+            exp.sea_time_nautical_miles != null ? String(exp.sea_time_nautical_miles) : '',
+          );
+          setSalaryAmount(exp.salary_amount != null ? String(exp.salary_amount) : '');
+          if (exp.salary_currency) setSalaryCurrency(exp.salary_currency);
+          if (exp.salary_period)
+            setSalaryPeriod(exp.salary_period as 'daily' | 'monthly' | 'annually');
           if (exp.vessels) {
             setVesselName(exp.vessels.name ?? '');
             setVesselType(exp.vessels.vessel_type ?? 'motor');

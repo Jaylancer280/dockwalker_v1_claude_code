@@ -18,7 +18,7 @@ const VALID_CONTRACT_TYPES = [
 /**
  * GET /api/experiences
  * Returns the authenticated user's crew experiences with vessel + role data.
- * Salary fields are NEVER returned.
+ * Salary + sea time fields returned to owner only (RLS-scoped, never exposed via view-only profile API).
  */
 export async function GET() {
   const guard = await requireDomainUser();
@@ -33,7 +33,9 @@ export async function GET() {
         `
         id, vessel_id, role_id, start_date, end_date, is_current,
         vessel_operation, flag_state, contract_type, contract_details,
-        description, created_at, updated_at,
+        description, sea_time_days, sea_time_nautical_miles,
+        salary_amount, salary_currency, salary_period,
+        created_at, updated_at,
         vessels(id, imo_number, name, vessel_type, size_band_id, loa_meters, vessel_size_bands(label)),
         yacht_roles(id, name, department)
       `,

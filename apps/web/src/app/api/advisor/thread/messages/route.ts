@@ -139,6 +139,7 @@ export async function POST(request: Request) {
     // Cert gap analysis
     const certGap = buildCertGapContext(crewCtx.certNames, crewCtx.roleName, chunks);
     const fullCrewContext = [crewCtx.markdown, certGap].filter(Boolean).join('\n\n');
+    console.info('Crew context length:', fullCrewContext.length, 'Chunks:', chunks.length);
 
     // Streaming LLM call
     const llmStartTime = Date.now();

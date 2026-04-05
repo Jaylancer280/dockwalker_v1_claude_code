@@ -55,6 +55,7 @@ export async function buildCrewContext(
     .single();
 
   if (profileError || !rawProfile) {
+    console.error('buildCrewContext failed:', profileError, 'personId:', personId);
     return { markdown: '', certNames: [], roleName: '' };
   }
 
