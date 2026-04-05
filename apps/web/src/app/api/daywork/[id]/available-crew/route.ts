@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!guard.ok) return guard.response;
 
   try {
-    const { user, person, supabase } = guard.value;
+    const { user, person, supabase, serviceClient } = guard.value;
 
     if (person.current_hat !== 'employer' && person.current_hat !== 'agent') {
       return NextResponse.json({ error: 'Employer or agent role required' }, { status: 403 });
@@ -134,6 +134,20 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
     const eligibleIds = filteredIds.filter((id) => !appliedSet.has(id) && !invitedSet.has(id));
 
+    // Gate: only Crew Pro subscribers appear in available crew tab
+    let proEligibleIds = eligibleIds;
+    if (eligibleIds.length > 0) {
+      const { data: proSubs } = await serviceClient
+        .from('subscriptions')
+        .select('person_id')
+        .in('person_id', eligibleIds)
+        .eq('plan', 'crew_pro')
+        .in('status', ['active', 'trialing']);
+
+      const proSet = new Set((proSubs ?? []).map((s: { person_id: string }) => s.person_id));
+      proEligibleIds = eligibleIds.filter((id) => proSet.has(id));
+    }
+
     // Get pending invitation count for this daywork
     const { count: invCount } = await supabase
       .from('daywork_invitations')
@@ -141,7 +155,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       .eq('daywork_id', dayworkId)
       .eq('status', 'pending');
 
-    if (eligibleIds.length === 0) {
+    if (proEligibleIds.length === 0) {
       return NextResponse.json({
         crew: [],
         invitation_count: invCount ?? 0,
@@ -149,7 +163,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       });
     }
 
-    // Fetch profiles for eligible crew
+    // Fetch profiles for eligible Pro crew
     const { data: profiles } = await supabase
       .from('profiles')
       .select(
@@ -162,7 +176,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       nationalities:nationality_id(name, flag_emoji)
     `,
       )
-      .in('person_id', eligibleIds);
+      .in('person_id', proEligibleIds);
 
     // Apply role filter (default: match daywork's role_id)
     let matchedProfiles = profiles ?? [];

@@ -11,15 +11,6 @@
 
 ## Queue
 
-### Fix: smoker/tattoos missing from profile overlay
-
-> Stage 198 added smoker/tattoos to the review cards API + UI and the view-only profile API. But the profile overlay (`apps/web/src/components/profile-overlay.tsx`) doesn't render them. The `CrewProfile` interface (lines 29-49) is missing `smoker` and `visible_tattoos`, and `CrewProfileView` doesn't display them.
-
-- [ ] Add `smoker: boolean | null` and `visible_tattoos: boolean | null` to the `CrewProfile` interface in `apps/web/src/components/profile-overlay.tsx`
-- [ ] Render smoker/tattoos in `CrewProfileView` — same pattern as the review card (conditional text labels: "Smoker" / "Non-smoker", "Visible tattoos" / "No visible tattoos"). Place after bio section.
-
----
-
 ### Gate Available Crew tab behind Crew Pro
 
 > Free crew do not appear in the Available Crew tab. Pro crew do. This is the key monetisation lever for crew — "be findable" without actively applying. Free crew can still browse and apply to any job.

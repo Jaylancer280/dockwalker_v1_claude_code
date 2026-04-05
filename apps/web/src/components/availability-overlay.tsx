@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
@@ -50,6 +50,13 @@ export function AvailabilityOverlay({
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPro, setIsPro] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    safeFetch<{ plan?: string }>('/api/billing/status').then((r) => {
+      if (r.ok) setIsPro(r.data.plan === 'crew_pro');
+    });
+  }, []);
 
   // Build 14-day grid from today in UTC to match server
   const nowUtc = new Date();
@@ -385,6 +392,15 @@ export function AvailabilityOverlay({
             <p className="mt-1 text-[11px] text-muted-foreground">
               Availability expires after 7 days. You can refresh it at any time.
             </p>
+            {isPro === false && !notAvailable && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                <a href="/billing" className="text-[var(--accent)] underline">
+                  Upgrade to Crew Pro
+                </a>{' '}
+                to appear in employer searches. Free crew can apply to jobs but are not shown in the
+                Available Crew tab.
+              </p>
+            )}
           </section>
         </div>
 

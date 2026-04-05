@@ -8,6 +8,7 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 }));
 
 const mockFromAuth = vi.fn();
+const mockServiceFrom = vi.fn();
 
 function guardOk(overrides: Record<string, unknown> = {}) {
   return {
@@ -17,10 +18,25 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFromAuth },
-      serviceClient: { rpc: vi.fn() },
+      serviceClient: { from: mockServiceFrom, rpc: vi.fn() },
       ...overrides,
     },
   };
+}
+
+// Helper: mock Pro subscriptions query (service client)
+function mockProSubs(personIds: string[]) {
+  mockServiceFrom.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({
+            data: personIds.map((id) => ({ person_id: id })),
+          }),
+        }),
+      }),
+    }),
+  });
 }
 
 const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -121,6 +137,7 @@ const baseDaywork = {
 describe('GET /api/daywork/:id/available-crew', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockServiceFrom.mockReset();
   });
 
   it('returns crew with availability overlap in same city', async () => {
@@ -133,6 +150,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
       { person_id: 'c1', date: '2026-04-03', city_id: 'city-1', not_available: false },
     ]);
     mockExclusions([], []);
+    mockProSubs(['c1']);
     mockInvitationCount(0);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
@@ -158,6 +176,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     ]);
     // c1 already applied
     mockExclusions([{ crew_person_id: 'c1' }], []);
+    mockProSubs(['c2']);
     mockInvitationCount(0);
     mockProfiles([
       { person_id: 'c2', display_name: 'Crew Two', primary_role_id: 'role-deckhand' },
@@ -179,6 +198,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     ]);
     // c2 already invited
     mockExclusions([], [{ crew_person_id: 'c2' }]);
+    mockProSubs(['c1']);
     mockInvitationCount(1);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
@@ -201,6 +221,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
     ]);
     mockExclusions([], []);
+    mockProSubs(['c1']);
     mockInvitationCount(0);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
@@ -221,6 +242,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
       { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },
     ]);
     mockExclusions([], []);
+    mockProSubs(['c1', 'c2']);
     mockInvitationCount(0);
     // c1 matches role, c2 does not
     mockProfiles([
@@ -243,6 +265,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
       { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },
     ]);
     mockExclusions([], []);
+    mockProSubs(['c1', 'c2']);
     mockInvitationCount(0);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
