@@ -130,14 +130,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 
-    // Crew context + RAG search in parallel
+    // Crew context (Pro only) + RAG search in parallel
     const [crewCtx, chunks] = await Promise.all([
-      buildCrewContext(user.id, supabase),
+      isPro
+        ? buildCrewContext(user.id, supabase)
+        : Promise.resolve({ markdown: '', certNames: [] as string[], roleName: '' }),
       searchMcaDocs(content, serviceClient),
     ]);
 
-    // Cert gap analysis
-    const certGap = buildCertGapContext(crewCtx.certNames, crewCtx.roleName, chunks);
+    // Cert gap analysis (only meaningful when crew context exists)
+    const certGap = isPro ? buildCertGapContext(crewCtx.certNames, crewCtx.roleName, chunks) : '';
     const fullCrewContext = [crewCtx.markdown, certGap].filter(Boolean).join('\n\n');
     console.info('Crew context length:', fullCrewContext.length, 'Chunks:', chunks.length);
 

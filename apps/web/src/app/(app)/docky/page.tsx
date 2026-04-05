@@ -275,6 +275,7 @@ export default function DockyPage() {
                 setMessages((prev) =>
                   prev.map((m) => (m.id === assistantId ? { ...m, content: streamedContent } : m)),
                 );
+                requestAnimationFrame(scrollToBottom);
               } else if (event.type === 'done') {
                 streamedSources = event.sources ?? null;
               }
