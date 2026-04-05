@@ -6,7 +6,7 @@
 -- Uses service role to set up test data, then tests RLS as different users.
 -- =============================================================================
 
--- Setup: create test users and data (run as service role)
+-- Setup + TEST 1 + TEST 2 (run as postgres/service role)
 do $$
 declare
   v_owner_id uuid := '00000000-0000-0000-0000-000000000001';
@@ -51,7 +51,6 @@ begin
   -- =========================================================================
   -- TEST 1: get_vessel_public as crew (non-owner) — IMO must be NULL
   -- =========================================================================
-  -- Simulate crew user context
   perform set_config('request.jwt.claim.sub', v_crew_id::text, true);
 
   select imo_number, name into v_imo_visible, v_name_visible
@@ -85,29 +84,41 @@ begin
 
   raise notice 'TEST 2 PASSED: Owner can see IMO (%) and name (%) on their NDA vessel', v_imo_visible, v_name_visible;
 
-  -- =========================================================================
-  -- TEST 3: Direct table query via RLS — non-owner should NOT see NDA vessel
-  -- (Vessel RLS only allows owner to select)
-  -- =========================================================================
-  perform set_config('request.jwt.claim.sub', v_crew_id::text, true);
+  -- Store vessel_id for TEST 3 (requires SET ROLE, not allowed inside PL/pgSQL)
+  perform set_config('test.nda_vessel_id', v_vessel_id::text, false);
+  perform set_config('test.nda_crew_id', v_crew_id::text, false);
+end $$;
 
-  -- This tests that the vessels table RLS blocks non-owners entirely
-  -- (we only have an owner policy, no public policy)
-  if exists (
-    select 1 from public.vessels where id = v_vessel_id
-  ) then
-    raise exception 'TEST FAILED: Crew user can directly query NDA vessel from vessels table!';
-  end if;
+-- =========================================================================
+-- TEST 3: Direct table RLS — must run as 'authenticated' role
+-- (superuser/postgres bypasses RLS, so SET ROLE is required)
+-- =========================================================================
+SET ROLE authenticated;
+SET request.jwt.claim.sub TO current_setting('test.nda_crew_id');
 
-  raise notice 'TEST 3 PASSED: Crew user cannot directly access NDA vessel via table RLS';
+DO $test3$
+DECLARE
+  v_vessel_id uuid := current_setting('test.nda_vessel_id')::uuid;
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.vessels WHERE id = v_vessel_id) THEN
+    RAISE EXCEPTION 'TEST FAILED: Crew user can directly query NDA vessel from vessels table!';
+  END IF;
+  RAISE NOTICE 'TEST 3 PASSED: Crew user cannot directly access NDA vessel via table RLS';
+END $test3$;
 
-  -- =========================================================================
-  -- Cleanup
-  -- =========================================================================
+RESET ROLE;
+
+-- =========================================================================
+-- Cleanup (runs as postgres after RESET ROLE)
+-- =========================================================================
+DO $cleanup$
+DECLARE
+  v_owner_id uuid := '00000000-0000-0000-0000-000000000001';
+  v_crew_id uuid := '00000000-0000-0000-0000-000000000002';
+BEGIN
   delete from public.vessels where owner_person_id = v_owner_id;
   delete from public.profiles where person_id in (v_owner_id, v_crew_id);
   delete from public.persons where id in (v_owner_id, v_crew_id);
   delete from auth.users where id in (v_owner_id, v_crew_id);
-
-  raise notice '=== ALL NDA RLS TESTS PASSED ===';
-end $$;
+  RAISE NOTICE '=== ALL NDA RLS TESTS PASSED ===';
+END $cleanup$;
