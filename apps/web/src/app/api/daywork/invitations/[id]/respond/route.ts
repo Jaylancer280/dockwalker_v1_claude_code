@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
-import { appendEvent, appendEvents } from '@dockwalker/db';
+import { appendEvent } from '@dockwalker/db';
 import { notifyOnEvent } from '@/lib/push-triggers';
 
 /**
@@ -45,10 +45,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Invitation is no longer pending' }, { status: 400 });
   }
 
-  // Check daywork is still active
+  // Check daywork is still active and has capacity
   const { data: daywork } = await supabase
     .from('dayworks')
-    .select('id, status, start_date')
+    .select(
+      'id, status, start_date, end_date, positions_filled, positions_available, poster_person_id',
+    )
     .eq('id', invitation.daywork_id)
     .single();
 
@@ -118,46 +120,54 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     );
   }
 
-  // Append INVITATION_ACCEPTED + APPLIED atomically
-  const applicationId = crypto.randomUUID();
+  // Check positions not already full
+  if ((daywork.positions_filled ?? 0) >= (daywork.positions_available ?? 1)) {
+    return NextResponse.json({ error: 'position_filled' }, { status: 409 });
+  }
+
+  // Append INVITATION_ACCEPTED — creates engagement directly via projection
   try {
-    await appendEvents(serviceClient, [
-      {
-        eventType: 'DAYWORK.INVITATION_ACCEPTED',
-        aggregateId: invitationId,
-        aggregateType: 'invitation',
-        roleContext: 'crew',
-        payload: {
-          daywork_id: invitation.daywork_id,
-          invitation_id: invitationId,
-        },
-        personId: user.id,
+    await appendEvent(serviceClient, {
+      eventType: 'DAYWORK.INVITATION_ACCEPTED',
+      aggregateId: invitationId,
+      aggregateType: 'invitation',
+      roleContext: 'crew',
+      payload: {
+        daywork_id: invitation.daywork_id,
+        invitation_id: invitationId,
+        crew_person_id: user.id,
+        employer_person_id: daywork.poster_person_id,
+        start_date: daywork.start_date,
+        end_date: daywork.end_date,
       },
-      {
-        eventType: 'DAYWORK.APPLIED',
-        aggregateId: `${user.id}:${invitation.daywork_id}`,
-        aggregateType: 'application',
-        roleContext: 'crew',
-        payload: {
-          id: applicationId,
-          daywork_id: invitation.daywork_id,
-          crew_person_id: user.id,
-          source: 'invitation',
-        },
-        personId: user.id,
-      },
-    ]);
+      personId: user.id,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to accept invitation';
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
+  // Fetch the newly created engagement
+  const { data: engagement } = await serviceClient
+    .from('active_engagements')
+    .select('id')
+    .eq('crew_person_id', user.id)
+    .eq('daywork_id', invitation.daywork_id)
+    .eq('status', 'active')
+    .single();
+
+  const engagementId = engagement?.id ?? null;
+
   notifyOnEvent(
     serviceClient,
     'DAYWORK.INVITATION_ACCEPTED',
-    { daywork_id: invitation.daywork_id, crew_person_id: user.id },
+    {
+      daywork_id: invitation.daywork_id,
+      crew_person_id: user.id,
+      engagement_id: engagementId,
+    },
     user.id,
   );
 
-  return NextResponse.json({ application: { id: applicationId, status: 'applied' } });
+  return NextResponse.json({ success: true, engagementId });
 }

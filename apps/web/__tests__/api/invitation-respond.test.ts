@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextResponse } from 'next/server';
 import { POST } from '@/app/api/daywork/invitations/[id]/respond/route';
 
 const mockRequireDomainUser = vi.fn();
@@ -8,15 +7,17 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 }));
 
 const mockAppendEvent = vi.fn().mockResolvedValue('evt-1');
-const mockAppendEvents = vi.fn().mockResolvedValue(['evt-1', 'evt-2']);
 vi.mock('@dockwalker/db', () => ({
   appendEvent: (...args: unknown[]) => mockAppendEvent(...args),
-  appendEvents: (...args: unknown[]) => mockAppendEvents(...args),
+}));
+
+vi.mock('@/lib/push-triggers', () => ({
+  notifyOnEvent: vi.fn(),
 }));
 
 const mockFromAuth = vi.fn();
-
 const mockServiceRpc = vi.fn();
+const mockServiceFrom = vi.fn();
 
 function guardOk(overrides: Record<string, unknown> = {}) {
   return {
@@ -26,7 +27,7 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFromAuth },
-      serviceClient: { rpc: mockServiceRpc },
+      serviceClient: { rpc: mockServiceRpc, from: mockServiceFrom },
       ...overrides,
     },
   };
@@ -74,6 +75,22 @@ function mockAvailability(data: Record<string, unknown>[]) {
   });
 }
 
+function mockEngagementFetch(engagementId: string | null) {
+  mockServiceFrom.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({
+              data: engagementId ? { id: engagementId } : null,
+            }),
+          }),
+        }),
+      }),
+    }),
+  });
+}
+
 const pendingInvitation = {
   id: 'inv-1',
   daywork_id: 'dw-1',
@@ -81,35 +98,68 @@ const pendingInvitation = {
   status: 'pending',
 };
 
+const activeDaywork = {
+  id: 'dw-1',
+  status: 'active',
+  start_date: '2099-01-01',
+  end_date: '2099-01-05',
+  positions_filled: 0,
+  positions_available: 1,
+  poster_person_id: 'employer-1',
+};
+
 describe('POST /api/daywork/invitations/:id/respond', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockServiceFrom.mockReset();
   });
 
-  it('accept: creates application and updates invitation', async () => {
+  it('accept: creates engagement directly (no application)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockInvitation(pendingInvitation);
-    mockDaywork({ id: 'dw-1', status: 'active', start_date: '2099-01-01' });
+    mockDaywork(activeDaywork);
     mockAvailability([{ id: 'aw-1' }]);
     mockServiceRpc.mockResolvedValueOnce({ data: true, error: null });
+    mockEngagementFetch('eng-1');
 
     const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.application.status).toBe('applied');
-    expect(mockAppendEvents).toHaveBeenCalledWith(
+    expect(body.success).toBe(true);
+    expect(body.engagementId).toBe('eng-1');
+    // Only one event — INVITATION_ACCEPTED (no APPLIED)
+    expect(mockAppendEvent).toHaveBeenCalledOnce();
+    expect(mockAppendEvent).toHaveBeenCalledWith(
       expect.anything(),
-      expect.arrayContaining([
-        expect.objectContaining({ eventType: 'DAYWORK.INVITATION_ACCEPTED' }),
-        expect.objectContaining({ eventType: 'DAYWORK.APPLIED' }),
-      ]),
+      expect.objectContaining({
+        eventType: 'DAYWORK.INVITATION_ACCEPTED',
+        payload: expect.objectContaining({
+          crew_person_id: 'u1',
+          employer_person_id: 'employer-1',
+          start_date: '2099-01-01',
+          end_date: '2099-01-05',
+        }),
+      }),
     );
+  });
+
+  it('accept: returns 409 when positions full', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockInvitation(pendingInvitation);
+    mockDaywork({ ...activeDaywork, positions_filled: 1, positions_available: 1 });
+    mockAvailability([{ id: 'aw-1' }]);
+    mockServiceRpc.mockResolvedValueOnce({ data: true, error: null });
+
+    const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe('position_filled');
   });
 
   it('accept: returns 400 if daywork no longer active', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockInvitation(pendingInvitation);
-    mockDaywork({ id: 'dw-1', status: 'in_progress' });
+    mockDaywork({ ...activeDaywork, status: 'in_progress' });
 
     const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
     expect(res.status).toBe(400);
@@ -120,7 +170,7 @@ describe('POST /api/daywork/invitations/:id/respond', () => {
   it('accept: returns 400 if crew has no availability', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockInvitation(pendingInvitation);
-    mockDaywork({ id: 'dw-1', status: 'active' });
+    mockDaywork(activeDaywork);
     mockAvailability([]);
 
     const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
@@ -132,7 +182,7 @@ describe('POST /api/daywork/invitations/:id/respond', () => {
   it('decline: updates invitation status', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockInvitation(pendingInvitation);
-    mockDaywork({ id: 'dw-1', status: 'active' });
+    mockDaywork(activeDaywork);
 
     const res = await POST(makeReq({ action: 'decline' }), makeParams('inv-1'));
     expect(res.status).toBe(200);
@@ -181,7 +231,7 @@ describe('POST /api/daywork/invitations/:id/respond', () => {
   it('accept: returns 409 if crew has overlapping engagement', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockInvitation(pendingInvitation);
-    mockDaywork({ id: 'dw-1', status: 'active', start_date: '2099-01-01' });
+    mockDaywork(activeDaywork);
     mockAvailability([{ id: 'aw-1' }]);
     mockServiceRpc.mockResolvedValueOnce({ data: false, error: null });
 
@@ -194,7 +244,7 @@ describe('POST /api/daywork/invitations/:id/respond', () => {
   it('accept: returns 400 if daywork start date has passed', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockInvitation(pendingInvitation);
-    mockDaywork({ id: 'dw-1', status: 'active', start_date: '2020-01-01' });
+    mockDaywork({ ...activeDaywork, start_date: '2020-01-01' });
 
     const res = await POST(makeReq({ action: 'accept' }), makeParams('inv-1'));
     expect(res.status).toBe(400);

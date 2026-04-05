@@ -128,14 +128,16 @@ export async function handleInvitationAccepted(
     if (role?.name) roleName = role.name;
   }
 
+  const engagementId = payload.engagement_id as string | undefined;
+
   return [
     {
       recipientPersonId: posterId,
       roleContext: 'employer',
       notification: {
         title: 'Invitation Accepted',
-        body: `Invitation accepted for ${roleName} — ${jobNumber}`,
-        data: { screen: 'review', dayworkId },
+        body: `Invitation accepted for ${roleName} — ${jobNumber}. Chat is now open.`,
+        data: engagementId ? { screen: 'messages', engagementId } : { screen: 'review', dayworkId },
       },
     },
   ];

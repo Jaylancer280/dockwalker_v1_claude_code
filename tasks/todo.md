@@ -11,16 +11,6 @@
 
 ## Queue
 
-### Available Crew gating — add missing negative-case tests
-
-> Gate logic is correct (verified Stage 198 review). Missing test coverage for the gatekeeping itself — only happy path tested.
-
-- [ ] Add test: free crew (no subscription row) excluded from Available Crew results
-- [ ] Add test: cancelled subscription (`status = 'cancelled'`) crew excluded
-- [ ] Add test: zero Pro crew returns empty array (not error, not fallback to free)
-
----
-
 ### Invitation = direct hire (daywork invitation rework)
 
 > Currently: crew accepts invitation -> application created (status 'shortlisted') -> employer must still accept from review page. New flow: crew accepts invitation -> engagement created directly, message thread opens, position slot filled. The employer already chose this crew member by inviting them — forcing them back through the applicant pipeline is redundant and unfair to Pro crew who paid for visibility.

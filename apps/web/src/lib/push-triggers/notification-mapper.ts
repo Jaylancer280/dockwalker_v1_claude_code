@@ -39,7 +39,7 @@ export function resolveDeepLink(
     case 'DAYWORK.INVITED':
       return '/daywork/invitations';
     case 'DAYWORK.INVITATION_ACCEPTED':
-      return payload.daywork_id ? `/daywork/${payload.daywork_id}/review` : null;
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'MESSAGE.SENT':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'DAYWORK.POSTED':

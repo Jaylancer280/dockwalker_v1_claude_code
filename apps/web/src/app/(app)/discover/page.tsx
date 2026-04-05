@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { SlidersHorizontal, CalendarDays, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SegmentedToggle } from '@/components/ui/segmented-toggle';
@@ -33,6 +34,7 @@ interface LookupItem {
 }
 
 export default function DiscoverPage() {
+  const router = useRouter();
   const { showError, showSuccess } = useToast();
   const [activeTab, setActiveTab] = useState<'browse' | 'invitations' | 'applied'>(() => {
     if (typeof window === 'undefined') return 'browse';
@@ -430,7 +432,7 @@ export default function DiscoverPage() {
   async function handleAcceptInvitation(inv: Invitation) {
     setRespondingId(inv.id);
     setInvitationError(null);
-    const result = await safeFetch<{ error?: string }>(
+    const result = await safeFetch<{ success?: boolean; engagementId?: string; error?: string }>(
       `/api/daywork/invitations/${inv.id}/respond`,
       {
         method: 'POST',
@@ -438,10 +440,13 @@ export default function DiscoverPage() {
         body: JSON.stringify({ action: 'accept' }),
       },
     );
+    if (result.ok && result.data.engagementId) {
+      router.push(`/messages/${result.data.engagementId}`);
+      return;
+    }
     if (result.ok) {
       setInvitations((prev) => prev.filter((i) => i.id !== inv.id));
-      showSuccess('Invitation accepted');
-      loadApplications();
+      showSuccess('Invitation accepted — engagement created');
     } else {
       setInvitationError(result.error);
     }

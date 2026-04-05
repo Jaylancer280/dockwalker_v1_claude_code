@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v84 — Lower MCA match threshold (84 migrations applied)
+v85 — Invitation direct hire (85 migrations applied)
 
 ## Migrations Applied
 
@@ -269,6 +269,7 @@ v84 — Lower MCA match threshold (84 migrations applied)
 | `00082_fix_availability_expires_at.sql` | Fixes AVAILABILITY.SET normal path regression — restores `d::date + interval '1 day'` for per-date expiry (regressed by 00075/00077/00080/00081 back to client-sent expires_at which is NULL) |
 | `00083_fix_nda_vessel_name.sql` | Adds name masking to `get_vessel_public` + `get_vessels_public_batch` — NDA vessel names return 'NDA Vessel' unless caller is owner or has active engagement. Bug introduced in 00027 when `loa_meters` was added |
 | `00084_lower_mca_match_threshold.sql` | Lowers `match_mca_documents` default threshold from 0.7 to 0.6 — small curated corpus (756 chunks) had best matches at 0.678 |
+| `00085_invitation_direct_hire.sql` | Makes `application_id` nullable on `active_engagements`; updates `DAYWORK.INVITATION_ACCEPTED` handler to create engagement directly (fill position, supersede overlapping apps, transition to in_progress) — invitation acceptance is now a direct hire, not an application |
 
 ## Deferred Decisions
 

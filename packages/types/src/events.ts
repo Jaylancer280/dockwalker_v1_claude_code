@@ -212,6 +212,10 @@ export interface EventPayloadMap {
   'DAYWORK.INVITATION_ACCEPTED': {
     daywork_id: string;
     invitation_id: string;
+    crew_person_id: string;
+    employer_person_id: string;
+    start_date: string;
+    end_date: string;
   };
   'DAYWORK.INVITATION_DECLINED': {
     daywork_id: string;
