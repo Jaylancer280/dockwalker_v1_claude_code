@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v83 — NDA vessel name masking fix (83 migrations applied)
+v84 — Lower MCA match threshold (84 migrations applied)
 
 ## Migrations Applied
 
@@ -268,6 +268,7 @@ v83 — NDA vessel name masking fix (83 migrations applied)
 | `00081_docky_interactions.sql` | `docky_interactions` table (service-role only analytics); GDPR DATA_SCRUBBED handler restored + extended (deletes advisor_conversations, scrubs interactions) |
 | `00082_fix_availability_expires_at.sql` | Fixes AVAILABILITY.SET normal path regression — restores `d::date + interval '1 day'` for per-date expiry (regressed by 00075/00077/00080/00081 back to client-sent expires_at which is NULL) |
 | `00083_fix_nda_vessel_name.sql` | Adds name masking to `get_vessel_public` + `get_vessels_public_batch` — NDA vessel names return 'NDA Vessel' unless caller is owner or has active engagement. Bug introduced in 00027 when `loa_meters` was added |
+| `00084_lower_mca_match_threshold.sql` | Lowers `match_mca_documents` default threshold from 0.7 to 0.6 — small curated corpus (756 chunks) had best matches at 0.678 |
 
 ## Deferred Decisions
 
