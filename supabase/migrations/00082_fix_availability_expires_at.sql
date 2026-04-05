@@ -8,6 +8,11 @@
 -- NOT send expires_at in the normal path — only the not_available path sends it.
 -- =============================================================================
 
+create or replace function public.apply_projection(
+  p_event_type text,
+  p_aggregate_id text,
+  p_aggregate_type text,
+  p_role_context text,
   p_payload jsonb,
   p_person_id uuid
 )
