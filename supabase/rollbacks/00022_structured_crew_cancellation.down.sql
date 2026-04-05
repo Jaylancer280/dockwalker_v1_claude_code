@@ -4,6 +4,11 @@
 alter table public.active_engagements
   drop column if exists cancelled_by;
 
+-- Nullify crew-specific reason categories before tightening CHECK
+UPDATE public.active_engagements
+  SET cancellation_reason_category = NULL
+  WHERE cancellation_reason_category IN ('personal_reasons', 'found_other_work', 'unsafe_conditions');
+
 -- Restore original CHECK constraint (without crew reason categories)
 alter table public.active_engagements
   drop constraint if exists active_engagements_cancellation_reason_category_check;
