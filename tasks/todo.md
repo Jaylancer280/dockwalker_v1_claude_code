@@ -11,14 +11,13 @@
 
 ## Queue
 
-### Gate Available Crew tab behind Crew Pro
+### Available Crew gating — add missing negative-case tests
 
-> Free crew do not appear in the Available Crew tab. Pro crew do. This is the key monetisation lever for crew — "be findable" without actively applying. Free crew can still browse and apply to any job.
+> Gate logic is correct (verified Stage 198 review). Missing test coverage for the gatekeeping itself — only happy path tested.
 
-- [ ] In `apps/web/src/app/api/daywork/[id]/available-crew/route.ts`: add a filter to the crew query that joins on `subscriptions` and only returns crew where `plan = 'crew_pro'` and `status IN ('active', 'trialing')`. Crew with no subscription row or `plan = 'free'` are excluded.
-- [ ] If zero Pro crew are available, return an empty list — do NOT fall back to showing free crew.
-- [ ] No UI changes needed on the employer side — the tab just shows fewer (or zero) results.
-- [ ] On the crew side: in the availability overlay or profile page, add a subtle note: "Upgrade to Crew Pro to appear in employer searches" (only shown to free crew who have set availability). Link to `/billing`.
+- [ ] Add test: free crew (no subscription row) excluded from Available Crew results
+- [ ] Add test: cancelled subscription (`status = 'cancelled'`) crew excluded
+- [ ] Add test: zero Pro crew returns empty array (not error, not fallback to free)
 
 ---
 

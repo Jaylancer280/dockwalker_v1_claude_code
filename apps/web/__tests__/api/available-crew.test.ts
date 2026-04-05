@@ -297,4 +297,59 @@ describe('GET /api/daywork/:id/available-crew', () => {
     const body = await res.json();
     expect(body.crew).toHaveLength(0);
   });
+
+  it('excludes free crew (no subscription) from results', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockDaywork(baseDaywork);
+    mockPort({ city_id: 'city-1' });
+    mockAvailWindows([
+      { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
+    ]);
+    mockExclusions([], []);
+    // c1 has no Pro subscription — empty result from subscriptions query
+    mockProSubs([]);
+    mockInvitationCount(0);
+
+    const res = await GET(new Request('http://localhost'), makeParams('d1'));
+    const body = await res.json();
+    expect(body.crew).toHaveLength(0);
+  });
+
+  it('excludes crew with cancelled subscription', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockDaywork(baseDaywork);
+    mockPort({ city_id: 'city-1' });
+    mockAvailWindows([
+      { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
+    ]);
+    mockExclusions([], []);
+    // c1 subscription is cancelled — not returned by the Pro filter query
+    mockProSubs([]);
+    mockInvitationCount(0);
+
+    const res = await GET(new Request('http://localhost'), makeParams('d1'));
+    const body = await res.json();
+    expect(body.crew).toHaveLength(0);
+  });
+
+  it('returns empty array (not error) when zero Pro crew available', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockDaywork(baseDaywork);
+    mockPort({ city_id: 'city-1' });
+    mockAvailWindows([
+      { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
+      { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },
+    ]);
+    mockExclusions([], []);
+    // Neither crew member is Pro
+    mockProSubs([]);
+    mockInvitationCount(0);
+
+    const res = await GET(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.crew).toHaveLength(0);
+    expect(body.crew).toEqual([]);
+    expect(body.invitation_count).toBe(0);
+  });
 });
