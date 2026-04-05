@@ -46,6 +46,8 @@ interface CrewProfile {
   experiences: CrewExperience[];
   permanent_availability: string | null;
   notice_period_days: number | null;
+  smoker: boolean | null;
+  visible_tattoos: boolean | null;
 }
 
 interface EmployerProfile {
@@ -226,6 +228,16 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
 
       {/* Bio */}
       {profile.bio && <p className="text-sm">{profile.bio}</p>}
+
+      {/* Smoker / Tattoos */}
+      {(profile.smoker != null || profile.visible_tattoos != null) && (
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {profile.smoker != null && <span>{profile.smoker ? 'Smoker' : 'Non-smoker'}</span>}
+          {profile.visible_tattoos != null && (
+            <span>{profile.visible_tattoos ? 'Visible tattoos' : 'No visible tattoos'}</span>
+          )}
+        </div>
+      )}
 
       {/* Experience bracket */}
       {profile.experience_bracket && (

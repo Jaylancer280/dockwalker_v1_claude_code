@@ -11,25 +11,12 @@
 
 ## Queue
 
-### Docky UI — free vs pro tier messaging before first message
+### Fix: smoker/tattoos missing from profile overlay
 
-> Show the value proposition in the Docky interface BEFORE the user sends a message. Not a paywall — free users can still use Docky, but they should understand what they get and what Pro unlocks.
+> Stage 198 added smoker/tattoos to the review cards API + UI and the view-only profile API. But the profile overlay (`apps/web/src/components/profile-overlay.tsx`) doesn't render them. The `CrewProfile` interface (lines 29-49) is missing `smoker` and `visible_tattoos`, and `CrewProfileView` doesn't display them.
 
-- [ ] In the Docky empty state (suggestion chips area), add tier-aware messaging:
-  - **Free crew:** "Docky can answer questions and cite MCA documentation." + subtle Pro upsell: "Upgrade to Crew Pro for personalised advice — Docky will read your profile, certifications, and work history to give tailored guidance."
-  - **Pro crew:** "Docky can give you personalised career advice based on your profile." (simple factual statement — no animated indicator, no "reading your profile" staging)
-- [ ] The thinking indicator must only say "Docky is thinking" for all users. Remove any staged "reading your profile" text from the thinking indicator if it exists — the user should not see what Docky is doing internally.
-- [ ] Use real, specific copy — not generic. Free users should understand exactly what they're missing.
-- [ ] The upsell text should link to `/billing`
-
----
-
-### Show smoker + tattoos to employers
-
-> These fields exist on profiles (migration 00080) but are not shown in the employer-facing views. Factual fields for vessel policy compliance, not discriminatory metrics.
-
-- [ ] Add smoker + visible_tattoos to the view-only profile API response (`/api/profile/[personId]`) for employer/agent viewers
-- [ ] Show in applicant review cards and "how employers see you" profile preview
+- [ ] Add `smoker: boolean | null` and `visible_tattoos: boolean | null` to the `CrewProfile` interface in `apps/web/src/components/profile-overlay.tsx`
+- [ ] Render smoker/tattoos in `CrewProfileView` — same pattern as the review card (conditional text labels: "Smoker" / "Non-smoker", "Visible tattoos" / "No visible tattoos"). Place after bio section.
 
 ---
 
@@ -144,4 +131,4 @@
 
 ## Done
 
-(See git history for completed stages 51-197. Stages 185-197: audit fixes, Docky refactor Sessions A/B/C, MCA ingestion + production corpus, off-topic guard, CI/CD deploy-migrations, rollback hardening, availability fix, NDA vessel name masking, RAG threshold, production Docky launch, crew context diagnostics, usage pill refresh, experience fields, gear icon, auto-scroll, Pro gating, hallucination guard.)
+(See git history for completed stages 51-198. Stages 185-198: audit fixes, Docky refactor Sessions A/B/C, MCA ingestion + production corpus, off-topic guard, CI/CD deploy-migrations, rollback hardening, availability fix, NDA vessel name masking, RAG threshold, production Docky launch, crew context diagnostics, usage pill refresh, experience fields, gear icon, auto-scroll, Pro gating, hallucination guard, tier messaging, smoker/tattoos in review cards.)
