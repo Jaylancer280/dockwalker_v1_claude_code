@@ -13,9 +13,7 @@ drop policy if exists "Users can upload own avatar" on storage.objects;
 drop policy if exists "Users can update own avatar" on storage.objects;
 drop policy if exists "Users can delete own avatar" on storage.objects;
 drop policy if exists "Public avatar read access" on storage.objects;
-SET ROLE supabase_admin;
 delete from storage.buckets where id = 'avatars';
-RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 2. Drop avatar_url column
