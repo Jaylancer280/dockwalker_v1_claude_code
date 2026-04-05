@@ -2,6 +2,11 @@
 -- Rollback 00082: Restore apply_projection from 00081 (with expires_at regression)
 -- =============================================================================
 
+create or replace function public.apply_projection(
+  p_event_type text,
+  p_aggregate_id text,
+  p_aggregate_type text,
+  p_role_context text,
   p_payload jsonb,
   p_person_id uuid
 )
