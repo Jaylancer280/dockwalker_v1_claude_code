@@ -41,7 +41,7 @@ begin
   values (
     '9999999',
     'M/Y Secret',
-    'private',
+    'motor',
     'f1000000-0000-0000-0000-000000000003', -- 40-50m
     true,
     v_owner_id
