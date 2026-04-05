@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { createServiceClient } from '@/lib/supabase/server';
 
 /**
  * GET /api/profile/[personId]
@@ -134,7 +135,10 @@ async function checkRelationshipContext(
   if (permAppContext && permAppContext.length > 0) return true;
 
   // 5. Active poster context — target has an active daywork or permanent posting
-  const { data: activeDaywork } = await supabase
+  // Use service client to bypass RLS — poster visibility shouldn't depend on viewer's permissions
+  const serviceClient = await createServiceClient();
+
+  const { data: activeDaywork } = await serviceClient
     .from('dayworks')
     .select('id')
     .eq('poster_person_id', targetId)
@@ -143,11 +147,11 @@ async function checkRelationshipContext(
 
   if (activeDaywork && activeDaywork.length > 0) return true;
 
-  const { data: activePerm } = await supabase
+  const { data: activePerm } = await serviceClient
     .from('permanent_postings')
     .select('id')
     .eq('employer_person_id', targetId)
-    .eq('status', 'active')
+    .in('status', ['active', 'in_negotiation'])
     .limit(1);
 
   if (activePerm && activePerm.length > 0) return true;

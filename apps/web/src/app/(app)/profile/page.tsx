@@ -110,6 +110,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { showError, showSuccess } = useToast();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [person, setPerson] = useState<Person | null>(null);
@@ -214,6 +215,11 @@ export default function ProfilePage() {
           setNoticeDays(result.data.profile.notice_period_days ?? null);
           setEmployed(result.data.profile.currently_employed ?? false);
         }
+        if (!result.data.person || !result.data.profile) {
+          setLoadError(true);
+        }
+      } else {
+        setLoadError(true);
       }
     } finally {
       setLoading(false);
@@ -387,7 +393,25 @@ export default function ProfilePage() {
     );
   }
 
-  if (!person || !profile) return null;
+  if (!person || !profile) {
+    return (
+      <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4">
+        <p className="text-[15px] text-muted-foreground">
+          {loadError ? 'Failed to load profile.' : 'Profile not found.'}
+        </p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            setLoadError(false);
+            loadProfile();
+          }}
+          className="mt-3 rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white"
+        >
+          Retry
+        </button>
+      </main>
+    );
+  }
 
   const isCrewHat = person.current_hat === 'crew';
 

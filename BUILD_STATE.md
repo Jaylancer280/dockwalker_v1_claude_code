@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v81 — Docky interactions + GDPR fix (81 migrations applied)
+v82 — Availability expires_at regression fix (82 migrations applied)
 
 ## Migrations Applied
 
@@ -266,6 +266,7 @@ v81 — Docky interactions + GDPR fix (81 migrations applied)
 | `00079_batch_vessel_lookup.sql` | `get_vessels_public_batch(uuid[])` RPC — same NDA logic as `get_vessel_public` but operates on array of vessel IDs via `WHERE id = ANY(p_vessel_ids)` |
 | `00080_smoker_visible_tattoos.sql` | Add `smoker` and `visible_tattoos` nullable boolean columns to profiles; updated apply_projection PROFILE.CREATED and PROFILE.UPDATED handlers |
 | `00081_docky_interactions.sql` | `docky_interactions` table (service-role only analytics); GDPR DATA_SCRUBBED handler restored + extended (deletes advisor_conversations, scrubs interactions) |
+| `00082_fix_availability_expires_at.sql` | Fixes AVAILABILITY.SET normal path regression — restores `d::date + interval '1 day'` for per-date expiry (regressed by 00075/00077/00080/00081 back to client-sent expires_at which is NULL) |
 
 ## Deferred Decisions
 
@@ -334,6 +335,8 @@ v81 — Docky interactions + GDPR fix (81 migrations applied)
 - [Stage 192] Production corpus ingestion support
 
 - [Stage 193] CI pipeline fixes — exclude mobile from CI lint (`--filter='!mobile'`); rollback 00076 nullifies FK references before deleting seeded experience brackets — `--production` flag on ingestion script loads `.env.production.local`, 3-second countdown with target URL display before writing to live DB — `deploy-migrations` job in `.github/workflows/ci.yml` runs `supabase db push` on merge to main after all quality gates pass; requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` GitHub secrets — refusal rule in BASE_SYSTEM_PROMPT directs non-maritime questions away; refusal marker matches `was_refused` detection in interaction logging — `scripts/ingest-mca-docs.ts` reads PDFs from `corpus/mca/`, section-based chunking with overlap, batch OpenAI embeddings, idempotent Supabase insert via service role, smoke test query, source URL mapping; `pdf-parse` devDep added; 16 MCA PDFs present in corpus; execution pending Docker + API key — usage always tracked (free 15/mo, pro 500/mo); streamDocky() SSE stream with text deltas + done event; client reads stream incrementally; migration 00081 creates docky_interactions table (service-role only) + restores GDPR DATA_SCRUBBED handler (deletes advisor_conversations, scrubs interactions); interaction log inserted after stream completion with latency, token counts, refusal detection; 921 tests pass
+
+- [Stage 194] Bug fixes + rollback hardening — rollback 00023 (delete checklist events before CHECK tighten), rollback 00028 (exception handler for duplicate IMO uniqueness), migration 00082 (fix availability expires_at regression from 00073), profile view service-client for active poster checks (fixes "Profile unavailable" on permanent job cards, also checks `in_negotiation` status), permanent job feed single-card centering, profile page error state instead of blank render; 922 tests pass
 
 ## In Progress
 

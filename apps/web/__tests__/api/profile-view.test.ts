@@ -8,6 +8,10 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 }));
 
 const mockFrom = vi.fn();
+const mockServiceFrom = vi.fn();
+vi.mock('@/lib/supabase/server', () => ({
+  createServiceClient: () => Promise.resolve({ from: mockServiceFrom }),
+}));
 
 function guardOk(overrides: Record<string, unknown> = {}) {
   return {
@@ -47,6 +51,7 @@ function mockChain(data: unknown, opts: { count?: number } = {}) {
 describe('GET /api/profile/[personId]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockServiceFrom.mockReset();
   });
 
   it('returns 401 when unauthenticated', async () => {
@@ -70,10 +75,10 @@ describe('GET /api/profile/[personId]', () => {
     mockFrom.mockReturnValueOnce(mockChain([]));
     // Permanent application check — no results
     mockFrom.mockReturnValueOnce(mockChain([]));
-    // Active daywork check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Active permanent posting check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Active daywork check (service client) — no results
+    mockServiceFrom.mockReturnValueOnce(mockChain([]));
+    // Active permanent posting check (service client) — no results
+    mockServiceFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(403);
@@ -92,8 +97,8 @@ describe('GET /api/profile/[personId]', () => {
     mockFrom.mockReturnValueOnce(mockChain([]));
     // Permanent application check — no results
     mockFrom.mockReturnValueOnce(mockChain([]));
-    // Active daywork check — has active posting
-    mockFrom.mockReturnValueOnce(mockChain([{ id: 'dw-1' }]));
+    // Active daywork check (service client) — has active posting
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'dw-1' }]));
 
     // Profile fetch
     const employerProfile = {
@@ -304,6 +309,43 @@ describe('GET /api/profile/[personId]', () => {
     expect(body.experiences[0].salary_amount).toBeUndefined();
     expect(body.experiences[0].salary_currency).toBeUndefined();
     expect(body.experiences[0].salary_period).toBeUndefined();
+  });
+
+  it('returns 200 when target has in_negotiation permanent posting (no prior relationship)', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    // Sections 1-4: no relationship context
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Section 5: no active daywork
+    mockServiceFrom.mockReturnValueOnce(mockChain([]));
+    // Section 5: has in_negotiation permanent posting
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'pp-1' }]));
+
+    // Profile fetch
+    mockFrom.mockReturnValueOnce(
+      mockChain({
+        person_id: 'p2',
+        display_name: 'Negotiating Employer',
+        identity_type: 'crew',
+        bio: null,
+        certification_ids: [],
+        vessel_size_exposure_ids: [],
+        role_specialization_ids: [],
+        yacht_roles: null,
+        experience_brackets: null,
+        ports: null,
+      }),
+    );
+    // Experiences
+    mockFrom.mockReturnValueOnce(mockChain([]));
+
+    const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.display_name).toBe('Negotiating Employer');
   });
 
   it('returns 200 when viewing own profile (self-preview)', async () => {

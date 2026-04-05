@@ -6,7 +6,12 @@
 drop policy if exists "Engagement participants can read checklist" on public.engagement_checklists;
 drop table if exists public.engagement_checklists;
 
--- 2. Restore aggregate_type CHECK (remove 'checklist')
+-- 2. Delete checklist events before tightening CHECK
+ALTER TABLE public.events DISABLE TRIGGER events_no_delete;
+DELETE FROM public.events WHERE aggregate_type = 'checklist';
+ALTER TABLE public.events ENABLE TRIGGER events_no_delete;
+
+-- 3. Restore aggregate_type CHECK (remove 'checklist')
 alter table public.events drop constraint events_aggregate_type_check;
 alter table public.events add constraint events_aggregate_type_check
   check (aggregate_type in ('person', 'vessel', 'daywork', 'application', 'message', 'engagement'));

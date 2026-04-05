@@ -363,7 +363,7 @@ export function PermanentJobFeed({
 
       {/* Postings list */}
       {!loading && postings.length > 0 && (
-        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:[&>:only-child]:col-span-2 lg:[&>:only-child]:justify-self-center lg:[&>:only-child]:w-[calc(50%-0.5rem)]">
           {postings.map((posting, index) => (
             <motion.div
               key={posting.id}
