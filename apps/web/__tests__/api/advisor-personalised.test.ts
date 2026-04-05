@@ -41,6 +41,7 @@ function mockChain(data: unknown, error: unknown = null): any {
   chain.order = vi.fn().mockReturnValue(chain);
   chain.limit = vi.fn().mockReturnValue(chain);
   chain.single = vi.fn().mockResolvedValue({ data, error });
+  chain.maybeSingle = vi.fn().mockResolvedValue({ data, error });
   chain.then = (resolve: (v: unknown) => void) =>
     Promise.resolve({ data: Array.isArray(data) ? data : [], error }).then(resolve);
   return chain;
@@ -105,8 +106,10 @@ describe('POST /api/advisor/thread/messages — personalisation', () => {
       .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
+    const usageCheckChain = mockChain(null);
     const insertUserChain = mockChain({ id: 'msg-1' });
     const serviceFrom = vi.fn()
+      .mockReturnValueOnce(usageCheckChain)
       .mockReturnValueOnce(insertUserChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
@@ -148,8 +151,10 @@ describe('POST /api/advisor/thread/messages — personalisation', () => {
       .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
+    const usageCheckChain = mockChain(null);
     const insertUserChain = mockChain({ id: 'msg-1' });
     const serviceFrom = vi.fn()
+      .mockReturnValueOnce(usageCheckChain)
       .mockReturnValueOnce(insertUserChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));

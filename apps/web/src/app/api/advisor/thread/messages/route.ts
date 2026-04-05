@@ -104,13 +104,15 @@ export async function POST(request: Request) {
     const usageLimit = isPro ? 500 : 15;
     const currentMonth = new Date().toISOString().slice(0, 7);
 
-    const { data: newCount } = await serviceClient.rpc('increment_advisor_usage', {
-      p_person_id: user.id,
-      p_month: currentMonth,
-      p_limit: usageLimit,
-    });
+    // Read-only usage check — do NOT increment yet (increment after successful response)
+    const { data: usageRow } = await serviceClient
+      .from('advisor_usage')
+      .select('question_count')
+      .eq('person_id', user.id)
+      .eq('month', currentMonth)
+      .maybeSingle();
 
-    if (newCount === null || newCount === undefined) {
+    if (usageRow && usageRow.question_count >= usageLimit) {
       return NextResponse.json(
         { error: 'limit_reached', used: usageLimit, limit: usageLimit, upgrade_url: '/billing' },
         { status: 402 },
@@ -182,6 +184,13 @@ export async function POST(request: Request) {
           updateFields.title = content.slice(0, 60);
         }
         await serviceClient.from('advisor_conversations').update(updateFields).eq('id', threadId);
+
+        // Increment usage AFTER successful response (not before LLM call)
+        await serviceClient.rpc('increment_advisor_usage', {
+          p_person_id: user.id,
+          p_month: currentMonth,
+          p_limit: usageLimit,
+        });
 
         // Interaction log (fire-and-forget)
         const wasRefused = result.text.includes(REFUSAL_MARKER);

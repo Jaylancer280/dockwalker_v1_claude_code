@@ -119,7 +119,7 @@ export async function askDocky(
   const response = await client.messages.create({
     model,
     max_tokens: 1024,
-    system: [{ type: 'text', text: systemBlock, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: systemBlock }],
     messages,
   });
 
@@ -200,7 +200,7 @@ export function streamDocky(
         const sdkStream = client.messages.stream({
           model,
           max_tokens: 1024,
-          system: [{ type: 'text', text: systemBlock, cache_control: { type: 'ephemeral' } }],
+          system: [{ type: 'text', text: systemBlock }],
           messages,
         });
 

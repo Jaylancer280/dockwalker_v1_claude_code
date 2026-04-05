@@ -41,6 +41,7 @@ function mockChain(data: unknown, error: unknown = null): any {
   chain.order = vi.fn().mockReturnValue(chain);
   chain.limit = vi.fn().mockReturnValue(chain);
   chain.single = vi.fn().mockResolvedValue({ data, error });
+  chain.maybeSingle = vi.fn().mockResolvedValue({ data, error });
   chain.then = (resolve: (v: unknown) => void) =>
     Promise.resolve({ data: Array.isArray(data) ? data : [], error }).then(resolve);
   return chain;
@@ -110,11 +111,13 @@ describe('POST /api/advisor/thread/messages', () => {
       .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
+    const usageCheckChain = mockChain(null);
     const insertUserChain = mockChain({ id: 'msg-1' });
     const insertAssistantChain = mockChain({ id: 'msg-2' });
     const updateChain = mockChain(null);
     const interactionChain = mockChain(null);
     const serviceFrom = vi.fn()
+      .mockReturnValueOnce(usageCheckChain)
       .mockReturnValueOnce(insertUserChain)
       .mockReturnValueOnce(insertAssistantChain)
       .mockReturnValueOnce(updateChain)
@@ -136,9 +139,11 @@ describe('POST /api/advisor/thread/messages', () => {
       .mockReturnValueOnce(historyChain);
 
     const createThreadChain = mockChain({ id: 'new-thread' });
+    const usageCheckChain = mockChain(null);
     const insertUserChain = mockChain({ id: 'msg-1' });
     const serviceFrom = vi.fn()
       .mockReturnValueOnce(createThreadChain)
+      .mockReturnValueOnce(usageCheckChain)
       .mockReturnValueOnce(insertUserChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
@@ -186,15 +191,17 @@ describe('POST /api/advisor/thread/messages', () => {
       .mockReturnValueOnce(threadChain)
       .mockReturnValueOnce(historyChain);
 
+    const usageCheckChain = mockChain(null);
     const insertUserChain = mockChain({ id: 'msg-1' });
     const serviceFrom = vi.fn()
+      .mockReturnValueOnce(usageCheckChain)
       .mockReturnValueOnce(insertUserChain);
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom));
 
     const res = await POST(makeRequest('Hello'));
     expect(res.status).toBe(503);
-    // User message was saved (serviceFrom called for insert)
-    expect(serviceFrom).toHaveBeenCalledTimes(1);
+    // Usage check + user message saved (serviceFrom called twice)
+    expect(serviceFrom).toHaveBeenCalledTimes(2);
   });
 });

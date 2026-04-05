@@ -11,6 +11,63 @@
 
 ## Queue
 
+### Fix Docky production crash — 3 issues from Vercel network logs
+
+**Issue 1 — Anthropic 400 Bad Request (blocks LLM response):**
+
+> `cache_control: { type: 'ephemeral' }` on the system block requires the `prompt-caching-2024-07-31` beta header, which isn't set on the Anthropic client. Anthropic rejects the request with 400.
+
+Option A (quick): Remove `cache_control` from the system block in `apps/web/src/lib/advisor/llm.ts` line 203. Change:
+
+```typescript
+system: [{ type: 'text', text: systemBlock, cache_control: { type: 'ephemeral' } }],
+```
+
+To:
+
+```typescript
+system: [{ type: 'text', text: systemBlock }],
+```
+
+Option B (proper): Add beta header to the Anthropic client in `apps/web/src/lib/advisor/anthropic.ts`:
+
+```typescript
+_client = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  defaultHeaders: { 'anthropic-beta': 'prompt-caching-2024-07-31' },
+});
+```
+
+- [ ] Apply Option A or B (Option A is safer for now — prompt caching is optimization, not functionality)
+
+**Issue 2 — Supabase 406 on `advisor_conversations` + `subscriptions` (schema cache stale):**
+
+> 83 migrations deployed at once. PostgREST schema cache doesn't know about the new tables. `NOTIFY pgrst` was tried but didn't propagate.
+
+- [ ] USER ACTION: Supabase dashboard → Settings → General → **Restart Project** (fully restarts PostgREST + schema cache)
+
+**Issue 3 — OpenAI 429 rate limit on embeddings:**
+
+> Likely from repeated retry attempts. Should resolve once Docky works. Also: `DOCKY_CORPUS_READY` should NOT be set to `true` in Vercel yet (corpus not ingested into production). If it's not set, the RAG search skips the OpenAI call entirely.
+
+- [ ] USER ACTION: Verify `DOCKY_CORPUS_READY` is NOT set in Vercel env vars (or is set to `false`)
+
+**Issue 4 — Usage count increments before LLM succeeds (business logic bug):**
+
+> `increment_advisor_usage` is called on line 107 BEFORE the LLM call on line 145. If the LLM fails (400, 503, timeout), the user loses a question. The user currently shows 8/15 used with zero successful responses. This is unacceptable — users pay for successful responses, not failed attempts.
+
+- [ ] Move the usage increment to AFTER the stream completes successfully. In `apps/web/src/app/api/advisor/thread/messages/route.ts`:
+  - Remove the `increment_advisor_usage` RPC call from lines 107-118 (the pre-LLM section)
+  - Move the usage check + increment into the `completion.then()` callback (line 158), AFTER the assistant message is saved successfully
+  - Keep the limit-reached check: before the LLM call, do a READ-ONLY check of current usage (`SELECT question_count FROM advisor_usage WHERE person_id = $1 AND month = $2`). If already at limit, return 402 immediately without calling the LLM. But do NOT increment yet.
+  - Only increment AFTER the assistant response is saved (inside the `.then()` callback on line 158)
+  - If the increment fails after a successful response (edge case), the user gets a free question — acceptable, better than charging for failures
+
+- [ ] Also: reset the user's usage count for the failed attempts. Run in Supabase SQL Editor:
+  ```sql
+  UPDATE public.advisor_usage SET question_count = 0 WHERE person_id = 'b73ac9ea-fb9e-4efd-81a6-94d37f5de5c8';
+  ```
+
 ---
 
 ### Production Corpus Ingestion (user actions after CI green)
