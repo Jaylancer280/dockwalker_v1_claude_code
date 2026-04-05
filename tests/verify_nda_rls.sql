@@ -19,6 +19,12 @@ begin
   delete from public.vessels where owner_person_id = v_owner_id;
   delete from public.profiles where person_id in (v_owner_id, v_crew_id);
   delete from public.persons where id in (v_owner_id, v_crew_id);
+  delete from auth.users where id in (v_owner_id, v_crew_id);
+
+  -- Create test auth users (required: persons.id FK references auth.users)
+  insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change_token_new, email_change) values
+    ('00000000-0000-0000-0000-000000000000', v_owner_id, 'authenticated', 'authenticated', 'nda-test-owner@test.local', crypt('testpass', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now(), '', '', '', ''),
+    ('00000000-0000-0000-0000-000000000000', v_crew_id, 'authenticated', 'authenticated', 'nda-test-crew@test.local', crypt('testpass', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now(), '', '', '', '');
 
   -- Create test persons
   insert into public.persons (id, identity_type, current_hat) values
@@ -101,6 +107,7 @@ begin
   delete from public.vessels where owner_person_id = v_owner_id;
   delete from public.profiles where person_id in (v_owner_id, v_crew_id);
   delete from public.persons where id in (v_owner_id, v_crew_id);
+  delete from auth.users where id in (v_owner_id, v_crew_id);
 
   raise notice '=== ALL NDA RLS TESTS PASSED ===';
 end $$;
