@@ -5,9 +5,13 @@
 -- 1. Drop crew_experiences table (includes RLS policies and index)
 drop table if exists public.crew_experiences;
 
--- 2. Revert vessel IMO uniqueness back to global
-alter table public.vessels drop constraint vessels_imo_per_owner;
-alter table public.vessels add constraint vessels_imo_number_key unique (imo_number);
+-- 2. Revert vessel IMO uniqueness back to global (may fail if seed data has duplicate IMOs across owners)
+DO $$ BEGIN
+  alter table public.vessels drop constraint vessels_imo_per_owner;
+  alter table public.vessels add constraint vessels_imo_number_key unique (imo_number);
+EXCEPTION WHEN unique_violation OR duplicate_table THEN
+  RAISE NOTICE 'Could not restore global IMO uniqueness — duplicate IMOs across owners exist. Skipping.';
+END $$;
 
 -- 3. Remove green crew profile columns
 alter table public.profiles
