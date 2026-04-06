@@ -43,6 +43,7 @@ export interface DayworkCard {
   cert_names: string[];
   poster_person_id: string;
   poster_name: string | null;
+  poster_is_agent: boolean;
   positions_available: number;
   positions_filled: number;
   positions_remaining: number;
@@ -131,7 +132,18 @@ export function JobCard({
         {/* Poster name + positions */}
         <div className="mb-2 flex items-center gap-2">
           {card.poster_name && (
-            <p className="text-xs text-muted-foreground">Posted by {card.poster_name}</p>
+            <button
+              className="text-xs text-muted-foreground underline decoration-muted-foreground/40 hover:text-[var(--accent)]"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (card.poster_person_id && onViewProfile) {
+                  onViewProfile(card.poster_person_id);
+                }
+              }}
+            >
+              Posted by {card.poster_name}
+              {card.poster_is_agent && ' (Agent)'}
+            </button>
           )}
           {card.positions_available > 1 && (
             <span

@@ -87,6 +87,8 @@ export interface ProfileStepProps {
   setAgencyName: (v: string) => void;
   roleSpecializationIds: string[];
   setRoleSpecializationIds: (v: string[]) => void;
+  placementCityIds: string[];
+  setPlacementCityIds: (v: string[]) => void;
 
   // Lookups
   roles: LookupItem[];
@@ -95,6 +97,7 @@ export interface ProfileStepProps {
   sizeBands: LookupItem[];
   nationalities: { id: string; name: string; flag_emoji: string }[];
   visaTypes: { id: string; name: string }[];
+  cities: { id: string; name: string; regions: { name: string } | null }[];
 
   // Navigation
   onBack: () => void;
@@ -165,12 +168,15 @@ export function ProfileStep(props: ProfileStepProps) {
     setAgencyName,
     roleSpecializationIds,
     setRoleSpecializationIds,
+    placementCityIds,
+    setPlacementCityIds,
     roles,
     certs,
     brackets,
     sizeBands,
     nationalities,
     visaTypes,
+    cities,
     onBack,
     onNext,
     onSkip,
@@ -584,17 +590,39 @@ export function ProfileStep(props: ProfileStepProps) {
 
               <div className="flex flex-col gap-1.5">
                 <Label>Which departments do you typically place for?</Label>
-                <div className="max-h-48 overflow-y-auto rounded-md border border-border p-3">
-                  {roles.map((role) => (
-                    <label key={role.id} className="flex items-center gap-2 py-1.5 text-sm">
-                      <Checkbox
-                        checked={roleSpecializationIds.includes(role.id)}
-                        onCheckedChange={() =>
-                          setRoleSpecializationIds(toggleArrayItem(roleSpecializationIds, role.id))
-                        }
-                      />
-                      {role.name}
-                    </label>
+                <HierarchicalPills
+                  groups={rolesToGroups(
+                    roles.filter((r): r is typeof r & { department: string } => !!r.department),
+                  )}
+                  value={roleSpecializationIds}
+                  onValueChange={(v) => setRoleSpecializationIds(v as string[])}
+                  mode="multi"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label>
+                  Placement locations{' '}
+                  <span className="text-xs text-muted-foreground">(optional)</span>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Cities where you actively place crew — separate from your office location
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {cities.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                        placementCityIds.includes(c.id)
+                          ? 'bg-[var(--accent)] text-white'
+                          : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+                      }`}
+                      onClick={() => setPlacementCityIds(toggleArrayItem(placementCityIds, c.id))}
+                    >
+                      {c.name}
+                      {c.regions?.name ? `, ${c.regions.name}` : ''}
+                    </button>
                   ))}
                 </div>
               </div>

@@ -171,6 +171,7 @@ export default function ProfilePage() {
   const [deckName, setDeckName] = useState('');
   const [smoker, setSmoker] = useState<boolean | null>(null);
   const [visibleTattoos, setVisibleTattoos] = useState<boolean | null>(null);
+  const [placementCityIds, setPlacementCityIds] = useState<string[]>([]);
 
   // Lookups from cached context
   const lookups = useLookups();
@@ -185,6 +186,17 @@ export default function ProfilePage() {
     for (const c of lookups.certifications) map[c.id] = c.name;
     return map;
   }, [lookups.certifications]);
+
+  const placementCitiesDisplay = useMemo(() => {
+    return placementCityIds
+      .map((id) => {
+        const city = lookups.cities.find((c) => c.id === id);
+        return city
+          ? { id: city.id, name: city.name, region_name: city.regions?.name ?? null }
+          : null;
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+  }, [placementCityIds, lookups.cities]);
   const sizeBandNames = useMemo(() => {
     const map: Record<string, string> = {};
     for (const s of lookups.sizeBands) map[s.id] = s.label;
@@ -202,6 +214,7 @@ export default function ProfilePage() {
           notice_period_days?: number;
           currently_employed?: boolean;
         };
+        placement_city_ids?: string[];
       }>('/api/profile');
       if (result.ok) {
         if (result.data.person) setPerson(result.data.person);
@@ -214,6 +227,9 @@ export default function ProfilePage() {
           setPermAvail(result.data.profile.permanent_availability ?? null);
           setNoticeDays(result.data.profile.notice_period_days ?? null);
           setEmployed(result.data.profile.currently_employed ?? false);
+        }
+        if (result.data.placement_city_ids) {
+          setPlacementCityIds(result.data.placement_city_ids);
         }
         if (!result.data.person || !result.data.profile) {
           setLoadError(true);
@@ -257,6 +273,8 @@ export default function ProfilePage() {
   useEffect(() => {
     if (person?.identity_type === 'crew') {
       loadAvailability();
+    }
+    if (person?.identity_type === 'crew' || person?.identity_type === 'agent') {
       loadExperiences();
     }
   }, [person?.identity_type, loadAvailability, loadExperiences]);
@@ -266,7 +284,7 @@ export default function ProfilePage() {
     function handleVisibility() {
       if (document.visibilityState === 'visible') {
         loadProfile();
-        if (person?.identity_type === 'crew') {
+        if (person?.identity_type === 'crew' || person?.identity_type === 'agent') {
           loadExperiences();
         }
       }
@@ -324,6 +342,7 @@ export default function ProfilePage() {
     setDeckName(profile.deck_name ?? '');
     setSmoker(profile.smoker ?? null);
     setVisibleTattoos(profile.visible_tattoos ?? null);
+    // placementCityIds already loaded from API
     setEditing(true);
   }
 
@@ -349,6 +368,12 @@ export default function ProfilePage() {
     } else {
       body.agencyName = agencyName || null;
       body.roleSpecializationIds = roleSpecializationIds;
+      body.bio = bio || null;
+      body.deckName = deckName || null;
+      body.nationalityId = nationalityId || null;
+      body.visaIds = visaIds;
+      body.languages = profileLanguages;
+      body.placementCityIds = placementCityIds;
     }
 
     const result = await safeFetch<{ error?: string }>('/api/profile', {
@@ -684,10 +709,13 @@ export default function ProfilePage() {
             setAgencyName={setAgencyName}
             roleSpecializationIds={roleSpecializationIds}
             setRoleSpecializationIds={setRoleSpecializationIds}
+            placementCityIds={placementCityIds}
+            setPlacementCityIds={setPlacementCityIds}
             roles={roles}
             certs={certs}
             nationalities={nationalities}
             visaTypes={visaTypes}
+            cities={lookups.cities}
           />
         )}
 
@@ -696,6 +724,8 @@ export default function ProfilePage() {
           <AgentProfileSection
             profile={profile}
             experiences={experiences}
+            visaTypes={visaTypes}
+            placementCities={placementCitiesDisplay}
             expandedSections={expandedSections}
             toggleSection={toggleSection}
             onEnterEdit={enterEdit}

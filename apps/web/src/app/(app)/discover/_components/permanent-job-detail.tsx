@@ -191,12 +191,13 @@ export function PermanentJobDetail({
             {/* Posted by */}
             {posting.poster_name && (
               <button
-                className="text-sm text-muted-foreground hover:text-primary hover:underline"
+                className="text-sm text-muted-foreground underline decoration-muted-foreground/40 hover:text-[var(--accent)]"
                 onClick={() => {
                   if (posting.poster_person_id) setProfilePersonId(posting.poster_person_id);
                 }}
               >
                 Posted by {posting.poster_name}
+                {posting.poster_is_agent && ' (Agent)'}
               </button>
             )}
 

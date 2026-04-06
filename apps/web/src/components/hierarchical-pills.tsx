@@ -50,10 +50,19 @@ export function HierarchicalPills({
     setExpandedGroup((prev) => (prev === groupId ? null : groupId));
   }
 
+  // Track which group contains the selected value (for highlighting)
+  const selectedGroupId = useMemo(() => {
+    if (mode !== 'single' || !value || typeof value !== 'string') return null;
+    for (const g of groups) {
+      if (g.items.some((item) => item.id === value)) return g.id;
+    }
+    return null;
+  }, [groups, value, mode]);
+
   function handleItemClick(itemId: string) {
     if (mode === 'single') {
       onValueChange(itemId);
-      setExpandedGroup(null);
+      // Don't collapse — keep the group expanded so the selection stays visible
     } else {
       const arr = Array.isArray(value) ? value : [];
       if (arr.includes(itemId)) {
@@ -90,12 +99,13 @@ export function HierarchicalPills({
         {groups.map((group) => {
           const isExpanded = expandedGroup === group.id;
           const count = groupCounts.get(group.id);
+          const hasSelection = mode === 'single' ? selectedGroupId === group.id : (count ?? 0) > 0;
           return (
             <button
               key={group.id}
               type="button"
               className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                isExpanded
+                isExpanded || hasSelection
                   ? 'bg-[var(--accent)] text-white'
                   : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
               }`}

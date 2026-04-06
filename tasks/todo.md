@@ -11,50 +11,23 @@
 
 ## Queue
 
-### Fix public job page crash — replace self-fetch with direct DB query
+### Agent profile fixes — remaining diagnostics
 
-> **Root cause (confirmed):** The page server component at `apps/web/src/app/jobs/[jobNumber]/page.tsx` line 44 does `fetch('https://www.dockwalker.io/api/jobs/${jobNumber}')` — a self-fetch back to its own deployment. This is a known Vercel anti-pattern that fails due to cold starts, circular routing, and edge cases in serverless. Four fix attempts tried variations of URL construction — all still self-fetch.
->
-> **The fix:** Replace `fetchJob()` with a direct `createServiceClient()` query inside the page. The API route (`apps/web/src/app/api/jobs/[jobNumber]/route.ts`) has the exact query logic — extract it into a shared function or duplicate it in the page.
+**Issue 1 — Vessel creation not saving (needs debugging):**
 
-**Recommended approach — extract shared query function:**
+> The vessel POST API has no hat restriction — agents can create vessels. The route accepts agent requests. Problem is likely in the downstream event append or RLS. Needs console.error diagnostic.
 
-- [ ] Create `apps/web/src/lib/jobs/get-public-job.ts` — extract the query logic from the API route into a reusable function:
+- [ ] Add `console.error` to `apps/web/src/app/api/vessels/route.ts` POST handler — log the full error from `appendEvent` and the supabase insert. Deploy, reproduce the issue as an agent, read Vercel logs.
+- [ ] Check: does the `events` CHECK constraint include the aggregate type used for vessel creation? (`vessel` should be in the CHECK)
+- [ ] Check: does `vessels` RLS allow agent inserts? (Agents are authenticated, but the INSERT policy may restrict to specific identity types)
 
-  ```typescript
-  export async function getPublicJob(jobNumber: string): Promise<JobData | null>;
-  ```
+**Issue 1 revised — Vessel fuzzy search doesn't save (manual entry works):**
 
-  - Accepts job number string, validates format, queries DB with `createServiceClient()`
-  - Returns the hydrated `JobData` object or `null` if not found/inactive
-  - Handles both DW and PM prefixes
-  - Same NDA masking, same hydration (role, port, certs, vessel, bracket)
+> Selecting an existing vessel from the IMO fuzzy search doesn't save. Manually entering a new vessel works. The bug is likely in the "select existing vessel" code path — the vessel ID from the search result may not be passed correctly to the form/API.
 
-- [ ] Update `apps/web/src/app/jobs/[jobNumber]/page.tsx`:
-  - Replace `fetchJob()` self-fetch function with: `import { getPublicJob } from '@/lib/jobs/get-public-job'`
-  - In the page component and `generateMetadata()`: call `getPublicJob(jobNumber)` directly
-  - Remove the `fetch()` call entirely
-
-- [ ] Update `apps/web/src/app/api/jobs/[jobNumber]/route.ts`:
-  - Import `getPublicJob` from the shared function
-  - Replace inline query logic with: `const job = await getPublicJob(jobNumber); if (!job) return 404; return NextResponse.json(job);`
-  - Keeps the API route working for any future direct API consumers
-
-- [ ] Verify: open `https://www.dockwalker.io/jobs/DW-00001` (or active job) — page renders, no crash
-- [ ] Verify: OG tags work (share link in WhatsApp, check preview card)
-
----
-
-### Add share button to all job card locations
-
-> `ShareJobButton` exists and works (Web Share API + clipboard fallback). Currently only on My Jobs daywork active cards and the public job page. Must be on every surface where a user sees a job — crew sharing is viral acquisition.
-
-- [ ] Add `ShareJobButton` to daywork discover cards — on the swipe card detail expansion or action area. Pass `job_number`, `role_name`, port name, and formatted rate from the discover API data.
-- [ ] Add `ShareJobButton` to permanent discover cards — on the scrollable feed card or detail view. Same props pattern.
-- [ ] Add `ShareJobButton` to permanent mine section — employer's permanent posting cards (currently only daywork mine has it). Same pattern as `daywork/mine/page.tsx` line 351.
-- [ ] Verify the share text reads naturally in WhatsApp: "{roleName} needed in {location} — {rate}. Apply on DockWalker."
-
----
+- [ ] In the vessel form (on profile vessels page + post-job form): trace the "select from search results" flow. When a user picks an existing vessel from the IMO lookup, what value is submitted? Is the `vessel_id` being sent to the API, or is it trying to create a new vessel with the searched data?
+- [ ] Add `console.error` to the vessel POST route to see what payload arrives for search-selected vs manual entry
+- [ ] Check: does the vessel selector distinguish between "use existing vessel by ID" vs "create new vessel with these fields"?
 
 ---
 
@@ -101,4 +74,4 @@
 
 ## Done
 
-(See git history for completed stages 51-200. Stages 185-200: audit fixes, Docky refactor Sessions A/B/C, MCA ingestion + production corpus, off-topic guard, CI/CD deploy-migrations, rollback hardening, availability fix, NDA vessel name masking, RAG threshold, production Docky launch, crew context diagnostics, usage pill refresh, experience fields, gear icon, auto-scroll, Pro gating, hallucination guard, tier messaging, smoker/tattoos, Available Crew Pro gate + tests, invitation direct hire, share job to social.)
+(See git history for completed stages 51-200. Stages 185-200: audit fixes, Docky refactor Sessions A/B/C, MCA ingestion + production corpus, off-topic guard, CI/CD deploy-migrations, rollback hardening, availability fix, NDA vessel name masking, RAG threshold, production Docky launch, crew context diagnostics, usage pill refresh, experience fields, gear icon, auto-scroll, Pro gating, hallucination guard, tier messaging, smoker/tattoos, Available Crew Pro gate + tests, invitation direct hire, share job to social, agent profile + UX fixes.)

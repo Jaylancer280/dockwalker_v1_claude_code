@@ -39,7 +39,17 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ person, profile });
+  // For agents, also fetch placement city IDs
+  let placement_city_ids: string[] = [];
+  if (person.identity_type === 'agent') {
+    const { data: placements } = await supabase
+      .from('agent_placement_cities')
+      .select('city_id')
+      .eq('person_id', user.id);
+    placement_city_ids = (placements ?? []).map((p: { city_id: string }) => p.city_id);
+  }
+
+  return NextResponse.json({ person, profile, placement_city_ids });
 }
 
 /**
@@ -121,7 +131,10 @@ export async function PATCH(request: Request) {
       body.visibleTattoos === true ? true : body.visibleTattoos === false ? false : null;
   }
 
-  if (Object.keys(payload).length === 0) {
+  // Placement cities handled separately (not part of event payload)
+  const placementCityIds: string[] | undefined = body.placementCityIds;
+
+  if (Object.keys(payload).length === 0 && placementCityIds === undefined) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
@@ -138,17 +151,38 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    await appendEvent(serviceClient, {
-      eventType: 'PROFILE.UPDATED',
-      aggregateId: user.id,
-      aggregateType: 'person',
-      roleContext: person.current_hat,
-      payload: payload,
-      personId: user.id,
-    });
+    if (Object.keys(payload).length > 0) {
+      await appendEvent(serviceClient, {
+        eventType: 'PROFILE.UPDATED',
+        aggregateId: user.id,
+        aggregateType: 'person',
+        roleContext: person.current_hat,
+        payload: payload,
+        personId: user.id,
+      });
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to update profile';
     return NextResponse.json({ error: message }, { status: 500 });
+  }
+
+  // Update placement cities if provided (agent-only, separate table)
+  if (placementCityIds !== undefined && person.identity_type === 'agent') {
+    if (!Array.isArray(placementCityIds)) {
+      return NextResponse.json({ error: 'placementCityIds must be an array' }, { status: 400 });
+    }
+    // Delete existing and re-insert
+    await serviceClient.from('agent_placement_cities').delete().eq('person_id', user.id);
+    if (placementCityIds.length > 0) {
+      const rows = placementCityIds.map((cityId: string) => ({
+        person_id: user.id,
+        city_id: cityId,
+      }));
+      const { error: insertErr } = await serviceClient.from('agent_placement_cities').insert(rows);
+      if (insertErr) {
+        return NextResponse.json({ error: insertErr.message }, { status: 500 });
+      }
+    }
   }
 
   return NextResponse.json({ success: true });

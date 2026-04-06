@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v85 — Invitation direct hire (85 migrations applied)
+v86 — Agent placement cities (86 migrations applied)
 
 ## Migrations Applied
 
@@ -270,6 +270,7 @@ v85 — Invitation direct hire (85 migrations applied)
 | `00083_fix_nda_vessel_name.sql` | Adds name masking to `get_vessel_public` + `get_vessels_public_batch` — NDA vessel names return 'NDA Vessel' unless caller is owner or has active engagement. Bug introduced in 00027 when `loa_meters` was added |
 | `00084_lower_mca_match_threshold.sql` | Lowers `match_mca_documents` default threshold from 0.7 to 0.6 — small curated corpus (756 chunks) had best matches at 0.678 |
 | `00085_invitation_direct_hire.sql` | Makes `application_id` nullable on `active_engagements`; updates `DAYWORK.INVITATION_ACCEPTED` handler to create engagement directly (fill position, supersede overlapping apps, transition to in_progress) — invitation acceptance is now a direct hire, not an application |
+| `00086_agent_placement_cities.sql` | Agent placement cities table (person_id FK, city_id FK, unique constraint, RLS owner CRUD + authenticated read) |
 
 ## Deferred Decisions
 
@@ -340,6 +341,8 @@ v85 — Invitation direct hire (85 migrations applied)
 - [Stage 193] CI pipeline fixes — exclude mobile from CI lint (`--filter='!mobile'`); rollback 00076 nullifies FK references before deleting seeded experience brackets — `--production` flag on ingestion script loads `.env.production.local`, 3-second countdown with target URL display before writing to live DB — `deploy-migrations` job in `.github/workflows/ci.yml` runs `supabase db push` on merge to main after all quality gates pass; requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_DB_PASSWORD` GitHub secrets — refusal rule in BASE_SYSTEM_PROMPT directs non-maritime questions away; refusal marker matches `was_refused` detection in interaction logging — `scripts/ingest-mca-docs.ts` reads PDFs from `corpus/mca/`, section-based chunking with overlap, batch OpenAI embeddings, idempotent Supabase insert via service role, smoke test query, source URL mapping; `pdf-parse` devDep added; 16 MCA PDFs present in corpus; execution pending Docker + API key — usage always tracked (free 15/mo, pro 500/mo); streamDocky() SSE stream with text deltas + done event; client reads stream incrementally; migration 00081 creates docky_interactions table (service-role only) + restores GDPR DATA_SCRUBBED handler (deletes advisor_conversations, scrubs interactions); interaction log inserted after stream completion with latency, token counts, refusal detection; 921 tests pass
 
 - [Stage 194] Bug fixes + rollback hardening — rollback 00023 (delete checklist events before CHECK tighten), rollback 00028 (exception handler for duplicate IMO uniqueness), migration 00082 (fix availability expires_at regression from 00073), profile view service-client for active poster checks (fixes "Profile unavailable" on permanent job cards, also checks `in_negotiation` status), permanent job feed single-card centering, profile page error state instead of blank render; 922 tests pass
+
+- [Stage 195] Agent profile + UX fixes — (A) onboarding agent department selection: replaced flat role checkboxes with HierarchicalPills grouped by department; (B) agent profile view: added bio, nickname, nationality (flag emoji), languages, visas, placement cities display; (C) agent edit form: added bio, nickname, nationality, languages, visas, placement cities fields; (D) agent experiences: loadExperiences() now called for agents, maritime history CTA made into visible button; (E) agent placement cities: migration 00086 creates `agent_placement_cities` table (person_id FK, city_id FK, unique constraint, RLS owner CRUD + authenticated read); GET/PATCH profile endpoints extended; onboarding saves placement cities post-submit; (F) HierarchicalPills: single-select no longer auto-collapses after selection, group pills stay highlighted when containing selected item; (G) salary UX: single input by default with "Salary range" toggle revealing min+max; max defaults to min when range off; (H) contract type drill-down: permanent post form now uses shared ContractDetailsInput with rotational sub-options, permanent leave days, seasonal period; contractDetails wired through to API; (I) meals label: shows "Meals included (optional)" when live aboard checked; (J) agent indicator: discover APIs return poster_is_agent; daywork+permanent cards show "(Agent)" suffix; poster names underlined for tappability; 932 tests pass
 
 ## In Progress
 

@@ -44,6 +44,7 @@ export interface PermanentPosting {
   positions_available: number;
   positions_filled: number;
   poster_name: string | null;
+  poster_is_agent: boolean;
   poster_person_id: string | null;
 }
 
@@ -247,7 +248,7 @@ export function PermanentJobCard({
         <div className="flex items-center justify-between border-t border-[var(--border)] pt-3 text-xs text-muted-foreground">
           {posting.poster_name && (
             <button
-              className="hover:text-primary hover:underline"
+              className="underline decoration-muted-foreground/40 hover:text-[var(--accent)]"
               onClick={(e) => {
                 e.stopPropagation();
                 if (posting.poster_person_id && onPosterTap) {
@@ -257,6 +258,7 @@ export function PermanentJobCard({
             >
               <User className="mr-1 inline h-3 w-3" />
               Posted by {posting.poster_name}
+              {posting.poster_is_agent && ' (Agent)'}
             </button>
           )}
           <span className="font-mono text-[11px] text-[var(--tertiary)]">

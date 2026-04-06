@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -14,6 +15,7 @@ import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
+import { ContractDetailsInput } from '@/components/contract-details-input';
 import { type CurrencyCode } from '@dockwalker/shared';
 import { LANGUAGES } from '@dockwalker/shared';
 
@@ -112,6 +114,8 @@ export interface ContractTermsSectionProps {
   setNotes: (v: string) => void;
   contractType: string;
   setContractType: (v: string) => void;
+  contractDetails: string;
+  setContractDetails: (v: string) => void;
   description: string;
   setDescription: (v: string) => void;
   meals: string[];
@@ -119,15 +123,6 @@ export interface ContractTermsSectionProps {
   positionsAvailable: string;
   setPositionsAvailable: (v: string) => void;
 }
-
-const CONTRACT_TYPES = [
-  { value: 'permanent', label: 'Permanent' },
-  { value: 'rotational', label: 'Rotational' },
-  { value: 'seasonal', label: 'Seasonal' },
-  { value: 'crossing', label: 'Crossing' },
-  { value: 'delivery', label: 'Delivery' },
-  { value: 'temporary', label: 'Temporary' },
-];
 
 const MEAL_OPTIONS = ['breakfast', 'lunch', 'dinner'];
 
@@ -140,6 +135,8 @@ export function ContractTermsSection({
   setNotes,
   contractType,
   setContractType,
+  contractDetails,
+  setContractDetails,
   description,
   setDescription,
   meals,
@@ -150,21 +147,14 @@ export function ContractTermsSection({
   return (
     <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Contract type */}
-        <div>
-          <Label>Contract type</Label>
-          <Select value={contractType} onValueChange={setContractType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select contract type" />
-            </SelectTrigger>
-            <SelectContent>
-              {CONTRACT_TYPES.map((ct) => (
-                <SelectItem key={ct.value} value={ct.value}>
-                  {ct.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Contract type with sub-options */}
+        <div className="flex flex-col gap-2">
+          <ContractDetailsInput
+            contractType={contractType}
+            onContractTypeChange={setContractType}
+            contractDetails={contractDetails}
+            onContractDetailsChange={setContractDetails}
+          />
         </div>
 
         {/* Positions available */}
@@ -226,7 +216,12 @@ export function ContractTermsSection({
 
       {/* Meals */}
       <div>
-        <Label>Meals provided</Label>
+        <Label>
+          Meals {liveAboard ? 'included' : 'provided'}
+          {liveAboard && (
+            <span className="text-xs font-normal text-muted-foreground"> (optional)</span>
+          )}
+        </Label>
         <div className="flex gap-3 mt-1">
           {MEAL_OPTIONS.map((meal) => (
             <label key={meal} className="flex items-center gap-1.5 text-sm">
@@ -286,25 +281,49 @@ export function SalarySection({
   setSalaryPeriod,
   salaryPreview,
 }: SalarySectionProps) {
+  const isRange = salaryMax !== '' && salaryMax !== salaryMin;
+  const [showRange, setShowRange] = useState(isRange);
+
   return (
     <div>
-      <Label>Salary range</Label>
+      <div className="flex items-center justify-between">
+        <Label>Salary</Label>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={showRange}
+            onChange={(e) => {
+              setShowRange(e.target.checked);
+              if (!e.target.checked) {
+                // When turning off range, clear max so it mirrors min on submit
+                setSalaryMax('');
+              }
+            }}
+            className="h-3.5 w-3.5 rounded border-border accent-[var(--accent)]"
+          />
+          Salary range
+        </label>
+      </div>
       <div className="flex items-center gap-2">
         <Input
           type="number"
-          placeholder="Min"
+          placeholder={showRange ? 'Min' : 'Amount'}
           value={salaryMin}
           onChange={(e) => setSalaryMin(e.target.value)}
           className="w-28"
         />
-        <span className="text-muted-foreground">-</span>
-        <Input
-          type="number"
-          placeholder="Max"
-          value={salaryMax}
-          onChange={(e) => setSalaryMax(e.target.value)}
-          className="w-28"
-        />
+        {showRange && (
+          <>
+            <span className="text-muted-foreground">—</span>
+            <Input
+              type="number"
+              placeholder="Max"
+              value={salaryMax}
+              onChange={(e) => setSalaryMax(e.target.value)}
+              className="w-28"
+            />
+          </>
+        )}
         <Select value={salaryCurrency} onValueChange={(v) => setSalaryCurrency(v as CurrencyCode)}>
           <SelectTrigger className="w-24">
             <SelectValue />

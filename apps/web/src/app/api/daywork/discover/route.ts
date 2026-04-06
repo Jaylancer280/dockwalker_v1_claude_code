@@ -144,16 +144,18 @@ export async function GET(request: Request) {
       }
     }
 
-    // Resolve poster display names
+    // Resolve poster display names and identity types
     const posterIds = [...new Set(filtered.map((d) => d.poster_person_id))];
     const posterNameMap = new Map<string, string>();
+    const posterIdentityMap = new Map<string, string>();
     if (posterIds.length > 0) {
       const { data: posterProfiles } = await supabase
         .from('profiles')
-        .select('person_id, display_name')
+        .select('person_id, display_name, identity_type')
         .in('person_id', posterIds);
       for (const p of posterProfiles ?? []) {
         posterNameMap.set(p.person_id, p.display_name);
+        posterIdentityMap.set(p.person_id, p.identity_type);
       }
     }
 
@@ -184,6 +186,7 @@ export async function GET(request: Request) {
         cert_names: certIds.map((id) => certNameMap.get(id) ?? id),
         positions_remaining: row.positions_available - row.positions_filled,
         poster_name: posterNameMap.get(daywork.poster_person_id) ?? null,
+        poster_is_agent: posterIdentityMap.get(daywork.poster_person_id) === 'agent',
         vessels: vessel
           ? {
               name: vessel.name,

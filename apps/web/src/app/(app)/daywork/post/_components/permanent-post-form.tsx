@@ -106,6 +106,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   const [shortlistCap, setShortlistCap] = useState((draft?.shortlistCap as string) ?? '5');
   const [notes, setNotes] = useState((draft?.notes as string) ?? '');
   const [contractType, setContractType] = useState((draft?.contractType as string) ?? 'permanent');
+  const [contractDetails, setContractDetails] = useState((draft?.contractDetails as string) ?? '');
   const [description, setDescription] = useState((draft?.description as string) ?? '');
   const [meals, setMeals] = useState<string[]>((draft?.meals as string[]) ?? []);
   const [positionsAvailable, setPositionsAvailable] = useState(
@@ -203,6 +204,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     if (t.shortlist_cap) setShortlistCap(String(t.shortlist_cap));
     setNotes(t.notes ?? '');
     setContractType(t.contract_type ?? 'permanent');
+    setContractDetails(t.contract_details ?? '');
     setDescription(t.description ?? '');
     setMeals(t.meals ?? []);
     if (t.positions_available) setPositionsAvailable(String(t.positions_available));
@@ -255,7 +257,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         locationPortId,
         startDate,
         salaryMin: parseFloat(salaryMin),
-        salaryMax: parseFloat(salaryMax),
+        salaryMax: salaryMax ? parseFloat(salaryMax) : parseFloat(salaryMin),
         salaryCurrency,
         salaryPeriod,
         liveAboard,
@@ -265,7 +267,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         shortlistCap: parseInt(shortlistCap, 10) || 5,
         notes: notes || null,
         contractType: contractType || null,
-        contractDetails: null,
+        contractDetails: contractDetails || null,
         description: description || null,
         meals,
         positionsAvailable: parseInt(positionsAvailable, 10) || 1,
@@ -292,7 +294,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           locationPortId,
           startDate,
           salaryMin: parseFloat(salaryMin),
-          salaryMax: parseFloat(salaryMax),
+          salaryMax: salaryMax ? parseFloat(salaryMax) : parseFloat(salaryMin),
           salaryCurrency,
           salaryPeriod,
           liveAboard,
@@ -302,7 +304,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           shortlistCap: parseInt(shortlistCap, 10) || 5,
           notes: notes || null,
           contractType: contractType || null,
-          contractDetails: null,
+          contractDetails: contractDetails || null,
           description: description || null,
           meals,
           positionsAvailable: parseInt(positionsAvailable, 10) || 1,
@@ -393,6 +395,8 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           setNotes={setNotes}
           contractType={contractType}
           setContractType={setContractType}
+          contractDetails={contractDetails}
+          setContractDetails={setContractDetails}
           description={description}
           setDescription={setDescription}
           meals={meals}
@@ -440,15 +444,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         {/* Submit */}
         <Button
           className="w-full"
-          disabled={
-            loading ||
-            !vesselId ||
-            !roleId ||
-            !locationPortId ||
-            !startDate ||
-            !salaryMin ||
-            !salaryMax
-          }
+          disabled={loading || !vesselId || !roleId || !locationPortId || !startDate || !salaryMin}
           onClick={() => setShowConfirm(true)}
         >
           Review & Post
@@ -478,7 +474,8 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
             <span className="text-muted-foreground">Salary</span>
             <span className="font-medium">
               {currencySymbol(salaryCurrency)}
-              {salaryMin}–{salaryMax}/{salaryPeriod === 'annual' ? 'year' : 'month'}
+              {salaryMax && salaryMax !== salaryMin ? `${salaryMin}–${salaryMax}` : salaryMin}/
+              {salaryPeriod === 'annual' ? 'year' : 'month'}
             </span>
           </div>
           {liveAboard && (

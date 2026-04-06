@@ -144,16 +144,18 @@ export async function GET(request: Request) {
       }
     }
 
-    // Resolve poster display names
+    // Resolve poster display names and identity types
     const posterIds = [...new Set(rows.map((r) => r.employer_person_id as string))];
     const posterNameMap = new Map<string, string>();
+    const posterIdentityMap = new Map<string, string>();
     if (posterIds.length > 0) {
       const { data: posterProfiles } = await supabase
         .from('profiles')
-        .select('person_id, display_name')
+        .select('person_id, display_name, identity_type')
         .in('person_id', posterIds);
       for (const p of posterProfiles ?? []) {
         posterNameMap.set(p.person_id, p.display_name);
+        posterIdentityMap.set(p.person_id, p.identity_type);
       }
     }
 
@@ -214,6 +216,7 @@ export async function GET(request: Request) {
         experience_label: expBracket?.label ?? null,
         cert_names: certIds.map((id) => certNameMap.get(id) ?? id),
         poster_name: posterNameMap.get(posting.employer_person_id as string) ?? null,
+        poster_is_agent: posterIdentityMap.get(posting.employer_person_id as string) === 'agent',
         poster_person_id: posting.employer_person_id,
       };
     });

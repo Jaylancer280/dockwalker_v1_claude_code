@@ -32,6 +32,12 @@ interface VisaItem {
   name: string;
 }
 
+interface CityItem {
+  id: string;
+  name: string;
+  regions: { name: string } | null;
+}
+
 interface ProfileEditFormProps {
   identityType: string;
   // Crew fields
@@ -64,11 +70,14 @@ interface ProfileEditFormProps {
   setAgencyName: (v: string) => void;
   roleSpecializationIds: string[];
   setRoleSpecializationIds: (v: string[]) => void;
+  placementCityIds: string[];
+  setPlacementCityIds: (v: string[]) => void;
   // Lookups
   roles: LookupItem[];
   certs: LookupItem[];
   nationalities: NationalityItem[];
   visaTypes: VisaItem[];
+  cities: CityItem[];
 }
 
 function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {
@@ -105,10 +114,13 @@ export function ProfileEditForm({
   setAgencyName,
   roleSpecializationIds,
   setRoleSpecializationIds,
+  placementCityIds,
+  setPlacementCityIds,
   roles,
   certs,
   nationalities,
   visaTypes,
+  cities,
 }: ProfileEditFormProps) {
   if (identityType === 'crew') {
     return (
@@ -284,12 +296,56 @@ export function ProfileEditForm({
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label>
+            Nickname <span className="text-xs text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            placeholder="What people in the industry call you"
+            value={deckName}
+            onChange={(e) => setDeckName(e.target.value.slice(0, 50))}
+            maxLength={50}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label>
+            Nationality <span className="text-xs text-muted-foreground">(optional)</span>
+          </Label>
+          <Select value={nationalityId} onValueChange={setNationalityId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select nationality" />
+            </SelectTrigger>
+            <SelectContent>
+              {nationalities.map((n) => (
+                <SelectItem key={n.id} value={n.id}>
+                  {n.flag_emoji} {n.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <Label>Location</Label>
         <LocationPicker
           mode="port-required"
           value={locationPortId ? { portId: locationPortId } : null}
           onValueChange={(v) => setLocationPortId(v.portId ?? '')}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>
+          Bio <span className="text-xs text-muted-foreground">(optional)</span>
+        </Label>
+        <Textarea
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="Tell candidates about your agency and background..."
+          rows={3}
         />
       </div>
 
@@ -303,6 +359,68 @@ export function ProfileEditForm({
           onValueChange={(v) => setRoleSpecializationIds(v as string[])}
           mode="multi"
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Languages</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.code}
+              type="button"
+              className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                profileLanguages.includes(lang.code)
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+              }`}
+              onClick={() => toggleArrayItem(profileLanguages, lang.code, setProfileLanguages)}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Visas</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {visaTypes.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                visaIds.includes(v.id)
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+              }`}
+              onClick={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
+            >
+              {v.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Placement Locations</Label>
+        <p className="text-xs text-muted-foreground">Cities where you actively place crew</p>
+        <div className="flex flex-wrap gap-1.5">
+          {cities.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                placementCityIds.includes(c.id)
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+              }`}
+              onClick={() => toggleArrayItem(placementCityIds, c.id, setPlacementCityIds)}
+            >
+              {c.name}
+              {c.regions?.name ? `, ${c.regions.name}` : ''}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

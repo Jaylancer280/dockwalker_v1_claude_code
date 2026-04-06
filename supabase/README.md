@@ -112,6 +112,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Fix NDA Vessel Name                           | 00083     | Adds name masking to `get_vessel_public` + `get_vessels_public_batch` — NDA vessels return 'NDA Vessel' unless caller is owner or has active engagement (bug since 00027)                                                                                                                         |
 | Lower MCA Match Threshold                     | 00084     | `match_mca_documents` default threshold 0.7 → 0.6 — small curated corpus had best matches at 0.678                                                                                                                                                                                                |
 | Invitation Direct Hire                        | 00085     | `application_id` nullable on `active_engagements`; `DAYWORK.INVITATION_ACCEPTED` creates engagement directly (no application), fills position, supersedes overlapping apps                                                                                                                        |
+| Agent Placement Cities                        | 00086     | `agent_placement_cities` table (person_id FK, city_id FK, unique constraint); RLS: owner CRUD + authenticated read                                                                                                                                                                                |
 
 ## Daywork Status Lifecycle
 

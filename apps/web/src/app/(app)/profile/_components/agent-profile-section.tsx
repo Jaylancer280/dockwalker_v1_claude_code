@@ -1,11 +1,17 @@
 import { Ship, Plus, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { computeTotalExperience } from '@dockwalker/shared';
+import { computeTotalExperience, languageLabel } from '@dockwalker/shared';
 
 interface Profile {
   agency_name: string | null;
   role_specialization_ids: string[];
+  bio: string | null;
+  deck_name: string | null;
+  nationality_id: string | null;
+  nationalities: { id: string; name: string; flag_emoji: string } | null;
+  visa_ids: string[];
+  languages: string[];
   ports: {
     id: string;
     name: string;
@@ -26,9 +32,22 @@ interface ExperienceEntry {
   yacht_roles: { id: string; name: string; department: string } | null;
 }
 
+interface VisaType {
+  id: string;
+  name: string;
+}
+
+interface CityDisplay {
+  id: string;
+  name: string;
+  region_name: string | null;
+}
+
 interface AgentProfileSectionProps {
   profile: Profile;
   experiences: ExperienceEntry[];
+  visaTypes: VisaType[];
+  placementCities: CityDisplay[];
   expandedSections: Record<string, boolean>;
   toggleSection: (key: string) => void;
   onEnterEdit: () => void;
@@ -39,6 +58,8 @@ interface AgentProfileSectionProps {
 export function AgentProfileSection({
   profile,
   experiences,
+  visaTypes,
+  placementCities,
   expandedSections,
   toggleSection,
   onEnterEdit,
@@ -109,6 +130,69 @@ export function AgentProfileSection({
               Add role specializations — shows which departments you place for
             </button>
           )}
+          {profile.deck_name && (
+            <div>
+              <p className="text-xs text-muted-foreground">Nickname</p>
+              <p className="text-sm font-medium">&ldquo;{profile.deck_name}&rdquo;</p>
+            </div>
+          )}
+          {profile.bio ? (
+            <div>
+              <p className="text-xs text-muted-foreground">Bio</p>
+              <p className="text-sm">{profile.bio}</p>
+            </div>
+          ) : (
+            <button onClick={onEnterEdit} className="text-left text-sm text-muted-foreground">
+              Add a short bio — helps crew understand your background
+            </button>
+          )}
+          {profile.nationalities && (
+            <div>
+              <p className="text-xs text-muted-foreground">Nationality</p>
+              <p className="text-sm font-medium">
+                {profile.nationalities.flag_emoji} {profile.nationalities.name}
+              </p>
+            </div>
+          )}
+          {profile.languages?.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Languages</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {profile.languages.map((code) => (
+                  <Badge key={code} variant="outline">
+                    {languageLabel(code)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          {profile.visa_ids?.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Visas</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {visaTypes
+                  .filter((v) => profile.visa_ids.includes(v.id))
+                  .map((v) => (
+                    <Badge key={v.id} variant="outline">
+                      {v.name}
+                    </Badge>
+                  ))}
+              </div>
+            </div>
+          )}
+          {placementCities.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Placement Locations</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {placementCities.map((c) => (
+                  <Badge key={c.id} variant="outline">
+                    {c.name}
+                    {c.region_name ? `, ${c.region_name}` : ''}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -134,12 +218,15 @@ export function AgentProfileSection({
         )}
       </button>
       {expandedSections.maritime && experiences.length === 0 && (
-        <button
-          onClick={onAddExperience}
-          className="mx-4 rounded-lg border border-dashed border-border p-3 text-center text-sm text-muted-foreground"
-        >
-          Share your maritime history — helps candidates know you understand their world
-        </button>
+        <div className="mx-4 flex flex-col items-center gap-2 rounded-lg border border-dashed border-border p-4">
+          <p className="text-sm text-muted-foreground">
+            Share your maritime history — helps candidates know you understand their world
+          </p>
+          <Button variant="outline" size="sm" onClick={onAddExperience}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Maritime History
+          </Button>
+        </div>
       )}
       {expandedSections.maritime && experiences.length > 0 && (
         <>

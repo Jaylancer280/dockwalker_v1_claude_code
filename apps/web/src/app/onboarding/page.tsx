@@ -33,6 +33,13 @@ interface FlagState {
   name: string;
 }
 
+interface CityLookup {
+  id: string;
+  name: string;
+  region_id: string;
+  regions: { name: string } | null;
+}
+
 interface SizeBandFull {
   id: string;
   label: string;
@@ -115,6 +122,7 @@ export default function OnboardingPage() {
   // Agent fields
   const [agencyName, setAgencyName] = useState('');
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
+  const [placementCityIds, setPlacementCityIds] = useState<string[]>([]);
 
   // Vessel experience entries (experienced crew)
   const [experienceEntries, setExperienceEntries] = useState<VesselExperienceEntry[]>([
@@ -150,6 +158,7 @@ export default function OnboardingPage() {
     { id: string; name: string; flag_emoji: string }[]
   >([]);
   const [visaTypes, setVisaTypes] = useState<{ id: string; name: string }[]>([]);
+  const [cities, setCities] = useState<CityLookup[]>([]);
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
 
   const needsLookups = step === 'profile' || step === 'vessel-experience';
@@ -157,19 +166,28 @@ export default function OnboardingPage() {
     if (!needsLookups || lookupsLoaded) return;
     async function loadLookups() {
       const supabase = createClient();
-      const [rolesRes, certsRes, bracketsRes, sizesRes, flagsRes, nationalitiesRes, visaTypesRes] =
-        await Promise.all([
-          supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-          supabase.from('certifications').select('id, name, category').order('sort_order'),
-          supabase.from('experience_brackets').select('id, label').order('sort_order'),
-          supabase
-            .from('vessel_size_bands')
-            .select('id, label, min_meters, max_meters')
-            .order('sort_order'),
-          supabase.from('flag_states').select('id, name').order('sort_order'),
-          supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
-          supabase.from('visa_types').select('id, name').order('sort_order'),
-        ]);
+      const [
+        rolesRes,
+        certsRes,
+        bracketsRes,
+        sizesRes,
+        flagsRes,
+        nationalitiesRes,
+        visaTypesRes,
+        citiesRes,
+      ] = await Promise.all([
+        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+        supabase.from('certifications').select('id, name, category').order('sort_order'),
+        supabase.from('experience_brackets').select('id, label').order('sort_order'),
+        supabase
+          .from('vessel_size_bands')
+          .select('id, label, min_meters, max_meters')
+          .order('sort_order'),
+        supabase.from('flag_states').select('id, name').order('sort_order'),
+        supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
+        supabase.from('visa_types').select('id, name').order('sort_order'),
+        supabase.from('cities').select('id, name, region_id, regions(name)').order('name'),
+      ]);
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
       if (bracketsRes.data) setBrackets(bracketsRes.data.map((b) => ({ ...b, name: b.label })));
@@ -180,6 +198,7 @@ export default function OnboardingPage() {
       if (flagsRes.data) setFlagStates(flagsRes.data);
       if (nationalitiesRes.data) setNationalities(nationalitiesRes.data);
       if (visaTypesRes.data) setVisaTypes(visaTypesRes.data);
+      if (citiesRes.data) setCities(citiesRes.data as unknown as CityLookup[]);
       setLookupsLoaded(true);
     }
     loadLookups();
@@ -301,6 +320,15 @@ export default function OnboardingPage() {
       if (!result.ok) {
         setError(result.error);
         return;
+      }
+
+      // Save placement cities for agents (separate table, not part of onboard RPC)
+      if (identityType === 'agent' && placementCityIds.length > 0) {
+        await safeFetch('/api/profile', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ placementCityIds }),
+        });
       }
 
       router.push('/profile');
@@ -438,12 +466,15 @@ export default function OnboardingPage() {
           setAgencyName={setAgencyName}
           roleSpecializationIds={roleSpecializationIds}
           setRoleSpecializationIds={setRoleSpecializationIds}
+          placementCityIds={placementCityIds}
+          setPlacementCityIds={setPlacementCityIds}
           roles={roles}
           certs={certs}
           brackets={brackets}
           sizeBands={sizeBands}
           nationalities={nationalities}
           visaTypes={visaTypes}
+          cities={cities}
           onBack={() => setStep(identityType === 'crew' ? 'experience-fork' : 'identity')}
           onNext={() => setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'hat')}
           onSkip={() => setStep('hat')}
