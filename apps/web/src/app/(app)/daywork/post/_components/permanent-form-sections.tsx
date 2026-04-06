@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -94,7 +95,7 @@ export function RoleLocationSection({
       {/* Start date */}
       <div>
         <Label>Start date</Label>
-        <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        <DateInput value={startDate} onChange={setStartDate} />
         <p className="mt-1 text-xs text-muted-foreground">
           Past dates are allowed — they display as &quot;ASAP&quot; on cards.
         </p>

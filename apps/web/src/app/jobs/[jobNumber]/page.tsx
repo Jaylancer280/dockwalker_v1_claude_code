@@ -34,7 +34,12 @@ export async function generateMetadata({
   params: Promise<{ jobNumber: string }>;
 }): Promise<Metadata> {
   const { jobNumber } = await params;
-  const job = await getPublicJob(jobNumber);
+  let job: PublicJobData | null = null;
+  try {
+    job = await getPublicJob(jobNumber);
+  } catch (err) {
+    console.error('generateMetadata getPublicJob error:', err);
+  }
   if (!job) {
     return { title: 'Job Not Found — DockWalker', robots: 'noindex' };
   }
@@ -81,7 +86,12 @@ export async function generateMetadata({
 
 export default async function JobPage({ params }: { params: Promise<{ jobNumber: string }> }) {
   const { jobNumber } = await params;
-  const job = await getPublicJob(jobNumber);
+  let job: PublicJobData | null = null;
+  try {
+    job = await getPublicJob(jobNumber);
+  } catch (err) {
+    console.error('JobPage getPublicJob error:', err);
+  }
 
   if (!job) {
     return (

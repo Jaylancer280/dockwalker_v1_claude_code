@@ -28,4 +28,5 @@ export {
   type PillGroup,
   rolesToGroups,
   certsToGroups,
+  citiesToGroups,
 } from './grouping';

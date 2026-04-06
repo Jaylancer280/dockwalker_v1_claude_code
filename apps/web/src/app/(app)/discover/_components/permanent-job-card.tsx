@@ -198,7 +198,7 @@ export function PermanentJobCard({
             </Badge>
           )}
           {posting.experience_label && <Badge variant="outline">{posting.experience_label}</Badge>}
-          {posting.cert_names.map((name, i) => {
+          {posting.cert_names.slice(0, 3).map((name, i) => {
             const certId = posting.required_certification_ids[i];
             const held = crewCertIds ? crewCertIds.includes(certId) : undefined;
             return (
@@ -218,7 +218,12 @@ export function PermanentJobCard({
               </Badge>
             );
           })}
-          {posting.required_languages?.map((code) => {
+          {posting.cert_names.length > 3 && (
+            <Badge variant="outline" className="text-xs">
+              +{posting.cert_names.length - 3} more
+            </Badge>
+          )}
+          {(posting.required_languages ?? []).slice(0, 2).map((code) => {
             const held = crewLangs ? crewLangs.includes(code) : undefined;
             return (
               <Badge
@@ -236,6 +241,11 @@ export function PermanentJobCard({
               </Badge>
             );
           })}
+          {(posting.required_languages ?? []).length > 2 && (
+            <Badge variant="outline" className="text-xs">
+              +{posting.required_languages.length - 2} more
+            </Badge>
+          )}
         </div>
 
         {/* Shortlist info */}

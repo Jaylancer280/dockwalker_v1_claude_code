@@ -726,6 +726,7 @@ export default function ProfilePage() {
             experiences={experiences}
             visaTypes={visaTypes}
             placementCities={placementCitiesDisplay}
+            roles={roles}
             expandedSections={expandedSections}
             toggleSection={toggleSection}
             onEnterEdit={enterEdit}

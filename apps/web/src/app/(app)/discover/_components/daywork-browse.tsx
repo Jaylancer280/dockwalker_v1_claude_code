@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
 import { convertSizeBandLabel } from '@dockwalker/shared';
@@ -182,19 +183,11 @@ export function DayworkBrowse({
                 <div className="flex gap-3">
                   <div className="flex flex-1 flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground">From</label>
-                    <Input
-                      type="date"
-                      value={filterStartDate}
-                      onChange={(e) => setFilterStartDate(e.target.value)}
-                    />
+                    <DateInput value={filterStartDate} onChange={setFilterStartDate} />
                   </div>
                   <div className="flex flex-1 flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground">To</label>
-                    <Input
-                      type="date"
-                      value={filterEndDate}
-                      onChange={(e) => setFilterEndDate(e.target.value)}
-                    />
+                    <DateInput value={filterEndDate} onChange={setFilterEndDate} />
                   </div>
                 </div>
 

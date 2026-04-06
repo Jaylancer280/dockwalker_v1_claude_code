@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -331,19 +332,17 @@ function ExperienceEntryCard({
       <div className="grid grid-cols-1 gap-3">
         <div className="flex flex-col gap-1.5">
           <Label>Start date</Label>
-          <Input
-            type="date"
+          <DateInput
             value={entry.experience.startDate}
-            onChange={(e) => updateEntry(entry.key, 'experience', { startDate: e.target.value })}
+            onChange={(v) => updateEntry(entry.key, 'experience', { startDate: v })}
           />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>End date</Label>
-          <Input
-            type="date"
+          <DateInput
             disabled={entry.experience.isCurrent}
             value={entry.experience.endDate}
-            onChange={(e) => updateEntry(entry.key, 'experience', { endDate: e.target.value })}
+            onChange={(v) => updateEntry(entry.key, 'experience', { endDate: v })}
             min={entry.experience.startDate || undefined}
           />
         </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Loader2, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { DateInput } from '@/components/ui/date-input';
 
 export function PostponementFormOverlay({
   currentStartDate,
@@ -71,24 +72,12 @@ export function PostponementFormOverlay({
 
             <div>
               <label className="mb-1 block text-sm font-medium">New start date</label>
-              <input
-                type="date"
-                value={startDate}
-                min={today}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              />
+              <DateInput value={startDate} onChange={setStartDate} min={today} />
             </div>
 
             <div>
               <label className="mb-1 block text-sm font-medium">New end date</label>
-              <input
-                type="date"
-                value={endDate}
-                min={startDate || today}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              />
+              <DateInput value={endDate} onChange={setEndDate} min={startDate || today} />
             </div>
 
             <div>

@@ -10,7 +10,12 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
-import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
+import {
+  HierarchicalPills,
+  rolesToGroups,
+  certsToGroups,
+  citiesToGroups,
+} from '@/components/hierarchical-pills';
 import { LANGUAGES } from '@dockwalker/shared';
 
 interface LookupItem {
@@ -350,7 +355,7 @@ export function ProfileEditForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label>Role Specializations</Label>
+        <Label>Department Specialisations</Label>
         <HierarchicalPills
           groups={rolesToGroups(
             roles.filter((r): r is typeof r & { department: string } => !!r.department),
@@ -404,23 +409,12 @@ export function ProfileEditForm({
       <div className="flex flex-col gap-1.5">
         <Label>Placement Locations</Label>
         <p className="text-xs text-muted-foreground">Cities where you actively place crew</p>
-        <div className="flex flex-wrap gap-1.5">
-          {cities.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                placementCityIds.includes(c.id)
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
-              }`}
-              onClick={() => toggleArrayItem(placementCityIds, c.id, setPlacementCityIds)}
-            >
-              {c.name}
-              {c.regions?.name ? `, ${c.regions.name}` : ''}
-            </button>
-          ))}
-        </div>
+        <HierarchicalPills
+          groups={citiesToGroups(cities)}
+          value={placementCityIds}
+          onValueChange={(v) => setPlacementCityIds(v as string[])}
+          mode="multi"
+        />
       </div>
     </div>
   );

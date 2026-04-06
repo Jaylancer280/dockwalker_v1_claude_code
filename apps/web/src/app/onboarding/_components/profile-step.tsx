@@ -14,7 +14,12 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
-import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
+import {
+  HierarchicalPills,
+  rolesToGroups,
+  certsToGroups,
+  citiesToGroups,
+} from '@/components/hierarchical-pills';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { LANGUAGES } from '@dockwalker/shared';
 
@@ -608,23 +613,12 @@ export function ProfileStep(props: ProfileStepProps) {
                 <p className="text-xs text-muted-foreground">
                   Cities where you actively place crew — separate from your office location
                 </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {cities.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                        placementCityIds.includes(c.id)
-                          ? 'bg-[var(--accent)] text-white'
-                          : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
-                      }`}
-                      onClick={() => setPlacementCityIds(toggleArrayItem(placementCityIds, c.id))}
-                    >
-                      {c.name}
-                      {c.regions?.name ? `, ${c.regions.name}` : ''}
-                    </button>
-                  ))}
-                </div>
+                <HierarchicalPills
+                  groups={citiesToGroups(cities)}
+                  value={placementCityIds}
+                  onValueChange={(v) => setPlacementCityIds(v as string[])}
+                  mode="multi"
+                />
               </div>
             </>
           )}

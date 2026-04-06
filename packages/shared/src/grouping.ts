@@ -41,6 +41,26 @@ export function rolesToGroups(
     }));
 }
 
+/** Convert cities rows (id, name, region name) into PillGroups grouped by region. */
+export function citiesToGroups(
+  cities: { id: string; name: string; regions: { name: string } | null }[],
+): PillGroup[] {
+  const map = new Map<string, { id: string; label: string }[]>();
+  for (const c of cities) {
+    const region = c.regions?.name ?? 'Other';
+    const list = map.get(region) ?? [];
+    list.push({ id: c.id, label: c.name });
+    map.set(region, list);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([region, items]) => ({
+      id: region,
+      label: region,
+      items,
+    }));
+}
+
 /** Convert certifications rows (id, name, category) into PillGroups grouped by category. */
 export function certsToGroups(
   certs: { id: string; name: string; category?: string }[],

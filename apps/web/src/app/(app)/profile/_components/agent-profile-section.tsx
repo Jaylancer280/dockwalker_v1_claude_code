@@ -48,6 +48,7 @@ interface AgentProfileSectionProps {
   experiences: ExperienceEntry[];
   visaTypes: VisaType[];
   placementCities: CityDisplay[];
+  roles: { id: string; name: string; department?: string }[];
   expandedSections: Record<string, boolean>;
   toggleSection: (key: string) => void;
   onEnterEdit: () => void;
@@ -60,6 +61,7 @@ export function AgentProfileSection({
   experiences,
   visaTypes,
   placementCities,
+  roles,
   expandedSections,
   toggleSection,
   onEnterEdit,
@@ -80,7 +82,19 @@ export function AgentProfileSection({
                 profile.agency_name,
                 profile.ports?.name,
                 profile.role_specialization_ids?.length > 0
-                  ? `${profile.role_specialization_ids.length} specialization(s)`
+                  ? (() => {
+                      const depts = new Set<string>();
+                      for (const id of profile.role_specialization_ids) {
+                        const role = roles.find((r) => r.id === id);
+                        if (role?.department) {
+                          for (const d of role.department.split('_')) depts.add(d);
+                        }
+                      }
+                      return (
+                        [...depts].sort().join(', ') ||
+                        `${profile.role_specialization_ids.length} specialisation(s)`
+                      );
+                    })()
                   : null,
               ]
                 .filter(Boolean)
@@ -120,14 +134,27 @@ export function AgentProfileSection({
           )}
           {profile.role_specialization_ids?.length > 0 ? (
             <div>
-              <p className="text-xs text-muted-foreground">Role Specializations</p>
-              <p className="text-sm text-muted-foreground">
-                {profile.role_specialization_ids.length} specialization(s)
-              </p>
+              <p className="text-xs text-muted-foreground">Department Specialisations</p>
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {(() => {
+                  const depts = new Set<string>();
+                  for (const id of profile.role_specialization_ids) {
+                    const role = roles.find((r) => r.id === id);
+                    if (role?.department) {
+                      for (const d of role.department.split('_')) depts.add(d);
+                    }
+                  }
+                  return [...depts].sort().map((d) => (
+                    <Badge key={d} variant="outline" className="capitalize">
+                      {d}
+                    </Badge>
+                  ));
+                })()}
+              </div>
             </div>
           ) : (
             <button onClick={onEnterEdit} className="text-left text-sm text-muted-foreground">
-              Add role specializations — shows which departments you place for
+              Add department specialisations — shows which departments you place for
             </button>
           )}
           {profile.deck_name && (

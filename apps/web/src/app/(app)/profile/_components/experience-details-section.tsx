@@ -1,6 +1,7 @@
 'use client';
 
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -115,14 +116,13 @@ export function ExperienceDetailsSection({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label>Start date</Label>
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <DateInput value={startDate} onChange={setStartDate} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>End date</Label>
-          <Input
-            type="date"
+          <DateInput
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={setEndDate}
             disabled={isCurrent}
             min={startDate || undefined}
           />

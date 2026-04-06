@@ -6,6 +6,7 @@ import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -478,23 +479,11 @@ function DayworkPostForm() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="startDate">Start date</Label>
-            <Input
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
+            <DateInput value={startDate} onChange={setStartDate} />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="endDate">End date</Label>
-            <Input
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
+            <DateInput value={endDate} onChange={setEndDate} />
           </div>
         </div>
 

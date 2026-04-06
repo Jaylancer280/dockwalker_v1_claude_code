@@ -6,6 +6,7 @@ import { MapPin, Briefcase, Ship, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -156,22 +157,16 @@ export function PermanentMineSection() {
   return (
     <div className="page-width w-full px-4 pb-20">
       {/* Tabs */}
-      <div className="flex overflow-x-auto border-b">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => switchTab(t.key)}
-            className={`shrink-0 px-3 py-2 text-xs font-medium ${
-              tab === t.key
-                ? 'border-b-2 border-[var(--foreground)] text-[var(--foreground)]'
-                : 'text-[var(--muted-foreground)]'
-            }`}
-          >
-            {t.label}
-            {t.count > 0 && <span className="ml-1 text-[10px] opacity-60">({t.count})</span>}
-          </button>
-        ))}
-      </div>
+      <Tabs value={tab} onValueChange={(v) => switchTab(v as typeof tab)}>
+        <TabsList className="w-full">
+          {tabs.map((t) => (
+            <TabsTrigger key={t.key} value={t.key} className="flex-1 text-xs">
+              {t.label}
+              {t.count > 0 && <span className="ml-1 text-[10px] opacity-60">({t.count})</span>}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {/* Templates tab */}
       {tab === 'templates' && (

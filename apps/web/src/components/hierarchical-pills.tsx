@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { type PillGroup, rolesToGroups, certsToGroups } from '@dockwalker/shared';
+import { type PillGroup, rolesToGroups, certsToGroups, citiesToGroups } from '@dockwalker/shared';
 
-export { type PillGroup, rolesToGroups, certsToGroups };
+export { type PillGroup, rolesToGroups, certsToGroups, citiesToGroups };
 
 export interface HierarchicalPillsProps {
   groups: PillGroup[];
