@@ -55,6 +55,8 @@ interface EmployerProfile {
   display_name: string;
   identity_type: string;
   avatar_url: string | null;
+  bio: string | null;
+  deck_name: string | null;
   agency_name: string | null;
   role_specializations: { id: string; name: string }[];
   location: { port: string; city: string; region: string } | null;
@@ -150,6 +152,8 @@ export function ProfileOverlay({
             profile &&
             (profile.identity_type === 'crew' ? (
               <CrewProfileView profile={profile as CrewProfile} />
+            ) : profile.identity_type === 'agent' ? (
+              <AgentProfileView profile={profile as EmployerProfile} />
             ) : (
               <EmployerProfileView profile={profile as EmployerProfile} />
             ))}
@@ -482,6 +486,104 @@ function EmployerProfileView({ profile }: { profile: EmployerProfile }) {
           {profile.active_posting_count !== 1 ? 's' : ''}
         </span>
       </div>
+    </div>
+  );
+}
+
+function AgentProfileView({ profile }: { profile: EmployerProfile }) {
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Avatar src={profile.avatar_url} name={profile.display_name} size="md" />
+        <div>
+          <p className="font-semibold">{profile.display_name}</p>
+          {profile.deck_name && (
+            <p className="text-xs text-muted-foreground">{profile.deck_name}</p>
+          )}
+          {profile.agency_name && (
+            <p className="text-sm text-muted-foreground">{profile.agency_name}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Bio */}
+      {profile.bio && <p className="text-sm">{profile.bio}</p>}
+
+      {/* Location */}
+      {profile.location && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          <span>
+            {[profile.location.port, profile.location.city, profile.location.region]
+              .filter(Boolean)
+              .join(', ')}
+          </span>
+        </div>
+      )}
+
+      {/* Department specialisations */}
+      {profile.role_specializations.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Specialisations</p>
+          <div className="flex flex-wrap gap-1.5">
+            {profile.role_specializations.map((r) => (
+              <span key={r.id} className="rounded-full bg-[var(--surface)] px-2.5 py-1 text-xs">
+                {r.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active postings */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Briefcase className="h-3.5 w-3.5" />
+        <span>
+          {profile.active_posting_count} active posting
+          {profile.active_posting_count !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* Vessels */}
+      {profile.vessels.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Vessels</p>
+          <div className="flex flex-col gap-1.5">
+            {profile.vessels.map((v, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-sm">
+                <Ship className="h-3.5 w-3.5 text-muted-foreground" />
+                <span>
+                  {v.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} {v.name}
+                  {v.loa_meters ? ` — ${v.loa_meters}m` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Maritime background */}
+      {profile.maritime_background && profile.maritime_background.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+            Maritime Background ({profile.maritime_background.length})
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {profile.maritime_background.map((entry, idx) => (
+              <div key={idx} className="rounded-lg border border-border p-2.5">
+                <p className="text-sm font-medium">
+                  {entry.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} {entry.vessel_name ?? 'Vessel'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {entry.role ?? 'Role'} ·{' '}
+                  {formatDateRange(entry.start_date, entry.end_date, false)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -304,6 +304,9 @@ async function buildEmployerProfile(supabase: any, profile: any, personId: strin
     person_id: profile.person_id,
     display_name: profile.display_name,
     identity_type: profile.identity_type,
+    avatar_url: profile.avatar_url ?? null,
+    bio: profile.bio ?? null,
+    deck_name: profile.deck_name ?? null,
     agency_name: profile.agency_name,
     role_specializations: roleSpecializations,
     location: ports
