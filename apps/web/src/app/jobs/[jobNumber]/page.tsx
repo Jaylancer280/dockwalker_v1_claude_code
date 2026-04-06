@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { getDepartmentImageSrc } from '@/lib/department-image';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { ShareJobButton } from '@/components/share-job-button';
+import { ExpandableText } from '@/components/expandable-text';
 import { currencySymbol } from '@dockwalker/shared';
 import { getPublicJob, type PublicJobData } from '@/lib/jobs/get-public-job';
 
@@ -228,7 +229,10 @@ export default async function JobPage({ params }: { params: Promise<{ jobNumber:
 
         {/* Notes/Description */}
         {(job.notes || job.description) && (
-          <p className="text-sm text-muted-foreground">{job.description ?? job.notes}</p>
+          <ExpandableText
+            text={(job.description ?? job.notes)!}
+            className="text-sm text-muted-foreground"
+          />
         )}
 
         {/* Posted date + reference */}

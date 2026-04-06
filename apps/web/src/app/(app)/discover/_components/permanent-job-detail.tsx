@@ -3,6 +3,7 @@
 import { X, MapPin, Briefcase, Award, Calendar, Users, Ship } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ExpandableText } from '@/components/expandable-text';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { ProfileOverlay } from '@/components/profile-overlay';
 import { currencySymbol } from '@dockwalker/shared';
@@ -184,7 +185,7 @@ export function PermanentJobDetail({
             {posting.notes && (
               <div>
                 <h4 className="mb-1 text-sm font-medium text-muted-foreground">Notes</h4>
-                <p className="whitespace-pre-wrap text-sm">{posting.notes}</p>
+                <ExpandableText text={posting.notes} className="text-sm" />
               </div>
             )}
 
