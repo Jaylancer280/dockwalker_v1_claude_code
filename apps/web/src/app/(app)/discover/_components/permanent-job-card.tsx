@@ -8,6 +8,7 @@ import { EpauletteBadge } from '@/components/epaulette-badge';
 import { getDepartmentImageSrc } from '@/lib/department-image';
 import { currencySymbol } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
+import { ShareJobButton } from '@/components/share-job-button';
 
 export interface PermanentPosting {
   id: string;
@@ -126,6 +127,12 @@ export function PermanentJobCard({
           <span className="font-mono text-[11px] text-[var(--tertiary)]">
             PM-{String(posting.job_number).padStart(5, '0')}
           </span>
+          <ShareJobButton
+            jobNumber={`PM-${String(posting.job_number).padStart(5, '0')}`}
+            roleName={posting.role_name ?? 'Permanent'}
+            location={posting.city_name ?? ''}
+            rate={`${currencySymbol(posting.salary_currency)}${posting.salary_min.toLocaleString()}${posting.salary_period === 'annual' ? '/year' : '/month'}`}
+          />
         </div>
 
         {/* Vessel */}

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { getDepartmentImageSrc } from '@/lib/department-image';
 import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
+import { ShareJobButton } from '@/components/share-job-button';
 
 export interface DayworkCard {
   id: string;
@@ -282,6 +283,12 @@ export function JobCard({
               ? `DW-${String(card.job_number).padStart(5, '0')}`
               : `Posted ${new Date(card.created_at).toLocaleDateString()}`}
           </span>
+          <ShareJobButton
+            jobNumber={`DW-${String(card.job_number).padStart(5, '0')}`}
+            roleName={card.yacht_roles?.name ?? 'Daywork'}
+            location={card.ports?.cities?.name ?? ''}
+            rate={`${currencySymbol(card.currency)}${card.day_rate}/day`}
+          />
         </div>
       </div>
     </div>

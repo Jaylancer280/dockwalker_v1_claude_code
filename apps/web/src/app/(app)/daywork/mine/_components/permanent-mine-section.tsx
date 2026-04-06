@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { currencySymbol } from '@dockwalker/shared';
 import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
+import { ShareJobButton } from '@/components/share-job-button';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Posting = any;
@@ -290,6 +291,22 @@ export function PermanentMineSection() {
               {p.status === 'in_negotiation' && p.selected_crew_name && (
                 <div className="mt-2 rounded bg-[var(--warning-lo)] px-2 py-1 text-xs text-[var(--warning)]">
                   In negotiation with {p.selected_crew_name}
+                </div>
+              )}
+
+              {p.status === 'active' && (
+                <div className="mt-2">
+                  <ShareJobButton
+                    jobNumber={`PM-${String(p.job_number).padStart(5, '0')}`}
+                    roleName={p.yacht_roles?.name ?? 'Permanent'}
+                    location={p.ports?.cities?.name ?? ''}
+                    rate={formatSalary(
+                      p.salary_min,
+                      p.salary_max,
+                      p.salary_currency,
+                      p.salary_period,
+                    )}
+                  />
                 </div>
               )}
 
