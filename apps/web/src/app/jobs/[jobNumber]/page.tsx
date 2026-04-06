@@ -4,8 +4,6 @@ import { getDepartmentImageSrc } from '@/lib/department-image';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { ShareJobButton } from '@/components/share-job-button';
 import { currencySymbol } from '@dockwalker/shared';
-import { createServiceClient } from '@/lib/supabase/server';
-
 interface JobData {
   job_number: string;
   type: 'daywork' | 'permanent';
@@ -49,7 +47,11 @@ async function fetchJob(jobNumber: string): Promise<JobData | null> {
 
     const prefix = match[1];
     const num = parseInt(match[2], 10);
-    const sc = await createServiceClient();
+    const { createClient: supabaseCreateClient } = await import('@supabase/supabase-js');
+    const sc = supabaseCreateClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
 
     if (prefix === 'DW') {
       const { data: dw } = await sc
