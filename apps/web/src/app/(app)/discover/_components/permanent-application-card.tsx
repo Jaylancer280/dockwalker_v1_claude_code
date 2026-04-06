@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { currencySymbol } from '@dockwalker/shared';
+import { ExpandableText } from '@/components/expandable-text';
 
 interface PermanentApplicationPosting {
   job_number: number;
@@ -154,9 +155,11 @@ export function PermanentApplicationCard({
 
       {/* Message preview */}
       {application.message && (
-        <p className="mt-2 line-clamp-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic">
-          &quot;{application.message}&quot;
-        </p>
+        <ExpandableText
+          text={`"${application.message}"`}
+          maxLines={2}
+          className="mt-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic"
+        />
       )}
 
       {/* Footer: job ref + date + withdraw */}

@@ -32,6 +32,9 @@ Thumbs.db
 /android/
 /ios/
 
+# MCA corpus PDFs (large binaries, not for git)
+corpus/mca/*.pdf
+
 # claude code sessions
 .claude/
 

@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import type { AvailableCrew } from './types';
+import { ExpandableText } from '@/components/expandable-text';
 
 const SWIPE_THRESHOLD = 100;
 
@@ -320,7 +321,13 @@ export function AvailableCrewCard({
         </div>
 
         {/* Bio */}
-        {crew.bio && <p className="mt-3 text-sm text-muted-foreground line-clamp-3">{crew.bio}</p>}
+        {crew.bio && (
+          <ExpandableText
+            text={crew.bio}
+            maxLines={3}
+            className="mt-3 text-sm text-muted-foreground"
+          />
+        )}
 
         <div className="flex-1" />
       </div>

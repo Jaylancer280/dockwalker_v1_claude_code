@@ -11,70 +11,43 @@
 
 ## Queue
 
-### URGENT — Public job page crash: `useToast must be used within ToastProvider`
+### Replace all raw line-clamp with ExpandableText ("Read more" toggle)
 
-> **Evidence from Vercel logs:** `Error: useToast must be used within ToastProvider`. The `ShareJobButton` calls `useToast()` for the "Link copied" fallback. The public page layout (`/jobs/[jobNumber]/layout.tsx`) doesn't have a `ToastProvider` — only the app layout (`/(app)/`) does.
+> 13 instances use `line-clamp-*` on `<p>` tags — text is silently truncated with no way to read the full content. All should use the `ExpandableText` component which has "Read more" / "Show less" built in. 5 places already use it correctly.
 
-- [ ] In `apps/web/src/app/jobs/[jobNumber]/layout.tsx`: wrap `{children}` with the `ToastProvider` (and `Toaster` component for rendering toasts). Import from the same source as the app layout.
-- [ ] Verify: open share link → page renders → tap share button → "Link copied" toast appears
+**Replace each `<p className="...line-clamp-N...">{text}</p>` with `<ExpandableText text={text} maxLines={N} className="..." />`:**
 
----
+- [ ] `discover/_components/daywork-card.tsx:269` — `card.notes` (line-clamp-3)
+- [ ] `discover/_components/applied-tab.tsx:248` — `application.message` (line-clamp-2)
+- [ ] `discover/_components/permanent-application-card.tsx:157` — application message (line-clamp-2)
+- [ ] `daywork/[id]/review/_components/available-crew-tab.tsx:323` — `crew.bio` (line-clamp-3)
+- [ ] `daywork/[id]/review/_components/applicants-tab.tsx:392` — `profile.bio` (line-clamp-3)
+- [ ] `daywork/[id]/review/_components/applicants-tab.tsx:408` — `applicant.message` (line-clamp-2)
+- [ ] `permanent/[id]/review/page.tsx:313` — application message (line-clamp-2)
+- [ ] `messages/[engagementId]/_components/permanent-summary-card.tsx:90` — `pp.notes` (line-clamp-2)
+- [ ] `messages/[engagementId]/_components/daywork-summary-card.tsx:72` — `dw.notes` (line-clamp-2)
+- [ ] `messages/[engagementId]/_components/banners.tsx:186` — `cancellation_reason_text` (line-clamp-2)
+- [ ] `daywork/mine/page.tsx:349` — `posting.notes` (line-clamp-2)
+- [ ] `profile/_components/profile-experience-section.tsx:179` — contract details (line-clamp-2)
+- [ ] `profile/_components/profile-experience-section.tsx:193` — `exp.description` (line-clamp-2)
 
-### Agent profile overlay — add AgentProfileView
-
-> The profile overlay uses `CrewProfileView` for agents — shows crew fields (certs, vessel exposure) but missing agent fields. Needs a dedicated `AgentProfileView`.
-
-- [ ] In `apps/web/src/components/profile-overlay.tsx`: add `AgentProfileView` showing: agency name, nickname, placement locations, department specialisation pills, active posting count, bio, maritime background count
-- [ ] The view-only profile API must return these for agents — verify and extend if missing
-- [ ] Route agents to `AgentProfileView` (not `CrewProfileView`) based on `identity_type`
-
----
-
-### Agent maritime history — use shared ProfileExperienceSection
-
-> Agent profile renders experience entries as bare divs (vessel name + role + date only). Should reuse the crew's `ProfileExperienceSection` with expandable cards, M/Y/S/Y prefix, operation badge, epaulette, edit/delete.
-
-- [ ] In `agent-profile-section.tsx`: replace inline experience rendering with `ProfileExperienceSection` component
-- [ ] Forward required props from parent `profile/page.tsx` (same as crew branch ~line 654-666)
+**Note:** Some of these are inside swipeable cards or compact contexts where "Read more" might be awkward (e.g., the daywork swipe card). For those, a tap-to-expand or a smaller "more" link may work better. Use judgement — the goal is no silently hidden text.
 
 ---
 
-### Agent market — add department filter
+### Verify: Agent My Jobs — may already work
 
-> Market filter panel has role, location, cert filters. No department filter. Add cascading department → role dropdown.
+> Investigation shows daywork mine uses `.eq('poster_person_id', user.id)` and permanent mine uses `.eq('employer_person_id', user.id)` — both filter by person, not role_context. Agent-posted jobs SHOULD appear. The original report may have been from a stale page or a hat-check issue on the frontend, not the API.
 
-- [ ] In `market-filter-panel.tsx`: add "Department" dropdown above "Role". Options: All, Deck, Interior, Engineering, Galley, Bridge.
-- [ ] When department selected, filter roles dropdown to that department only.
-
----
-
-### Agent My Jobs not showing posted jobs
-
-> Agent posts a job → visible on discover (crew sees it) → does NOT appear in agent's My Jobs. The mine API or page may filter by hat/role_context excluding agents.
-
-- [ ] Check `apps/web/src/app/api/daywork/mine/route.ts` and `permanent/mine/route.ts` — do they filter by `role_context = 'employer'` only? Agent posts have `role_context = 'agent'`.
-- [ ] Fix: include `role_context IN ('employer', 'agent')` or filter by `poster_person_id` only.
+- [ ] USER: Test again — post a job as agent, check My Jobs page. If it shows, this is resolved. If not, check the page-level hat check (does the mine page render for agents or only employer hat?).
 
 ---
 
-### Vessel fuzzy search doesn't save (manual entry works)
+### Meals label — always says "optional", should be conditional on live aboard
 
-> Selecting an existing vessel from IMO fuzzy search doesn't save. Manual entry works. The bug is in the "select existing" code path.
+> Daywork post form always shows "Meals provided (optional)" regardless of live aboard. Should only say "(optional)" when live aboard is checked. The permanent form has the conditional logic (line 224 in permanent-form-sections.tsx) — daywork form needs the same pattern.
 
-- [ ] Trace the vessel selector flow: when user picks from search results, what value is submitted? Is `vessel_id` passed to the API, or does it try to create a new vessel?
-- [ ] Add `console.error` to vessel POST route for diagnostics.
-
----
-
-### UX fixes (all hats — verify across crew, employer, agent)
-
-**Contract type drill-down broken:**
-
-- [ ] Selecting "Rotational" doesn't show sub-options (2:2, 3:3, custom). Selecting "Permanent" doesn't show leave days. Check all forms.
-
-**Meals optional when live aboard:**
-
-- [ ] When live aboard checked, change label to "Meals included (optional)". Check daywork + permanent forms.
+- [ ] In `apps/web/src/app/(app)/daywork/post/page.tsx` ~line 606: change from always "(optional)" to conditional: show "(optional)" only when live aboard is checked. Otherwise just "Meals provided".
 
 ---
 
@@ -130,4 +103,4 @@
 
 ## Done
 
-(See git history for completed stages 51-200+. Recent: audit fixes, Docky refactor + production launch, CI/CD deploy-migrations, rollback hardening, NDA name masking, invitation direct hire, share to social, agent profile enhancements, date input component, permanent card truncation, department specialisation pills, permanent mine shadcn tabs, citiesToGroups helper, Available Crew Pro gate.)
+(See git history for completed stages 51-200+. Recent: text overflow audit (9 instances clamped), vessel fuzzy search fix, contract type drill-down reset, textarea auto-expand, ExpandableText, availability toast, department specialisations, agent profile overlay, date input dd/mm/yyyy, permanent card truncation, share to social, invitation direct hire, Docky production launch.)

@@ -1,6 +1,7 @@
 import { MapPin, Calendar, Briefcase, Anchor, Utensils, Banknote } from 'lucide-react';
 import type { EngagementContext } from './types';
 import { currencySymbol } from '@dockwalker/shared';
+import { ExpandableText } from '@/components/expandable-text';
 
 export function DayworkSummaryCard({ context }: { context: EngagementContext }) {
   const dw = context.dayworks;
@@ -69,9 +70,11 @@ export function DayworkSummaryCard({ context }: { context: EngagementContext }) 
           </div>
         )}
         {dw.notes && (
-          <p className="mt-1 text-xs text-muted-foreground line-clamp-2 break-words whitespace-pre-wrap">
-            {dw.notes}
-          </p>
+          <ExpandableText
+            text={dw.notes}
+            maxLines={2}
+            className="mt-1 text-xs text-muted-foreground"
+          />
         )}
       </div>
     </div>

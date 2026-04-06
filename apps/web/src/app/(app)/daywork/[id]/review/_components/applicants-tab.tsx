@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import type { Applicant, TabView } from './types';
+import { ExpandableText } from '@/components/expandable-text';
 
 const SWIPE_THRESHOLD_RATIO = 0.33;
 const EXIT_RATIO = 1.3;
@@ -389,7 +390,11 @@ export function ApplicantCard({
 
         {/* Bio */}
         {profile?.bio && (
-          <p className="mt-3 text-sm text-muted-foreground line-clamp-3">{profile.bio}</p>
+          <ExpandableText
+            text={profile.bio}
+            maxLines={3}
+            className="mt-3 text-sm text-muted-foreground"
+          />
         )}
 
         {/* Smoker / Tattoos */}
@@ -405,9 +410,11 @@ export function ApplicantCard({
         {/* Application message */}
         {applicant.message && (
           <div className="mt-3 rounded-md bg-[var(--surface)] px-2.5 py-1.5">
-            <p className="text-xs italic text-[var(--foreground)] line-clamp-2 break-words whitespace-pre-wrap">
-              &ldquo;{applicant.message}&rdquo;
-            </p>
+            <ExpandableText
+              text={`\u201C${applicant.message}\u201D`}
+              maxLines={2}
+              className="text-xs italic text-[var(--foreground)]"
+            />
           </div>
         )}
 

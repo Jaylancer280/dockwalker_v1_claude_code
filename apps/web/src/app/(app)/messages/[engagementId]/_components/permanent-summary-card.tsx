@@ -4,6 +4,7 @@ import { MapPin, Briefcase, Ship, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { currencySymbol } from '@dockwalker/shared';
 import type { EngagementContext } from './types';
+import { ExpandableText } from '@/components/expandable-text';
 
 interface PermanentSummaryCardProps {
   context: EngagementContext;
@@ -87,7 +88,13 @@ export function PermanentSummaryCard({ context }: PermanentSummaryCardProps) {
         )}
       </div>
 
-      {pp.notes && <p className="mt-2 text-xs text-muted-foreground line-clamp-2">{pp.notes}</p>}
+      {pp.notes && (
+        <ExpandableText
+          text={pp.notes}
+          maxLines={2}
+          className="mt-2 text-xs text-muted-foreground"
+        />
+      )}
     </div>
   );
 }

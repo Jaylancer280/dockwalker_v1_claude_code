@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { currencySymbol } from '@dockwalker/shared';
 import { PermanentApplicationCard } from './permanent-application-card';
+import { ExpandableText } from '@/components/expandable-text';
 
 export interface MyApplication {
   id: string;
@@ -245,9 +246,11 @@ function ApplicationCard({
 
         {/* Application message preview */}
         {application.message && (
-          <p className="rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic line-clamp-2 break-words whitespace-pre-wrap">
-            &ldquo;{application.message}&rdquo;
-          </p>
+          <ExpandableText
+            text={`\u201C${application.message}\u201D`}
+            maxLines={2}
+            className="rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic"
+          />
         )}
 
         {/* Footer: job ref + withdraw */}

@@ -21,6 +21,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
+import { ExpandableText } from '@/components/expandable-text';
 
 interface Applicant {
   id: string;
@@ -310,9 +311,11 @@ export default function PermanentReviewPage() {
 
                 {/* Message */}
                 {app.message && (
-                  <p className="mb-2 line-clamp-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs italic text-[var(--foreground)]">
-                    &quot;{app.message}&quot;
-                  </p>
+                  <ExpandableText
+                    text={`"${app.message}"`}
+                    maxLines={2}
+                    className="mb-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs italic text-[var(--foreground)]"
+                  />
                 )}
 
                 {/* Applied date */}

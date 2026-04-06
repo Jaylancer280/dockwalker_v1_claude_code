@@ -50,6 +50,7 @@ import { DayworkCompletedSection } from './_components/daywork-completed-section
 import { DayworkTemplatesSection } from './_components/daywork-templates-section';
 import { EditPositionsDialog } from './_components/edit-positions-dialog';
 import type { DayworkPosting, Template } from './_components/daywork-types';
+import { ExpandableText } from '@/components/expandable-text';
 
 export default function MyPostingsPage() {
   const router = useRouter();
@@ -346,9 +347,11 @@ export default function MyPostingsPage() {
           )}
 
           {posting.notes && (
-            <p className="text-sm text-muted-foreground line-clamp-2 break-words whitespace-pre-wrap">
-              {posting.notes}
-            </p>
+            <ExpandableText
+              text={posting.notes}
+              maxLines={2}
+              className="text-sm text-muted-foreground"
+            />
           )}
 
           {posting.status === 'active' && (

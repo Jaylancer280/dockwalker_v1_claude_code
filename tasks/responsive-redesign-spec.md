@@ -1,6 +1,6 @@
 # Responsive Redesign Spec — DockWalker Web App
 
-> **Status:** DRAFT v3 — revised after exhaustive codebase audit (2026-04-03).
+> **Status:** IMPLEMENTED — Stages 178-184 (2026-04-03). Retained as architectural reference.
 > **Scope:** Make the web app responsive across phone, tablet, and desktop. Mobile remains the primary experience. Desktop adds space, not complexity.
 > **Authority:** This spec is the single source of truth for responsive layout work. The implementation agent follows it exactly.
 

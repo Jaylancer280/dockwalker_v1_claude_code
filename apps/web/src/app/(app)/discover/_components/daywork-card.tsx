@@ -11,6 +11,7 @@ import { getDepartmentImageSrc } from '@/lib/department-image';
 import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
 import { ShareJobButton } from '@/components/share-job-button';
+import { ExpandableText } from '@/components/expandable-text';
 
 export interface DayworkCard {
   id: string;
@@ -266,7 +267,11 @@ export function JobCard({
 
         {/* Notes */}
         {card.notes && (
-          <p className="mt-3 text-sm text-muted-foreground line-clamp-3">{card.notes}</p>
+          <ExpandableText
+            text={card.notes}
+            maxLines={3}
+            className="mt-3 text-sm text-muted-foreground"
+          />
         )}
 
         {/* Spacer */}

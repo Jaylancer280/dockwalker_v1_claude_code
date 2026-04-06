@@ -220,7 +220,7 @@ async function main() {
   let failures = 0;
 
   // Dynamic import for pdf-parse (ESM compatibility)
-  const { PDFParse: pdfParse } = await import('pdf-parse');
+  const pdfParse = (await import('pdf-parse/lib/pdf-parse.js')).default;
 
   for (const file of pdfFiles) {
     const docName = deriveDocumentName(file);
