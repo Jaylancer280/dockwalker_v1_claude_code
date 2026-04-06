@@ -262,11 +262,9 @@ function CreateVesselForm({
     e.preventDefault();
     setError(null);
 
-    // Vessel found via lookup — already exists in DB, just refresh
-    if (useExisting && existingVesselId) {
-      onCreated();
-      return;
-    }
+    // Vessel found via lookup — always attempt POST.
+    // If it's already ours (same IMO + owner), the API will return an error
+    // which we handle gracefully by refreshing the list.
 
     if (loaMeters == null || loaMeters < 1) {
       setError('Please enter a valid vessel length');
@@ -286,6 +284,9 @@ function CreateVesselForm({
       }),
     });
     if (result.ok) {
+      onCreated();
+    } else if (result.error?.includes('duplicate') || result.error?.includes('unique')) {
+      // Vessel already exists for this owner — treat as success
       onCreated();
     } else {
       setError(result.error);
