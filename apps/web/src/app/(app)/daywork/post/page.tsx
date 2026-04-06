@@ -6,6 +6,7 @@ import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { DateInput } from '@/components/ui/date-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -616,9 +617,8 @@ function DayworkPostForm() {
         {/* Notes */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="notes">Notes (optional)</Label>
-          <textarea
+          <Textarea
             id="notes"
-            className="w-full rounded-md border bg-[var(--card)] px-3 py-2 text-sm"
             rows={3}
             maxLength={500}
             placeholder="Job description, requirements, benefits..."

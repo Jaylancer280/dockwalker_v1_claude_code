@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -241,7 +242,7 @@ export function ChecklistFormOverlay({
             </label>
             <label className="text-sm font-medium">
               Access / security instructions
-              <textarea
+              <Textarea
                 value={form.access_instructions}
                 onChange={(e) => update('access_instructions', e.target.value)}
                 placeholder="Gate codes, marina access, security check-in..."
@@ -381,7 +382,7 @@ export function ChecklistFormOverlay({
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Additional notes
           </p>
-          <textarea
+          <Textarea
             value={form.additional_notes}
             onChange={(e) => update('additional_notes', e.target.value)}
             placeholder="Anything else the crew should know before arrival"

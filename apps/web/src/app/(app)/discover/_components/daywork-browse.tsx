@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/components/ui/textarea';
 import { type RefObject, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Check, X } from 'lucide-react';
@@ -345,7 +346,7 @@ export function DayworkBrowse({
           {!loading && topCard && composingMessage && (
             <div className="mx-auto flex max-w-md flex-col gap-2 pb-4">
               <div className="relative">
-                <textarea
+                <Textarea
                   value={messageText}
                   onChange={(e) => onMessageTextChange(e.target.value.slice(0, 250))}
                   placeholder="Why are you a great fit for this job?"

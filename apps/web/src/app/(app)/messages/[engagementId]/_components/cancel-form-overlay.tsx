@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { Loader2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -102,7 +103,7 @@ export function CancelFormOverlay({
         {reasonCategory === 'other' && (
           <div>
             <p className="mb-1.5 text-sm font-medium">Please explain</p>
-            <textarea
+            <Textarea
               value={reasonText}
               onChange={(e) => setReasonText(e.target.value)}
               className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
@@ -172,7 +173,7 @@ export function CancelFormOverlay({
               ))}
             </div>
             {relistReasonCategory === 'relist_other' && (
-              <textarea
+              <Textarea
                 value={relistReasonText}
                 onChange={(e) => setRelistReasonText(e.target.value)}
                 className="mt-2 w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"

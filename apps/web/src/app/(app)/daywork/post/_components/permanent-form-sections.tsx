@@ -1,5 +1,6 @@
 'use client';
 
+import { Textarea } from '@/components/ui/textarea';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
@@ -175,7 +176,7 @@ export function ContractTermsSection({
       {/* Description */}
       <div>
         <Label>Job description (optional)</Label>
-        <textarea
+        <Textarea
           className="w-full rounded-md border bg-[var(--card)] px-3 py-2 text-sm"
           rows={4}
           maxLength={2000}
@@ -243,7 +244,7 @@ export function ContractTermsSection({
       {/* Notes */}
       <div>
         <Label>Notes (optional)</Label>
-        <textarea
+        <Textarea
           className="w-full rounded-md border bg-[var(--card)] px-3 py-2 text-sm"
           rows={3}
           maxLength={500}

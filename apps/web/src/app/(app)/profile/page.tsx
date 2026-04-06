@@ -752,7 +752,8 @@ export default function ProfilePage() {
           existingNotAvailable={availStatus === 'not_available'}
           onConfirm={() => {
             setShowAvailOverlay(false);
-            loadAvailability();
+            showSuccess('Availability updated');
+            setTimeout(() => loadAvailability(), 300);
           }}
           onCancel={() => setShowAvailOverlay(false)}
         />

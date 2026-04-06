@@ -719,7 +719,8 @@ export default function DiscoverPage() {
         <AvailabilityOverlay
           onConfirm={() => {
             setShowAvailOverlay(false);
-            checkAvailability();
+            showSuccess('Availability updated');
+            setTimeout(() => checkAvailability(), 300);
           }}
           onCancel={() => setShowAvailOverlay(false)}
         />
