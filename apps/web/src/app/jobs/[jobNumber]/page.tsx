@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import { headers } from 'next/headers';
 import { getDepartmentImageSrc } from '@/lib/department-image';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { ShareJobButton } from '@/components/share-job-button';
@@ -41,10 +40,8 @@ interface JobData {
 
 async function fetchJob(jobNumber: string): Promise<JobData | null> {
   try {
-    const h = await headers();
-    const host = h.get('host') ?? 'www.dockwalker.io';
-    const protocol = h.get('x-forwarded-proto') ?? 'https';
-    const res = await fetch(`${protocol}://${host}/api/jobs/${jobNumber}`, {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dockwalker.io';
+    const res = await fetch(`${baseUrl}/api/jobs/${jobNumber}`, {
       cache: 'no-store',
     });
     if (!res.ok) return null;
