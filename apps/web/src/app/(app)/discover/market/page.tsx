@@ -30,6 +30,7 @@ export default function MarketFeedPage() {
 
   // Filters
   const [showFilters, setShowFilters] = useState(false);
+  const [filterDepartment, setFilterDepartment] = useState('');
   const [filterRoleId, setFilterRoleId] = useState('');
   const [filterPortId, setFilterPortId] = useState('');
   const [filterCertId, setFilterCertId] = useState('');
@@ -261,6 +262,8 @@ export default function MarketFeedPage() {
       <div className="page-width w-full flex-1 px-4 py-4">
         {showFilters && (
           <MarketFilterPanel
+            filterDepartment={filterDepartment}
+            setFilterDepartment={setFilterDepartment}
             filterRoleId={filterRoleId}
             setFilterRoleId={setFilterRoleId}
             filterPortId={filterPortId}

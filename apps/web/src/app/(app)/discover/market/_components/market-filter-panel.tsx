@@ -10,23 +10,42 @@ import {
 } from '@/components/ui/select';
 import { LocationPicker } from '@/components/location-picker';
 
+interface RoleItem {
+  id: string;
+  name: string;
+  department?: string;
+}
+
 interface LookupItem {
   id: string;
   name: string;
 }
 
+const DEPARTMENTS = [
+  { value: 'all', label: 'All departments' },
+  { value: 'deck', label: 'Deck' },
+  { value: 'interior', label: 'Interior' },
+  { value: 'engineering', label: 'Engineering' },
+  { value: 'galley', label: 'Galley' },
+  { value: 'bridge', label: 'Bridge' },
+];
+
 export interface MarketFilterPanelProps {
+  filterDepartment: string;
+  setFilterDepartment: (v: string) => void;
   filterRoleId: string;
   setFilterRoleId: (v: string) => void;
   filterPortId: string;
   setFilterPortId: (v: string) => void;
   filterCertId: string;
   setFilterCertId: (v: string) => void;
-  roles: LookupItem[];
+  roles: RoleItem[];
   certs: LookupItem[];
 }
 
 export function MarketFilterPanel({
+  filterDepartment,
+  setFilterDepartment,
   filterRoleId,
   setFilterRoleId,
   filterPortId,
@@ -36,16 +55,39 @@ export function MarketFilterPanel({
   roles,
   certs,
 }: MarketFilterPanelProps) {
+  const filteredRoles =
+    filterDepartment && filterDepartment !== 'all'
+      ? roles.filter((r) => r.department === filterDepartment)
+      : roles;
+
   return (
     <Card className="mb-4">
       <CardContent className="flex flex-col gap-3 pt-4">
+        <Select
+          value={filterDepartment}
+          onValueChange={(v) => {
+            setFilterDepartment(v);
+            setFilterRoleId('');
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="All departments" />
+          </SelectTrigger>
+          <SelectContent>
+            {DEPARTMENTS.map((d) => (
+              <SelectItem key={d.value} value={d.value}>
+                {d.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={filterRoleId} onValueChange={setFilterRoleId}>
           <SelectTrigger>
             <SelectValue placeholder="All roles" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All roles</SelectItem>
-            {roles.map((r) => (
+            {filteredRoles.map((r) => (
               <SelectItem key={r.id} value={r.id}>
                 {r.name}
               </SelectItem>
