@@ -68,7 +68,11 @@ export function DayworkSummaryCard({ context }: { context: EngagementContext }) 
             <span className="capitalize">{dw.meals.join(', ')}</span>
           </div>
         )}
-        {dw.notes && <p className="mt-1 text-xs text-muted-foreground">{dw.notes}</p>}
+        {dw.notes && (
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-2 break-words whitespace-pre-wrap">
+            {dw.notes}
+          </p>
+        )}
       </div>
     </div>
   );

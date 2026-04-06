@@ -1,5 +1,6 @@
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ExpandableText } from '@/components/expandable-text';
 import { languageLabel } from '@dockwalker/shared';
 
 interface Profile {
@@ -104,7 +105,7 @@ export function ProfileAboutSection({
           {profile.bio ? (
             <div>
               <p className="text-xs text-muted-foreground">Bio</p>
-              <p className="text-sm">{profile.bio}</p>
+              <ExpandableText text={profile.bio} className="text-sm" />
             </div>
           ) : (
             <button

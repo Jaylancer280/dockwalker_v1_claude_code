@@ -183,7 +183,9 @@ export function CancellationBanner({
     <div className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <XCircle className="h-4 w-4 shrink-0" />
-        <span>This engagement was cancelled{reasonLabel ? `: ${reasonLabel}` : ''}</span>
+        <span className="line-clamp-2 break-words">
+          This engagement was cancelled{reasonLabel ? `: ${reasonLabel}` : ''}
+        </span>
       </div>
       {showCrewCancelResponse && (
         <div className="flex flex-col gap-2 rounded-lg border border-[var(--border-hi)] bg-[var(--accent-lo)] p-2.5">

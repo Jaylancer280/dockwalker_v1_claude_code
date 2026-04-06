@@ -405,7 +405,7 @@ export function ApplicantCard({
         {/* Application message */}
         {applicant.message && (
           <div className="mt-3 rounded-md bg-[var(--surface)] px-2.5 py-1.5">
-            <p className="text-xs italic text-[var(--foreground)]">
+            <p className="text-xs italic text-[var(--foreground)] line-clamp-2 break-words whitespace-pre-wrap">
               &ldquo;{applicant.message}&rdquo;
             </p>
           </div>

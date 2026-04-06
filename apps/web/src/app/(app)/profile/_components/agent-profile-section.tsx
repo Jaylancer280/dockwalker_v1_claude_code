@@ -1,6 +1,7 @@
 import { Ship, Plus, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ExpandableText } from '@/components/expandable-text';
 import { computeTotalExperience, languageLabel } from '@dockwalker/shared';
 import { ProfileExperienceSection } from './profile-experience-section';
 
@@ -194,7 +195,7 @@ export function AgentProfileSection({
           {profile.bio ? (
             <div>
               <p className="text-xs text-muted-foreground">Bio</p>
-              <p className="text-sm">{profile.bio}</p>
+              <ExpandableText text={profile.bio} className="text-sm" />
             </div>
           ) : (
             <button onClick={onEnterEdit} className="text-left text-sm text-muted-foreground">

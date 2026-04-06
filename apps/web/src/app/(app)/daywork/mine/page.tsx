@@ -345,7 +345,11 @@ export default function MyPostingsPage() {
             <p className="text-xs text-muted-foreground">Meals: {posting.meals.join(', ')}</p>
           )}
 
-          {posting.notes && <p className="text-sm text-muted-foreground">{posting.notes}</p>}
+          {posting.notes && (
+            <p className="text-sm text-muted-foreground line-clamp-2 break-words whitespace-pre-wrap">
+              {posting.notes}
+            </p>
+          )}
 
           {posting.status === 'active' && (
             <ShareJobButton

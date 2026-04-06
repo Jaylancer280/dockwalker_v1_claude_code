@@ -176,7 +176,7 @@ export function ProfileExperienceSection({
                         {exp.contract_type && (
                           <div>
                             <p className="text-[11px] text-muted-foreground">Contract</p>
-                            <p className="text-sm capitalize">
+                            <p className="text-sm capitalize line-clamp-2 break-words">
                               {exp.contract_type}
                               {exp.contract_details && ` — ${exp.contract_details}`}
                             </p>
@@ -190,7 +190,9 @@ export function ProfileExperienceSection({
                         )}
                       </div>
                       {exp.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">{exp.description}</p>
+                        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 break-words">
+                          {exp.description}
+                        </p>
                       )}
                       <div className="mt-3 flex justify-end gap-2">
                         <Button
