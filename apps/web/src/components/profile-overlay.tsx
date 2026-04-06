@@ -525,7 +525,9 @@ function AgentProfileView({ profile }: { profile: EmployerProfile }) {
       {/* Department specialisations */}
       {profile.role_specializations.length > 0 && (
         <div>
-          <p className="mb-1.5 text-xs font-medium text-muted-foreground">Specialisations</p>
+          <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+            Department Specialisations
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {profile.role_specializations.map((r) => (
               <span key={r.id} className="rounded-full bg-[var(--surface)] px-2.5 py-1 text-xs">

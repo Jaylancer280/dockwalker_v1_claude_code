@@ -120,7 +120,7 @@ export function AgentProfileSection({
                       }
                       return (
                         [...depts].sort().join(', ') ||
-                        `${profile.role_specialization_ids.length} specialisation(s)`
+                        `${profile.role_specialization_ids.length} dept specialisation(s)`
                       );
                     })()
                   : null,
