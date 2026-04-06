@@ -731,7 +731,14 @@ export default function ProfilePage() {
             toggleSection={toggleSection}
             onEnterEdit={enterEdit}
             onAddExperience={() => router.push('/profile/add-experience')}
+            onEditExperience={(id) => router.push(`/profile/edit-experience/${id}`)}
             onNavigateVessels={() => router.push('/vessels')}
+            expandedExpId={expandedExpId}
+            setExpandedExpId={setExpandedExpId}
+            deletingExpId={deletingExpId}
+            confirmDeleteExpId={confirmDeleteExpId}
+            setConfirmDeleteExpId={setConfirmDeleteExpId}
+            handleDeleteExperience={handleDeleteExperience}
           />
         )}
       </div>

@@ -2,6 +2,7 @@ import { Ship, Plus, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { computeTotalExperience, languageLabel } from '@dockwalker/shared';
+import { ProfileExperienceSection } from './profile-experience-section';
 
 interface Profile {
   agency_name: string | null;
@@ -21,13 +22,26 @@ interface Profile {
 
 interface ExperienceEntry {
   id: string;
+  vessel_id: string;
+  role_id: string;
   start_date: string;
   end_date: string | null;
   is_current: boolean;
   vessel_operation: string;
+  flag_state: string | null;
+  contract_type: string | null;
+  contract_details: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
   vessels: {
     id: string;
+    imo_number: string;
     name: string;
+    vessel_type: string;
+    size_band_id: string;
+    loa_meters: number;
+    vessel_size_bands: unknown;
   } | null;
   yacht_roles: { id: string; name: string; department: string } | null;
 }
@@ -53,7 +67,14 @@ interface AgentProfileSectionProps {
   toggleSection: (key: string) => void;
   onEnterEdit: () => void;
   onAddExperience: () => void;
+  onEditExperience: (id: string) => void;
   onNavigateVessels: () => void;
+  expandedExpId: string | null;
+  setExpandedExpId: (id: string | null) => void;
+  deletingExpId: string | null;
+  confirmDeleteExpId: string | null;
+  setConfirmDeleteExpId: (id: string | null) => void;
+  handleDeleteExperience: (id: string) => Promise<void>;
 }
 
 export function AgentProfileSection({
@@ -66,7 +87,14 @@ export function AgentProfileSection({
   toggleSection,
   onEnterEdit,
   onAddExperience,
+  onEditExperience,
   onNavigateVessels,
+  expandedExpId,
+  setExpandedExpId,
+  deletingExpId,
+  confirmDeleteExpId,
+  setConfirmDeleteExpId,
+  handleDeleteExperience,
 }: AgentProfileSectionProps) {
   return (
     <div className="flex flex-col gap-2">
@@ -223,66 +251,20 @@ export function AgentProfileSection({
         </div>
       )}
 
-      {/* Maritime Background section */}
-      <button
-        onClick={() => toggleSection('maritime')}
-        className="flex w-full items-center justify-between rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left"
-      >
-        <div>
-          <p className="text-sm font-medium">Maritime Background</p>
-          {!expandedSections.maritime && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {experiences.length > 0
-                ? `${experiences.length} entries · ${computeTotalExperience(experiences)}`
-                : 'Share your maritime history'}
-            </p>
-          )}
-        </div>
-        {expandedSections.maritime ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        )}
-      </button>
-      {expandedSections.maritime && experiences.length === 0 && (
-        <div className="mx-4 flex flex-col items-center gap-2 rounded-lg border border-dashed border-border p-4">
-          <p className="text-sm text-muted-foreground">
-            Share your maritime history — helps candidates know you understand their world
-          </p>
-          <Button variant="outline" size="sm" onClick={onAddExperience}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add Maritime History
-          </Button>
-        </div>
-      )}
-      {expandedSections.maritime && experiences.length > 0 && (
-        <>
-          <div className="flex items-center justify-between px-4">
-            <Badge variant="secondary" className="text-[10px]">
-              {computeTotalExperience(experiences)} total
-            </Badge>
-            <Button variant="ghost" size="sm" onClick={onAddExperience}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
-          {experiences.map((exp) => (
-            <div
-              key={exp.id}
-              className="mx-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm font-medium">{exp.vessels?.name ?? 'Unknown vessel'}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {exp.yacht_roles?.name} · {formatDateRange(exp.start_date, exp.end_date, false)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </>
-      )}
+      {/* Maritime Background — shared experience section */}
+      <ProfileExperienceSection
+        experiences={experiences}
+        expandedSections={expandedSections}
+        toggleSection={toggleSection}
+        expandedExpId={expandedExpId}
+        setExpandedExpId={setExpandedExpId}
+        deletingExpId={deletingExpId}
+        confirmDeleteExpId={confirmDeleteExpId}
+        setConfirmDeleteExpId={setConfirmDeleteExpId}
+        handleDeleteExperience={handleDeleteExperience}
+        onAddExperience={onAddExperience}
+        onEditExperience={onEditExperience}
+      />
 
       {/* My Vessels section */}
       <button
