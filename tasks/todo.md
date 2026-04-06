@@ -11,6 +11,40 @@
 
 ## Queue
 
+### Fix public job page crash — replace self-fetch with direct DB query
+
+> **Root cause (confirmed):** The page server component at `apps/web/src/app/jobs/[jobNumber]/page.tsx` line 44 does `fetch('https://www.dockwalker.io/api/jobs/${jobNumber}')` — a self-fetch back to its own deployment. This is a known Vercel anti-pattern that fails due to cold starts, circular routing, and edge cases in serverless. Four fix attempts tried variations of URL construction — all still self-fetch.
+>
+> **The fix:** Replace `fetchJob()` with a direct `createServiceClient()` query inside the page. The API route (`apps/web/src/app/api/jobs/[jobNumber]/route.ts`) has the exact query logic — extract it into a shared function or duplicate it in the page.
+
+**Recommended approach — extract shared query function:**
+
+- [ ] Create `apps/web/src/lib/jobs/get-public-job.ts` — extract the query logic from the API route into a reusable function:
+
+  ```typescript
+  export async function getPublicJob(jobNumber: string): Promise<JobData | null>;
+  ```
+
+  - Accepts job number string, validates format, queries DB with `createServiceClient()`
+  - Returns the hydrated `JobData` object or `null` if not found/inactive
+  - Handles both DW and PM prefixes
+  - Same NDA masking, same hydration (role, port, certs, vessel, bracket)
+
+- [ ] Update `apps/web/src/app/jobs/[jobNumber]/page.tsx`:
+  - Replace `fetchJob()` self-fetch function with: `import { getPublicJob } from '@/lib/jobs/get-public-job'`
+  - In the page component and `generateMetadata()`: call `getPublicJob(jobNumber)` directly
+  - Remove the `fetch()` call entirely
+
+- [ ] Update `apps/web/src/app/api/jobs/[jobNumber]/route.ts`:
+  - Import `getPublicJob` from the shared function
+  - Replace inline query logic with: `const job = await getPublicJob(jobNumber); if (!job) return 404; return NextResponse.json(job);`
+  - Keeps the API route working for any future direct API consumers
+
+- [ ] Verify: open `https://www.dockwalker.io/jobs/DW-00001` (or active job) — page renders, no crash
+- [ ] Verify: OG tags work (share link in WhatsApp, check preview card)
+
+---
+
 ### Add share button to all job card locations
 
 > `ShareJobButton` exists and works (Web Share API + clipboard fallback). Currently only on My Jobs daywork active cards and the public job page. Must be on every surface where a user sees a job — crew sharing is viral acquisition.
@@ -21,14 +55,6 @@
 - [ ] Verify the share text reads naturally in WhatsApp: "{roleName} needed in {location} — {rate}. Apply on DockWalker."
 
 ---
-
-### Fix public job page baseUrl (production bug)
-
-> The public share page (`/jobs/DW-00001`) shows "This job is no longer available" for all jobs on production. The `fetchJob()` function constructs the wrong base URL — uses `VERCEL_URL` (deployment URL) instead of `NEXT_PUBLIC_APP_URL` (production domain). Already fixed in code, needs commit + deploy.
-
-- [ ] Verify `NEXT_PUBLIC_APP_URL` is set to `https://www.dockwalker.io` in Vercel environment variables (Production + Preview)
-- [ ] Commit the one-line fix in `apps/web/src/app/jobs/[jobNumber]/page.tsx` (line 43-46 → `process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'`)
-- [ ] Deploy and test: share a link to an active job from WhatsApp, verify the full job details render
 
 ---
 

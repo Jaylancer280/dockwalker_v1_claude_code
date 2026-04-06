@@ -4,54 +4,9 @@ import { getDepartmentImageSrc } from '@/lib/department-image';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { ShareJobButton } from '@/components/share-job-button';
 import { currencySymbol } from '@dockwalker/shared';
-interface JobData {
-  job_number: string;
-  type: 'daywork' | 'permanent';
-  role_name: string;
-  department: string;
-  vessel_name: string;
-  vessel_type: string;
-  size_band: string | null;
-  loa_meters: number | null;
-  region: string | null;
-  city: string | null;
-  port: string | null;
-  start_date?: string;
-  end_date?: string;
-  working_days?: number;
-  day_rate?: number;
-  currency?: string;
-  meals?: string[];
-  positions_available?: number;
-  permanent_opportunity?: boolean;
-  salary_min?: number;
-  salary_max?: number;
-  salary_currency?: string;
-  salary_period?: string;
-  contract_type?: string;
-  live_aboard?: boolean;
-  required_certs: string[];
-  required_languages: string[];
-  experience_bracket: string | null;
-  description: string | null;
-  notes: string | null;
-  created_at: string;
-}
+import { getPublicJob, type PublicJobData } from '@/lib/jobs/get-public-job';
 
-async function fetchJob(jobNumber: string): Promise<JobData | null> {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://www.dockwalker.io';
-    const res = await fetch(`${baseUrl}/api/jobs/${jobNumber}`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-function formatRate(job: JobData): string {
+function formatRate(job: PublicJobData): string {
   if (job.type === 'daywork' && job.day_rate && job.currency) {
     return `${currencySymbol(job.currency)}${job.day_rate}/day`;
   }
@@ -79,7 +34,7 @@ export async function generateMetadata({
   params: Promise<{ jobNumber: string }>;
 }): Promise<Metadata> {
   const { jobNumber } = await params;
-  const job = await fetchJob(jobNumber);
+  const job = await getPublicJob(jobNumber);
   if (!job) {
     return { title: 'Job Not Found — DockWalker', robots: 'noindex' };
   }
@@ -126,7 +81,7 @@ export async function generateMetadata({
 
 export default async function JobPage({ params }: { params: Promise<{ jobNumber: string }> }) {
   const { jobNumber } = await params;
-  const job = await fetchJob(jobNumber);
+  const job = await getPublicJob(jobNumber);
 
   if (!job) {
     return (
