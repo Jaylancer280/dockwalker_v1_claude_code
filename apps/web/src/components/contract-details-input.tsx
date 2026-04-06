@@ -36,7 +36,13 @@ export function ContractDetailsInput({
     <>
       <div className="flex flex-col gap-1.5">
         <Label>Contract type</Label>
-        <Select value={contractType} onValueChange={onContractTypeChange}>
+        <Select
+          value={contractType}
+          onValueChange={(v) => {
+            onContractTypeChange(v);
+            onContractDetailsChange('');
+          }}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select contract type" />
           </SelectTrigger>
