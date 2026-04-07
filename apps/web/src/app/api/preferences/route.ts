@@ -7,6 +7,7 @@ const BOOLEAN_FIELDS = [
   'push_applications',
   'push_messages',
   'push_reminders',
+  'whatsapp_enabled',
 ] as const;
 
 /**
@@ -23,7 +24,9 @@ export async function GET() {
     const { data, error } = await supabase
       .from('user_preferences')
       .upsert({ person_id: user.id }, { onConflict: 'person_id', ignoreDuplicates: true })
-      .select('email_enabled, push_jobs, push_applications, push_messages, push_reminders')
+      .select(
+        'email_enabled, push_jobs, push_applications, push_messages, push_reminders, whatsapp_enabled',
+      )
       .single();
 
     if (error) {
@@ -66,7 +69,9 @@ export async function PATCH(request: Request) {
     const { data, error } = await supabase
       .from('user_preferences')
       .upsert({ person_id: user.id, ...updates }, { onConflict: 'person_id' })
-      .select('email_enabled, push_jobs, push_applications, push_messages, push_reminders')
+      .select(
+        'email_enabled, push_jobs, push_applications, push_messages, push_reminders, whatsapp_enabled',
+      )
       .single();
 
     if (error) {

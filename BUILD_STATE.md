@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v86 — Agent placement cities (86 migrations applied)
+v87 — WhatsApp notification channels (87 migrations applied)
 
 ## Migrations Applied
 
@@ -271,6 +271,7 @@ v86 — Agent placement cities (86 migrations applied)
 | `00084_lower_mca_match_threshold.sql` | Lowers `match_mca_documents` default threshold from 0.7 to 0.6 — small curated corpus (756 chunks) had best matches at 0.678 |
 | `00085_invitation_direct_hire.sql` | Makes `application_id` nullable on `active_engagements`; updates `DAYWORK.INVITATION_ACCEPTED` handler to create engagement directly (fill position, supersede overlapping apps, transition to in_progress) — invitation acceptance is now a direct hire, not an application |
 | `00086_agent_placement_cities.sql` | Agent placement cities table (person_id FK, city_id FK, unique constraint, RLS owner CRUD + authenticated read) |
+| `00087_whatsapp_notification_channels.sql` | `notification_channels` table (person_id, channel_type, encrypted phone, verified, OTP) with owner RLS; `whatsapp_enabled` on user_preferences |
 
 ## Deferred Decisions
 
@@ -345,6 +346,8 @@ v86 — Agent placement cities (86 migrations applied)
 - [Stage 195] Agent profile + UX fixes — (A) onboarding agent department selection: replaced flat role checkboxes with HierarchicalPills grouped by department; (B) agent profile view: added bio, nickname, nationality (flag emoji), languages, visas, placement cities display; (C) agent edit form: added bio, nickname, nationality, languages, visas, placement cities fields; (D) agent experiences: loadExperiences() now called for agents, maritime history CTA made into visible button; (E) agent placement cities: migration 00086 creates `agent_placement_cities` table (person_id FK, city_id FK, unique constraint, RLS owner CRUD + authenticated read); GET/PATCH profile endpoints extended; onboarding saves placement cities post-submit; (F) HierarchicalPills: single-select no longer auto-collapses after selection, group pills stay highlighted when containing selected item; (G) salary UX: single input by default with "Salary range" toggle revealing min+max; max defaults to min when range off; (H) contract type drill-down: permanent post form now uses shared ContractDetailsInput with rotational sub-options, permanent leave days, seasonal period; contractDetails wired through to API; (I) meals label: shows "Meals included (optional)" when live aboard checked; (J) agent indicator: discover APIs return poster_is_agent; daywork+permanent cards show "(Agent)" suffix; poster names underlined for tappability; 932 tests pass
 
 - [Stage 196] UX polish batch — (A) public job page: error.tsx client boundary + try-catch in generateMetadata and page component for server-side error logging; (B) DateInput component: dd/mm/yyyy display with auto-formatting + hidden native picker for mobile; replaced all 11 `<Input type="date">` across daywork post, permanent post, experience forms, onboarding, discover filters, postponement overlay; (C) permanent card height: cert pills truncated to 3 + "+X more", languages to 2 + "+X more"; grid items-start alignment; (D) citiesToGroups() shared helper: groups cities by region for HierarchicalPills; placement cities drill-down on profile edit + onboarding; (E) renamed "Role specialisations" → "Department specialisations" across agent UI; resolved IDs to department pills instead of count; (F) permanent mine tabs: replaced inline buttons with shadcn Tabs/TabsList/TabsTrigger; 932 tests pass
+
+- [Stage 197] WhatsApp notifications Session 1 — migration 00087: `notification_channels` table (person_id UNIQUE FK, channel_type CHECK, encrypted bytea, verified, OTP code + expiry) with owner RLS; `whatsapp_enabled` boolean on user_preferences. AES-256-GCM phone encryption (`crypto.ts`). 4 API routes: `POST register` (E.164 validation, rate limit 3/hr, encrypt, OTP, Twilio send), `POST verify` (code match, expiry check, set verified + whatsapp_enabled), `DELETE disconnect` (hard-delete channel, disable pref), `GET status` (connected flag + masked phone). Preferences API whitelist + select updated for `whatsapp_enabled`. 13 new tests (register: unauth/invalid/rate-limit/success, verify: missing/wrong-length/no-channel/expired/wrong-code/success, disconnect: unauth/success); 945 tests pass
 
 ## In Progress
 
