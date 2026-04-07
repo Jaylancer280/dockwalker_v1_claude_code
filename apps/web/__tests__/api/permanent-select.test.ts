@@ -26,7 +26,7 @@ function guardOk(userId = 'emp1') {
       person: { id: userId, current_hat: 'employer' },
       profile: {},
       supabase: { from: mockFromAuth },
-      serviceClient: { from: mockFromService, rpc: vi.fn() },
+      serviceClient: { from: mockFromAuth, rpc: vi.fn() },
     },
   };
 }
@@ -79,7 +79,7 @@ describe('POST /api/permanent/:id/applicants/:crewId/select', () => {
       select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id: 'a1', status: 'shortlisted' } }) }) }) }),
     });
     // serviceClient engagement fetch
-    mockFromService.mockReturnValueOnce({
+    mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ single: vi.fn().mockResolvedValue({ data: { id: 'eng1' } }) }) }) }),
     });
     const res = await POST(req, { params });

@@ -16,7 +16,7 @@ function guardOk(userId = 'emp1', hat = 'employer') {
       person: { id: userId, current_hat: hat },
       profile: {},
       supabase: { from: mockFromAuth },
-      serviceClient: { from: vi.fn(), rpc: vi.fn() },
+      serviceClient: { from: mockFromAuth, rpc: vi.fn() },
     },
   };
 }

@@ -9,7 +9,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 export async function GET() {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, person, supabase } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
 
   if (!['employer', 'agent'].includes(person.current_hat)) {
     return NextResponse.json({ error: 'Only employers can view their postings' }, { status: 403 });
@@ -46,7 +46,8 @@ export async function GET() {
     const postingIds = rows.map((p) => p.id as string);
 
     // Batch fetch application counts (single query, not N+1)
-    const { data: appRows } = await supabase
+    // Use serviceClient: ownership is verified via the postings query above.
+    const { data: appRows } = await serviceClient
       .from('applications')
       .select('permanent_posting_id, status')
       .in('permanent_posting_id', postingIds)
@@ -70,7 +71,7 @@ export async function GET() {
 
     const selectedNameMap = new Map<string, string>();
     if (inNegotiationIds.length > 0) {
-      const { data: selectedApps } = await supabase
+      const { data: selectedApps } = await serviceClient
         .from('applications')
         .select(
           'permanent_posting_id, profiles!applications_crew_person_id_profiles_fkey(display_name)',

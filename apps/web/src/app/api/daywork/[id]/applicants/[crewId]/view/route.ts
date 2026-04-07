@@ -32,7 +32,8 @@ export async function POST(
   }
 
   // Check application state — only fire event if still 'applied'
-  const { data: application } = await supabase
+  // Use serviceClient: ownership verified above; RLS blocks agents.
+  const { data: application } = await serviceClient
     .from('applications')
     .select('id, status')
     .eq('crew_person_id', crewId)

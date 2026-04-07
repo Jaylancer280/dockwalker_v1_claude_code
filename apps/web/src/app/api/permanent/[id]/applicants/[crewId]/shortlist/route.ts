@@ -37,7 +37,8 @@ export async function POST(
     }
 
     // Validate application
-    const { data: application } = await supabase
+    // Use serviceClient: ownership verified above; RLS blocks agents.
+    const { data: application } = await serviceClient
       .from('applications')
       .select('id, status')
       .eq('crew_person_id', crewId)
@@ -59,7 +60,7 @@ export async function POST(
     const tierMax = subResult.ok ? 8 : 3;
     const effectiveCap = Math.min(posting.shortlist_cap, tierMax);
 
-    const { count } = await supabase
+    const { count } = await serviceClient
       .from('applications')
       .select('id', { count: 'exact', head: true })
       .eq('permanent_posting_id', postingId)

@@ -16,7 +16,7 @@ function guardOk(userId = 'emp1') {
       person: { id: userId, current_hat: 'employer' },
       profile: {},
       supabase: { from: mockFrom },
-      serviceClient: { from: vi.fn(), rpc: vi.fn() },
+      serviceClient: { from: mockFrom, rpc: vi.fn() },
     },
   };
 }
@@ -52,7 +52,7 @@ describe('GET /api/permanent/mine', () => {
         person: { id: 'u1', current_hat: 'crew' },
         profile: {},
         supabase: { from: mockFrom },
-        serviceClient: { from: vi.fn(), rpc: vi.fn() },
+        serviceClient: { from: mockFrom, rpc: vi.fn() },
       },
     });
     expect((await GET()).status).toBe(403);

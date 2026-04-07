@@ -111,14 +111,13 @@ describe('POST /api/daywork/:id/applicants/:crewId/accept', () => {
 
   it('returns 404 when application not found', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockFromAuth
-      .mockReturnValueOnce(
-        makeChain({
-          id: 'd1', poster_person_id: 'u1',
-          start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
-        }),
-      )
-      .mockReturnValueOnce(makeChain(null));
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'd1', poster_person_id: 'u1',
+        start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
+      }),
+    );
+    mockServiceFrom.mockReturnValueOnce(makeChain(null));
 
     const res = await POST(new Request('http://localhost'), makeParams('d1', 'c1'));
     expect(res.status).toBe(404);
@@ -126,14 +125,13 @@ describe('POST /api/daywork/:id/applicants/:crewId/accept', () => {
 
   it('returns 400 when application already rejected', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockFromAuth
-      .mockReturnValueOnce(
-        makeChain({
-          id: 'd1', poster_person_id: 'u1',
-          start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
-        }),
-      )
-      .mockReturnValueOnce(makeChain({ id: 'app1', status: 'rejected' }));
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'd1', poster_person_id: 'u1',
+        start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
+      }),
+    );
+    mockServiceFrom.mockReturnValueOnce(makeChain({ id: 'app1', status: 'rejected' }));
 
     const res = await POST(new Request('http://localhost'), makeParams('d1', 'c1'));
     expect(res.status).toBe(400);
@@ -141,14 +139,13 @@ describe('POST /api/daywork/:id/applicants/:crewId/accept', () => {
 
   it('returns 409 when crew has conflicting engagement', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockFromAuth
-      .mockReturnValueOnce(
-        makeChain({
-          id: 'd1', poster_person_id: 'u1',
-          start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
-        }),
-      )
-      .mockReturnValueOnce(makeChain({ id: 'app1', status: 'applied' }));
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'd1', poster_person_id: 'u1',
+        start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
+      }),
+    );
+    mockServiceFrom.mockReturnValueOnce(makeChain({ id: 'app1', status: 'applied' }));
     mockRpc.mockResolvedValueOnce({ data: false });
 
     const res = await POST(new Request('http://localhost'), makeParams('d1', 'c1'));
@@ -159,14 +156,13 @@ describe('POST /api/daywork/:id/applicants/:crewId/accept', () => {
 
   it('returns 200 with engagementId on successful accept', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockFromAuth
-      .mockReturnValueOnce(
-        makeChain({
-          id: 'd1', poster_person_id: 'u1',
-          start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
-        }),
-      )
-      .mockReturnValueOnce(makeChain({ id: 'app1', status: 'viewed' }));
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'd1', poster_person_id: 'u1',
+        start_date: '2026-04-01', end_date: '2026-04-05', status: 'active',
+      }),
+    );
+    mockServiceFrom.mockReturnValueOnce(makeChain({ id: 'app1', status: 'viewed' }));
     mockRpc
       .mockResolvedValueOnce({ data: true })
       .mockResolvedValueOnce({ error: null });

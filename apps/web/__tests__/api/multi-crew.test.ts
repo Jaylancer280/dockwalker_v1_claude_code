@@ -184,8 +184,8 @@ describe('POST /api/daywork/:id/applicants/:crewId/accept — multi-crew', () =>
       }),
     );
 
-    // application query
-    mockFromAuth.mockReturnValueOnce(
+    // application query (via serviceClient)
+    mockFromService.mockReturnValueOnce(
       makeSingleChain({ id: 'app1', status: 'applied' }),
     );
 

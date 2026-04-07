@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!guard.ok) return guard.response;
 
   try {
-    const { user, supabase } = guard.value;
+    const { user, supabase, serviceClient } = guard.value;
 
     // Verify user owns this daywork posting
     const { data: daywork } = await supabase
@@ -34,7 +34,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     // Get applications with crew profile data
-    const { data: applications, error } = await supabase
+    // Use serviceClient: ownership is already verified above, RLS subquery on
+    // dayworks can silently filter applications for agent-hat posters.
+    const { data: applications, error } = await serviceClient
       .from('applications')
       .select(
         `
@@ -71,7 +73,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const availabilityCityMap: Record<string, string> = {};
     const notAvailableSet = new Set<string>();
     if (crewIds.length > 0) {
-      const { data: availWindows } = await supabase
+      const { data: availWindows } = await serviceClient
         .from('availability_windows')
         .select('person_id, date, city_id, not_available')
         .in('person_id', crewIds)
@@ -94,7 +96,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
       // Resolve city names
       if (cityIds.size > 0) {
-        const { data: cities } = await supabase
+        const { data: cities } = await serviceClient
           .from('cities')
           .select('id, name, regions(name)')
           .in('id', [...cityIds]);
@@ -117,7 +119,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     // Count past completed engagements per crew member
     const engagementCountMap: Record<string, number> = {};
     if (crewIds.length > 0) {
-      const { data: pastEngagements } = await supabase
+      const { data: pastEngagements } = await serviceClient
         .from('active_engagements')
         .select('crew_person_id')
         .in('crew_person_id', crewIds)

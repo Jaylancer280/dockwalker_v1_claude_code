@@ -10,7 +10,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id: postingId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, person, supabase } = guard.value;
+  const { user, person, supabase, serviceClient } = guard.value;
 
   if (!['employer', 'agent'].includes(person.current_hat)) {
     return NextResponse.json({ error: 'Only employers can review applicants' }, { status: 403 });
@@ -32,7 +32,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     }
 
     // Fetch applications with profile joins
-    const { data: applications, error } = await supabase
+    // Use serviceClient: ownership is already verified above, RLS subquery on
+    // permanent_postings can silently filter applications for agent-hat posters.
+    const { data: applications, error } = await serviceClient
       .from('applications')
       .select(
         `

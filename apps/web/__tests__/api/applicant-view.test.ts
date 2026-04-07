@@ -31,7 +31,7 @@ function guardOk() {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFromAuth },
-      serviceClient: { rpc: mockRpc },
+      serviceClient: { rpc: mockRpc, from: mockFromAuth },
     },
   };
 }

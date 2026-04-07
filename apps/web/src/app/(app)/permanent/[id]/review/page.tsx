@@ -117,7 +117,7 @@ export default function PermanentReviewPage() {
       setPostingStatus(result.data.posting_status ?? 'active');
       setSelectedCrewId(result.data.selected_crew_id ?? null);
     } else {
-      showError('Failed to load applicants');
+      showError(result.error);
     }
     setLoading(false);
   }, [fetchReview, showError]);
@@ -133,7 +133,7 @@ export default function PermanentReviewPage() {
         setPostingStatus(result.data.posting_status ?? 'active');
         setSelectedCrewId(result.data.selected_crew_id ?? null);
       } else {
-        showError('Failed to load applicants');
+        showError(result.error);
       }
       setLoading(false);
     });

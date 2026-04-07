@@ -47,7 +47,8 @@ export async function POST(
   }
 
   // Verify application exists and is in an acceptable state
-  const { data: application } = await supabase
+  // Use serviceClient: ownership verified above; RLS blocks agents.
+  const { data: application } = await serviceClient
     .from('applications')
     .select('id, status')
     .eq('crew_person_id', crewId)
