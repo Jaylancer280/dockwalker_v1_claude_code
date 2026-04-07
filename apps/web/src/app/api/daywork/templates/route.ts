@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireSubscription } from '@/lib/require-subscription';
 
 /**
  * GET /api/daywork/templates
@@ -46,7 +47,24 @@ export async function POST(request: Request) {
   if (!guard.ok) return guard.response;
 
   try {
-    const { user, supabase } = guard.value;
+    const { user, person, supabase } = guard.value;
+
+    // Template cap enforcement
+    const subResult = await requireSubscription(supabase, user.id, 'employer_pro');
+    if (!subResult.ok) {
+      // Free tier — enforce cap
+      const cap = person.current_hat === 'crew' ? 5 : 3;
+      const { count } = await supabase
+        .from('daywork_templates')
+        .select('id', { count: 'exact', head: true })
+        .eq('person_id', user.id);
+      if ((count ?? 0) >= cap) {
+        return NextResponse.json(
+          { error: 'template_limit_reached', limit: cap, upgrade_url: '/billing' },
+          { status: 402 },
+        );
+      }
+    }
 
     const body = await request.json().catch(() => ({}));
 

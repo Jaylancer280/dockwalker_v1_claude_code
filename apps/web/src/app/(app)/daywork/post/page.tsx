@@ -338,7 +338,11 @@ function DayworkPostForm() {
       if (templatesResult.ok && templatesResult.data.templates)
         setTemplates(templatesResult.data.templates);
     } else {
-      showErrorToast(result.error);
+      if (result.error === 'template_limit_reached') {
+        showErrorToast('Template limit reached — upgrade to Pro for more templates');
+      } else {
+        showErrorToast(result.error);
+      }
     }
   }
 

@@ -7,6 +7,11 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
   requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
 
+const mockRequireSubscription = vi.fn();
+vi.mock('@/lib/require-subscription', () => ({
+  requireSubscription: (...args: unknown[]) => mockRequireSubscription(...args),
+}));
+
 const mockFromAuth = vi.fn();
 
 function guardOk(userId = 'emp1', hat: 'employer' | 'agent' = 'employer') {
@@ -43,8 +48,9 @@ describe('Permanent templates API', () => {
     expect(data.templates).toEqual([]);
   });
 
-  it('POST creates template, returns id', async () => {
+  it('POST creates template, returns id (pro — unlimited)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockRequireSubscription.mockResolvedValue({ ok: true, plan: 'employer_pro' });
     mockFromAuth.mockReturnValue({
       insert: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -90,6 +96,28 @@ describe('Permanent templates API', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);
+  });
+
+  it('POST returns 402 when free employer hits 1 PM template limit', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
+    // Count query returns 1 existing template
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ count: 1 }),
+      }),
+    });
+
+    const req = new Request('http://localhost/api/permanent/templates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ templateName: 'Test' }),
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(402);
+    const data = await res.json();
+    expect(data.error).toBe('template_limit_reached');
+    expect(data.limit).toBe(1);
   });
 
   it('ownership gating — returns 401 when unauthenticated', async () => {

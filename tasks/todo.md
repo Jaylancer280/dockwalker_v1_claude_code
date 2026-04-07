@@ -50,14 +50,14 @@
 
 **Session 3 — Template caps:**
 
-- [ ] In `apps/web/src/app/api/daywork/templates/route.ts` POST handler: before creating the template, count existing daywork templates for this user (`SELECT count(*) FROM daywork_templates WHERE person_id = ?`). The hat is already available — the route checks `person.current_hat` (employers/agents only can create templates). Check subscription with exact match:
+- [x] In `apps/web/src/app/api/daywork/templates/route.ts` POST handler: before creating the template, count existing daywork templates for this user (`SELECT count(*) FROM daywork_templates WHERE person_id = ?`). The hat is already available — the route checks `person.current_hat` (employers/agents only can create templates). Check subscription with exact match:
   - If `current_hat === 'crew'`: this shouldn't happen (templates are employer/agent only — the route already blocks crew). But as a safety net: crew_pro cap = 5 DW.
   - If `current_hat` is `'employer'` or `'agent'`: call `requireSubscription(supabase, personId, 'employer_pro')`. If ok: unlimited (skip cap check). If not ok (free): cap = 3 DW.
   - If count >= cap: return 402 `{ error: 'template_limit_reached', limit: cap, upgrade_url: '/billing' }`.
-- [ ] In `apps/web/src/app/api/permanent/templates/route.ts` POST handler: same pattern. Count existing permanent templates. Free employer/agent: cap = 1 PM. Employer/Agent Pro: unlimited.
-- [ ] **Crew template caps (for dual-hat users):** A crew member who switches to employer hat to post jobs is still gated by their subscription. If they have `crew_pro` (not `employer_pro`), they get the free employer cap (3 DW + 1 PM), not unlimited. The exact-match logic in `requireSubscription` handles this correctly — `crew_pro !== 'employer_pro'` so the check fails, free cap applies.
-- [ ] Client-side: when the API returns 402 with `template_limit_reached`, show a toast: "Template limit reached — upgrade to Pro for more templates" linking to `/billing`. Check where template POST responses are handled in the daywork post page and permanent post page.
-- [ ] Tests: free employer hits 3 DW limit, free employer hits 1 PM limit, employer_pro creates unlimited, crew_pro user in employer hat gets free cap (exact match fails), 402 response shape
+- [x] In `apps/web/src/app/api/permanent/templates/route.ts` POST handler: same pattern. Count existing permanent templates. Free employer/agent: cap = 1 PM. Employer/Agent Pro: unlimited.
+- [x] **Crew template caps (for dual-hat users):** A crew member who switches to employer hat to post jobs is still gated by their subscription. If they have `crew_pro` (not `employer_pro`), they get the free employer cap (3 DW + 1 PM), not unlimited. The exact-match logic in `requireSubscription` handles this correctly — `crew_pro !== 'employer_pro'` so the check fails, free cap applies.
+- [x] Client-side: when the API returns 402 with `template_limit_reached`, show a toast: "Template limit reached — upgrade to Pro for more templates" linking to `/billing`. Check where template POST responses are handled in the daywork post page and permanent post page.
+- [x] Tests: free employer hits 3 DW limit, free employer hits 1 PM limit, employer_pro creates unlimited, crew_pro user in employer hat gets free cap (exact match fails), 402 response shape
 
 **Session 4 — Shortlist cap enforcement by subscription:**
 

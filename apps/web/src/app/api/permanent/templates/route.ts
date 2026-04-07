@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireSubscription } from '@/lib/require-subscription';
 
 /**
  * GET /api/permanent/templates
@@ -55,6 +56,22 @@ export async function POST(request: Request) {
         { error: 'Only employers and agents can create templates' },
         { status: 403 },
       );
+    }
+
+    // Template cap enforcement
+    const subResult = await requireSubscription(supabase, user.id, 'employer_pro');
+    if (!subResult.ok) {
+      // Free tier — cap = 1 permanent template
+      const { count } = await supabase
+        .from('permanent_templates')
+        .select('id', { count: 'exact', head: true })
+        .eq('employer_person_id', user.id);
+      if ((count ?? 0) >= 1) {
+        return NextResponse.json(
+          { error: 'template_limit_reached', limit: 1, upgrade_url: '/billing' },
+          { status: 402 },
+        );
+      }
     }
 
     const body = await request.json().catch(() => ({}));

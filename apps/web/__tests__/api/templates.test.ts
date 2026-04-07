@@ -8,6 +8,11 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
   requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
 
+const mockRequireSubscription = vi.fn();
+vi.mock('@/lib/require-subscription', () => ({
+  requireSubscription: (...args: unknown[]) => mockRequireSubscription(...args),
+}));
+
 const mockFromAuth = vi.fn();
 
 function guardOk() {
@@ -83,14 +88,17 @@ describe('POST /api/daywork/templates', () => {
 
   it('returns 400 for invalid currency', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+    // Pro user — no cap check
+    mockRequireSubscription.mockResolvedValue({ ok: true, plan: 'employer_pro' });
     const res = await POST(makeRequest({ name: 'Test', currency: 'BTC' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain('currency');
   });
 
-  it('returns 201 on successful creation', async () => {
+  it('returns 201 on successful creation (pro — unlimited)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockRequireSubscription.mockResolvedValue({ ok: true, plan: 'employer_pro' });
     mockFromAuth.mockReturnValueOnce({
       insert: vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
@@ -108,6 +116,23 @@ describe('POST /api/daywork/templates', () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.id).toBe('t1');
+  });
+
+  it('returns 402 when free employer hits 3 DW template limit', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
+    // Count query returns 3 existing templates
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ count: 3 }),
+      }),
+    });
+
+    const res = await POST(makeRequest({ name: 'Test' }));
+    expect(res.status).toBe(402);
+    const body = await res.json();
+    expect(body.error).toBe('template_limit_reached');
+    expect(body.limit).toBe(3);
   });
 });
 

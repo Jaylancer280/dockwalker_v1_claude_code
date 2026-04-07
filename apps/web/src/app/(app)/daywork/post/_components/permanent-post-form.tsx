@@ -284,7 +284,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
 
     // Save template alongside if checked
     if (saveAsTemplate && templateName.trim()) {
-      await safeFetch('/api/permanent/templates', {
+      const tplResult = await safeFetch<{ error?: string }>('/api/permanent/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -310,6 +310,9 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           positionsAvailable: parseInt(positionsAvailable, 10) || 1,
         }),
       });
+      if (!tplResult.ok && tplResult.error === 'template_limit_reached') {
+        showErrorToast('Template limit reached — upgrade to Pro for more templates');
+      }
     }
 
     showSuccess('Permanent posting created');
