@@ -44,10 +44,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           primary_role_id, certification_ids, languages, experience_bracket_id,
           vessel_size_exposure_ids, nationality_id, visa_ids,
           permanent_availability, notice_period_days, currently_employed,
-          yacht_roles(name, department),
-          experience_brackets(label),
-          ports(name, cities(name, regions(name))),
-          nationalities(name, flag_emoji)
+          yacht_roles:primary_role_id(name, department),
+          experience_brackets:experience_bracket_id(label),
+          ports:location_port_id(name, cities(name, regions(name))),
+          nationalities:nationality_id(name, flag_emoji)
         )
       `,
       )
