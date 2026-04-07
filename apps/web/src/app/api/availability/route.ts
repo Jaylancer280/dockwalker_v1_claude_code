@@ -36,6 +36,17 @@ export async function GET() {
       status = 'available';
     }
 
+    // Diagnostic: log availability state for debugging production issues
+
+    console.info('AVAIL_GET', {
+      personId: user.id,
+      totalWindows: (windows ?? []).length,
+      notAvailCount: (windows ?? []).filter((w: { not_available: boolean }) => w.not_available)
+        .length,
+      availCount: availableWindows.length,
+      status,
+    });
+
     // Resolve city name for the windows (use the first non-null city_id from any window)
     let city: { id: string; name: string; region_name: string } | null = null;
     const firstCityId = (windows ?? []).find((w) => w.city_id)?.city_id;
@@ -275,6 +286,14 @@ export async function POST(request: Request) {
         port_id: portId ?? null,
       },
       personId: user.id,
+    });
+
+    console.info('AVAIL_POST_OK', {
+      personId: user.id,
+      startDate,
+      endDate,
+      cityId,
+      daysSet: diffDays,
     });
 
     return NextResponse.json({

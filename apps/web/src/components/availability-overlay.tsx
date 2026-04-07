@@ -405,7 +405,11 @@ export function AvailabilityOverlay({
         </div>
 
         <div className="border-t border-border px-4 py-3">
-          <Button className="w-full" disabled={!isValid || submitting} onClick={handleConfirm}>
+          <Button
+            className="w-full bg-[var(--accent)] text-white hover:brightness-[1.08]"
+            disabled={!isValid || submitting}
+            onClick={handleConfirm}
+          >
             {submitting ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
