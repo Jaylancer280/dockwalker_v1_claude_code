@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v91 — GDPR engagement documents (91 migrations applied)
+v92 — Fix availability full-replace (92 migrations applied)
 
 ## Migrations Applied
 
@@ -276,6 +276,7 @@ v91 — GDPR engagement documents (91 migrations applied)
 | `00089_subscription_plan_update.sql` | Subscriptions CHECK: remove `crew_unlimited`, add `employer_pro`. Data migration: existing `crew_unlimited` rows → `crew_pro` |
 | `00090_engagement_documents.sql` | `engagement_documents` table (engagement FK, message FK, uploader FK, storage path, 48h expiry, soft-delete), `engagement-documents` private storage bucket, participant-gated RLS + storage policies |
 | `00091_gdpr_engagement_documents.sql` | DATA_SCRUBBED handler: soft-delete + expire `engagement_documents` for scrubbed users |
+| `00092_fix_availability_full_replace.sql` | AVAILABILITY.SET else branch: expire ALL windows (not just not_available) before inserting new range — fixes stale dates persisting |
 
 ## Deferred Decisions
 

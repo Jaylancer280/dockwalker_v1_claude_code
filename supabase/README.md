@@ -118,6 +118,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Subscription Plan Update                      | 00089     | Remove `crew_unlimited` from CHECK, add `employer_pro`. Data migration: `crew_unlimited` → `crew_pro`                                                                                                                                                                                             |
 | Engagement Documents                          | 00090     | `engagement_documents` table + `engagement-documents` private storage bucket + participant-gated RLS + storage policies                                                                                                                                                                           |
 | GDPR Engagement Documents                     | 00091     | DATA_SCRUBBED handler: soft-delete + expire `engagement_documents` for scrubbed users                                                                                                                                                                                                             |
+| Fix Availability Full Replace                 | 00092     | AVAILABILITY.SET else branch: expire ALL windows before inserting new range (fixes stale dates persisting after date range change)                                                                                                                                                                |
 
 ## Daywork Status Lifecycle
 
