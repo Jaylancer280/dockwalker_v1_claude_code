@@ -11,72 +11,105 @@
 
 ## Queue
 
-### Subscription & billing — full implementation
+### Ephemeral document exchange — full implementation
 
-> Revenue foundation. Two Stripe products (Crew Pro €4.99, Employer/Agent Pro €14.99). Remove `crew_unlimited`, add `employer_pro`. Template caps, shortlist caps, Docky limit change. Hat-aware billing page.
-> **Spec:** `tasks/stripe-setup.md`, `tasks/business-model.md`
+> 48-hour file sharing in engagement chat threads. Crew upload certs/visas, employers upload contracts. Files auto-delete after 48 hours. DockWalker is a pipe, not a filing cabinet.
+> **Spec:** `tasks/ephemeral-document-exchange-spec.md`
 
-**Session 1 — Plan cleanup + employer_pro + Docky limit:**
+**Session 1 — Migration + upload/download/delete API routes:**
 
-- [x] Migration: update `subscriptions` table CHECK constraint — remove `crew_unlimited`, add `employer_pro`. New CHECK: `plan in ('free', 'crew_pro', 'employer_pro')`. If any rows exist with `plan = 'crew_unlimited'`, UPDATE them to `crew_pro` first (data migration before constraint change).
-- [x] Rollback: restore previous CHECK (add `crew_unlimited` back, remove `employer_pro`). Self-contained.
-- [x] In `packages/types/src/enums.ts` line 44: change `SubscriptionPlan` type from `'free' | 'crew_pro' | 'crew_unlimited'` to `'free' | 'crew_pro' | 'employer_pro'`.
-- [x] **Rewrite `apps/web/src/lib/require-subscription.ts`:** The current rank-based comparison (`PLAN_RANK[plan] < PLAN_RANK[minimumPlan]`) cannot distinguish parallel tiers — a `crew_pro` user at rank 1 would pass an `employer_pro` gate also at rank 1. Replace with **exact plan match**: the function checks `plan === minimumPlan` (or `plan` is in an allowed set). New signature: `requireSubscription(supabase, personId, requiredPlan: 'crew_pro' | 'employer_pro')`. Logic: query subscription, check status is active/trialing, check `plan === requiredPlan`. Return 402 if not. Remove `PLAN_RANK` entirely — it served a hierarchical model that no longer applies.
-- [x] **Add a helper `hasAnyPro(supabase, personId): Promise<boolean>`** for cases that just need "is this user paying for anything" (e.g., Docky — crew_pro unlocks it, but a dual-hat user with employer_pro shouldn't get Docky for free). Docky gate: keep using `requireSubscription(supabase, personId, 'crew_pro')` — only crew_pro unlocks Docky, not employer_pro.
-- [x] In `apps/web/src/app/api/billing/create-checkout/route.ts`: update `getPriceId()` — remove `crew_unlimited` mapping, add `employer_pro` → `process.env.STRIPE_PRICE_EMPLOYER_PRO`. Update plan validation (line 30) to `['crew_pro', 'employer_pro']`.
-- [x] In `apps/web/src/app/api/webhooks/stripe/route.ts`: update `mapPriceToPlan()` — remove `STRIPE_PRICE_CREW_UNLIMITED` check, add `if (priceId === process.env.STRIPE_PRICE_EMPLOYER_PRO) return 'employer_pro'`.
-- [x] In `apps/web/src/app/api/advisor/thread/messages/route.ts` line 104: change `usageLimit = isPro ? 500 : 15` to `usageLimit = isPro ? 500 : 10`.
-- [x] In `apps/web/src/app/api/advisor/usage/route.ts` line 36: change the else branch limit from `15` to `10`.
-- [x] **Remove ALL `crew_unlimited` references** — 7 locations found:
-  1. `packages/types/src/enums.ts` line 44 (type)
-  2. `apps/web/src/lib/require-subscription.ts` lines 8, 18 (PLAN_RANK + param type)
-  3. `supabase/migrations/00042_subscriptions.sql` line 16 (CHECK — handled by new migration)
-  4. `apps/web/src/app/api/billing/create-checkout/route.ts` lines 7, 30 (price mapping + validation)
-  5. `apps/web/src/app/api/webhooks/stripe/route.ts` line 132 (price-to-plan mapping)
-     Grep for `crew_unlimited` across the entire codebase to catch any others (test files, markdown, etc.).
-- [x] Tests: update all tests referencing `crew_unlimited`. Update billing checkout tests to accept `employer_pro`. Update advisor usage tests for new 10-message free limit. Update require-subscription tests (if they exist) for exact-match logic.
+> **CRITICAL: Vercel serverless functions have a 4.5MB request body limit.** Multi-file uploads in a single FormData request will fail for large files. The upload flow must use **one file per request** — the client sends multiple sequential requests, one per file. Each request stays under 4.5MB. The UI handles the multi-file experience (file picker with `multiple`, sequential uploads with per-file progress).
 
-**Session 2 — Hat-aware billing page:**
+- [x] Migration: create `engagement_documents` table. Schema:
+  ```sql
+  id uuid primary key default gen_random_uuid(),
+  engagement_id uuid not null references active_engagements(id),
+  message_id uuid references messages(id),
+  uploader_person_id uuid not null references persons(id),
+  file_name text not null,
+  file_size_bytes integer not null,
+  mime_type text not null,
+  storage_path text not null,
+  expires_at timestamptz not null,
+  deleted_at timestamptz,
+  created_at timestamptz not null default now()
+  ```
+  Note: `message_id` is nullable — documents are uploaded first, then a summary message is created linking them. Indexes: `idx_engagement_documents_expires` on `(expires_at) WHERE deleted_at IS NULL`, `idx_engagement_documents_engagement` on `(engagement_id)`.
+  RLS: SELECT for engagement participants (join through `active_engagements` on `crew_person_id` or `employer_person_id`), INSERT for engagement participants, UPDATE for uploader only (soft-delete via `deleted_at`), no hard DELETE policy.
+- [x] Migration: create `engagement-documents` Supabase Storage bucket. **Private, not public.** Pattern from `00039_profile_avatar.sql`:
+  ```sql
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('engagement-documents', 'engagement-documents', false, 10485760,
+    array['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+  ON CONFLICT (id) DO NOTHING;
+  ```
+  **Storage RLS policies required** (service role does NOT automatically bypass storage RLS):
+  - INSERT `to authenticated`: engagement participant check via subquery on `active_engagements` matching folder name to engagement ID
+  - DELETE `to service_role`: allows cron cleanup to remove files (no authenticated delete policy — deletion goes through the API route which uses service client)
+  - No SELECT policy on storage (downloads use signed URLs generated by service client, not direct reads)
+- [x] Rollback: drop storage policies, drop storage bucket, drop table RLS policies, drop indexes, drop table. Self-contained.
+- [x] Create `POST /api/messages/[engagementId]/documents/upload` — **Single-file** upload route. Auth via `requireDomainUser()`. Validate engagement membership (same pattern as `messages/[engagementId]/route.ts` — query `active_engagements`, check `crew_person_id` or `employer_person_id`). Validate engagement `status === 'active'`.
+      Accept `FormData` with ONE file (field name `file`). Validate:
+  1. MIME type in allowlist: `application/pdf`, `image/jpeg`, `image/png`, `image/webp`
+  2. File size <= 4MB (stay safely under Vercel's 4.5MB body limit — the FormData wrapper adds overhead)
+  3. Magic bytes match declared MIME (extend `validateMagicBytes` from avatar route to accept PDF: `%PDF` = `0x25 0x50 0x44 0x46`)
+  4. Sanitise filename. Storage path: `{engagementId}/{uuid}.{ext}`
+     Rate limit: count non-deleted documents for this engagement in last 24h — reject if >= 20 with 429.
+     Upload to Supabase Storage via service client. Insert `engagement_documents` row with `message_id = NULL` (message created later by the finalize route), `expires_at = now() + interval '48 hours'`.
+     Return `{ documentId, fileName, fileSize, expiresAt }`.
 
-- [x] Rewrite `apps/web/src/app/(app)/billing/page.tsx`. The page must detect the user's current hat and show the appropriate tier:
-  - **Crew hat:** Show Free vs Crew Pro (€4.99/month). Features: "10 questions/month" (free) vs "500 questions/month" (pro), "General MCA guidance" vs "Allows Docky to read your profile to give personalised advice. Complete all fields in your profile for the best results", "Appear in employer searches for daywork invitations" (pro only), "5 daywork + 2 permanent templates" (pro) vs "3 daywork + 1 permanent templates" (free).
-  - **Employer/Agent hat:** Show Free vs Employer/Agent Pro (€14.99/month). Features: "3 daywork + 1 permanent templates" (free) vs "Unlimited templates" (pro), "Shortlist up to 3 candidates" (free) vs "Shortlist up to 8 candidates" (pro).
-- [x] The subscribe button must pass the correct plan to the checkout route: `crew_pro` for crew hat, `employer_pro` for employer/agent hat.
-- [x] **Hat detection:** The billing page is a client component that currently has no access to the user's hat. Two options: (A) add `current_hat` to the `/api/billing/status` response (simplest — the status route already uses the auth guard which returns the person record), or (B) fetch `/api/profile` which returns the hat. **Recommended: option A** — add `current_hat` to the billing status response. Read `apps/web/src/app/api/billing/status/route.ts` and add the person lookup.
-- [x] **Dual-hat edge case:** The `subscriptions` table has `person_id UNIQUE` — one plan per person. A crew member with `employer_pro` sees the Crew Pro card as "not subscribed" when in crew hat. A dual-hat user who wants both must switch plans via the Stripe portal. For v1, show the billing page for the current hat only. Do NOT try to show both tiers or allow dual subscriptions.
-- [x] **"Current plan" badge logic:** Show badge on the Pro card only if `subscription.plan` exactly matches the displayed tier (`crew_pro` for crew hat, `employer_pro` for employer hat). Show badge on Free card if no subscription or plan doesn't match the current hat's tier.
-- [x] The "Manage subscription" button (Stripe portal) works for any plan — no changes needed.
-- [x] Tests: billing page renders crew tier for crew hat, employer tier for employer hat, correct plan passed to checkout
+- [x] Create `POST /api/messages/[engagementId]/documents/finalize` — After all files are uploaded, the client calls this to create the chat message and link documents. Auth + membership check. Accept `{ documentIds: string[] }`. Validate all document IDs belong to this engagement, were uploaded by this user, and have `message_id IS NULL` (not yet finalized). Create a message via `appendEvent('MESSAGE.SENT', ...)` with `content: 'Shared {n} document(s)'`, `is_system: false`, and `message_type: 'documents'` in the payload. Update all document rows: `SET message_id = newMessageId`. Call `notifyOnEvent()` — the `MESSAGE.SENT` event fires. The WhatsApp dispatcher checks `payload.message_type === 'documents'` and uses the `doc_shared` template instead of `eng_message`. Return `{ messageId, documentCount }`.
 
-**Session 3 — Template caps:**
+- [x] Create `GET /api/messages/[engagementId]/documents` — List all documents for the engagement. Auth + membership check. Returns `{ documents: [{ id, messageId, fileName, fileSize, mimeType, expiresAt, deletedAt, uploaderPersonId, createdAt }] }`. The chat UI fetches this once on load and refreshes when a new message arrives. Client-side groups by `messageId` to render document cards under each message. This avoids N+1 queries.
 
-- [x] In `apps/web/src/app/api/daywork/templates/route.ts` POST handler: before creating the template, count existing daywork templates for this user (`SELECT count(*) FROM daywork_templates WHERE person_id = ?`). The hat is already available — the route checks `person.current_hat` (employers/agents only can create templates). Check subscription with exact match:
-  - If `current_hat === 'crew'`: this shouldn't happen (templates are employer/agent only — the route already blocks crew). But as a safety net: crew_pro cap = 5 DW.
-  - If `current_hat` is `'employer'` or `'agent'`: call `requireSubscription(supabase, personId, 'employer_pro')`. If ok: unlimited (skip cap check). If not ok (free): cap = 3 DW.
-  - If count >= cap: return 402 `{ error: 'template_limit_reached', limit: cap, upgrade_url: '/billing' }`.
-- [x] In `apps/web/src/app/api/permanent/templates/route.ts` POST handler: same pattern. Count existing permanent templates. Free employer/agent: cap = 1 PM. Employer/Agent Pro: unlimited.
-- [x] **Crew template caps (for dual-hat users):** A crew member who switches to employer hat to post jobs is still gated by their subscription. If they have `crew_pro` (not `employer_pro`), they get the free employer cap (3 DW + 1 PM), not unlimited. The exact-match logic in `requireSubscription` handles this correctly — `crew_pro !== 'employer_pro'` so the check fails, free cap applies.
-- [x] Client-side: when the API returns 402 with `template_limit_reached`, show a toast: "Template limit reached — upgrade to Pro for more templates" linking to `/billing`. Check where template POST responses are handled in the daywork post page and permanent post page.
-- [x] Tests: free employer hits 3 DW limit, free employer hits 1 PM limit, employer_pro creates unlimited, crew_pro user in employer hat gets free cap (exact match fails), 402 response shape
+- [x] Create `GET /api/messages/[engagementId]/documents/[documentId]/download` — Download route. Auth + membership check. Fetch document from `engagement_documents`. Check `deleted_at IS NULL` (410 `deleted_by_uploader`). Check `expires_at > now()` (410 `document_expired`). Generate signed URL: `serviceClient.storage.from('engagement-documents').createSignedUrl(storagePath, 900)` (15-minute expiry). Return `{ url, fileName, contentType }`. Set `Cache-Control: no-store`.
 
-**Session 4 — Shortlist cap enforcement by subscription:**
+- [x] Create `DELETE /api/messages/[engagementId]/documents/[documentId]` — Delete route. Auth required. Validate `uploader_person_id` matches user (only uploader can delete). Check `deleted_at IS NULL` (404 if already deleted). Hard-delete from storage: `serviceClient.storage.from('engagement-documents').remove([storagePath])`. Soft-delete metadata: `SET deleted_at = now()`. Return `{ success: true }`.
 
-- [x] In `apps/web/src/app/api/permanent/[id]/applicants/[crewId]/shortlist/route.ts`: the current cap comes from the posting's `shortlist_cap` field (user-settable 1-20, default 5). New logic: determine tier max from subscription. Call `requireSubscription(supabase, posterPersonId, 'employer_pro')`. If ok: tierMax = 8. If not: tierMax = 3. Effective cap = `Math.min(posting.shortlist_cap, tierMax)`. This means a free employer who set `shortlist_cap: 5` before the paywall existed gets capped at 3 at shortlist time. No data migration needed.
-- [x] In `apps/web/src/app/api/permanent/route.ts` POST handler (line ~116): clamp the submitted `shortlist_cap` to the tier max. Currently validates 1-20. Change to: check subscription, if free employer clamp to `Math.min(submittedCap, 3)`, if pro clamp to `Math.min(submittedCap, 8)`. The form input max should also reflect this.
-- [x] Client-side: in `apps/web/src/app/(app)/daywork/post/_components/permanent-form-sections.tsx` (lines 203-216), the shortlist cap input currently has `min={1} max={20}`. Change the max to the user's tier limit. This requires knowing the subscription status on the client — either pass it from the parent page (which can fetch billing status) or add it to a context/provider. The simplest approach: fetch `/api/billing/status` in the post page and pass `shortlistMax` as a prop to the form section.
-- [x] Tests: free employer shortlist blocked at 3 (even if posting says 5), pro employer allowed up to 8, posting creation clamps shortlist_cap, form input max reflects tier
+- [x] Tests: upload (valid file accepted, invalid MIME rejected, oversize rejected, magic byte mismatch, rate limit at 20, non-participant 403, completed engagement 400), finalize (links documents to message, rejects invalid IDs, rejects already-finalized docs), list (returns all engagement documents), download (participant can download, non-participant 403, expired 410, deleted 410), delete (uploader can delete, non-uploader 403, already deleted 404)
+
+**Session 2 — Cleanup cron + chat UI:**
+
+- [ ] Create `GET /api/cron/document-cleanup` — Auth via `CRON_SECRET`. Query `engagement_documents WHERE expires_at < now() AND deleted_at IS NULL`. For each: delete from storage via service client, set `deleted_at = now()`. Also query for GDPR-scrubbed documents: `WHERE deleted_at IS NOT NULL AND storage_path IS NOT NULL` — attempt storage deletion for any that were soft-deleted (by user or GDPR scrub) but might still have files. On successful storage delete, set `storage_path = NULL` to mark as fully cleaned. Log `{ cleaned, stragglers }`. Monitoring: count documents where `expires_at < now() - interval '6 hours' AND deleted_at IS NULL` — log error if > 0.
+- [ ] Add cron to `vercel.json`: `{ "path": "/api/cron/document-cleanup", "schedule": "0 */6 * * *" }`.
+- [ ] Chat UI — paperclip button: The chat footer is a separate component at `apps/web/src/app/(app)/messages/[engagementId]/_components/chat-footer.tsx` (lines 113-139). Add a Paperclip icon button before the text input (between `<form>` and `<input>`). Only enabled when `context.status === 'active'`. Hidden `<input type="file" ref={fileInputRef} multiple accept=".pdf,.jpg,.jpeg,.png,.webp">`. On file selection: upload each file sequentially via `POST /api/messages/{engagementId}/documents/upload`, show per-file progress, then call `POST .../documents/finalize` with all document IDs. On completion, the message appears in chat via realtime.
+- [ ] Chat UI — document list fetch: On page load, fetch `GET /api/messages/{engagementId}/documents`. Store in state keyed by `messageId`. On realtime message arrival, refetch (or append if the new message ID matches pending uploads). Pass the document map to the message list component.
+- [ ] Chat UI — document message card: In the message list renderer, when a message has associated documents (check the document map by `messageId`), render a `DocumentCard` component for each:
+  - File icon (PDF or image based on `mimeType`)
+  - Filename + file size
+  - **Active:** Download button + countdown timer (hours remaining from `expiresAt`)
+  - **Expired:** Greyed out, "Expired" label
+  - **Deleted:** Greyed out, "Deleted by uploader" label
+  - **Uploader's view:** Delete (X) button on active documents
+  - Disclaimer: "DockWalker does not verify uploaded documents."
+- [ ] Download: calls the download API, opens returned signed URL. Delete: calls the delete API, updates local state.
+- [ ] Tests: cron deletes expired files + soft-deletes metadata, cron handles GDPR-scrubbed files, cron reports stragglers
+
+**Session 3 — GDPR + WhatsApp `doc_shared` template:**
+
+- [ ] Migration: extend `apply_projection` PERSON.DATA_SCRUBBED handler — add:
+  ```sql
+  UPDATE public.engagement_documents
+  SET deleted_at = now(), expires_at = now()
+  WHERE uploader_person_id = p_person_id AND deleted_at IS NULL;
+  ```
+  Setting both `deleted_at` and `expires_at = now()` ensures the cron picks these up for storage cleanup on the next run. The cron's secondary pass (Session 2) handles actual file deletion for soft-deleted rows.
+- [ ] Rollback: restore previous apply_projection body. Self-contained. Must include ALL existing handlers.
+- [ ] Extend GDPR export (`/api/account/export`): query `engagement_documents WHERE uploader_person_id = user.id`. Include metadata only: `{ fileName, fileSize, mimeType, uploadedAt, expiresAt, deletedAt }`. No file content. No documents uploaded by the other party.
+- [ ] In `apps/web/src/lib/push-triggers/whatsapp-dispatcher.ts`: extend the `MESSAGE.SENT` case to check `payload.message_type`. If `payload.message_type === 'documents'`, use template `doc_shared` with variables: uploader first name (`{{1}}`), document count (`{{2}}`), role name (`{{3}}`), job number (`{{4}}`). Button: `[Open conversation] → /messages/${engagementId}`. If `message_type` is not `'documents'`, use existing `eng_message` template. This requires the finalize route to pass `message_type: 'documents'` in the `MESSAGE.SENT` event payload.
+- [ ] Tests: GDPR scrub soft-deletes + sets expires_at, export includes document metadata, WhatsApp dispatcher uses `doc_shared` for document messages
 
 ---
 
-**BLOCKED — requires user action before subscriptions work end-to-end:**
+**BLOCKED — requires user action:**
 
-> Code can be built and tested with Stripe test mode. But real payments require:
->
-> - [ ] **USER:** Create "Crew Pro" product in Stripe Dashboard (€4.99/month recurring). Copy Price ID.
-> - [ ] **USER:** Create "Employer/Agent Pro" product in Stripe Dashboard (€14.99/month recurring). Copy Price ID.
-> - [ ] **USER:** Set up Stripe webhook endpoint: `https://www.dockwalker.io/api/webhooks/stripe`. Copy signing secret.
-> - [ ] **USER:** Set Vercel env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_CREW_PRO`, `STRIPE_PRICE_EMPLOYER_PRO`
-> - [ ] **USER:** Test in Stripe test mode first (use `sk_test_` keys + test card `4242 4242 4242 4242`), then switch to live keys.
+> - [ ] **USER:** Update privacy policy to cover ephemeral document storage (48h retention, no content inspection, deletion rights).
+
+---
+
+**BLOCKED — requires user action:**
+
+> - [ ] **USER:** Update privacy policy to cover ephemeral document storage (48h retention, no content inspection, deletion rights). This is a legal text change, not a code change.
 
 ---
 
@@ -99,6 +132,32 @@
 ### Admin identity type change (deferred — medium-high effort)
 
 > Scope captured. Build when needed.
+
+---
+
+## BLOCKED — user action required
+
+### Stripe setup
+
+> Subscription code is built and verified (Sessions 1-4). Real payments require:
+>
+> - [ ] **USER:** Create "Crew Pro" product in Stripe Dashboard (€4.99/month recurring). Copy Price ID.
+> - [ ] **USER:** Create "Employer/Agent Pro" product in Stripe Dashboard (€14.99/month recurring). Copy Price ID.
+> - [ ] **USER:** Set up Stripe webhook endpoint: `https://www.dockwalker.io/api/webhooks/stripe`. Copy signing secret.
+> - [ ] **USER:** Set Vercel env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_CREW_PRO`, `STRIPE_PRICE_EMPLOYER_PRO`
+> - [ ] **USER:** Test in Stripe test mode first (use `sk_test_` keys + test card `4242 4242 4242 4242`), then switch to live keys.
+
+### WhatsApp setup
+
+> WhatsApp notification code is built and verified (Sessions 1-4 + fix). Real delivery requires:
+>
+> - [ ] **USER:** In Twilio Console, set up WhatsApp sender (Messaging → WhatsApp senders → Request access). Copy the approved sender number.
+> - [ ] **USER:** Submit all 26 templates from `tasks/whatsapp-templates.md` to Meta via Twilio Console. Wait 24-48h for approval.
+> - [ ] **USER:** Set Vercel env vars: `TWILIO_WHATSAPP_FROM` (approved sender number, format `whatsapp:+1234567890`), `NOTIFICATION_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`)
+> - [ ] **USER:** Sign Twilio Data Processing Agreement (Twilio Console → Settings → Privacy)
+> - [ ] **USER:** Configure Twilio message body retention to minimum (Settings → Privacy → Message retention)
+>
+> Start the Twilio WhatsApp approval process NOW — it takes 2-4 weeks.
 
 ---
 
@@ -144,20 +203,6 @@
 
 ---
 
-## WhatsApp — BLOCKED on user action
-
-> Code is built and unit-tested. Real WhatsApp delivery requires:
->
-> - [ ] **USER:** In Twilio Console, set up WhatsApp sender (Messaging → WhatsApp senders → Request access). Copy the approved sender number.
-> - [ ] **USER:** Submit all 26 templates from `tasks/whatsapp-templates.md` to Meta via Twilio Console. Wait 24-48h for approval.
-> - [ ] **USER:** Set Vercel env vars: `TWILIO_WHATSAPP_FROM` (approved sender number, format `whatsapp:+1234567890`), `NOTIFICATION_ENCRYPTION_KEY` (generate with `openssl rand -hex 32`)
-> - [ ] **USER:** Sign Twilio Data Processing Agreement (Twilio Console → Settings → Privacy)
-> - [ ] **USER:** Configure Twilio message body retention to minimum (Settings → Privacy → Message retention)
->
-> Start the Twilio WhatsApp approval process NOW — it takes 2-4 weeks. The code work can proceed in parallel.
-
----
-
 ## Done
 
-(See git history for completed stages 51-200+. Recent: WhatsApp notifications Sessions 1-4, ExpandableText, text overflow audit, vessel fuzzy search, share to social, invitation direct hire, Docky production launch.)
+(See git history for completed stages 51-200+. Recent: subscription billing Sessions 1-4, WhatsApp notifications Sessions 1-4 + fix, ExpandableText, text overflow audit, vessel fuzzy search, share to social, invitation direct hire, Docky production launch.)

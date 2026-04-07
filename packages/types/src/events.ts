@@ -387,6 +387,8 @@ export interface EventPayloadMap {
     sender_person_id?: string;
     content: string;
     is_system?: boolean;
+    message_type?: 'text' | 'documents';
+    document_count?: number;
   };
   'ADMIN.ENGAGEMENT_COMPLETED': {
     engagement_id: string;
