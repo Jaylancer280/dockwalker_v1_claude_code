@@ -21,7 +21,7 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' },
       profile: { person_id: 'u1' },
       supabase: { from: mockFrom },
-      serviceClient: { rpc: vi.fn() },
+      serviceClient: { rpc: vi.fn(), from: mockServiceFrom },
       ...overrides,
     },
   };
@@ -67,18 +67,13 @@ describe('GET /api/profile/[personId]', () => {
   it('returns 403 when no relationship context and no active postings', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // Engagement check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Application check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Invitation check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Permanent application check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Active daywork check (service client) — no results
-    mockServiceFrom.mockReturnValueOnce(mockChain([]));
-    // Active permanent posting check (service client) — no results
-    mockServiceFrom.mockReturnValueOnce(mockChain([]));
+    // All relationship checks use serviceClient — no results
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Engagement
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Application
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Invitation
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Permanent application
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Active daywork
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Active permanent
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(403);
@@ -89,16 +84,12 @@ describe('GET /api/profile/[personId]', () => {
   it('returns 200 when target has active daywork posting (no prior relationship)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // Engagement check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Application check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Invitation check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Permanent application check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Active daywork check (service client) — has active posting
-    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'dw-1' }]));
+    // All relationship checks use serviceClient
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Engagement
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Application
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Invitation
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Permanent application
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'dw-1' }])); // Active daywork — found
 
     // Profile fetch
     const employerProfile = {
@@ -142,8 +133,8 @@ describe('GET /api/profile/[personId]', () => {
   it('returns 200 for crew profile when engagement context exists', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // Engagement check — has context
-    mockFrom.mockReturnValueOnce(mockChain([{ id: 'e1' }]));
+    // Engagement check — has context (serviceClient)
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'e1' }]));
 
     // Profile fetch
     const crewProfile = {
@@ -182,8 +173,8 @@ describe('GET /api/profile/[personId]', () => {
   it('returns 200 for employer profile with non-NDA vessels', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // Engagement check — has context
-    mockFrom.mockReturnValueOnce(mockChain([{ id: 'e1' }]));
+    // Engagement check — has context (serviceClient)
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'e1' }]));
 
     // Profile fetch
     const employerProfile = {
@@ -233,10 +224,10 @@ describe('GET /api/profile/[personId]', () => {
   it('returns 200 via application context', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // Engagement check — no results
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Application check — has context
-    mockFrom.mockReturnValueOnce(mockChain([{ id: 'a1' }]));
+    // Engagement check — no results (serviceClient)
+    mockServiceFrom.mockReturnValueOnce(mockChain([]));
+    // Application check — has context (serviceClient)
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'a1' }]));
 
     // Profile fetch (crew)
     mockFrom.mockReturnValueOnce(
@@ -263,8 +254,8 @@ describe('GET /api/profile/[personId]', () => {
   it('crew profile never includes salary fields in experiences', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // Engagement context
-    mockFrom.mockReturnValueOnce(mockChain([{ id: 'e1' }]));
+    // Engagement context (serviceClient)
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'e1' }]));
 
     // Profile
     mockFrom.mockReturnValueOnce(
@@ -314,15 +305,13 @@ describe('GET /api/profile/[personId]', () => {
   it('returns 200 when target has in_negotiation permanent posting (no prior relationship)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    // Sections 1-4: no relationship context
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    mockFrom.mockReturnValueOnce(mockChain([]));
-    // Section 5: no active daywork
-    mockServiceFrom.mockReturnValueOnce(mockChain([]));
-    // Section 5: has in_negotiation permanent posting
-    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'pp-1' }]));
+    // All relationship checks use serviceClient
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Engagement
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Application
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Invitation
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Permanent application
+    mockServiceFrom.mockReturnValueOnce(mockChain([])); // Active daywork
+    mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'pp-1' }])); // Active permanent — found
 
     // Profile fetch
     mockFrom.mockReturnValueOnce(

@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
-import { createServiceClient } from '@/lib/supabase/server';
 
 /**
  * GET /api/profile/[personId]
@@ -15,7 +14,7 @@ export async function GET(
   if (!guard.ok) return guard.response;
 
   try {
-    const { user, supabase } = guard.value;
+    const { user, supabase, serviceClient } = guard.value;
 
     const { personId } = await params;
 
@@ -28,7 +27,8 @@ export async function GET(
 
     if (!isSelfView) {
       // Context validation: requester must have a relationship with the target
-      const hasContext = await checkRelationshipContext(supabase, user.id, personId);
+      // Use serviceClient: RLS on applications silently filters rows for agent-hat posters
+      const hasContext = await checkRelationshipContext(serviceClient, user.id, personId);
       if (!hasContext) {
         return NextResponse.json(
           { error: "You don't have access to view this profile" },
@@ -79,16 +79,13 @@ export async function GET(
 }
 
 async function checkRelationshipContext(
-  supabase: ReturnType<typeof requireDomainUser> extends Promise<infer R>
-    ? R extends { ok: true; value: { supabase: infer S } }
-      ? S
-      : never
-    : never,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client: any,
   requesterId: string,
   targetId: string,
 ): Promise<boolean> {
   // 1. Engagement context (either party)
-  const { data: engagement } = await supabase
+  const { data: engagement } = await client
     .from('active_engagements')
     .select('id')
     .or(
@@ -99,7 +96,7 @@ async function checkRelationshipContext(
   if (engagement && engagement.length > 0) return true;
 
   // 2. Application context: requester's postings have applications from target, or target's postings have applications from requester
-  const { data: appContext } = await supabase
+  const { data: appContext } = await client
     .from('applications')
     .select('id, dayworks!inner(poster_person_id)')
     .or(
@@ -111,7 +108,7 @@ async function checkRelationshipContext(
   if (appContext && appContext.length > 0) return true;
 
   // 3. Invitation context
-  const { data: invContext } = await supabase
+  const { data: invContext } = await client
     .from('daywork_invitations')
     .select('id, dayworks!inner(poster_person_id)')
     .or(
@@ -122,7 +119,7 @@ async function checkRelationshipContext(
   if (invContext && invContext.length > 0) return true;
 
   // 4. Permanent application context
-  const { data: permAppContext } = await supabase
+  const { data: permAppContext } = await client
     .from('applications')
     .select('id, permanent_postings!inner(employer_person_id)')
     .or(
@@ -135,10 +132,7 @@ async function checkRelationshipContext(
   if (permAppContext && permAppContext.length > 0) return true;
 
   // 5. Active poster context — target has an active daywork or permanent posting
-  // Use service client to bypass RLS — poster visibility shouldn't depend on viewer's permissions
-  const serviceClient = await createServiceClient();
-
-  const { data: activeDaywork } = await serviceClient
+  const { data: activeDaywork } = await client
     .from('dayworks')
     .select('id')
     .eq('poster_person_id', targetId)
@@ -147,7 +141,7 @@ async function checkRelationshipContext(
 
   if (activeDaywork && activeDaywork.length > 0) return true;
 
-  const { data: activePerm } = await serviceClient
+  const { data: activePerm } = await client
     .from('permanent_postings')
     .select('id')
     .eq('employer_person_id', targetId)
