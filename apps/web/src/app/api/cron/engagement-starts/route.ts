@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { sendPushToUser } from '@/lib/push-delivery';
+import { sendWhatsApp } from '@/lib/whatsapp';
 import { getRecipientEmail } from '@/lib/push-triggers';
 import { hasPushTokens } from '@/lib/push-triggers/loaders';
 import { sendEmail } from '@/lib/email/send';
@@ -92,8 +93,29 @@ export async function GET(request: Request) {
       );
     }
 
+    // Batch-query WhatsApp channels for all involved persons
+    const { data: waChannels } = await serviceClient
+      .from('notification_channels')
+      .select('person_id, channel_value_encrypted')
+      .in('person_id', personIds)
+      .eq('channel_type', 'whatsapp')
+      .eq('verified', true);
+    const { data: waPrefs } = await serviceClient
+      .from('user_preferences')
+      .select('person_id, whatsapp_enabled')
+      .in('person_id', personIds)
+      .eq('whatsapp_enabled', true);
+    const waEnabledSet = new Set((waPrefs ?? []).map((p) => p.person_id as string));
+    const waChannelMap = new Map<string, Buffer>();
+    for (const ch of waChannels ?? []) {
+      if (waEnabledSet.has(ch.person_id as string)) {
+        waChannelMap.set(ch.person_id as string, Buffer.from(ch.channel_value_encrypted));
+      }
+    }
+
     let notified = 0;
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
 
     for (const eng of engagements) {
       const parties = [
@@ -132,15 +154,29 @@ export async function GET(request: Request) {
           role_context: roleContext,
         });
 
-        // Push
-        sendPushToUser(serviceClient, personId, {
-          title: 'Engagement Starts Tomorrow',
-          body: 'Your engagement starts tomorrow — check the pre-arrival checklist.',
-          data: { screen: 'chat', engagementId: eng.id },
-        }).catch(() => {});
+        // WhatsApp — try first, skip push + email if successful
+        const waPhone = waChannelMap.get(personId);
+        let waSent = false;
+        if (waPhone) {
+          waSent = await sendWhatsApp(
+            waPhone,
+            'reminder_engagement_starts',
+            [roleName, eng.daywork_id ? `DW-${String(eng.daywork_id).slice(0, 5)}` : 'your role'],
+            `${siteUrl}/messages/${eng.id}`,
+          );
+        }
 
-        // Email — only if user has no push tokens and email is enabled
-        const hasTokens = await hasPushTokens(serviceClient, personId);
+        if (!waSent) {
+          // Push
+          sendPushToUser(serviceClient, personId, {
+            title: 'Engagement Starts Tomorrow',
+            body: 'Your engagement starts tomorrow — check the pre-arrival checklist.',
+            data: { screen: 'chat', engagementId: eng.id },
+          }).catch(() => {});
+        }
+
+        // Email — only if no WhatsApp AND no push tokens and email is enabled
+        const hasTokens = waSent || (await hasPushTokens(serviceClient, personId));
         if (!hasTokens) {
           const { data: prefs } = await serviceClient
             .from('user_preferences')

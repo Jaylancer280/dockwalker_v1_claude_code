@@ -13,6 +13,10 @@ vi.mock('@/lib/push-delivery', () => ({
   sendPushToUser: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/whatsapp', () => ({
+  sendWhatsApp: vi.fn().mockResolvedValue(false),
+}));
+
 // Tomorrow's date for test data
 const tomorrow = new Date();
 tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -20,22 +24,24 @@ const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
 /** Build a fluent mock where every chained method returns self, terminal resolves data */
 function fluent(terminalData: unknown) {
-  return {
-    select: vi.fn().mockReturnValue({
-      gt: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: terminalData }),
-      }),
-      eq: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          gt: vi.fn().mockReturnValue({
-            limit: vi.fn().mockResolvedValue({ data: terminalData }),
-          }),
-        }),
-      }),
-      order: vi.fn().mockResolvedValue({ data: terminalData }),
-    }),
-    insert: vi.fn().mockResolvedValue({ error: null }),
-  };
+  const result = { data: terminalData, error: null };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const self: any = {};
+  self.select = vi.fn().mockReturnValue(self);
+  self.eq = vi.fn().mockReturnValue(self);
+  self.neq = vi.fn().mockReturnValue(self);
+  self.gt = vi.fn().mockReturnValue(self);
+  self.in = vi.fn().mockReturnValue(self);
+  self.like = vi.fn().mockReturnValue(self);
+  self.order = vi.fn().mockReturnValue(self);
+  self.limit = vi.fn().mockReturnValue(self);
+  self.single = vi.fn().mockResolvedValue(result);
+  self.insert = vi.fn().mockResolvedValue(result);
+  self.then = vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+    resolve(result);
+    return Promise.resolve(result);
+  });
+  return self;
 }
 
 describe('GET /api/cron/availability-expiry', () => {
@@ -71,12 +77,16 @@ describe('GET /api/cron/availability-expiry', () => {
     mockServiceFrom.mockReturnValueOnce(
       fluent([{ person_id: 'crew-1', date: tomorrowStr }]),
     );
+    // Trigger 2: stale query — no stale crew
+    mockServiceFrom.mockReturnValueOnce(fluent([]));
+    // Batch WA channels — none
+    mockServiceFrom.mockReturnValueOnce(fluent([]));
+    // Batch WA prefs — none
+    mockServiceFrom.mockReturnValueOnce(fluent([]));
     // notifications check crew-1 — no existing
     mockServiceFrom.mockReturnValueOnce(fluent([]));
     // notifications insert crew-1
     mockServiceFrom.mockReturnValueOnce(fluent(null));
-    // Trigger 2: stale query — no stale crew
-    mockServiceFrom.mockReturnValueOnce(fluent([]));
 
     const res = await GET(makeRequest('test-secret'));
     expect(res.status).toBe(200);
@@ -90,10 +100,14 @@ describe('GET /api/cron/availability-expiry', () => {
     mockServiceFrom.mockReturnValueOnce(
       fluent([{ person_id: 'crew-1', date: tomorrowStr }]),
     );
-    // notifications check — already notified
-    mockServiceFrom.mockReturnValueOnce(fluent([{ id: 'existing' }]));
     // Trigger 2: stale query — no stale crew
     mockServiceFrom.mockReturnValueOnce(fluent([]));
+    // Batch WA channels — none
+    mockServiceFrom.mockReturnValueOnce(fluent([]));
+    // Batch WA prefs — none
+    mockServiceFrom.mockReturnValueOnce(fluent([]));
+    // notifications check — already notified
+    mockServiceFrom.mockReturnValueOnce(fluent([{ id: 'existing' }]));
 
     const res = await GET(makeRequest('test-secret'));
     expect(res.status).toBe(200);

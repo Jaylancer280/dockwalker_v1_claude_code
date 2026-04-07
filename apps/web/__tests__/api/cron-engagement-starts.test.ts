@@ -15,6 +15,10 @@ vi.mock('@/lib/push-delivery', () => ({
   sendPushToUser: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/whatsapp', () => ({
+  sendWhatsApp: vi.fn().mockResolvedValue(false),
+}));
+
 vi.mock('@/lib/push-triggers', () => ({
   getRecipientEmail: vi.fn().mockResolvedValue(null),
 }));
@@ -100,13 +104,17 @@ describe('GET /api/cron/engagement-starts', () => {
     );
     // 3. dayworks
     mockServiceFrom.mockReturnValueOnce(makeChain([{ id: 'dw-1', yacht_roles: { name: 'Deckhand' } }]));
-    // 4. duplicate check crew → none
+    // 4. batch WA channels — none
     mockServiceFrom.mockReturnValueOnce(makeChain([]));
-    // 5. notification insert crew
+    // 5. batch WA prefs — none
+    mockServiceFrom.mockReturnValueOnce(makeChain([]));
+    // 6. duplicate check crew → none
+    mockServiceFrom.mockReturnValueOnce(makeChain([]));
+    // 7. notification insert crew
     mockServiceFrom.mockReturnValueOnce({ insert: vi.fn().mockResolvedValue({ error: null }) });
-    // 6. duplicate check employer → none
+    // 8. duplicate check employer → none
     mockServiceFrom.mockReturnValueOnce(makeChain([]));
-    // 7. notification insert employer
+    // 9. notification insert employer
     mockServiceFrom.mockReturnValueOnce({ insert: vi.fn().mockResolvedValue({ error: null }) });
 
     const req = new Request('http://localhost/api/cron/engagement-starts', {
@@ -128,8 +136,10 @@ describe('GET /api/cron/engagement-starts', () => {
     };
 
     mockServiceFrom.mockReturnValueOnce(makeChain([engagement]));
-    mockServiceFrom.mockReturnValueOnce(makeChain([]));
-    mockServiceFrom.mockReturnValueOnce(makeChain([]));
+    mockServiceFrom.mockReturnValueOnce(makeChain([])); // profiles
+    mockServiceFrom.mockReturnValueOnce(makeChain([])); // dayworks
+    mockServiceFrom.mockReturnValueOnce(makeChain([])); // batch WA channels
+    mockServiceFrom.mockReturnValueOnce(makeChain([])); // batch WA prefs
     // duplicate check crew → FOUND
     mockServiceFrom.mockReturnValueOnce(makeChain([{ id: 'existing' }]));
     // duplicate check employer → FOUND

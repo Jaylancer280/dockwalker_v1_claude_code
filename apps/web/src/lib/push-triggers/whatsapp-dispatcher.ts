@@ -245,10 +245,29 @@ async function resolveTemplate(
       if (!postingId) return null;
       const info = await getPermanentPostingInfo(sc, postingId);
       if (!info) return null;
+      // Distinguish placed crew vs not-selected applicants by notification title
+      if (ctx.notification.title === 'Position Filled') {
+        return {
+          templateName: 'pm_position_filled',
+          variables: [info.role_name, info.job_number],
+          buttonUrl: `${SITE_URL}/discover`,
+        };
+      }
       return {
         templateName: 'pm_placement_confirmed',
         variables: [info.role_name, info.job_number],
         buttonUrl: `${SITE_URL}/messages/${engagementId ?? ''}`,
+      };
+    }
+
+    case 'PERMANENT.CANCELLED_BY_EMPLOYER': {
+      if (!postingId) return null;
+      const info = await getPermanentPostingInfo(sc, postingId);
+      if (!info) return null;
+      return {
+        templateName: 'pm_posting_cancelled',
+        variables: [info.role_name, info.job_number],
+        buttonUrl: `${SITE_URL}/discover`,
       };
     }
 
