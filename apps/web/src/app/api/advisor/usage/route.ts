@@ -33,7 +33,7 @@ export async function GET() {
       return NextResponse.json({ used, limit: 500, plan: subResult.plan });
     }
 
-    return NextResponse.json({ used, limit: 15 });
+    return NextResponse.json({ used, limit: 10 });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

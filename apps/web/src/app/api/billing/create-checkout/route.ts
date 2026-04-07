@@ -4,7 +4,7 @@ import { getStripe } from '@/lib/stripe';
 
 function getPriceId(plan: string): string | undefined {
   if (plan === 'crew_pro') return process.env.STRIPE_PRICE_CREW_PRO;
-  if (plan === 'crew_unlimited') return process.env.STRIPE_PRICE_CREW_UNLIMITED;
+  if (plan === 'employer_pro') return process.env.STRIPE_PRICE_EMPLOYER_PRO;
   return undefined;
 }
 
@@ -27,11 +27,8 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const { plan } = body;
 
-    if (!plan || !['crew_pro', 'crew_unlimited'].includes(plan)) {
-      return NextResponse.json(
-        { error: 'plan must be crew_pro or crew_unlimited' },
-        { status: 400 },
-      );
+    if (!plan || !['crew_pro', 'employer_pro'].includes(plan)) {
+      return NextResponse.json({ error: 'plan must be crew_pro or employer_pro' }, { status: 400 });
     }
 
     const priceId = getPriceId(plan);

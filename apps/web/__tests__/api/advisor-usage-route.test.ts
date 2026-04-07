@@ -39,7 +39,7 @@ function guardOk(fromFn: ReturnType<typeof vi.fn>) {
 describe('GET /api/advisor/usage', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('free tier returns used and limit 15', async () => {
+  it('free tier returns used and limit 10', async () => {
     mockRequireSubscription.mockResolvedValue({ ok: false, response: null });
 
     const usageChain = mockChain({ question_count: 2 });
@@ -50,7 +50,7 @@ describe('GET /api/advisor/usage', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.used).toBe(2);
-    expect(body.limit).toBe(15);
+    expect(body.limit).toBe(10);
   });
 
   it('pro tier returns used, limit 500, and plan', async () => {

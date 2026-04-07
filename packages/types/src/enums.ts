@@ -41,7 +41,7 @@ export type PermanentAvailability = 'immediate' | 'after_notice' | 'not_looking'
 export type SalaryPeriod = 'monthly' | 'annual';
 
 /** Subscription plan tiers */
-export type SubscriptionPlan = 'free' | 'crew_pro' | 'crew_unlimited';
+export type SubscriptionPlan = 'free' | 'crew_pro' | 'employer_pro';
 
 /** Subscription status from Stripe */
 export type SubscriptionStatus = 'active' | 'past_due' | 'cancelled' | 'trialing';

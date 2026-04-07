@@ -179,7 +179,7 @@
 
 ## Current Schema Version
 
-v88 — GDPR notification channels scrub (88 migrations applied)
+v89 — Subscription plan update (89 migrations applied)
 
 ## Migrations Applied
 
@@ -273,6 +273,7 @@ v88 — GDPR notification channels scrub (88 migrations applied)
 | `00086_agent_placement_cities.sql` | Agent placement cities table (person_id FK, city_id FK, unique constraint, RLS owner CRUD + authenticated read) |
 | `00087_whatsapp_notification_channels.sql` | `notification_channels` table (person_id, channel_type, encrypted phone, verified, OTP) with owner RLS; `whatsapp_enabled` on user_preferences |
 | `00088_gdpr_notification_channels.sql` | DATA_SCRUBBED handler extended: deletes `notification_channels` + `agent_placement_cities`, nulls `deck_name` |
+| `00089_subscription_plan_update.sql` | Subscriptions CHECK: remove `crew_unlimited`, add `employer_pro`. Data migration: existing `crew_unlimited` rows → `crew_pro` |
 
 ## Deferred Decisions
 
@@ -349,6 +350,8 @@ v88 — GDPR notification channels scrub (88 migrations applied)
 - [Stage 196] UX polish batch — (A) public job page: error.tsx client boundary + try-catch in generateMetadata and page component for server-side error logging; (B) DateInput component: dd/mm/yyyy display with auto-formatting + hidden native picker for mobile; replaced all 11 `<Input type="date">` across daywork post, permanent post, experience forms, onboarding, discover filters, postponement overlay; (C) permanent card height: cert pills truncated to 3 + "+X more", languages to 2 + "+X more"; grid items-start alignment; (D) citiesToGroups() shared helper: groups cities by region for HierarchicalPills; placement cities drill-down on profile edit + onboarding; (E) renamed "Role specialisations" → "Department specialisations" across agent UI; resolved IDs to department pills instead of count; (F) permanent mine tabs: replaced inline buttons with shadcn Tabs/TabsList/TabsTrigger; 932 tests pass
 
 - [Stage 197] WhatsApp notifications Session 1 + 2 — migration 00087: `notification_channels` table (person_id UNIQUE FK, channel_type CHECK, encrypted bytea, verified, OTP code + expiry) with owner RLS; `whatsapp_enabled` boolean on user_preferences. AES-256-GCM phone encryption (`crypto.ts`). 4 API routes: `POST register` (E.164 validation, rate limit 3/hr, encrypt, OTP, Twilio send), `POST verify` (code match, expiry check, set verified + whatsapp_enabled), `DELETE disconnect` (hard-delete channel, disable pref), `GET status` (connected flag + masked phone). Preferences API whitelist + select updated for `whatsapp_enabled`. 13 new tests (register: unauth/invalid/rate-limit/success, verify: missing/wrong-length/no-channel/expired/wrong-code/success, disconnect: unauth/success). Session 2: `whatsapp.ts` Twilio send via raw fetch; `whatsapp-dispatcher.ts` template resolver (22 event types → template names + variables + button URLs); `notifyOnEvent` rewritten: in-app always → WhatsApp if connected+enabled → push if no WA → email if no push tokens; 5-minute MESSAGE.SENT cooldown; system message skip; existing push-trigger + permanent-notification tests updated for new dispatch flow; 6 new dispatch tests. Session 3: `WhatsAppSection` component with 3 states (not connected → phone input → OTP verification → connected); country code picker, OTP countdown timer, disconnect with confirmation; `NotificationPrefs` extended with `whatsapp_enabled`; settings page wires toggle + section. Session 4: migration 00088 extends `apply_projection` DATA_SCRUBBED to delete `notification_channels` + `agent_placement_cities` + null `deck_name`; GDPR export includes decrypted WhatsApp phone; broadcast handler batch-queries WhatsApp channels and sends `dw_new_job` template (push skipped for WhatsApp recipients); 951 tests pass
+
+- [Stage 198] Subscription plan cleanup — migration 00089: subscriptions CHECK updated (remove `crew_unlimited`, add `employer_pro`), data migration for existing rows. `SubscriptionPlan` type updated. `requireSubscription` rewritten for exact plan match (parallel tiers, no rank hierarchy). `hasAnyPro` helper added. Checkout route + webhook updated for `employer_pro`. Docky free tier limit reduced 15→10. All `crew_unlimited` references removed from codebase. 954 tests pass
 
 ## In Progress
 

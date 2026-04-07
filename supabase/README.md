@@ -115,6 +115,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Agent Placement Cities                        | 00086     | `agent_placement_cities` table (person_id FK, city_id FK, unique constraint); RLS: owner CRUD + authenticated read                                                                                                                                                                                |
 | WhatsApp Notification Channels                | 00087     | `notification_channels` table (person_id UNIQUE+channel_type, encrypted phone bytea, verified, OTP code+expiry); owner RLS; `whatsapp_enabled` on user_preferences                                                                                                                                |
 | GDPR Notification Channels                    | 00088     | DATA_SCRUBBED handler extended: deletes `notification_channels` + `agent_placement_cities`, nulls `deck_name`                                                                                                                                                                                     |
+| Subscription Plan Update                      | 00089     | Remove `crew_unlimited` from CHECK, add `employer_pro`. Data migration: `crew_unlimited` → `crew_pro`                                                                                                                                                                                             |
 
 ## Daywork Status Lifecycle
 

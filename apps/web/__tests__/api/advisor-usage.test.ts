@@ -122,7 +122,7 @@ describe('POST /api/advisor/thread/messages — usage gating', () => {
 
     const supabaseFrom = supabaseWithThread();
     const mockRpc = vi.fn().mockResolvedValue({ data: 1 });
-    const serviceFrom = serviceForFullFlow(3); // 3 used, limit 15
+    const serviceFrom = serviceForFullFlow(3); // 3 used, limit 10
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
@@ -135,7 +135,7 @@ describe('POST /api/advisor/thread/messages — usage gating', () => {
 
     const supabaseFrom = supabaseWithThread();
     const mockRpc = vi.fn();
-    const serviceFrom = serviceForFullFlow(15); // at limit
+    const serviceFrom = serviceForFullFlow(10); // at limit
 
     mockRequireDomainUser.mockResolvedValue(guardOk(supabaseFrom, serviceFrom, mockRpc));
 
@@ -143,7 +143,7 @@ describe('POST /api/advisor/thread/messages — usage gating', () => {
     expect(res.status).toBe(402);
     const body = await res.json();
     expect(body.error).toBe('limit_reached');
-    expect(body.limit).toBe(15);
+    expect(body.limit).toBe(10);
     expect(mockStreamDocky).not.toHaveBeenCalled();
   });
 

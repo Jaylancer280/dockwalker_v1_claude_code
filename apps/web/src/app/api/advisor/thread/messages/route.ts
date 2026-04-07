@@ -101,7 +101,7 @@ export async function POST(request: Request) {
     // Subscription + usage check (before saving user message)
     const subResult = await requireSubscription(supabase, user.id, 'crew_pro');
     const isPro = subResult.ok;
-    const usageLimit = isPro ? 500 : 15;
+    const usageLimit = isPro ? 500 : 10;
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     // Read-only usage check — do NOT increment yet (increment after successful response)

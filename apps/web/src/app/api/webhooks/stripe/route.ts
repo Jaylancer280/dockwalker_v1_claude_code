@@ -129,7 +129,7 @@ export async function POST(request: Request) {
 
 function mapPriceToPlan(priceId: string | undefined): string {
   if (priceId === process.env.STRIPE_PRICE_CREW_PRO) return 'crew_pro';
-  if (priceId === process.env.STRIPE_PRICE_CREW_UNLIMITED) return 'crew_unlimited';
+  if (priceId === process.env.STRIPE_PRICE_EMPLOYER_PRO) return 'employer_pro';
   return 'free';
 }
 
