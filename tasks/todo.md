@@ -70,11 +70,11 @@
 
 **Session 2 — Cleanup cron + chat UI:**
 
-- [ ] Create `GET /api/cron/document-cleanup` — Auth via `CRON_SECRET`. Query `engagement_documents WHERE expires_at < now() AND deleted_at IS NULL`. For each: delete from storage via service client, set `deleted_at = now()`. Also query for GDPR-scrubbed documents: `WHERE deleted_at IS NOT NULL AND storage_path IS NOT NULL` — attempt storage deletion for any that were soft-deleted (by user or GDPR scrub) but might still have files. On successful storage delete, set `storage_path = NULL` to mark as fully cleaned. Log `{ cleaned, stragglers }`. Monitoring: count documents where `expires_at < now() - interval '6 hours' AND deleted_at IS NULL` — log error if > 0.
-- [ ] Add cron to `vercel.json`: `{ "path": "/api/cron/document-cleanup", "schedule": "0 */6 * * *" }`.
-- [ ] Chat UI — paperclip button: The chat footer is a separate component at `apps/web/src/app/(app)/messages/[engagementId]/_components/chat-footer.tsx` (lines 113-139). Add a Paperclip icon button before the text input (between `<form>` and `<input>`). Only enabled when `context.status === 'active'`. Hidden `<input type="file" ref={fileInputRef} multiple accept=".pdf,.jpg,.jpeg,.png,.webp">`. On file selection: upload each file sequentially via `POST /api/messages/{engagementId}/documents/upload`, show per-file progress, then call `POST .../documents/finalize` with all document IDs. On completion, the message appears in chat via realtime.
-- [ ] Chat UI — document list fetch: On page load, fetch `GET /api/messages/{engagementId}/documents`. Store in state keyed by `messageId`. On realtime message arrival, refetch (or append if the new message ID matches pending uploads). Pass the document map to the message list component.
-- [ ] Chat UI — document message card: In the message list renderer, when a message has associated documents (check the document map by `messageId`), render a `DocumentCard` component for each:
+- [x] Create `GET /api/cron/document-cleanup` — Auth via `CRON_SECRET`. Query `engagement_documents WHERE expires_at < now() AND deleted_at IS NULL`. For each: delete from storage via service client, set `deleted_at = now()`. Also query for GDPR-scrubbed documents: `WHERE deleted_at IS NOT NULL AND storage_path IS NOT NULL` — attempt storage deletion for any that were soft-deleted (by user or GDPR scrub) but might still have files. On successful storage delete, set `storage_path = NULL` to mark as fully cleaned. Log `{ cleaned, stragglers }`. Monitoring: count documents where `expires_at < now() - interval '6 hours' AND deleted_at IS NULL` — log error if > 0.
+- [x] Add cron to `vercel.json`: `{ "path": "/api/cron/document-cleanup", "schedule": "0 */6 * * *" }`.
+- [x] Chat UI — paperclip button: The chat footer is a separate component at `apps/web/src/app/(app)/messages/[engagementId]/_components/chat-footer.tsx` (lines 113-139). Add a Paperclip icon button before the text input (between `<form>` and `<input>`). Only enabled when `context.status === 'active'`. Hidden `<input type="file" ref={fileInputRef} multiple accept=".pdf,.jpg,.jpeg,.png,.webp">`. On file selection: upload each file sequentially via `POST /api/messages/{engagementId}/documents/upload`, show per-file progress, then call `POST .../documents/finalize` with all document IDs. On completion, the message appears in chat via realtime.
+- [x] Chat UI — document list fetch: On page load, fetch `GET /api/messages/{engagementId}/documents`. Store in state keyed by `messageId`. On realtime message arrival, refetch (or append if the new message ID matches pending uploads). Pass the document map to the message list component.
+- [x] Chat UI — document message card: In the message list renderer, when a message has associated documents (check the document map by `messageId`), render a `DocumentCard` component for each:
   - File icon (PDF or image based on `mimeType`)
   - Filename + file size
   - **Active:** Download button + countdown timer (hours remaining from `expiresAt`)
@@ -82,8 +82,8 @@
   - **Deleted:** Greyed out, "Deleted by uploader" label
   - **Uploader's view:** Delete (X) button on active documents
   - Disclaimer: "DockWalker does not verify uploaded documents."
-- [ ] Download: calls the download API, opens returned signed URL. Delete: calls the delete API, updates local state.
-- [ ] Tests: cron deletes expired files + soft-deletes metadata, cron handles GDPR-scrubbed files, cron reports stragglers
+- [x] Download: calls the download API, opens returned signed URL. Delete: calls the delete API, updates local state.
+- [x] Tests: cron deletes expired files + soft-deletes metadata, cron handles GDPR-scrubbed files, cron reports stragglers
 
 **Session 3 — GDPR + WhatsApp `doc_shared` template:**
 

@@ -6,6 +6,18 @@ import type { Message, EngagementContext } from './types';
 import { DayworkSummaryCard } from './daywork-summary-card';
 import { PermanentSummaryCard } from './permanent-summary-card';
 import { ChecklistCard } from './checklist-card';
+import { DocumentCard } from './document-card';
+
+interface DocumentInfo {
+  id: string;
+  message_id: string | null;
+  file_name: string;
+  file_size_bytes: number;
+  mime_type: string;
+  expires_at: string;
+  deleted_at: string | null;
+  uploader_person_id: string;
+}
 
 interface MessageListProps {
   messages: Message[];
@@ -14,10 +26,13 @@ interface MessageListProps {
   loading: boolean;
   isCrew: boolean;
   isEmployer: boolean;
+  engagementId: string;
+  documentMap: Map<string, DocumentInfo[]>;
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   messagesEndRef: RefObject<HTMLDivElement | null>;
   onChecklistToggle: (itemId: string, checked: boolean) => void;
   onEditChecklist: () => void;
+  onDocumentDeleted: (docId: string) => void;
 }
 
 export function MessageList({
@@ -27,10 +42,13 @@ export function MessageList({
   loading,
   isCrew,
   isEmployer,
+  engagementId,
+  documentMap,
   scrollContainerRef,
   messagesEndRef,
   onChecklistToggle,
   onEditChecklist,
+  onDocumentDeleted,
 }: MessageListProps) {
   return (
     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4">
@@ -88,6 +106,7 @@ export function MessageList({
           }
 
           const isMine = msg.sender_person_id === userId;
+          const docs = documentMap.get(msg.id);
           return (
             <div key={msg.id} className={`group flex ${isMine ? 'justify-end' : 'justify-start'}`}>
               <div className="relative max-w-[80%] md:max-w-md">
@@ -100,6 +119,22 @@ export function MessageList({
                 >
                   {msg.content}
                 </div>
+                {docs && docs.length > 0 && (
+                  <div className="mt-1 flex flex-col gap-1">
+                    {docs.map((doc) => (
+                      <DocumentCard
+                        key={doc.id}
+                        doc={doc}
+                        engagementId={engagementId}
+                        userId={userId ?? ''}
+                        onDeleted={onDocumentDeleted}
+                      />
+                    ))}
+                    <p className="text-[9px] text-muted-foreground">
+                      DockWalker does not verify uploaded documents.
+                    </p>
+                  </div>
+                )}
                 <div className="mt-0.5">
                   <span className="font-mono text-[10px] text-[var(--tertiary)]">
                     {new Date(msg.created_at).toLocaleTimeString([], {

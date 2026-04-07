@@ -1,7 +1,10 @@
 'use client';
 
-import { Send } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { safeFetch } from '@/lib/safe-fetch';
+import { useToast } from '@/hooks/use-toast';
 import type { EngagementContext } from './types';
 import {
   WorkStartedBanner,
@@ -12,6 +15,7 @@ import {
 
 interface ChatFooterProps {
   context: EngagementContext | null;
+  engagementId: string;
   userId: string | null;
   isCrew: boolean;
   isEmployer: boolean;
@@ -31,10 +35,12 @@ interface ChatFooterProps {
   onWorkStartedConfirm: () => void;
   onRelistAfterRejection: () => void;
   onRespondCrewCancel: (action: 'relist' | 'cancel') => void;
+  onDocumentsUploaded?: () => void;
 }
 
 export function ChatFooter({
   context,
+  engagementId,
   userId,
   isCrew,
   isEmployer,
@@ -54,7 +60,53 @@ export function ChatFooter({
   onWorkStartedConfirm,
   onRelistAfterRejection,
   onRespondCrewCancel,
+  onDocumentsUploaded,
 }: ChatFooterProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const { showSuccess, showError } = useToast();
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const documentIds: string[] = [];
+
+    for (const file of Array.from(files)) {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await safeFetch<{ documentId?: string; error?: string }>(
+        `/api/messages/${engagementId}/documents/upload`,
+        { method: 'POST', body: formData },
+      );
+      if (res.ok && res.data.documentId) {
+        documentIds.push(res.data.documentId);
+      } else {
+        showError(!res.ok ? res.error : `Failed to upload ${file.name}`);
+      }
+    }
+
+    // Finalize if any uploaded
+    if (documentIds.length > 0) {
+      const finalRes = await safeFetch(`/api/messages/${engagementId}/documents/finalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documentIds }),
+      });
+      if (finalRes.ok) {
+        showSuccess(`${documentIds.length} document(s) shared`);
+        onDocumentsUploaded?.();
+      } else {
+        showError('Failed to finalize documents');
+      }
+    }
+
+    setUploading(false);
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   return (
     <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3 pb-safe">
       <div className="page-width-wide flex  flex-col gap-2">
@@ -111,6 +163,32 @@ export function ChatFooter({
 
         {/* Message input */}
         <form onSubmit={onSend} className="flex items-center gap-2">
+          {context?.status === 'active' && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </Button>
+            </>
+          )}
           <input
             type="text"
             value={input}

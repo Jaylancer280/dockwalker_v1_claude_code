@@ -27,6 +27,21 @@ export default function ChatPage() {
   const router = useRouter();
   const { showError, showSuccess } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [documentMap, setDocumentMap] = useState<
+    Map<
+      string,
+      Array<{
+        id: string;
+        message_id: string | null;
+        file_name: string;
+        file_size_bytes: number;
+        mime_type: string;
+        expires_at: string;
+        deleted_at: string | null;
+        uploader_person_id: string;
+      }>
+    >
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState('');
@@ -74,6 +89,32 @@ export default function ChatPage() {
     setLoading(false);
   }, [engagementId]);
 
+  const loadDocuments = useCallback(async () => {
+    const result = await safeFetch<{
+      documents?: Array<{
+        id: string;
+        message_id: string | null;
+        file_name: string;
+        file_size_bytes: number;
+        mime_type: string;
+        expires_at: string;
+        deleted_at: string | null;
+        uploader_person_id: string;
+      }>;
+    }>(`/api/messages/${engagementId}/documents`);
+    if (result.ok && result.data.documents) {
+      const map = new Map<string, typeof result.data.documents>();
+      for (const doc of result.data.documents) {
+        if (doc.message_id) {
+          const existing = map.get(doc.message_id) ?? [];
+          existing.push(doc);
+          map.set(doc.message_id, existing);
+        }
+      }
+      setDocumentMap(map);
+    }
+  }, [engagementId]);
+
   const { isConnected: realtimeConnected } = useRealtimeMessages(engagementId, (newMsg) => {
     setMessages((prev) => {
       if (prev.some((m) => m.id === newMsg.id)) return prev;
@@ -90,7 +131,7 @@ export default function ChatPage() {
 
     async function init() {
       const [, userResult] = await Promise.all([
-        Promise.all([loadContext(), loadMessages()]),
+        Promise.all([loadContext(), loadMessages(), loadDocuments()]),
         safeFetch<{ userId?: string }>('/api/auth/me'),
       ]);
       if (userResult.ok && userResult.data.userId) setUserId(userResult.data.userId);
@@ -108,7 +149,7 @@ export default function ChatPage() {
       clearInterval(contextInterval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [engagementId, loadContext, loadMessages]);
+  }, [engagementId, loadContext, loadMessages, loadDocuments]);
 
   useEffect(() => {
     if (realtimeConnected) {
@@ -519,14 +560,31 @@ export default function ChatPage() {
           loading={loading}
           isCrew={isCrew ?? false}
           isEmployer={isEmployer ?? false}
+          engagementId={engagementId}
+          documentMap={documentMap}
           scrollContainerRef={scrollContainerRef}
           messagesEndRef={messagesEndRef}
           onChecklistToggle={handleChecklistToggle}
           onEditChecklist={() => setShowChecklistForm(true)}
+          onDocumentDeleted={(docId) => {
+            setDocumentMap((prev) => {
+              const next = new Map(prev);
+              for (const [msgId, docs] of next) {
+                next.set(
+                  msgId,
+                  docs.map((d) =>
+                    d.id === docId ? { ...d, deleted_at: new Date().toISOString() } : d,
+                  ),
+                );
+              }
+              return next;
+            });
+          }}
         />
 
         <ChatFooter
           context={context}
+          engagementId={engagementId}
           userId={userId}
           isCrew={isCrew ?? false}
           isEmployer={isEmployer ?? false}
@@ -546,6 +604,7 @@ export default function ChatPage() {
           onWorkStartedConfirm={() => handleWorkStarted('confirm')}
           onRelistAfterRejection={handleRelistAfterRejection}
           onRespondCrewCancel={handleRespondCrewCancel}
+          onDocumentsUploaded={loadDocuments}
         />
       </div>
 
