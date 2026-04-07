@@ -21,6 +21,8 @@ import { ChatDialogs } from './_components/chat-dialogs';
 import { ChatSidebarActions } from './_components/chat-sidebar-actions';
 import { DayworkSummaryCard } from './_components/daywork-summary-card';
 import { PermanentSummaryCard } from './_components/permanent-summary-card';
+import { useVoiceCall } from '@/hooks/use-voice-call';
+import { CallBar } from '@/components/call-bar';
 
 export default function ChatPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
@@ -497,6 +499,26 @@ export default function ChatPage() {
   const isEmployer = context?.employer_person_id === userId;
   const isPermanent = context?.type === 'permanent';
   const permPostingId = context?.permanent_postings?.id ?? null;
+
+  // Voice call
+  const voiceCall = useVoiceCall({
+    engagementId: engagementId ?? '',
+    personId: userId ?? '',
+    remoteName: context?.other_name ?? '',
+  });
+  const voiceCallEnabled =
+    isPermanent && context?.status === 'active' && voiceCall.callState === 'idle';
+
+  // Post system message when call ends
+  useEffect(() => {
+    if (voiceCall.callState === 'ended' && voiceCall.duration > 0) {
+      safeFetch(`/api/messages/${engagementId}/call-ended`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: voiceCall.duration }),
+      });
+    }
+  }, [voiceCall.callState, voiceCall.duration, engagementId]);
   const permPostingStatus = context?.permanent_postings?.status ?? null;
   const canRate =
     (context?.status === 'completed' &&
@@ -514,6 +536,16 @@ export default function ChatPage() {
   return (
     <main className="flex h-[calc(100svh-var(--nav-height)-env(safe-area-inset-bottom))] flex-col bg-background md:h-svh lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col">
+        <CallBar
+          callState={voiceCall.callState}
+          remoteName={context?.other_name ?? ''}
+          duration={voiceCall.duration}
+          isMuted={voiceCall.isMuted}
+          onToggleMute={voiceCall.toggleMute}
+          onHangUp={() => voiceCall.hangUp()}
+          onAccept={voiceCall.acceptCall}
+          onDecline={voiceCall.declineCall}
+        />
         <ChatHeader
           context={context}
           isCrew={isCrew ?? false}
@@ -551,6 +583,8 @@ export default function ChatPage() {
             }
           }}
           onWorkStarted={handleWorkStarted}
+          onStartVoiceCall={voiceCall.startCall}
+          voiceCallEnabled={voiceCallEnabled}
         />
 
         <MessageList

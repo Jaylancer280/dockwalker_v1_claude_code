@@ -6,6 +6,8 @@ import { ToastWrapper } from '@/components/toast-wrapper';
 import { OfflineBanner } from '@/components/offline-banner';
 import { LookupsProvider } from '@/hooks/use-lookups';
 import { NotificationCountsProvider } from '@/hooks/use-notification-counts';
+import { VoiceCallProvider } from '@/contexts/voice-call-context';
+import { IncomingCallListener } from '@/components/incoming-call-listener';
 
 export default async function AppLayout({
   children,
@@ -30,14 +32,17 @@ export default async function AppLayout({
 
   return (
     <ToastWrapper>
-      <LookupsProvider>
-        <NotificationCountsProvider>
-          <OfflineBanner />
-          <SidebarNav currentHat={person.current_hat} identityType={person.identity_type} />
-          <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
-          <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
-        </NotificationCountsProvider>
-      </LookupsProvider>
+      <VoiceCallProvider>
+        <LookupsProvider>
+          <NotificationCountsProvider>
+            <OfflineBanner />
+            <IncomingCallListener personId={person.id} />
+            <SidebarNav currentHat={person.current_hat} identityType={person.identity_type} />
+            <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
+            <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
+          </NotificationCountsProvider>
+        </LookupsProvider>
+      </VoiceCallProvider>
     </ToastWrapper>
   );
 }
