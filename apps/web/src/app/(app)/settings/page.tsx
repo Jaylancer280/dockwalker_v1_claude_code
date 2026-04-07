@@ -9,6 +9,7 @@ import { safeFetch } from '@/lib/safe-fetch';
 import type { DistanceUnit, CurrencyCode } from '@dockwalker/shared';
 import { AccountSection } from './_components/account-section';
 import { NotificationsSection, type NotificationPrefs } from './_components/notifications-section';
+import { WhatsAppSection } from './_components/whatsapp-section';
 import { AppearanceSection } from './_components/appearance-section';
 import { DangerZoneSection } from './_components/danger-zone-section';
 
@@ -27,6 +28,7 @@ export default function SettingsPage() {
     push_applications: true,
     push_messages: true,
     push_reminders: true,
+    whatsapp_enabled: false,
   });
   const [notifLoaded, setNotifLoaded] = useState(false);
 
@@ -117,6 +119,12 @@ export default function SettingsPage() {
           notifPrefs={notifPrefs}
           notifLoaded={notifLoaded}
           onToggle={handleNotifToggle}
+        />
+
+        <WhatsAppSection
+          whatsappEnabled={notifPrefs.whatsapp_enabled}
+          notifLoaded={notifLoaded}
+          onToggleEnabled={() => handleNotifToggle('whatsapp_enabled')}
         />
 
         <AppearanceSection

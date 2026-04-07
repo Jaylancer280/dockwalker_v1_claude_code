@@ -8,6 +8,7 @@ export interface NotificationPrefs {
   push_applications: boolean;
   push_messages: boolean;
   push_reminders: boolean;
+  whatsapp_enabled: boolean;
 }
 
 export interface NotificationsSectionProps {

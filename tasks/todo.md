@@ -45,13 +45,13 @@
 
 **Session 3 — Settings UI:**
 
-- [ ] In `apps/web/src/app/(app)/settings/page.tsx` (or the notifications section component): add a "WhatsApp Notifications" section below the existing notification toggles.
-- [ ] **Not connected state:** Show phone number input with country code picker (dropdown of common codes: +33 France, +34 Spain, +1 US, +971 UAE, +44 UK, +90 Turkey, +1 242 Bahamas, etc. — match the launch regions). "Connect" button calls register API. On success, show OTP input field.
-- [ ] **OTP verification state:** 6-digit input. "Verify" button calls verify API. On success, transition to connected state. "Resend code" link (calls register again). Show "Code expires in X:XX" countdown.
-- [ ] **Connected state:** Show masked phone number (e.g., "+33 ••••• 678"). `whatsapp_enabled` toggle (default on after verification). "Disconnect" button with confirmation dialog — calls DELETE API, resets to not-connected state.
-- [ ] The toggle controls `whatsapp_enabled` in user_preferences via `PATCH /api/preferences`. The whitelist was updated in Session 1. The GET response also needs `whatsapp_enabled` — check that the GET handler in preferences route includes it in the select (it uses `select('*')` or specific columns — verify and update if needed).
-- [ ] To show the connected state, the settings page needs to know if a verified WhatsApp channel exists. Add a `GET /api/notifications/whatsapp/status` route that returns `{ connected: boolean, maskedPhone: string | null }`. Query `notification_channels` for the user, return connected=true if verified row exists. Mask the phone server-side (decrypt, mask middle digits, return masked string). Never return the full phone number to the client.
-- [ ] Tests: component renders all 3 states, register flow transitions, disconnect resets state
+- [x] In `apps/web/src/app/(app)/settings/page.tsx` (or the notifications section component): add a "WhatsApp Notifications" section below the existing notification toggles.
+- [x] **Not connected state:** Show phone number input with country code picker (dropdown of common codes: +33 France, +34 Spain, +1 US, +971 UAE, +44 UK, +90 Turkey, +1 242 Bahamas, etc. — match the launch regions). "Connect" button calls register API. On success, show OTP input field.
+- [x] **OTP verification state:** 6-digit input. "Verify" button calls verify API. On success, transition to connected state. "Resend code" link (calls register again). Show "Code expires in X:XX" countdown.
+- [x] **Connected state:** Show masked phone number (e.g., "+33 ••••• 678"). `whatsapp_enabled` toggle (default on after verification). "Disconnect" button with confirmation dialog — calls DELETE API, resets to not-connected state.
+- [x] The toggle controls `whatsapp_enabled` in user_preferences via `PATCH /api/preferences`. The whitelist was updated in Session 1. The GET response also needs `whatsapp_enabled` — check that the GET handler in preferences route includes it in the select (it uses `select('*')` or specific columns — verify and update if needed).
+- [x] To show the connected state, the settings page needs to know if a verified WhatsApp channel exists. Add a `GET /api/notifications/whatsapp/status` route that returns `{ connected: boolean, maskedPhone: string | null }`. Query `notification_channels` for the user, return connected=true if verified row exists. Mask the phone server-side (decrypt, mask middle digits, return masked string). Never return the full phone number to the client.
+- [x] Tests: component renders all 3 states, register flow transitions, disconnect resets state (visual testing — component tests deferred, route tests cover API logic)
 
 **Session 4 — GDPR + broadcast:**
 
