@@ -113,4 +113,42 @@ describe('WhatsApp template resolution', () => {
       expect.stringContaining('/discover'),
     );
   });
+
+  it('MESSAGE.SENT with message_type=documents uses doc_shared template', async () => {
+    const phoneBuf = Buffer.from('encrypted');
+    const ctx = {
+      recipientPersonId: 'emp1',
+      notification: { title: 'New message', body: 'Shared 3 document(s)' },
+      roleContext: 'employer' as const,
+    };
+
+    // Mock engagement lookup
+    mockFrom.mockReturnValue(
+      chainable({
+        daywork_id: 'dw1',
+        permanent_posting_id: null,
+        yacht_roles: { name: 'Deckhand' },
+      }),
+    );
+
+    await sendWhatsAppForEvent(
+      sc,
+      'MESSAGE.SENT',
+      {
+        engagement_id: 'eng1',
+        sender_person_id: 'crew1',
+        message_type: 'documents',
+        document_count: 3,
+      },
+      ctx,
+      phoneBuf,
+    );
+
+    expect(mockSendWhatsApp).toHaveBeenCalledWith(
+      phoneBuf,
+      'doc_shared',
+      expect.arrayContaining(['Sophie', '3']),
+      expect.stringContaining('/messages/eng1'),
+    );
+  });
 });

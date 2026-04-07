@@ -115,6 +115,13 @@ export async function GET() {
       }
     }
 
+    // Engagement documents metadata (user's uploads only, no file content)
+    const { data: userDocs } = await supabase
+      .from('engagement_documents')
+      .select('file_name, file_size_bytes, mime_type, created_at, expires_at, deleted_at')
+      .eq('uploader_person_id', user.id)
+      .order('created_at', { ascending: true });
+
     return NextResponse.json({
       exported_at: new Date().toISOString(),
       person_id: user.id,
@@ -133,6 +140,14 @@ export async function GET() {
       device_tokens: deviceTokensRes.data ?? [],
       advisor_conversations: advisorConvsRes.data ?? [],
       permanent_postings: permanentPostingsRes.data ?? [],
+      engagement_documents: (userDocs ?? []).map((d) => ({
+        fileName: d.file_name,
+        fileSize: d.file_size_bytes,
+        mimeType: d.mime_type,
+        uploadedAt: d.created_at,
+        expiresAt: d.expires_at,
+        deletedAt: d.deleted_at,
+      })),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';

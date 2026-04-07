@@ -298,6 +298,17 @@ async function resolveTemplate(
           jobNumber = info.job_number;
         }
       }
+      // Use doc_shared template for document messages
+      if (payload.message_type === 'documents') {
+        const uploaderName = await getDisplayName(sc, payload.sender_person_id as string);
+        const docCount = String(payload.document_count ?? 1);
+        return {
+          templateName: 'doc_shared',
+          variables: [uploaderName, docCount, roleName, jobNumber],
+          buttonUrl: `${SITE_URL}/messages/${eid}`,
+        };
+      }
+
       return {
         templateName: 'eng_message',
         variables: [roleName, jobNumber],

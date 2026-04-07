@@ -117,6 +117,7 @@ The app depends on these Postgres functions in the `public` schema:
 | GDPR Notification Channels                    | 00088     | DATA_SCRUBBED handler extended: deletes `notification_channels` + `agent_placement_cities`, nulls `deck_name`                                                                                                                                                                                     |
 | Subscription Plan Update                      | 00089     | Remove `crew_unlimited` from CHECK, add `employer_pro`. Data migration: `crew_unlimited` → `crew_pro`                                                                                                                                                                                             |
 | Engagement Documents                          | 00090     | `engagement_documents` table + `engagement-documents` private storage bucket + participant-gated RLS + storage policies                                                                                                                                                                           |
+| GDPR Engagement Documents                     | 00091     | DATA_SCRUBBED handler: soft-delete + expire `engagement_documents` for scrubbed users                                                                                                                                                                                                             |
 
 ## Daywork Status Lifecycle
 

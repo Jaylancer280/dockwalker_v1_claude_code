@@ -87,17 +87,17 @@
 
 **Session 3 — GDPR + WhatsApp `doc_shared` template:**
 
-- [ ] Migration: extend `apply_projection` PERSON.DATA_SCRUBBED handler — add:
+- [x] Migration: extend `apply_projection` PERSON.DATA_SCRUBBED handler — add:
   ```sql
   UPDATE public.engagement_documents
   SET deleted_at = now(), expires_at = now()
   WHERE uploader_person_id = p_person_id AND deleted_at IS NULL;
   ```
   Setting both `deleted_at` and `expires_at = now()` ensures the cron picks these up for storage cleanup on the next run. The cron's secondary pass (Session 2) handles actual file deletion for soft-deleted rows.
-- [ ] Rollback: restore previous apply_projection body. Self-contained. Must include ALL existing handlers.
-- [ ] Extend GDPR export (`/api/account/export`): query `engagement_documents WHERE uploader_person_id = user.id`. Include metadata only: `{ fileName, fileSize, mimeType, uploadedAt, expiresAt, deletedAt }`. No file content. No documents uploaded by the other party.
-- [ ] In `apps/web/src/lib/push-triggers/whatsapp-dispatcher.ts`: extend the `MESSAGE.SENT` case to check `payload.message_type`. If `payload.message_type === 'documents'`, use template `doc_shared` with variables: uploader first name (`{{1}}`), document count (`{{2}}`), role name (`{{3}}`), job number (`{{4}}`). Button: `[Open conversation] → /messages/${engagementId}`. If `message_type` is not `'documents'`, use existing `eng_message` template. This requires the finalize route to pass `message_type: 'documents'` in the `MESSAGE.SENT` event payload.
-- [ ] Tests: GDPR scrub soft-deletes + sets expires_at, export includes document metadata, WhatsApp dispatcher uses `doc_shared` for document messages
+- [x] Rollback: restore previous apply_projection body. Self-contained. Must include ALL existing handlers.
+- [x] Extend GDPR export (`/api/account/export`): query `engagement_documents WHERE uploader_person_id = user.id`. Include metadata only: `{ fileName, fileSize, mimeType, uploadedAt, expiresAt, deletedAt }`. No file content. No documents uploaded by the other party.
+- [x] In `apps/web/src/lib/push-triggers/whatsapp-dispatcher.ts`: extend the `MESSAGE.SENT` case to check `payload.message_type`. If `payload.message_type === 'documents'`, use template `doc_shared` with variables: uploader first name (`{{1}}`), document count (`{{2}}`), role name (`{{3}}`), job number (`{{4}}`). Button: `[Open conversation] → /messages/${engagementId}`. If `message_type` is not `'documents'`, use existing `eng_message` template. This requires the finalize route to pass `message_type: 'documents'` in the `MESSAGE.SENT` event payload.
+- [x] Tests: GDPR scrub soft-deletes + sets expires_at, export includes document metadata, WhatsApp dispatcher uses `doc_shared` for document messages
 
 ---
 
