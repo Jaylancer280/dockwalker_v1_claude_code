@@ -10,7 +10,6 @@ import { getDepartmentGradient } from '@/lib/department-image';
 import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
 import { ShareJobButton } from '@/components/share-job-button';
-import { ExpandableText } from '@/components/expandable-text';
 
 export interface DayworkCard {
   id: string;
@@ -86,7 +85,7 @@ export function JobCard({
       style={{ backgroundImage: bgGradient }}
     >
       {/* Card content */}
-      <div className="relative flex h-full flex-col p-5">
+      <div className="relative flex h-full flex-col overflow-y-auto p-5">
         {/* Role + vessel */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
@@ -193,7 +192,7 @@ export function JobCard({
           {/* Cert pills */}
           {card.cert_names && card.cert_names.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {card.cert_names.map((certName, idx) => {
+              {card.cert_names.slice(0, 3).map((certName, idx) => {
                 const certId = card.required_certification_ids?.[idx];
                 const held = crewCertIds != null && certId != null && crewCertIds.includes(certId);
                 const missing =
@@ -213,11 +212,16 @@ export function JobCard({
                   </span>
                 );
               })}
+              {card.cert_names.length > 3 && (
+                <span className="inline-flex items-center rounded-full border border-muted-foreground/30 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  +{card.cert_names.length - 3} more
+                </span>
+              )}
             </div>
           )}
           {card.required_languages && card.required_languages.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {card.required_languages.map((code) => {
+              {card.required_languages.slice(0, 2).map((code) => {
                 const held = crewLangs != null && crewLangs.includes(code);
                 const missing = crewLangs != null && !crewLangs.includes(code);
                 return (
@@ -235,6 +239,11 @@ export function JobCard({
                   </span>
                 );
               })}
+              {card.required_languages.length > 2 && (
+                <span className="inline-flex items-center rounded-full border border-muted-foreground/30 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  +{card.required_languages.length - 2} more
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -257,11 +266,7 @@ export function JobCard({
 
         {/* Notes */}
         {card.notes && (
-          <ExpandableText
-            text={card.notes}
-            maxLines={3}
-            className="mt-3 text-sm text-muted-foreground"
-          />
+          <p className="mt-3 line-clamp-3 text-sm text-muted-foreground">{card.notes}</p>
         )}
 
         {/* Spacer */}

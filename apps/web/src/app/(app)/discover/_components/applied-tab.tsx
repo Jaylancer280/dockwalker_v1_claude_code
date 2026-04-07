@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { currencySymbol } from '@dockwalker/shared';
+import { ShareJobButton } from '@/components/share-job-button';
 import { PermanentApplicationCard } from './permanent-application-card';
 import { ExpandableText } from '@/components/expandable-text';
 
@@ -243,6 +244,13 @@ function ApplicationCard({
             </Badge>
           )}
         </div>
+
+        <ShareJobButton
+          jobNumber={`DW-${String(dw.job_number).padStart(5, '0')}`}
+          roleName={dw.role_name ?? 'Daywork'}
+          location={dw.city_name ?? dw.port_name ?? ''}
+          rate={`${symbol}${dw.day_rate}/day`}
+        />
 
         {/* Application message preview */}
         {application.message && (
