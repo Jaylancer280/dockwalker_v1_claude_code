@@ -517,6 +517,18 @@ describe('DAYWORK.POSTED broadcast', () => {
             }),
           };
         }
+        if (table === 'notification_channels' || table === 'user_preferences') {
+          const emptyResult = { data: [], error: null };
+          const inChain: Record<string, ReturnType<typeof vi.fn>> = {};
+          inChain.select = vi.fn().mockReturnValue(inChain);
+          inChain.in = vi.fn().mockReturnValue(inChain);
+          inChain.eq = vi.fn().mockReturnValue(inChain);
+          inChain.then = vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+            resolve(emptyResult);
+            return Promise.resolve(emptyResult);
+          });
+          return inChain;
+        }
         if (table === 'cities') {
           return {
             select: vi.fn().mockReturnValue({

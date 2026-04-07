@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { decryptPhone } from '@/lib/crypto';
 
 /**
  * GET /api/account/export
@@ -97,11 +98,29 @@ export async function GET() {
         .order('created_at', { ascending: true }),
     ]);
 
+    // WhatsApp phone (user's own data — decrypt for export)
+    let whatsapp_phone: string | null = null;
+    const { data: waChannel } = await supabase
+      .from('notification_channels')
+      .select('channel_value_encrypted, verified')
+      .eq('person_id', user.id)
+      .eq('channel_type', 'whatsapp')
+      .eq('verified', true)
+      .single();
+    if (waChannel?.channel_value_encrypted) {
+      try {
+        whatsapp_phone = decryptPhone(Buffer.from(waChannel.channel_value_encrypted));
+      } catch {
+        // Decryption failed — omit from export
+      }
+    }
+
     return NextResponse.json({
       exported_at: new Date().toISOString(),
       person_id: user.id,
       profile: profileRes.data ?? null,
       preferences: prefsRes.data ?? null,
+      ...(whatsapp_phone ? { whatsapp_phone } : {}),
       events: eventsRes.data ?? [],
       messages: messagesRes.data ?? [],
       engagements: engagementsRes.data ?? [],

@@ -7,6 +7,10 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
   requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
 
+vi.mock('@/lib/crypto', () => ({
+  decryptPhone: vi.fn().mockReturnValue('+33612345678'),
+}));
+
 const mockFrom = vi.fn();
 
 function guardOk(overrides: Record<string, unknown> = {}) {
@@ -85,6 +89,7 @@ describe('GET /api/account/export', () => {
       chainMock({ data: deviceTokensData, error: null }),    // device_tokens
       chainMock({ data: advisorConvsData, error: null }),    // advisor_conversations
       chainMock({ data: [], error: null }),                    // permanent_postings
+      chainMock({ data: null, error: null }),                   // notification_channels (WhatsApp)
     ];
     mockFrom.mockImplementation(() => results[callIndex++]);
 
@@ -108,14 +113,14 @@ describe('GET /api/account/export', () => {
     expect(body.device_tokens).toEqual(deviceTokensData);
     expect(body.advisor_conversations).toEqual(advisorConvsData);
 
-    expect(mockFrom).toHaveBeenCalledTimes(14);
+    expect(mockFrom).toHaveBeenCalledTimes(15);
   });
 
   it('returns empty arrays when user has no data', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     let callIndex = 0;
-    const results = Array.from({ length: 14 }, () =>
+    const results = Array.from({ length: 15 }, () =>
       chainMock({ data: null, error: null }),
     );
     mockFrom.mockImplementation(() => results[callIndex++]);
