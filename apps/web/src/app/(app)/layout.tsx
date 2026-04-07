@@ -8,6 +8,7 @@ import { LookupsProvider } from '@/hooks/use-lookups';
 import { NotificationCountsProvider } from '@/hooks/use-notification-counts';
 import { VoiceCallProvider } from '@/contexts/voice-call-context';
 import { IncomingCallListener } from '@/components/incoming-call-listener';
+import { DeferredMount } from '@/components/deferred-mount';
 
 export default async function AppLayout({
   children,
@@ -36,7 +37,9 @@ export default async function AppLayout({
         <LookupsProvider>
           <NotificationCountsProvider>
             <OfflineBanner />
-            <IncomingCallListener personId={person.id} />
+            <DeferredMount>
+              <IncomingCallListener personId={person.id} />
+            </DeferredMount>
             <SidebarNav currentHat={person.current_hat} identityType={person.identity_type} />
             <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
             <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />

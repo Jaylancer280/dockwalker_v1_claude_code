@@ -266,18 +266,12 @@ export default function ProfilePage() {
 
   // Lookups loaded from LookupsProvider context — certNames and sizeBandNames derived above via useMemo
 
+  // Parallel initial fetch — profile, availability, experiences all fire at once
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
-
-  useEffect(() => {
-    if (person?.identity_type === 'crew') {
-      loadAvailability();
-    }
-    if (person?.identity_type === 'crew' || person?.identity_type === 'agent') {
-      loadExperiences();
-    }
-  }, [person?.identity_type, loadAvailability, loadExperiences]);
+    loadAvailability();
+    loadExperiences();
+  }, [loadProfile, loadAvailability, loadExperiences]);
 
   // Re-fetch profile + experiences when tab regains focus (handles stale data after navigation)
   useEffect(() => {

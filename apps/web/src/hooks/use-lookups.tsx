@@ -63,6 +63,8 @@ export interface LookupsData {
   loading: boolean;
 }
 
+const LANGUAGES_LIST = LANGUAGES.map((l) => ({ code: l.code, label: l.label }));
+
 const defaultLookups: LookupsData = {
   roles: [],
   certifications: [],
@@ -72,16 +74,91 @@ const defaultLookups: LookupsData = {
   visaTypes: [],
   ports: [],
   cities: [],
-  languages: LANGUAGES.map((l) => ({ code: l.code, label: l.label })),
+  languages: LANGUAGES_LIST,
   loading: true,
 };
 
 const LookupsContext = createContext<LookupsData>(defaultLookups);
 
-const REVALIDATE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_KEY = 'dw-lookups';
+const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+interface CachedLookups {
+  ts: number;
+  roles: RoleLookup[];
+  certifications: CertLookup[];
+  experienceBrackets: ExperienceBracketLookup[];
+  sizeBands: SizeBandLookup[];
+  nationalities: NationalityLookup[];
+  visaTypes: VisaTypeLookup[];
+  ports: PortLookup[];
+  cities: CityLookup[];
+}
+
+function readCache(): CachedLookups | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedLookups;
+    if (!parsed.ts || Date.now() - parsed.ts > CACHE_MAX_AGE_MS) return null;
+    if (!parsed.roles?.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(data: Omit<CachedLookups, 'ts'>) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ ...data, ts: Date.now() }));
+  } catch {
+    // quota exceeded — ignore
+  }
+}
+
+function buildLookupsData(
+  roles: RoleLookup[],
+  certifications: CertLookup[],
+  experienceBrackets: ExperienceBracketLookup[],
+  sizeBands: SizeBandLookup[],
+  nationalities: NationalityLookup[],
+  visaTypes: VisaTypeLookup[],
+  ports: PortLookup[],
+  cities: CityLookup[],
+): LookupsData {
+  return {
+    roles,
+    certifications,
+    experienceBrackets,
+    sizeBands,
+    nationalities,
+    visaTypes,
+    ports,
+    cities,
+    languages: LANGUAGES_LIST,
+    loading: false,
+  };
+}
 
 export function LookupsProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<LookupsData>(defaultLookups);
+  const [data, setData] = useState<LookupsData>(() => {
+    // Hydrate from cache synchronously if available
+    if (typeof window === 'undefined') return defaultLookups;
+    const cached = readCache();
+    if (cached) {
+      return buildLookupsData(
+        cached.roles,
+        cached.certifications,
+        cached.experienceBrackets,
+        cached.sizeBands,
+        cached.nationalities,
+        cached.visaTypes,
+        cached.ports,
+        cached.cities,
+      );
+    }
+    return defaultLookups;
+  });
   const [fetchedAt, setFetchedAt] = useState(0);
 
   const load = useCallback(async () => {
@@ -98,21 +175,41 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         supabase.from('cities').select('id, name, region_id, regions(name)').order('name'),
       ]);
 
-    setData({
-      roles: (rolesRes.data ?? []) as RoleLookup[],
-      certifications: (certsRes.data ?? []) as CertLookup[],
-      experienceBrackets: (bracketsRes.data ?? []) as ExperienceBracketLookup[],
-      sizeBands: (bandsRes.data ?? []) as SizeBandLookup[],
-      nationalities: (natRes.data ?? []) as NationalityLookup[],
-      visaTypes: (visaRes.data ?? []) as VisaTypeLookup[],
-      ports: (portsRes.data ?? []) as unknown as PortLookup[],
-      cities: (citiesRes.data ?? []) as unknown as CityLookup[],
-      languages: LANGUAGES.map((l) => ({ code: l.code, label: l.label })),
-      loading: false,
-    });
+    const roles = (rolesRes.data ?? []) as RoleLookup[];
+    const certifications = (certsRes.data ?? []) as CertLookup[];
+    const experienceBrackets = (bracketsRes.data ?? []) as ExperienceBracketLookup[];
+    const sizeBands = (bandsRes.data ?? []) as SizeBandLookup[];
+    const nationalities = (natRes.data ?? []) as NationalityLookup[];
+    const visaTypes = (visaRes.data ?? []) as VisaTypeLookup[];
+    const ports = (portsRes.data ?? []) as unknown as PortLookup[];
+    const cities = (citiesRes.data ?? []) as unknown as CityLookup[];
+
+    setData(
+      buildLookupsData(
+        roles,
+        certifications,
+        experienceBrackets,
+        sizeBands,
+        nationalities,
+        visaTypes,
+        ports,
+        cities,
+      ),
+    );
     setFetchedAt(Date.now());
+    writeCache({
+      roles,
+      certifications,
+      experienceBrackets,
+      sizeBands,
+      nationalities,
+      visaTypes,
+      ports,
+      cities,
+    });
   }, []);
 
+  // Background revalidation on mount (even if cache was used)
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
@@ -127,19 +224,37 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
       supabase.from('cities').select('id, name, region_id, regions(name)').order('name'),
     ]).then(([rolesRes, certsRes, bracketsRes, bandsRes, natRes, visaRes, portsRes, citiesRes]) => {
       if (cancelled) return;
-      setData({
-        roles: (rolesRes.data ?? []) as RoleLookup[],
-        certifications: (certsRes.data ?? []) as CertLookup[],
-        experienceBrackets: (bracketsRes.data ?? []) as ExperienceBracketLookup[],
-        sizeBands: (bandsRes.data ?? []) as SizeBandLookup[],
-        nationalities: (natRes.data ?? []) as NationalityLookup[],
-        visaTypes: (visaRes.data ?? []) as VisaTypeLookup[],
-        ports: (portsRes.data ?? []) as unknown as PortLookup[],
-        cities: (citiesRes.data ?? []) as unknown as CityLookup[],
-        languages: LANGUAGES.map((l) => ({ code: l.code, label: l.label })),
-        loading: false,
-      });
+      const roles = (rolesRes.data ?? []) as RoleLookup[];
+      const certifications = (certsRes.data ?? []) as CertLookup[];
+      const experienceBrackets = (bracketsRes.data ?? []) as ExperienceBracketLookup[];
+      const sizeBands = (bandsRes.data ?? []) as SizeBandLookup[];
+      const nationalities = (natRes.data ?? []) as NationalityLookup[];
+      const visaTypes = (visaRes.data ?? []) as VisaTypeLookup[];
+      const ports = (portsRes.data ?? []) as unknown as PortLookup[];
+      const cities = (citiesRes.data ?? []) as unknown as CityLookup[];
+      setData(
+        buildLookupsData(
+          roles,
+          certifications,
+          experienceBrackets,
+          sizeBands,
+          nationalities,
+          visaTypes,
+          ports,
+          cities,
+        ),
+      );
       setFetchedAt(Date.now());
+      writeCache({
+        roles,
+        certifications,
+        experienceBrackets,
+        sizeBands,
+        nationalities,
+        visaTypes,
+        ports,
+        cities,
+      });
     });
     return () => {
       cancelled = true;
@@ -149,7 +264,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
   // Revalidate on visibility change if stale
   useEffect(() => {
     function handleVisibility() {
-      if (document.visibilityState === 'visible' && Date.now() - fetchedAt > REVALIDATE_MS) {
+      if (document.visibilityState === 'visible' && Date.now() - fetchedAt > CACHE_MAX_AGE_MS) {
         load();
       }
     }

@@ -594,3 +594,24 @@ begin
           update public.permanent_postings set status = 'active', updated_at = now()
             where id = v_posting_id and status = 'in_negotiation';
         end if;
+      end if;
+
+    -- ── ADMIN EVENTS ──────────────────────────────────────────────────────
+
+    when 'ADMIN.ENGAGEMENT_COMPLETED' then
+      v_daywork_id := (p_payload->>'daywork_id')::uuid;
+      update public.dayworks set status = 'completed' where id = v_daywork_id;
+      update public.active_engagements set status = 'completed' where daywork_id = v_daywork_id and status = 'active';
+      update public.applications set status = 'completed', updated_at = now() where daywork_id = v_daywork_id and status = 'accepted';
+
+    when 'ADMIN.CANONICAL_ADDED' then
+      raise notice 'ADMIN.CANONICAL_ADDED processed for table % record %', p_payload->>'table', p_payload->>'record_id';
+
+    when 'ADMIN.CANONICAL_UPDATED' then
+      raise notice 'ADMIN.CANONICAL_UPDATED processed for table % record %', p_payload->>'table', p_payload->>'record_id';
+
+    else
+      raise notice 'Unknown event type: %', p_event_type;
+  end case;
+end;
+$$;
