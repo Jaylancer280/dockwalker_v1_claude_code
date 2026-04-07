@@ -11,8 +11,13 @@ export function DeferredMount({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const id = requestIdleCallback(() => setMounted(true), { timeout: 200 });
-    return () => cancelIdleCallback(id);
+    const rIC =
+      typeof requestIdleCallback === 'function'
+        ? requestIdleCallback
+        : (cb: () => void) => setTimeout(cb, 0) as unknown as number;
+    const cIC = typeof cancelIdleCallback === 'function' ? cancelIdleCallback : clearTimeout;
+    const id = rIC(() => setMounted(true));
+    return () => cIC(id);
   }, []);
 
   if (!mounted) return null;
