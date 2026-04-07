@@ -117,7 +117,7 @@ export default function PermanentReviewPage() {
       setPostingStatus(result.data.posting_status ?? 'active');
       setSelectedCrewId(result.data.selected_crew_id ?? null);
     } else {
-      showError(result.error);
+      showError('Failed to load applicants');
     }
     setLoading(false);
   }, [fetchReview, showError]);
@@ -133,7 +133,7 @@ export default function PermanentReviewPage() {
         setPostingStatus(result.data.posting_status ?? 'active');
         setSelectedCrewId(result.data.selected_crew_id ?? null);
       } else {
-        showError(result.error);
+        showError('Failed to load applicants');
       }
       setLoading(false);
     });
@@ -159,7 +159,7 @@ export default function PermanentReviewPage() {
       showSuccess('Candidate shortlisted');
       loadApplicants();
     } else {
-      showError(result.error);
+      showError('Failed to load applicants');
     }
     setActioningId(null);
   }
@@ -176,7 +176,7 @@ export default function PermanentReviewPage() {
       showSuccess('Candidate rejected');
       setApplicants((prev) => prev.filter((a) => a.crew_person_id !== crewId));
     } else {
-      showError(result.error);
+      showError('Failed to load applicants');
     }
     setActioningId(null);
   }
@@ -197,7 +197,7 @@ export default function PermanentReviewPage() {
         loadApplicants();
       }
     } else {
-      showError(result.error);
+      showError('Failed to load applicants');
     }
     setActioningId(null);
   }

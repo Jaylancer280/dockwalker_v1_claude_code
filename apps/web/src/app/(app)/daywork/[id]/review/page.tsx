@@ -140,7 +140,7 @@ export default function ReviewApplicantsPage() {
         setPermanentOpportunity(result.data.permanent_opportunity);
       setError(null);
     } else {
-      setError(result.error);
+      setError('Failed to load applicants. Please try again.');
     }
     setLoading(false);
   }, [dayworkId, filterCertId, filterMinDays]);
