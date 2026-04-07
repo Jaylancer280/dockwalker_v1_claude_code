@@ -14,18 +14,37 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AvailabilityOverlay } from '@/components/availability-overlay';
-import { ProfileOverlay } from '@/components/profile-overlay';
+import dynamic from 'next/dynamic';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { useLookups } from '@/hooks/use-lookups';
 import { NotificationBell } from '@/components/notification-bell';
 import { PushPrompt } from '@/components/push-prompt';
-import { PermanentJobFeed } from './_components/permanent-job-feed';
 import { DayworkBrowse } from './_components/daywork-browse';
-import { AppliedTab, type MyApplication } from './_components/applied-tab';
-import { InvitationsTab, type Invitation } from './_components/invitations-tab';
 import { type DayworkCard, type SwipeableCardHandle } from './_components/daywork-card';
+import type { MyApplication } from './_components/applied-tab';
+import type { Invitation } from './_components/invitations-tab';
+
+// Lazy-load heavy components not needed on initial render
+const AvailabilityOverlay = dynamic(
+  () => import('@/components/availability-overlay').then((m) => m.AvailabilityOverlay),
+  { ssr: false },
+);
+const ProfileOverlay = dynamic(
+  () => import('@/components/profile-overlay').then((m) => m.ProfileOverlay),
+  { ssr: false },
+);
+const PermanentJobFeed = dynamic(
+  () => import('./_components/permanent-job-feed').then((m) => m.PermanentJobFeed),
+  { ssr: false },
+);
+const AppliedTab = dynamic(() => import('./_components/applied-tab').then((m) => m.AppliedTab), {
+  ssr: false,
+});
+const InvitationsTab = dynamic(
+  () => import('./_components/invitations-tab').then((m) => m.InvitationsTab),
+  { ssr: false },
+);
 
 interface LookupItem {
   id: string;
