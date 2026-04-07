@@ -113,6 +113,7 @@ export function PermanentJobCard({
         fill
         className="object-cover opacity-20 blur-[1px]"
         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
+        loading="lazy"
       />
 
       {/* Card content */}

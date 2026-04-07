@@ -381,9 +381,11 @@ export default function DiscoverPage() {
     setLoadingApps(false);
   }, []);
 
-  // Load applications on mount (for badge count) and when switching to the Applied tab
+  // Load applications when Applied tab is active (deferred until tab switch)
   useEffect(() => {
-    loadApplications();
+    if (activeTab === 'applied') {
+      loadApplications();
+    }
   }, [activeTab, loadApplications]);
 
   async function handleWithdraw(dayworkId: string) {
@@ -423,10 +425,11 @@ export default function DiscoverPage() {
     setLoadingInvitations(false);
   }, []);
 
-  // Load invitations on mount (for badge count) and when switching tabs
-
+  // Load invitations when Invitations tab is active (deferred until tab switch)
   useEffect(() => {
-    loadInvitations();
+    if (activeTab === 'invitations') {
+      loadInvitations();
+    }
   }, [activeTab, loadInvitations]);
 
   async function handleAcceptInvitation(inv: Invitation) {

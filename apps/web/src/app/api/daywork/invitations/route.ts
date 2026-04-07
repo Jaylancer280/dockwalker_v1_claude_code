@@ -44,30 +44,27 @@ export async function GET() {
     const dayworkIds = [...new Set(invitations.map((i) => i.daywork_id))];
     const employerIds = [...new Set(invitations.map((i) => i.employer_person_id))];
 
-    // Fetch daywork details
-    const { data: dayworks } = await supabase
-      .from('dayworks')
-      .select(
-        `
-      id, job_number, start_date, end_date, working_days,
-      day_rate, currency, meals, notes, status, vessel_id, positions_available, positions_filled,
-      yacht_roles(id, name, department),
-      ports(id, name, cities(name, regions(name))),
-      experience_brackets(label)
-    `,
-      )
-      .in('id', dayworkIds);
+    // Fetch daywork details + employer names in parallel
+    const [{ data: dayworks }, { data: employers }] = await Promise.all([
+      supabase
+        .from('dayworks')
+        .select(
+          `
+        id, job_number, start_date, end_date, working_days,
+        day_rate, currency, meals, notes, status, vessel_id, positions_available, positions_filled,
+        yacht_roles(id, name, department),
+        ports(id, name, cities(name, regions(name))),
+        experience_brackets(label)
+      `,
+        )
+        .in('id', dayworkIds),
+      supabase.from('profiles').select('person_id, display_name').in('person_id', employerIds),
+    ]);
 
     const dayworkMap = new Map<string, Record<string, unknown>>();
     for (const dw of dayworks ?? []) {
       dayworkMap.set(dw.id, dw as unknown as Record<string, unknown>);
     }
-
-    // Fetch employer display names
-    const { data: employers } = await supabase
-      .from('profiles')
-      .select('person_id, display_name')
-      .in('person_id', employerIds);
 
     const employerMap = new Map<string, string>();
     for (const e of employers ?? []) {
