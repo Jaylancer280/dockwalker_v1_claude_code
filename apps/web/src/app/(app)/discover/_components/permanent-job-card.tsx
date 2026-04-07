@@ -1,11 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import { MapPin, Briefcase, Award, Calendar, Users, Ship, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { getDepartmentImageSrc } from '@/lib/department-image';
+import { getDepartmentGradient } from '@/lib/department-image';
 import { currencySymbol } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
 import { ShareJobButton } from '@/components/share-job-button';
@@ -99,23 +98,14 @@ export function PermanentJobCard({
     ? 'NDA Vessel'
     : `${vesselPrefix} ${posting.vessel_name ?? 'Unknown'}`.trim();
 
-  const bgSrc = getDepartmentImageSrc(posting.role_department, posting.id);
+  const bgGradient = getDepartmentGradient(posting.role_department);
 
   return (
     <div
       className="relative cursor-pointer overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--card)]"
+      style={{ backgroundImage: bgGradient }}
       onClick={onTap}
     >
-      {/* Full-bleed department background — opacity controls how visible the image is */}
-      <Image
-        src={bgSrc}
-        alt=""
-        fill
-        className="object-cover opacity-20 blur-[1px]"
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
-        loading="lazy"
-      />
-
       {/* Card content */}
       <div className="relative p-4">
         {/* Header: role + epaulette + job ref */}

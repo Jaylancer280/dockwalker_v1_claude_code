@@ -4,10 +4,9 @@ import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide-react';
-import Image from 'next/image';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Badge } from '@/components/ui/badge';
-import { getDepartmentImageSrc } from '@/lib/department-image';
+import { getDepartmentGradient } from '@/lib/department-image';
 import { currencySymbol, convertSizeBandLabel } from '@dockwalker/shared';
 import { languageLabel } from '@dockwalker/shared';
 import { ShareJobButton } from '@/components/share-job-button';
@@ -77,24 +76,15 @@ export function JobCard({
   crewCertIds,
   crewLangs,
 }: JobCardProps) {
-  const bgSrc = getDepartmentImageSrc(card.yacht_roles?.department, card.id);
+  const bgGradient = getDepartmentGradient(card.yacht_roles?.department);
 
   return (
     <div
       className={`relative h-full w-full overflow-hidden rounded-[14px] border border-[var(--border)] bg-[var(--card)] ${
         isPreview ? 'scale-[0.97] opacity-60' : ''
       }`}
+      style={{ backgroundImage: bgGradient }}
     >
-      {/* Full-bleed department background — opacity controls how visible the image is */}
-      <Image
-        src={bgSrc}
-        alt=""
-        fill
-        className="object-cover opacity-20 blur-[1px]"
-        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
-        loading="lazy"
-      />
-
       {/* Card content */}
       <div className="relative flex h-full flex-col p-5">
         {/* Role + vessel */}

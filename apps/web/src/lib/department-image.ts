@@ -16,6 +16,22 @@ const DEPARTMENT_MAP: Record<string, string> = {
   galley_interior: 'galley',
 };
 
+/** CSS gradient colors per department — replaces images for inline backgrounds */
+const DEPARTMENT_COLORS: Record<string, string> = {
+  deck: 'rgba(59,130,246,0.08)', // blue
+  interior: 'rgba(168,85,247,0.08)', // purple
+  galley: 'rgba(234,179,8,0.08)', // amber
+  engineering: 'rgba(34,197,94,0.08)', // green
+};
+
+export function getDepartmentGradient(department: string | null | undefined): string {
+  const mappedDept = department ? DEPARTMENT_MAP[department.toLowerCase()] : null;
+  const color = mappedDept
+    ? (DEPARTMENT_COLORS[mappedDept] ?? DEPARTMENT_COLORS.deck)
+    : DEPARTMENT_COLORS.deck;
+  return `linear-gradient(135deg, ${color} 0%, transparent 60%)`;
+}
+
 /** Simple deterministic hash of a string to a number */
 function hashSeed(seed: string): number {
   let h = 0;
