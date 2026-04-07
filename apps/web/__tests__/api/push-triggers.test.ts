@@ -5,49 +5,64 @@ vi.mock('@/lib/push-delivery', () => ({
   sendPushToUser: (...args: unknown[]) => mockSendPushToUser(...args),
 }));
 
+// Mock WhatsApp dispatcher — no WhatsApp connected by default
+vi.mock('@/lib/push-triggers/whatsapp-dispatcher', () => ({
+  getWhatsAppChannel: vi.fn().mockResolvedValue(null),
+  sendWhatsAppForEvent: vi.fn().mockResolvedValue(false),
+}));
+
+// Mock email dispatcher
+vi.mock('@/lib/push-triggers/email-dispatcher', () => ({
+  sendEmailForEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Import after mock setup
 const { notifyOnEvent, broadcastQueue } = await import('@/lib/push-triggers');
 
 function mockFrom(table: string, response: unknown) {
-  return vi.fn().mockImplementation((t: string) => {
-    if (t === table) {
-      return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue(response),
-          }),
-        }),
-      };
-    }
+  return multiMockFrom({ [table]: response });
+}
+
+function multiMockFrom(mocks: Record<string, unknown>) {
+  return vi.fn().mockImplementation((table: string) => {
+    const response = mocks[table];
+    const defaultResult = { data: null, error: null };
+    const mockResult = response ?? defaultResult;
+    const eqChain = {
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue(mockResult),
+      then: vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+        resolve(mockResult);
+        return Promise.resolve(mockResult);
+      }),
+    };
+    eqChain.eq = vi.fn().mockReturnValue(eqChain);
     return {
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      select: vi.fn().mockReturnValue(eqChain),
+      insert: vi.fn().mockReturnValue({
+        then: vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+          resolve(defaultResult);
+          return Promise.resolve(defaultResult);
         }),
       }),
     };
   });
 }
 
-function multiMockFrom(mocks: Record<string, unknown>) {
-  return vi.fn().mockImplementation((table: string) => {
-    const response = mocks[table];
-    if (response) {
-      return {
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue(response),
-          }),
+/** Wrap a from() mock impl to add `insert` on every table return */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withInsert(fromFn: (...args: any[]) => any) {
+  return vi.fn().mockImplementation((...args: unknown[]) => {
+    const result = fromFn(...args) as Record<string, unknown>;
+    if (!result.insert) {
+      result.insert = vi.fn().mockReturnValue({
+        then: vi.fn().mockImplementation((resolve: (v: unknown) => void) => {
+          resolve({ data: null, error: null });
+          return Promise.resolve({ data: null, error: null });
         }),
-      };
+      });
     }
-    return {
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null, error: null }),
-        }),
-      }),
-    };
+    return result;
   });
 }
 
@@ -172,7 +187,7 @@ describe('notifyOnEvent', () => {
 
   it('MESSAGE.SENT notifies the other party (not system messages)', async () => {
     const sc = {
-      from: vi.fn().mockImplementation((table: string) => {
+      from: withInsert((table: string) => {
         if (table === 'active_engagements') {
           return {
             select: vi.fn().mockReturnValue({
@@ -271,7 +286,7 @@ describe('notifyOnEvent', () => {
 
   it('DAYWORK.COMPLETED notifies crew', async () => {
     const sc = {
-      from: vi.fn().mockImplementation((table: string) => {
+      from: withInsert((table: string) => {
         if (table === 'dayworks') {
           return {
             select: vi.fn().mockReturnValue({
@@ -322,7 +337,7 @@ describe('notifyOnEvent', () => {
 
   it('DAYWORK.INVITATION_ACCEPTED notifies employer with role name', async () => {
     const sc = {
-      from: vi.fn().mockImplementation((table: string) => {
+      from: withInsert((table: string) => {
         if (table === 'dayworks') {
           return {
             select: vi.fn().mockReturnValue({
@@ -379,7 +394,7 @@ describe('notifyOnEvent', () => {
 
   it('CHECKLIST.SET notifies crew', async () => {
     const sc = {
-      from: vi.fn().mockImplementation((table: string) => {
+      from: withInsert((table: string) => {
         if (table === 'active_engagements') {
           return {
             select: vi.fn().mockReturnValue({

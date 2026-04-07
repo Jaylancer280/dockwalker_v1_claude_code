@@ -3,6 +3,7 @@ import { sendPushToUser } from '../push-delivery';
 import { resolveNotification } from './event-router';
 import { mapEventToNotificationType, resolveDeepLink } from './notification-mapper';
 import { sendEmailForEvent } from './email-dispatcher';
+import { getWhatsAppChannel, sendWhatsAppForEvent } from './whatsapp-dispatcher';
 
 export { getRecipientEmail } from './loaders';
 export { broadcastQueue } from './broadcast';
@@ -40,10 +41,14 @@ function getPushPreferenceKey(
   }
 }
 
+/** 5-minute cooldown cache for WhatsApp per-conversation dedup (same as email) */
+const whatsappCooldowns = new Map<string, number>();
+
 /**
- * Fire-and-forget push notification after a domain event.
- * Called from API routes after appendEvent/appendEvents.
- * Never throws — push failures must not break API responses.
+ * Fire-and-forget notification after a domain event.
+ * Dispatch priority: WhatsApp → push → email (no duplicates when WhatsApp succeeds).
+ * In-app notification always fires regardless of channel.
+ * Never throws — delivery failures must not break API responses.
  */
 export function notifyOnEvent(
   serviceClient: SupabaseClient,
@@ -54,30 +59,10 @@ export function notifyOnEvent(
   resolveNotification(serviceClient, eventType, payload, actorPersonId)
     .then(async (contexts) => {
       for (const ctx of contexts) {
-        // Check push preference before sending push
-        let pushAllowed = true;
-        const prefKey = getPushPreferenceKey(eventType);
-        if (prefKey) {
-          const { data: prefs } = await serviceClient
-            .from('user_preferences')
-            .select(prefKey)
-            .eq('person_id', ctx.recipientPersonId)
-            .single();
-          if (prefs && (prefs as Record<string, unknown>)[prefKey] === false) {
-            pushAllowed = false;
-          }
-        }
-
-        // Push notification (if preference allows)
-        if (pushAllowed) {
-          sendPushToUser(serviceClient, ctx.recipientPersonId, ctx.notification).catch(() => {
-            // swallow — push delivery errors are non-fatal
-          });
-        }
-
-        // In-app notification (skip system messages) — always fires regardless of push preference
+        // Skip system messages for all external channels
         if (eventType === 'MESSAGE.SENT' && payload.is_system) continue;
 
+        // 1. In-app notification — always fires
         const notifType = mapEventToNotificationType(eventType);
         if (notifType) {
           const deepLink = resolveDeepLink(eventType, payload);
@@ -94,7 +79,65 @@ export function notifyOnEvent(
             .then(() => {});
         }
 
-        // Email notification (critical events only, fire-and-forget)
+        // 2. Check push preference for this event category
+        let categoryAllowed = true;
+        const prefKey = getPushPreferenceKey(eventType);
+        if (prefKey) {
+          const { data: prefs } = await serviceClient
+            .from('user_preferences')
+            .select(prefKey)
+            .eq('person_id', ctx.recipientPersonId)
+            .single();
+          if (prefs && (prefs as Record<string, unknown>)[prefKey] === false) {
+            categoryAllowed = false;
+          }
+        }
+
+        // 3. Try WhatsApp first (if connected + enabled + category allowed)
+        let whatsAppSent = false;
+        if (categoryAllowed) {
+          const phoneEncrypted = await getWhatsAppChannel(serviceClient, ctx.recipientPersonId);
+          if (phoneEncrypted) {
+            // 5-minute cooldown for MESSAGE.SENT per conversation
+            if (eventType === 'MESSAGE.SENT') {
+              const eid = (payload.engagement_id as string) ?? '';
+              const cooldownKey = `wa:${ctx.recipientPersonId}:${eid}`;
+              const lastSent = whatsappCooldowns.get(cooldownKey) ?? 0;
+              if (Date.now() - lastSent < 5 * 60 * 1000) {
+                // Skip WhatsApp — within cooldown, fall through to push
+              } else {
+                whatsAppSent = await sendWhatsAppForEvent(
+                  serviceClient,
+                  eventType,
+                  payload,
+                  ctx,
+                  phoneEncrypted,
+                );
+                if (whatsAppSent) {
+                  whatsappCooldowns.set(cooldownKey, Date.now());
+                }
+              }
+            } else {
+              whatsAppSent = await sendWhatsAppForEvent(
+                serviceClient,
+                eventType,
+                payload,
+                ctx,
+                phoneEncrypted,
+              );
+            }
+          }
+        }
+
+        // 4. If WhatsApp succeeded, skip push + email for this recipient
+        if (whatsAppSent) continue;
+
+        // 5. Push notification (if category allows)
+        if (categoryAllowed) {
+          sendPushToUser(serviceClient, ctx.recipientPersonId, ctx.notification).catch(() => {});
+        }
+
+        // 6. Email notification (fire-and-forget, email-dispatcher checks hasPushTokens internally)
         sendEmailForEvent(serviceClient, eventType, payload, ctx).catch(() => {});
       }
     })

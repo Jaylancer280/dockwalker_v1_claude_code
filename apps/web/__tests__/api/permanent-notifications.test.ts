@@ -13,6 +13,12 @@ vi.mock('@/lib/email/send', () => ({
   sendEmail: (...args: unknown[]) => mockSendEmail(...args),
 }));
 
+// Mock WhatsApp dispatcher — no WhatsApp connected by default
+vi.mock('@/lib/push-triggers/whatsapp-dispatcher', () => ({
+  getWhatsAppChannel: vi.fn().mockResolvedValue(null),
+  sendWhatsAppForEvent: vi.fn().mockResolvedValue(false),
+}));
+
 // Mock the Supabase client returned by the service client
 const mockFromImpl = vi.fn();
 const mockRpc = vi.fn();
