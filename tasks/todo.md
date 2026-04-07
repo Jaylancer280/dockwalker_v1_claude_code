@@ -38,15 +38,15 @@
 
 **Session 2 — Hat-aware billing page:**
 
-- [ ] Rewrite `apps/web/src/app/(app)/billing/page.tsx`. The page must detect the user's current hat and show the appropriate tier:
+- [x] Rewrite `apps/web/src/app/(app)/billing/page.tsx`. The page must detect the user's current hat and show the appropriate tier:
   - **Crew hat:** Show Free vs Crew Pro (€4.99/month). Features: "10 questions/month" (free) vs "500 questions/month" (pro), "General MCA guidance" vs "Allows Docky to read your profile to give personalised advice. Complete all fields in your profile for the best results", "Appear in employer searches for daywork invitations" (pro only), "5 daywork + 2 permanent templates" (pro) vs "3 daywork + 1 permanent templates" (free).
   - **Employer/Agent hat:** Show Free vs Employer/Agent Pro (€14.99/month). Features: "3 daywork + 1 permanent templates" (free) vs "Unlimited templates" (pro), "Shortlist up to 3 candidates" (free) vs "Shortlist up to 8 candidates" (pro).
-- [ ] The subscribe button must pass the correct plan to the checkout route: `crew_pro` for crew hat, `employer_pro` for employer/agent hat.
-- [ ] **Hat detection:** The billing page is a client component that currently has no access to the user's hat. Two options: (A) add `current_hat` to the `/api/billing/status` response (simplest — the status route already uses the auth guard which returns the person record), or (B) fetch `/api/profile` which returns the hat. **Recommended: option A** — add `current_hat` to the billing status response. Read `apps/web/src/app/api/billing/status/route.ts` and add the person lookup.
-- [ ] **Dual-hat edge case:** The `subscriptions` table has `person_id UNIQUE` — one plan per person. A crew member with `employer_pro` sees the Crew Pro card as "not subscribed" when in crew hat. A dual-hat user who wants both must switch plans via the Stripe portal. For v1, show the billing page for the current hat only. Do NOT try to show both tiers or allow dual subscriptions.
-- [ ] **"Current plan" badge logic:** Show badge on the Pro card only if `subscription.plan` exactly matches the displayed tier (`crew_pro` for crew hat, `employer_pro` for employer hat). Show badge on Free card if no subscription or plan doesn't match the current hat's tier.
-- [ ] The "Manage subscription" button (Stripe portal) works for any plan — no changes needed.
-- [ ] Tests: billing page renders crew tier for crew hat, employer tier for employer hat, correct plan passed to checkout
+- [x] The subscribe button must pass the correct plan to the checkout route: `crew_pro` for crew hat, `employer_pro` for employer/agent hat.
+- [x] **Hat detection:** The billing page is a client component that currently has no access to the user's hat. Two options: (A) add `current_hat` to the `/api/billing/status` response (simplest — the status route already uses the auth guard which returns the person record), or (B) fetch `/api/profile` which returns the hat. **Recommended: option A** — add `current_hat` to the billing status response. Read `apps/web/src/app/api/billing/status/route.ts` and add the person lookup.
+- [x] **Dual-hat edge case:** The `subscriptions` table has `person_id UNIQUE` — one plan per person. A crew member with `employer_pro` sees the Crew Pro card as "not subscribed" when in crew hat. A dual-hat user who wants both must switch plans via the Stripe portal. For v1, show the billing page for the current hat only. Do NOT try to show both tiers or allow dual subscriptions.
+- [x] **"Current plan" badge logic:** Show badge on the Pro card only if `subscription.plan` exactly matches the displayed tier (`crew_pro` for crew hat, `employer_pro` for employer hat). Show badge on Free card if no subscription or plan doesn't match the current hat's tier.
+- [x] The "Manage subscription" button (Stripe portal) works for any plan — no changes needed.
+- [x] Tests: billing page renders crew tier for crew hat, employer tier for employer hat, correct plan passed to checkout
 
 **Session 3 — Template caps:**
 

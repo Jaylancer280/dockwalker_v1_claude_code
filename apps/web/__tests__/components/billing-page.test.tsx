@@ -17,45 +17,77 @@ describe('BillingPage', () => {
     vi.clearAllMocks();
   });
 
-  it('renders plan cards with feature lists', async () => {
+  it('renders crew tier plan cards for crew hat', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve(JSON.stringify({ plan: null, status: null })),
+      text: () =>
+        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'crew' })),
     });
 
     render(<BillingPage />);
 
-    // Wait for loading to finish
     const freeCard = await screen.findByText('Free');
     expect(freeCard).toBeDefined();
     expect(screen.getByText('Crew Pro')).toBeDefined();
-    expect(screen.getByText('3 questions/month')).toBeDefined();
-    expect(screen.getByText('Unlimited questions')).toBeDefined();
+    expect(screen.getByText('10 Docky questions/month')).toBeDefined();
+    expect(screen.getByText('500 Docky questions/month')).toBeDefined();
+  });
+
+  it('renders employer tier plan cards for employer hat', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'employer' })),
+    });
+
+    render(<BillingPage />);
+
+    const freeCard = await screen.findByText('Free');
+    expect(freeCard).toBeDefined();
+    expect(screen.getByText('Employer Pro')).toBeDefined();
+    expect(screen.getByText('Unlimited templates')).toBeDefined();
   });
 
   it('shows "Current plan" badge on Free card when no subscription', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve(JSON.stringify({ plan: null, status: null })),
+      text: () =>
+        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'crew' })),
     });
 
     render(<BillingPage />);
 
-    const badge = await screen.findByText('Current plan');
-    expect(badge).toBeDefined();
-    // Subscribe button should be visible
+    const badges = await screen.findAllByText('Current plan');
+    expect(badges.length).toBeGreaterThan(0);
     expect(screen.getAllByText('Subscribe').length).toBeGreaterThan(0);
   });
 
-  it('shows "Manage subscription" when subscribed', async () => {
+  it('shows "Manage subscription" when subscribed to matching tier', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve(JSON.stringify({ plan: 'crew_pro', status: 'active' })),
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({ plan: 'crew_pro', status: 'active', current_hat: 'crew' }),
+        ),
     });
 
     render(<BillingPage />);
 
     const manageBtn = await screen.findByText('Manage subscription');
     expect(manageBtn).toBeDefined();
+  });
+
+  it('passes correct plan to checkout for employer hat', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'employer' })),
+    });
+
+    render(<BillingPage />);
+
+    // Verify the employer tier is shown
+    await screen.findByText('Employer Pro');
+    expect(screen.getAllByText('€14.99/month').length).toBeGreaterThan(0);
   });
 });

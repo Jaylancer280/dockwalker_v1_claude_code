@@ -10,7 +10,7 @@ export async function GET() {
   if (!guard.ok) return guard.response;
 
   try {
-    const { user, supabase } = guard.value;
+    const { user, person, supabase } = guard.value;
 
     const { data } = await supabase
       .from('subscriptions')
@@ -19,13 +19,14 @@ export async function GET() {
       .single();
 
     if (!data) {
-      return NextResponse.json({ plan: 'free', status: null });
+      return NextResponse.json({ plan: 'free', status: null, current_hat: person.current_hat });
     }
 
     return NextResponse.json({
       plan: data.plan,
       status: data.status,
       current_period_end: data.current_period_end,
+      current_hat: person.current_hat,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
