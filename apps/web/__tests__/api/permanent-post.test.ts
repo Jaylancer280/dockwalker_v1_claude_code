@@ -11,6 +11,10 @@ vi.mock('@dockwalker/db', () => ({
   appendEvent: (...args: unknown[]) => mockAppendEvent(...args),
 }));
 
+vi.mock('@/lib/require-subscription', () => ({
+  requireSubscription: vi.fn().mockResolvedValue({ ok: true, plan: 'employer_pro' }),
+}));
+
 const mockFromAuth = vi.fn();
 const mockFromService = vi.fn();
 const mockRpc = vi.fn();
@@ -130,12 +134,16 @@ describe('POST /api/permanent', () => {
     expect(data.error).toContain('Vessel');
   });
 
-  it('returns 400 when shortlistCap < 1 or > 20', async () => {
+  it('clamps shortlistCap to tier max (employer_pro = 8)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    const res = await POST(makeRequest({ ...validBody, shortlistCap: 25 }));
-    expect(res.status).toBe(400);
-    const data = await res.json();
-    expect(data.error).toContain('shortlistCap');
+    mockFromAuth
+      .mockReturnValueOnce(makeChain({ id: 'v1' }))
+      .mockReturnValueOnce(makeChain({ id: 'r1' }))
+      .mockReturnValueOnce(makeChain({ id: 'p1' }));
+    const res = await POST(makeRequest({ ...validBody, shortlistCap: 15 }));
+    expect(res.status).toBe(201);
+    const callArgs = mockAppendEvent.mock.calls[0];
+    expect(callArgs[1].payload.shortlist_cap).toBe(8);
   });
 
   it('happy path — creates permanent posting, returns { id } with 201', async () => {
@@ -176,14 +184,14 @@ describe('POST /api/permanent', () => {
         requiredCertificationIds: ['c1', 'c2'],
         experienceBracketId: 'eb1',
         notes: 'Looking for experienced crew with charter background',
-        shortlistCap: 10,
+        shortlistCap: 8,
       }),
     );
     expect(res.status).toBe(201);
     const callArgs = mockAppendEvent.mock.calls[0];
     expect(callArgs[1].payload.required_certification_ids).toEqual(['c1', 'c2']);
     expect(callArgs[1].payload.experience_bracket_id).toBe('eb1');
-    expect(callArgs[1].payload.shortlist_cap).toBe(10);
+    expect(callArgs[1].payload.shortlist_cap).toBe(8);
     expect(callArgs[1].payload.notes).toBe('Looking for experienced crew with charter background');
   });
 

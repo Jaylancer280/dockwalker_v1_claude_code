@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireSubscription } from '@/lib/require-subscription';
 import { appendEvent } from '@dockwalker/db';
 import { notifyOnEvent } from '@/lib/push-triggers';
 
@@ -53,16 +54,25 @@ export async function POST(
       );
     }
 
-    // Check shortlist cap
+    // Check shortlist cap — tier-gated
+    const subResult = await requireSubscription(supabase, user.id, 'employer_pro');
+    const tierMax = subResult.ok ? 8 : 3;
+    const effectiveCap = Math.min(posting.shortlist_cap, tierMax);
+
     const { count } = await supabase
       .from('applications')
       .select('id', { count: 'exact', head: true })
       .eq('permanent_posting_id', postingId)
       .in('status', ['shortlisted', 'selected']);
 
-    if ((count ?? 0) >= posting.shortlist_cap) {
+    if ((count ?? 0) >= effectiveCap) {
       return NextResponse.json(
-        { error: `Shortlist is full (${count} of ${posting.shortlist_cap})` },
+        {
+          error: `Shortlist is full (${count} of ${effectiveCap})`,
+          ...(effectiveCap < posting.shortlist_cap
+            ? { upgrade_url: '/billing', tier_max: tierMax }
+            : {}),
+        },
         { status: 400 },
       );
     }

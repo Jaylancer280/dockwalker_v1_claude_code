@@ -11,6 +11,10 @@ vi.mock('@dockwalker/db', () => ({
   appendEvent: (...args: unknown[]) => mockAppendEvent(...args),
 }));
 
+vi.mock('@/lib/require-subscription', () => ({
+  requireSubscription: vi.fn().mockResolvedValue({ ok: true, plan: 'employer_pro' }),
+}));
+
 vi.mock('@/lib/push-triggers', () => ({
   notifyOnEvent: vi.fn(),
 }));

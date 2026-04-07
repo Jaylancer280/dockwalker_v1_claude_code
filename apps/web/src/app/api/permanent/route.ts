@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireSubscription } from '@/lib/require-subscription';
 import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
@@ -112,10 +113,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'liveAboard must be a boolean' }, { status: 400 });
     }
 
-    // Validate shortlist cap
-    const resolvedShortlistCap = shortlistCap !== undefined ? parseInt(shortlistCap, 10) : 5;
-    if (isNaN(resolvedShortlistCap) || resolvedShortlistCap < 1 || resolvedShortlistCap > 20) {
-      return NextResponse.json({ error: 'shortlistCap must be between 1 and 20' }, { status: 400 });
+    // Validate shortlist cap — clamped by subscription tier
+    const subResult = await requireSubscription(supabase, user.id, 'employer_pro');
+    const tierMax = subResult.ok ? 8 : 3;
+    const resolvedShortlistCap = Math.min(
+      shortlistCap !== undefined ? parseInt(shortlistCap, 10) || 5 : 5,
+      tierMax,
+    );
+    if (isNaN(resolvedShortlistCap) || resolvedShortlistCap < 1) {
+      return NextResponse.json({ error: 'shortlistCap must be at least 1' }, { status: 400 });
     }
 
     // Validate notes length

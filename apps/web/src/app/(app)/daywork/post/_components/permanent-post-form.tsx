@@ -104,6 +104,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     (draft?.experienceBracketId as string) ?? 'any',
   );
   const [shortlistCap, setShortlistCap] = useState((draft?.shortlistCap as string) ?? '5');
+  const [shortlistMax, setShortlistMax] = useState(20);
   const [notes, setNotes] = useState((draft?.notes as string) ?? '');
   const [contractType, setContractType] = useState((draft?.contractType as string) ?? 'permanent');
   const [contractDetails, setContractDetails] = useState((draft?.contractDetails as string) ?? '');
@@ -153,6 +154,19 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch billing status for shortlist cap
+  useEffect(() => {
+    void (async () => {
+      const res = await safeFetch<{ plan?: string; status?: string }>('/api/billing/status');
+      if (res.ok) {
+        const isProEmployer =
+          (res.data.status === 'active' || res.data.status === 'trialing') &&
+          res.data.plan === 'employer_pro';
+        setShortlistMax(isProEmployer ? 8 : 3);
+      }
+    })();
+  }, []);
 
   // Fetch templates on mount (lookups from context)
   useEffect(() => {
@@ -394,6 +408,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           setLiveAboard={setLiveAboard}
           shortlistCap={shortlistCap}
           setShortlistCap={setShortlistCap}
+          shortlistMax={shortlistMax}
           notes={notes}
           setNotes={setNotes}
           contractType={contractType}

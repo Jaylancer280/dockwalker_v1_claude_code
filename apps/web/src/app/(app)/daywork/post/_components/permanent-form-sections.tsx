@@ -112,6 +112,7 @@ export interface ContractTermsSectionProps {
   setLiveAboard: (v: boolean) => void;
   shortlistCap: string;
   setShortlistCap: (v: string) => void;
+  shortlistMax?: number;
   notes: string;
   setNotes: (v: string) => void;
   contractType: string;
@@ -133,6 +134,7 @@ export function ContractTermsSection({
   setLiveAboard,
   shortlistCap,
   setShortlistCap,
+  shortlistMax = 20,
   notes,
   setNotes,
   contractType,
@@ -205,13 +207,13 @@ export function ContractTermsSection({
           <Input
             type="number"
             min={1}
-            max={20}
+            max={shortlistMax}
             value={shortlistCap}
             onChange={(e) => setShortlistCap(e.target.value)}
             className="w-24"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            Maximum candidates on your shortlist (1-20).
+            Maximum candidates on your shortlist (1-{shortlistMax}).
           </p>
         </div>
       </div>
