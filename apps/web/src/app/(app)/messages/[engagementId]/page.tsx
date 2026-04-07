@@ -23,11 +23,13 @@ import { DayworkSummaryCard } from './_components/daywork-summary-card';
 import { PermanentSummaryCard } from './_components/permanent-summary-card';
 import { useVoiceCall } from '@/hooks/use-voice-call';
 import { CallBar } from '@/components/call-bar';
+import { useNotificationCounts } from '@/hooks/use-notification-counts';
 
 export default function ChatPage() {
   const { engagementId } = useParams<{ engagementId: string }>();
   const router = useRouter();
   const { showError, showSuccess } = useToast();
+  const { refresh: refreshCounts } = useNotificationCounts();
   const [messages, setMessages] = useState<Message[]>([]);
   const [documentMap, setDocumentMap] = useState<
     Map<
@@ -128,7 +130,9 @@ export default function ChatPage() {
     let contextInterval: ReturnType<typeof setInterval>;
 
     function markRead() {
-      void safeFetch('/api/messages/' + engagementId + '/read', { method: 'POST' });
+      void safeFetch('/api/messages/' + engagementId + '/read', { method: 'POST' }).then(() =>
+        refreshCounts(),
+      );
     }
 
     async function init() {

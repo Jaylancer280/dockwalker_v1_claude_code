@@ -20,6 +20,7 @@ import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
+import { useNotificationCounts } from '@/hooks/use-notification-counts';
 
 interface Notification {
   id: string;
@@ -61,6 +62,7 @@ function relativeTime(dateStr: string): string {
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const { refresh: refreshCounts } = useNotificationCounts();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export default function NotificationsPage() {
       body: JSON.stringify({ all: true }),
     });
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    refreshCounts();
   }
 
   async function handleTap(notif: Notification) {
@@ -98,7 +101,7 @@ export default function NotificationsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationIds: [notif.id] }),
-      });
+      }).then(() => refreshCounts());
       setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
     }
     if (notif.deep_link) {
