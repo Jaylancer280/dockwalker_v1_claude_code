@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { SearchableNationalitySelect } from '@/components/searchable-nationality-select';
 import {
   Select,
   SelectContent,
@@ -214,18 +215,11 @@ export function ProfileEditForm({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label>Nationality</Label>
-            <Select value={nationalityId} onValueChange={setNationalityId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select nationality" />
-              </SelectTrigger>
-              <SelectContent>
-                {nationalities.map((n) => (
-                  <SelectItem key={n.id} value={n.id}>
-                    {n.flag_emoji} {n.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableNationalitySelect
+              value={nationalityId}
+              onChange={setNationalityId}
+              nationalities={nationalities}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">

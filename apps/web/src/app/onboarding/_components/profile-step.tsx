@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { SearchableNationalitySelect } from '@/components/searchable-nationality-select';
 import { LocationPicker } from '@/components/location-picker';
 import {
   HierarchicalPills,
@@ -425,18 +426,11 @@ export function ProfileStep(props: ProfileStepProps) {
                 <Label>
                   Nationality <span className="text-destructive">*</span>
                 </Label>
-                <Select value={nationalityId} onValueChange={setNationalityId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select nationality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nationalities.map((n) => (
-                      <SelectItem key={n.id} value={n.id}>
-                        {n.flag_emoji} {n.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableNationalitySelect
+                  value={nationalityId}
+                  onChange={setNationalityId}
+                  nationalities={nationalities}
+                />
               </div>
 
               {/* Visas */}
@@ -579,18 +573,11 @@ export function ProfileStep(props: ProfileStepProps) {
                 <Label>
                   Nationality <span className="text-xs text-muted-foreground">(optional)</span>
                 </Label>
-                <Select value={nationalityId} onValueChange={setNationalityId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select nationality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nationalities.map((n) => (
-                      <SelectItem key={n.id} value={n.id}>
-                        {n.flag_emoji} {n.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableNationalitySelect
+                  value={nationalityId}
+                  onChange={setNationalityId}
+                  nationalities={nationalities}
+                />
               </div>
 
               <div className="flex flex-col gap-1.5">

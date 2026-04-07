@@ -742,7 +742,10 @@ export default function DiscoverPage() {
           onConfirm={() => {
             setShowAvailOverlay(false);
             showSuccess('Availability updated');
-            setTimeout(() => checkAvailability(), 300);
+            // Optimistic: user just set availability, ungate immediately.
+            // Background recheck validates after projection completes.
+            setHasAvailability(true);
+            setTimeout(() => checkAvailability(), 1000);
           }}
           onCancel={() => setShowAvailOverlay(false)}
         />
