@@ -148,9 +148,12 @@ export async function GET(request: Request) {
     const vesselIds = [...new Set(filtered.map((dw) => dw.vessel_id).filter(Boolean))];
     const vesselMap = new Map<string, PublicVesselRow | null>();
     if (vesselIds.length > 0) {
-      const { data: vessels } = await supabase.rpc('get_vessels_public_batch', {
+      const { data: vessels, error: vesselError } = await supabase.rpc('get_vessels_public_batch', {
         p_vessel_ids: vesselIds,
       });
+      if (vesselError) {
+        return NextResponse.json({ error: vesselError.message }, { status: 500 });
+      }
       for (const v of (vessels ?? []) as PublicVesselRow[]) {
         vesselMap.set(v.id, v);
       }
@@ -161,10 +164,13 @@ export async function GET(request: Request) {
     const posterNameMap = new Map<string, string>();
     const posterIdentityMap = new Map<string, string>();
     if (posterIds.length > 0) {
-      const { data: posterProfiles } = await supabase
+      const { data: posterProfiles, error: profileError } = await supabase
         .from('profiles')
         .select('person_id, display_name, identity_type')
         .in('person_id', posterIds);
+      if (profileError) {
+        return NextResponse.json({ error: profileError.message }, { status: 500 });
+      }
       for (const p of posterProfiles ?? []) {
         posterNameMap.set(p.person_id, p.display_name);
         posterIdentityMap.set(p.person_id, p.identity_type);

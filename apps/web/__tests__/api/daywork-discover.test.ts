@@ -372,7 +372,9 @@ describe('GET /api/daywork/discover', () => {
     const body = await res.json();
     expect(body.dayworks).toHaveLength(1);
 
-    // DB-level filters
+    // DB-level filters — verify all 7 were applied
+    expect(filterProxy.eq).toHaveBeenCalledWith('role_id', 'r1');
+    expect(filterProxy.eq).toHaveBeenCalledWith('location_port_id', 'p1');
     expect(filterProxy.gte).toHaveBeenCalledWith('start_date', '2026-04-01');
     expect(filterProxy.lte).toHaveBeenCalledWith('end_date', '2026-04-30');
     expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);

@@ -12,6 +12,7 @@ interface DateInputProps {
   min?: string;
   max?: string;
   disabled?: boolean;
+  required?: boolean;
 }
 
 /** Parse ISO date string to dd/mm/yyyy display format */
@@ -55,6 +56,7 @@ export function DateInput({
   min,
   max,
   disabled,
+  required,
 }: DateInputProps) {
   const hiddenRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = React.useState(() => isoToDisplay(value));
@@ -113,6 +115,8 @@ export function DateInput({
         onBlur={onBlur}
         onClick={handleTap}
         disabled={disabled}
+        required={required}
+        aria-required={required || undefined}
         className={inputClasses}
         maxLength={10}
       />

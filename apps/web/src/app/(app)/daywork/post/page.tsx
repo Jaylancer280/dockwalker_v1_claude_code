@@ -229,6 +229,32 @@ function DayworkPostForm() {
     permanentOpportunity,
   ]);
 
+  // Flush draft immediately on tab close (catches data within the 500ms debounce window)
+  useEffect(() => {
+    function flushDraft() {
+      const state = {
+        vesselId,
+        roleId,
+        locationPortId,
+        startDate,
+        endDate,
+        workingDays,
+        requiredCertIds,
+        requiredLangs,
+        experienceBracketId,
+        dayRate,
+        currency,
+        meals,
+        notes,
+        positionsAvailable,
+        permanentOpportunity,
+      };
+      sessionStorage.setItem('dockwalker:daywork-post-draft', JSON.stringify(state));
+    }
+    window.addEventListener('beforeunload', flushDraft);
+    return () => window.removeEventListener('beforeunload', flushDraft);
+  });
+
   // Save form state to sessionStorage before navigating to vessel creation
   function saveFormAndCreateVessel() {
     const state = {
@@ -261,7 +287,6 @@ function DayworkPostForm() {
   function applyTemplate(t: Template) {
     // Reset all fields to defaults first so switching from a fuller template
     // to a sparser one does not leave stale values in the form.
-    setVesselId(t.vessel_id ?? '');
     setRoleId(t.role_id ?? '');
     setLocationPortId(t.location_port_id ?? '');
     setWorkingDays(t.working_days ? String(t.working_days) : '');
@@ -405,8 +430,16 @@ function DayworkPostForm() {
     e.preventDefault();
     setError(null);
 
-    if (!vesselId) {
-      setError('Please select a vessel');
+    const errors: Record<string, string> = {};
+    if (!vesselId) errors.vessel = 'Please select a vessel';
+    if (!roleId) errors.role = 'Please select a role';
+    if (!locationPortId) errors.location = 'Please select a location';
+    if (!startDate) errors.startDate = 'Required';
+    if (!endDate) errors.endDate = 'Required';
+    if (!dayRate) errors.dayRate = 'Required';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -569,6 +602,7 @@ function DayworkPostForm() {
                 clearFieldError('startDate');
               }}
               onBlur={() => validateRequired('startDate', startDate)}
+              required
             />
             {fieldErrors.startDate && (
               <p className="text-xs text-destructive">{fieldErrors.startDate}</p>
@@ -585,6 +619,7 @@ function DayworkPostForm() {
                 clearFieldError('endDate');
               }}
               onBlur={() => validateRequired('endDate', endDate)}
+              required
             />
             {fieldErrors.endDate && (
               <p className="text-xs text-destructive">{fieldErrors.endDate}</p>
@@ -707,6 +742,7 @@ function DayworkPostForm() {
               }}
               onBlur={() => validateRequired('dayRate', dayRate)}
               required
+              aria-required="true"
             />
           </div>
           {fieldErrors.dayRate && <p className="text-xs text-destructive">{fieldErrors.dayRate}</p>}

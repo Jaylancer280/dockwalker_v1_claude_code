@@ -247,11 +247,6 @@ function ApplicationCard({
 
         {/* Badges */}
         <div className="flex flex-wrap gap-1.5">
-          {dw.positions_available && dw.positions_available > 1 && dw.positions_filled !== null && (
-            <span className="rounded-full bg-[var(--accent-lo)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
-              {dw.positions_available - dw.positions_filled}/{dw.positions_available} open
-            </span>
-          )}
           {dw.permanent_opportunity && (
             <Badge variant="outline" className="text-xs">
               Could go permanent

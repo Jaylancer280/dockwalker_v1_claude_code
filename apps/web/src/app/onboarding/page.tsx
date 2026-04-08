@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -83,6 +83,7 @@ export default function OnboardingPage() {
   const [step, setStep] = useState<Step>('welcome');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submittingRef = useRef(false);
 
   // Identity
   const [identityType, setIdentityType] = useState<IdentityType | null>(null);
@@ -222,6 +223,8 @@ export default function OnboardingPage() {
   }
 
   async function handleSubmit(hatOverride?: HatType) {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setError(null);
     setLoading(true);
 
@@ -335,6 +338,7 @@ export default function OnboardingPage() {
       router.push('/profile');
     } finally {
       setLoading(false);
+      submittingRef.current = false;
     }
   }
 

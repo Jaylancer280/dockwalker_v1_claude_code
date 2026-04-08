@@ -145,7 +145,7 @@ export function JobCard({
             >
               {card.positions_remaining === 1
                 ? 'Last position!'
-                : `${card.positions_remaining}/${card.positions_available} open`}
+                : `${card.positions_available} positions`}
             </span>
           )}
         </div>

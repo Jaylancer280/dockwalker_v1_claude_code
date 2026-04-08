@@ -5,13 +5,32 @@
 
 ## Current Task
 
-(none)
+Stage 201 — Post-audit remediation
 
 ---
 
 ## Queue
 
-(empty — visual checks below require manual device testing)
+### Stage 201 — Post-audit remediation (from Stage 200 audit)
+
+#### CRITICAL — Mission violation
+
+- [x] **Remove positions-filled from crew views.** In `discover/_components/daywork-card.tsx:138-148`, replace `"{remaining}/{available} open"` with `"{available} positions"` (or `"Multiple positions"` when >1). Keep `"Last position!"` since it only reveals 1 remaining, not how many were filled.
+- [x] **Remove positions-filled from applied tab.** In `discover/_components/applied-tab.tsx:250-253`, remove the `{positions_available - positions_filled}/{positions_available} open` badge entirely — crew viewing their applied jobs should not see fill counts.
+
+#### HIGH — Bug fixes
+
+- [x] **Add RPC error handling in discover route.** In `api/daywork/discover/route.ts:151`, destructure `error` from `get_vessels_public_batch` RPC and return 500 on failure. Same for profiles query at line 164.
+- [x] **Complete form submit validation.** In `daywork/post/page.tsx:404-414`, add checks for `roleId`, `locationPortId`, `startDate`, `endDate`, and `dayRate` before showing the confirmation dialog. Set field-level error state for each missing field.
+- [x] **Remove dead `vessel_id` from template application.** In `daywork/post/page.tsx:264`, delete `setVesselId(t.vessel_id ?? '');` — column was dropped in migration 00034.
+
+#### MEDIUM — Code quality
+
+- [x] **Adopt or remove SearchableSelect.** `components/ui/searchable-select.tsx` is imported nowhere. Either wire it into profile-edit-form or daywork-post-form dropdowns that would benefit from search, OR delete the file. If adopting, add ARIA attributes: `aria-expanded`, `aria-haspopup="listbox"`, `role="listbox"` on the panel, `role="option"` + `aria-selected` on each option.
+- [x] **Add `aria-required="true"` to required form inputs.** In daywork post page, add the HTML `required` attribute and `aria-required="true"` to all inputs with `*` indicators (vessel, role, port, start date, end date, day rate).
+- [x] **Add `beforeunload` flush for auto-save draft.** In `daywork/post/page.tsx`, add a `useEffect` that listens for `beforeunload` and immediately writes the current form state to `sessionStorage` — prevents data loss if tab closes within the 500ms debounce window.
+- [x] **Add double-submit guard to onboarding.** In `onboarding/page.tsx`, add `submittingRef` pattern matching `daywork/post/page.tsx:416-420`.
+- [x] **Strengthen combined filters test.** In `__tests__/api/daywork-discover.test.ts:351-382`, add assertions that each of the 7 filters was actually applied (assert on `filterProxy.eq`, `.contains`, `.gte`, `.lte` calls), not just the final result shape.
 
 ### Visual verification (manual)
 
