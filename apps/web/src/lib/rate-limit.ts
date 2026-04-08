@@ -57,8 +57,9 @@ export async function checkRateLimit(request: NextRequest): Promise<NextResponse
   const path = request.nextUrl.pathname;
   const method = request.method;
 
-  // Skip rate limiting for health check and webhooks
-  if (path === '/api/health' || path.startsWith('/api/webhooks/')) return null;
+  // Skip rate limiting for health check, webhooks, and cron jobs
+  if (path === '/api/health' || path.startsWith('/api/webhooks/') || path.startsWith('/api/cron/'))
+    return null;
 
   // Skip non-API routes (pages are not rate limited at this layer)
   if (!path.startsWith('/api/')) return null;

@@ -81,7 +81,7 @@ export async function GET(request: Request) {
       .select(
         `
       id, job_number, vessel_id, start_date, end_date, working_days, day_rate, currency, meals, notes, status, created_at,
-      poster_person_id, positions_available, positions_filled, permanent_opportunity,
+      poster_person_id, positions_available, permanent_opportunity,
       yacht_roles(id, name, department),
       ports(id, name, cities(name, regions(name))),
       experience_brackets(label),
@@ -194,7 +194,6 @@ export async function GET(request: Request) {
       const vessel = vesselMap.get(daywork.vessel_id);
       const row = daywork as DiscoverDayworkRow & {
         positions_available: number;
-        positions_filled: number;
       };
 
       const certIds = daywork.required_certification_ids ?? [];
@@ -202,7 +201,7 @@ export async function GET(request: Request) {
       return {
         ...daywork,
         cert_names: certIds.map((id) => certNameMap.get(id) ?? id),
-        positions_remaining: row.positions_available - row.positions_filled,
+        positions_available: row.positions_available,
         poster_name: posterNameMap.get(daywork.poster_person_id) ?? null,
         poster_is_agent: posterIdentityMap.get(daywork.poster_person_id) === 'agent',
         vessels: vessel

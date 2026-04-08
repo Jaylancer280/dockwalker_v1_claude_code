@@ -63,7 +63,6 @@ export interface MyApplication {
     vessel_loa: number | null;
     vessel_size_label: string | null;
     positions_available: number | null;
-    positions_filled: number | null;
     permanent_opportunity: boolean;
   } | null;
 }

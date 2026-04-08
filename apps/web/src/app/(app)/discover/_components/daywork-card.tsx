@@ -44,8 +44,6 @@ export interface DayworkCard {
   poster_name: string | null;
   poster_is_agent: boolean;
   positions_available: number;
-  positions_filled: number;
-  positions_remaining: number;
   permanent_opportunity: boolean;
 }
 
@@ -136,16 +134,8 @@ export function JobCard({
             </button>
           )}
           {card.positions_available > 1 && (
-            <span
-              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                card.positions_remaining === 1
-                  ? 'bg-[var(--warning-lo)] text-[var(--warning)]'
-                  : 'bg-[var(--accent-lo)] text-[var(--accent)]'
-              }`}
-            >
-              {card.positions_remaining === 1
-                ? 'Last position!'
-                : `${card.positions_available} positions`}
+            <span className="rounded-full bg-[var(--accent-lo)] px-2 py-0.5 text-xs font-medium text-[var(--accent)]">
+              {card.positions_available} positions
             </span>
           )}
         </div>

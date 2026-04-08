@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 
@@ -17,11 +17,25 @@ export function BottomSheet({
 }) {
   useBodyScrollLock(open);
 
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    sheetRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 md:left-[var(--content-inset-left)]"
+      ref={sheetRef}
+      tabIndex={-1}
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 outline-none md:left-[var(--content-inset-left)]"
       style={{ bottom: 'calc(var(--nav-height, 0px) + env(safe-area-inset-bottom))' }}
     >
       <div className="flex w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background">

@@ -362,6 +362,8 @@ v92 — Fix availability full-replace (92 migrations applied)
 
 - [Stage 201] Post-audit remediation — positions-filled removed from crew views (mission violation fix); discover RPC error handling; daywork post form complete validation + dead vessel_id template ref removed; unused SearchableSelect deleted; aria-required on form inputs; beforeunload draft flush; onboarding double-submit guard; combined filters test strengthened (7 filter assertions); 977 tests pass
 
+- [Stage 202] Pre-launch remediation — rate limiting middleware wired (`middleware.ts` re-exports `proxy.ts`, cron routes exempted); `positions_filled`/`positions_remaining` stripped from crew-facing discover API + "Last position!" gamification removed; try/catch hardened on profile GET/PATCH + accept route; Escape key dismiss on BottomSheet (5 overlays), AvailabilityOverlay, ProfileOverlay; 3 new test files (call-ended, cron-document-cleanup, whatsapp-status — 13 tests); 990 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)
