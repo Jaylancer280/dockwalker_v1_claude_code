@@ -1,7 +1,7 @@
 'use client';
 
 import { type RefObject } from 'react';
-import { Loader2 } from 'lucide-react';
+import { ChatSkeleton } from '@/components/chat-skeleton';
 import type { Message, EngagementContext } from './types';
 import { DayworkSummaryCard } from './daywork-summary-card';
 import { PermanentSummaryCard } from './permanent-summary-card';
@@ -53,11 +53,7 @@ export function MessageList({
   return (
     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-4">
       <div className="page-width-wide flex  flex-col gap-2">
-        {loading && (
-          <div className="flex items-center justify-center pt-20">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        )}
+        {loading && <ChatSkeleton />}
 
         <div className="lg:hidden">
           {!loading &&

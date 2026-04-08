@@ -244,7 +244,7 @@ export function CardDetail({ card }: { card: MarketCard }) {
       )}
 
       {card.live_aboard && (
-        <Badge variant="secondary" className="w-fit bg-green-100 text-green-800">
+        <Badge variant="secondary" className="w-fit bg-[var(--success-lo)] text-[var(--success)]">
           Live aboard
         </Badge>
       )}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { SendHorizontal, LifeBuoy, ChevronDown, Lock, RotateCcw, Loader2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { uuid } from '@/lib/uuid';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -164,7 +165,7 @@ export default function DockyPage() {
 
     // Optimistically add user message
     const userMsg: Message = {
-      id: `temp-${crypto.randomUUID()}`,
+      id: `temp-${uuid()}`,
       role: 'user',
       content: trimmed,
       created_at: new Date().toISOString(),
@@ -204,7 +205,7 @@ export default function DockyPage() {
           ...prev,
           userMsg,
           {
-            id: `err-${crypto.randomUUID()}`,
+            id: `err-${uuid()}`,
             role: 'assistant',
             content:
               'Docky is temporarily unavailable. Your question has been saved — try sending again.',
@@ -230,7 +231,7 @@ export default function DockyPage() {
     }
 
     // Read SSE stream
-    const assistantId = `stream-${crypto.randomUUID()}`;
+    const assistantId = `stream-${uuid()}`;
     let streamedContent = '';
     let streamedSources: Source[] | null = null;
 

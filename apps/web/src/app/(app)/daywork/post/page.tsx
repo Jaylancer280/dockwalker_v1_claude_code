@@ -105,13 +105,23 @@ function DayworkPostForm() {
   const { showSuccess, showError: showErrorToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const clearFieldError = (field: string) =>
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  const validateRequired = (field: string, value: string) => {
+    if (!value) setFieldErrors((prev) => ({ ...prev, [field]: 'Required' }));
+  };
 
-  // Restore saved draft from sessionStorage (vessel creation round-trip)
+  // Restore saved draft from sessionStorage (vessel creation round-trip or page revisit)
   const [draft] = useState(() => {
     if (typeof window === 'undefined') return null;
     const raw = sessionStorage.getItem('dockwalker:daywork-post-draft');
     if (!raw) return null;
-    sessionStorage.removeItem('dockwalker:daywork-post-draft');
     try {
       return JSON.parse(raw) as Record<string, unknown>;
     } catch {
@@ -173,6 +183,51 @@ function DayworkPostForm() {
   }, [maxWorkingDays, workingDays]);
 
   const [showPostConfirm, setShowPostConfirm] = useState(false);
+
+  // Auto-save draft to sessionStorage on any form change (500ms debounce)
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      const state = {
+        vesselId,
+        roleId,
+        locationPortId,
+        startDate,
+        endDate,
+        workingDays,
+        requiredCertIds,
+        requiredLangs,
+        experienceBracketId,
+        dayRate,
+        currency,
+        meals,
+        notes,
+        positionsAvailable,
+        permanentOpportunity,
+      };
+      sessionStorage.setItem('dockwalker:daywork-post-draft', JSON.stringify(state));
+    }, 500);
+    return () => {
+      if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    };
+  }, [
+    vesselId,
+    roleId,
+    locationPortId,
+    startDate,
+    endDate,
+    workingDays,
+    requiredCertIds,
+    requiredLangs,
+    experienceBracketId,
+    dayRate,
+    currency,
+    meals,
+    notes,
+    positionsAvailable,
+    permanentOpportunity,
+  ]);
 
   // Save form state to sessionStorage before navigating to vessel creation
   function saveFormAndCreateVessel() {
@@ -393,6 +448,7 @@ function DayworkPostForm() {
       if (saveAsTemplate && templateName.trim()) {
         await handleSaveTemplate();
       }
+      sessionStorage.removeItem('dockwalker:daywork-post-draft');
       showSuccess('Daywork posted');
       router.push('/daywork/mine');
     } else {
@@ -447,48 +503,92 @@ function DayworkPostForm() {
 
         {/* Vessel */}
         <div className="flex flex-col gap-1.5">
-          <Label>Vessel</Label>
+          <Label>
+            Vessel <span className="text-destructive">*</span>
+          </Label>
           <VesselSelector
             value={vesselId}
-            onValueChange={setVesselId}
+            onValueChange={(v) => {
+              setVesselId(v);
+              clearFieldError('vessel');
+            }}
             onNdaChange={setVesselNda}
             onNameChange={setVesselDisplayName}
             onRequestCreate={saveFormAndCreateVessel}
           />
+          {fieldErrors.vessel && <p className="text-xs text-destructive">{fieldErrors.vessel}</p>}
         </div>
 
         {/* Role */}
         <div className="flex flex-col gap-1.5">
-          <Label>Role needed</Label>
+          <Label>
+            Role needed <span className="text-destructive">*</span>
+          </Label>
           <HierarchicalPills
             groups={rolesToGroups(
               roles.filter((r): r is typeof r & { department: string } => !!r.department),
             )}
             value={roleId}
-            onValueChange={(v) => setRoleId(v as string)}
+            onValueChange={(v) => {
+              setRoleId(v as string);
+              clearFieldError('role');
+            }}
             mode="single"
           />
+          {fieldErrors.role && <p className="text-xs text-destructive">{fieldErrors.role}</p>}
         </div>
 
         {/* Location */}
         <div className="flex flex-col gap-1.5">
-          <Label>Location</Label>
+          <Label>
+            Location <span className="text-destructive">*</span>
+          </Label>
           <LocationPicker
             mode="port-required"
             value={locationPortId ? { portId: locationPortId } : null}
-            onValueChange={(v) => setLocationPortId(v.portId ?? '')}
+            onValueChange={(v) => {
+              setLocationPortId(v.portId ?? '');
+              clearFieldError('location');
+            }}
           />
+          {fieldErrors.location && (
+            <p className="text-xs text-destructive">{fieldErrors.location}</p>
+          )}
         </div>
 
         {/* Dates */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="startDate">Start date</Label>
-            <DateInput value={startDate} onChange={setStartDate} />
+            <Label htmlFor="startDate">
+              Start date <span className="text-destructive">*</span>
+            </Label>
+            <DateInput
+              value={startDate}
+              onChange={(v) => {
+                setStartDate(v);
+                clearFieldError('startDate');
+              }}
+              onBlur={() => validateRequired('startDate', startDate)}
+            />
+            {fieldErrors.startDate && (
+              <p className="text-xs text-destructive">{fieldErrors.startDate}</p>
+            )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="endDate">End date</Label>
-            <DateInput value={endDate} onChange={setEndDate} />
+            <Label htmlFor="endDate">
+              End date <span className="text-destructive">*</span>
+            </Label>
+            <DateInput
+              value={endDate}
+              onChange={(v) => {
+                setEndDate(v);
+                clearFieldError('endDate');
+              }}
+              onBlur={() => validateRequired('endDate', endDate)}
+            />
+            {fieldErrors.endDate && (
+              <p className="text-xs text-destructive">{fieldErrors.endDate}</p>
+            )}
           </div>
         </div>
 
@@ -579,7 +679,9 @@ function DayworkPostForm() {
 
         {/* Day rate + currency */}
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="dayRate">Day rate</Label>
+          <Label htmlFor="dayRate">
+            Day rate <span className="text-destructive">*</span>
+          </Label>
           <div className="flex gap-2">
             <Select value={currency} onValueChange={setCurrency}>
               <SelectTrigger className="w-28 shrink-0">
@@ -599,10 +701,15 @@ function DayworkPostForm() {
               step="0.01"
               placeholder="e.g. 250"
               value={dayRate}
-              onChange={(e) => setDayRate(e.target.value)}
+              onChange={(e) => {
+                setDayRate(e.target.value);
+                clearFieldError('dayRate');
+              }}
+              onBlur={() => validateRequired('dayRate', dayRate)}
               required
             />
           </div>
+          {fieldErrors.dayRate && <p className="text-xs text-destructive">{fieldErrors.dayRate}</p>}
         </div>
 
         {/* Meals */}

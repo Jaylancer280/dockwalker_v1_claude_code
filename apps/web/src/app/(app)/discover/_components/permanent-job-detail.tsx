@@ -109,7 +109,7 @@ export function PermanentJobDetail({
             {/* Badges */}
             <div className="flex flex-wrap gap-2">
               {posting.live_aboard && (
-                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                <Badge variant="secondary" className="bg-[var(--success-lo)] text-[var(--success)]">
                   Live aboard
                 </Badge>
               )}

@@ -12,6 +12,7 @@ import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import type { Applicant, TabView } from './types';
 import { ExpandableText } from '@/components/expandable-text';
+import { ShareJobButton } from '@/components/share-job-button';
 
 const SWIPE_THRESHOLD_RATIO = 0.33;
 const EXIT_RATIO = 1.3;
@@ -31,6 +32,7 @@ export function ApplicantsTab({
   loadApplicants,
   setTab,
   setViewProfileId,
+  shareData,
 }: {
   tab: TabView;
   loading: boolean;
@@ -46,6 +48,7 @@ export function ApplicantsTab({
   loadApplicants: () => void;
   setTab: (tab: TabView) => void;
   setViewProfileId: (id: string | null) => void;
+  shareData?: { jobNumber: string; roleName: string; location: string; rate: string };
 }) {
   const currentStack = tab === 'applicants' ? applicants : shortlisted;
 
@@ -87,9 +90,19 @@ export function ApplicantsTab({
                   : 'Shortlist crew from the Applicants tab to compare them here.'}
               </p>
               {tab === 'applicants' && (
-                <Button variant="outline" size="sm" className="mt-3" onClick={loadApplicants}>
-                  Refresh
-                </Button>
+                <div className="mt-3 flex gap-2">
+                  <Button variant="outline" size="sm" onClick={loadApplicants}>
+                    Refresh
+                  </Button>
+                  {shareData && (
+                    <ShareJobButton
+                      jobNumber={shareData.jobNumber}
+                      roleName={shareData.roleName}
+                      location={shareData.location}
+                      rate={shareData.rate}
+                    />
+                  )}
+                </div>
               )}
               {tab === 'shortlist' && applicants.length > 0 && (
                 <Button

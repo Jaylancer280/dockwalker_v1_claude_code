@@ -1,7 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { MapPin, Calendar, DollarSign, ClipboardList, X, Loader2, User } from 'lucide-react';
+import {
+  MapPin,
+  Calendar,
+  DollarSign,
+  ClipboardList,
+  X,
+  Loader2,
+  User,
+  Clock,
+  Check,
+  Send,
+} from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { EpauletteBadge } from '@/components/epaulette-badge';
@@ -194,6 +205,9 @@ function ApplicationCard({
             </button>
           )}
           <Badge className={`shrink-0 text-[10px] ${statusInfo.className}`}>
+            {application.status === 'applied' && <Send className="mr-1 h-3 w-3" />}
+            {application.status === 'viewed' && <Clock className="mr-1 h-3 w-3" />}
+            {application.status === 'shortlisted' && <Check className="mr-1 h-3 w-3" />}
             {statusInfo.label}
           </Badge>
         </div>

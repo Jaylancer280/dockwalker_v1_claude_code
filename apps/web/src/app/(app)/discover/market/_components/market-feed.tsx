@@ -14,6 +14,7 @@ export interface MarketFeedProps {
   loadingMore: boolean;
   onLoadMore: () => void;
   onSelectCard: (card: MarketCard) => void;
+  onClearFilters?: () => void;
 }
 
 export function MarketFeed({
@@ -23,6 +24,7 @@ export function MarketFeed({
   loadingMore,
   onLoadMore,
   onSelectCard,
+  onClearFilters,
 }: MarketFeedProps) {
   if (loading) {
     return <LoadingSpinner size="md" />;
@@ -30,7 +32,18 @@ export function MarketFeed({
 
   if (cards.length === 0) {
     return (
-      <EmptyState icon={Briefcase} title="No postings found" description="Try different filters." />
+      <EmptyState
+        icon={Briefcase}
+        title="No postings found"
+        description="Try different filters."
+        action={
+          onClearFilters && (
+            <Button variant="outline" size="sm" onClick={onClearFilters}>
+              Clear filters
+            </Button>
+          )
+        }
+      />
     );
   }
 

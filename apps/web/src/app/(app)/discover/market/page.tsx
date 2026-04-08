@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, SlidersHorizontal } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { CardSkeleton } from '@/components/card-skeleton';
 import { Button } from '@/components/ui/button';
 import { useLookups } from '@/hooks/use-lookups';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -215,8 +216,12 @@ export default function MarketFeedPage() {
 
   if (authorized === null) {
     return (
-      <main className="flex min-h-svh items-center justify-center">
-        <LoadingSpinner size="md" />
+      <main className="flex min-h-svh flex-col bg-background">
+        <div className="page-width flex flex-col gap-4 px-4 py-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
       </main>
     );
   }
@@ -282,6 +287,11 @@ export default function MarketFeedPage() {
           loadingMore={loadingMore}
           onLoadMore={() => loadFeed(true)}
           onSelectCard={setSelectedCard}
+          onClearFilters={() => {
+            setFilterRoleId('');
+            setFilterPortId('');
+            setFilterCertId('');
+          }}
         />
       </div>
     </main>

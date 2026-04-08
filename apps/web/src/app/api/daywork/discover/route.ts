@@ -117,6 +117,19 @@ export async function GET(request: Request) {
     if (filterExperienceBracketId) {
       query = query.eq('experience_bracket_id', filterExperienceBracketId);
     }
+    // Pre-filter by vessel size band at the DB level (avoids fetching 200 rows)
+    if (filterSizeBandId) {
+      const { data: matchingVessels } = await supabase
+        .from('vessels')
+        .select('id')
+        .eq('size_band_id', filterSizeBandId);
+      const matchingVesselIds = (matchingVessels ?? []).map((v) => v.id);
+      if (matchingVesselIds.length === 0) {
+        return NextResponse.json({ dayworks: [], has_more: false, next_cursor: null });
+      }
+      query = query.in('vessel_id', matchingVesselIds);
+    }
+
     if (cursor) {
       query = query.lt('created_at', cursor);
     }
@@ -124,8 +137,7 @@ export async function GET(request: Request) {
     query = query.order('created_at', { ascending: false });
 
     const BATCH_SIZE = 50;
-    const fetchLimit = filterSizeBandId ? 200 : BATCH_SIZE;
-    const { data: dayworks, error } = await query.limit(fetchLimit);
+    const { data: dayworks, error } = await query.limit(BATCH_SIZE);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -172,7 +184,7 @@ export async function GET(request: Request) {
       }
     }
 
-    let hydrated = filtered.map((daywork) => {
+    const hydrated = filtered.map((daywork) => {
       const vessel = vesselMap.get(daywork.vessel_id);
       const row = daywork as DiscoverDayworkRow & {
         positions_available: number;
@@ -200,18 +212,7 @@ export async function GET(request: Request) {
       };
     });
 
-    // Post-fetch filter: sizeBandId requires vessel data which comes from RPC
-    if (filterSizeBandId) {
-      hydrated = hydrated.filter((dw) => dw.vessels?.size_band_id === filterSizeBandId);
-    }
-
-    // When size band filtering, we fetched extra rows — trim to batch size and recompute hasMore
-    const hasMore = filterSizeBandId
-      ? hydrated.length > BATCH_SIZE
-      : filtered.length === BATCH_SIZE;
-    if (filterSizeBandId && hydrated.length > BATCH_SIZE) {
-      hydrated = hydrated.slice(0, BATCH_SIZE);
-    }
+    const hasMore = filtered.length === BATCH_SIZE;
     const nextCursor =
       hasMore && hydrated.length > 0 ? hydrated[hydrated.length - 1].created_at : null;
 

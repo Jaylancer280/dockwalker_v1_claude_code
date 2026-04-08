@@ -53,6 +53,6 @@ describe('safeFetch', () => {
     });
 
     const result = await safeFetch('/api/test', { timeoutMs: 50 });
-    expect(result).toEqual({ ok: false, error: 'Network error — check your connection' });
+    expect(result).toEqual({ ok: false, error: 'Request timed out — try again' });
   });
 });

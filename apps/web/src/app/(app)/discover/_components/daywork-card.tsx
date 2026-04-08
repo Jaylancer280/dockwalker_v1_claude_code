@@ -75,7 +75,7 @@ export function JobCard({
   crewCertIds,
   crewLangs,
 }: JobCardProps) {
-  const bgGradient = getDepartmentGradient(card.yacht_roles?.department);
+  const bgGradient = getDepartmentGradient(card.yacht_roles?.department, card.id);
 
   return (
     <div
@@ -85,7 +85,7 @@ export function JobCard({
       style={{ backgroundImage: bgGradient }}
     >
       {/* Card content */}
-      <div className="relative flex h-full flex-col overflow-y-auto p-5">
+      <div className="relative flex h-full flex-col overflow-y-auto p-4">
         {/* Role + vessel */}
         <div className="mb-3">
           <div className="flex items-center gap-2">
@@ -273,7 +273,7 @@ export function JobCard({
         <div className="flex-1" />
 
         {/* Footer with divider */}
-        <div className="mt-2 border-t border-[var(--border)] pt-2 flex items-center justify-between">
+        <div className="mt-3 border-t border-[var(--border)] pt-3 flex items-center justify-between">
           {onComposeMessage ? (
             <button
               onClick={(e) => {

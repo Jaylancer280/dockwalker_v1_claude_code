@@ -159,7 +159,17 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     }
     return defaultLookups;
   });
-  const [fetchedAt, setFetchedAt] = useState(0);
+  const [fetchedAt, setFetchedAt] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return 0;
+      const parsed = JSON.parse(raw);
+      return parsed.ts ?? 0;
+    } catch {
+      return 0;
+    }
+  });
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -209,8 +219,9 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Background revalidation on mount (even if cache was used)
+  // Background revalidation on mount (skip if cache is still fresh)
   useEffect(() => {
+    if (fetchedAt > 0 && Date.now() - fetchedAt < CACHE_MAX_AGE_MS) return;
     let cancelled = false;
     const supabase = createClient();
     Promise.all([
@@ -259,6 +270,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Revalidate on visibility change if stale

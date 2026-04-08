@@ -75,7 +75,10 @@ export default function ReviewApplicantsPage() {
   const [dayworkMeta, setDayworkMeta] = useState<{
     job_number: number | null;
     role_name: string | null;
-  }>({ job_number: null, role_name: null });
+    port_name: string | null;
+    day_rate: string | null;
+    currency: string | null;
+  }>({ job_number: null, role_name: null, port_name: null, day_rate: null, currency: null });
 
   // Client-side hat guard: redirect crew away from employer review page
   // (middleware handles full page loads; this catches client-side navigation)
@@ -104,12 +107,21 @@ export default function ReviewApplicantsPage() {
     async function loadDayworkMeta() {
       const { data } = await supabase
         .from('dayworks')
-        .select('job_number, yacht_roles:role_id(name)')
+        .select(
+          'job_number, day_rate, currency, yacht_roles:role_id(name), ports:location_port_id(name)',
+        )
         .eq('id', dayworkId)
         .single();
       if (data) {
         const role = data.yacht_roles as unknown as { name: string } | null;
-        setDayworkMeta({ job_number: data.job_number, role_name: role?.name ?? null });
+        const port = data.ports as unknown as { name: string } | null;
+        setDayworkMeta({
+          job_number: data.job_number,
+          role_name: role?.name ?? null,
+          port_name: port?.name ?? null,
+          day_rate: data.day_rate ? String(data.day_rate) : null,
+          currency: data.currency ?? null,
+        });
       }
     }
     loadDayworkMeta();
@@ -384,6 +396,19 @@ export default function ReviewApplicantsPage() {
             loadApplicants={loadApplicants}
             setTab={setTab}
             setViewProfileId={setViewProfileId}
+            shareData={
+              dayworkMeta.job_number
+                ? {
+                    jobNumber: `DW-${String(dayworkMeta.job_number).padStart(5, '0')}`,
+                    roleName: dayworkMeta.role_name ?? 'Crew',
+                    location: dayworkMeta.port_name ?? '',
+                    rate:
+                      dayworkMeta.day_rate && dayworkMeta.currency
+                        ? `${dayworkMeta.day_rate} ${dayworkMeta.currency}/day`
+                        : '',
+                  }
+                : undefined
+            }
           />
         )}
 

@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Calendar, ClipboardCheck, Archive } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
 import { LoadingSpinner } from '@/components/loading-spinner';
+import { ConversationSkeleton } from '@/components/conversation-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { UnderlineTabs } from '@/components/ui/underline-tabs';
@@ -129,13 +130,18 @@ export default function MessagesPage() {
           </div>
         )}
 
-        {loading && <LoadingSpinner size="md" text="Loading conversations..." />}
+        {loading && <ConversationSkeleton />}
 
         {!loading && current.length === 0 && tab === 'active' && (
           <EmptyState
             imageSrc="/images/empty-states/messages.jpg"
             title="No active messages"
             description="Messages open after a daywork application is accepted. Once you have an active engagement, you can chat here."
+            action={
+              <Link href="/discover">
+                <Button variant="outline">Browse jobs</Button>
+              </Link>
+            }
           />
         )}
 

@@ -2,13 +2,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableNationalitySelect } from '@/components/searchable-nationality-select';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
 import {
@@ -133,13 +126,18 @@ export function ProfileEditForm({
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label>Display name</Label>
-            <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+            <Label htmlFor="displayName">Display name</Label>
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+            />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label>Name on deck</Label>
+            <Label htmlFor="deckName">Name on deck</Label>
             <Input
+              id="deckName"
               placeholder="What your crew calls you"
               value={deckName}
               onChange={(e) => setDeckName(e.target.value)}
@@ -186,8 +184,9 @@ export function ProfileEditForm({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>Bio</Label>
+          <Label htmlFor="bio">Bio</Label>
           <Textarea
+            id="bio"
             value={bio}
             onChange={(e) => setBio(e.target.value)}
             placeholder="Tell employers about yourself..."
@@ -285,22 +284,31 @@ export function ProfileEditForm({
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label>Display name</Label>
-          <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+          <Label htmlFor="agentDisplayName">Display name</Label>
+          <Input
+            id="agentDisplayName"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label>Agency Name</Label>
-          <Input value={agencyName} onChange={(e) => setAgencyName(e.target.value)} />
+          <Label htmlFor="agencyName">Agency Name</Label>
+          <Input
+            id="agencyName"
+            value={agencyName}
+            onChange={(e) => setAgencyName(e.target.value)}
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <Label>
+          <Label htmlFor="agentNickname">
             Nickname <span className="text-xs text-muted-foreground">(optional)</span>
           </Label>
           <Input
+            id="agentNickname"
             placeholder="What people in the industry call you"
             value={deckName}
             onChange={(e) => setDeckName(e.target.value.slice(0, 50))}
@@ -312,18 +320,12 @@ export function ProfileEditForm({
           <Label>
             Nationality <span className="text-xs text-muted-foreground">(optional)</span>
           </Label>
-          <Select value={nationalityId} onValueChange={setNationalityId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select nationality" />
-            </SelectTrigger>
-            <SelectContent>
-              {nationalities.map((n) => (
-                <SelectItem key={n.id} value={n.id}>
-                  {n.flag_emoji} {n.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableNationalitySelect
+            value={nationalityId}
+            onChange={setNationalityId}
+            nationalities={nationalities}
+            placeholder="Select nationality"
+          />
         </div>
       </div>
 

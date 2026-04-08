@@ -33,7 +33,7 @@ export function PermanentSummaryCard({ context }: PermanentSummaryCardProps) {
   const vesselDisplay = vessel ? `${vesselPrefix} ${vessel.name}`.trim() : 'Unknown Vessel';
 
   return (
-    <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
+    <div className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3.5">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tertiary)]">
           Permanent position

@@ -37,6 +37,15 @@ function makeProfilesChain(data: unknown[] = []) {
   };
 }
 
+/** Vessels size-band pre-query chain: .select('id').eq('size_band_id', ...) */
+function makeVesselsChain(vesselIds: string[]) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data: vesselIds.map((id) => ({ id })) }),
+    }),
+  };
+}
+
 /** Applications query chain: .select().eq().in() */
 function makeAppsChain(data: unknown[]) {
   return {
@@ -64,6 +73,7 @@ function makeDayworksChain(data: unknown[], hasExcludedIds = false) {
   filterProxy.lt = vi.fn().mockReturnValue(filterProxy);
   filterProxy.eq = vi.fn().mockReturnValue(filterProxy);
   filterProxy.contains = vi.fn().mockReturnValue(filterProxy);
+  filterProxy.in = vi.fn().mockReturnValue(filterProxy);
   filterProxy.order = mockOrder;
 
   // .neq() or .not() before optional filters
@@ -273,21 +283,20 @@ describe('GET /api/daywork/discover', () => {
     expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-456');
   });
 
-  it('filters by sizeBandId via post-fetch vessel data', async () => {
+  it('filters by sizeBandId via DB-level vessel pre-filter', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
+    // Only d1 has a matching vessel (pre-filtered at DB level)
     const dayworks = [
       { id: 'd1', vessel_id: 'v1', poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
-      { id: 'd2', vessel_id: 'v2', poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
     ];
 
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
-    // Batch vessel lookup returns both vessels in one call
+    mockFromAuth.mockReturnValueOnce(makeVesselsChain(['v1'])); // pre-filter runs after dayworks chain starts
     mockRpc.mockResolvedValueOnce({
       data: [
         { id: 'v1', imo_number: null, name: 'Vessel A', vessel_type: 'motor', size_band_id: 'sb-match', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' },
-        { id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'sail', size_band_id: 'sb-other', size_band_label: '20-30m', nda_flag: false, owner_person_id: 'o2' },
       ],
       error: null,
     });
@@ -314,17 +323,17 @@ describe('GET /api/daywork/discover', () => {
     expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-1');
   });
 
-  it('sizeBandId filter excludes dayworks with no vessel (vessel_id null)', async () => {
+  it('sizeBandId filter with DB pre-filter returns only matching vessels', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
+    // DB pre-filter returns only v2 (the matching vessel)
     const dayworks = [
-      { id: 'd1', vessel_id: null, poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
       { id: 'd2', vessel_id: 'v2', poster_person_id: 'other', start_date: '2026-04-01', end_date: '2026-04-05' },
     ];
 
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(makeDayworksChain(dayworks).chain);
-    // Only v2 has a vessel — and it matches the filter
+    mockFromAuth.mockReturnValueOnce(makeVesselsChain(['v2'])); // pre-filter runs after dayworks from()
     mockRpc.mockResolvedValueOnce({
       data: [{ id: 'v2', imo_number: null, name: 'Vessel B', vessel_type: 'motor', size_band_id: 'sb-target', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
       error: null,
@@ -349,6 +358,7 @@ describe('GET /api/daywork/discover', () => {
     const { chain, filterProxy } = makeDayworksChain(dayworks);
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(chain);
+    mockFromAuth.mockReturnValueOnce(makeVesselsChain(['v1'])); // size band pre-filter runs after dayworks from()
     mockRpc.mockResolvedValueOnce({
       data: [{ id: 'v1', imo_number: null, name: 'Test Vessel', vessel_type: 'motor', size_band_id: 'sb-1', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
       error: null,
@@ -367,7 +377,7 @@ describe('GET /api/daywork/discover', () => {
     expect(filterProxy.lte).toHaveBeenCalledWith('end_date', '2026-04-30');
     expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);
     expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-1');
-    // Post-fetch filter (sizeBandId) verified by the result including only matching vessel
+    // sizeBandId pre-filtered at DB level via vessel_id IN query
     expect(body.dayworks[0].vessels.size_band_id).toBe('sb-1');
   });
 

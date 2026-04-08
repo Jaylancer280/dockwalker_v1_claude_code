@@ -98,7 +98,7 @@ export function PermanentJobCard({
     ? 'NDA Vessel'
     : `${vesselPrefix} ${posting.vessel_name ?? 'Unknown'}`.trim();
 
-  const bgGradient = getDepartmentGradient(posting.role_department);
+  const bgGradient = getDepartmentGradient(posting.role_department, posting.id);
 
   return (
     <div

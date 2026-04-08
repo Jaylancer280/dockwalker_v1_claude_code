@@ -41,9 +41,21 @@ export async function safeFetch<T = unknown>(
 
     // HTTP error — parse body safely
     const text = await res.text();
-    const body = text ? JSON.parse(text) : {};
+    const body = (() => {
+      try {
+        return text ? JSON.parse(text) : {};
+      } catch {
+        return {};
+      }
+    })();
+    if (res.status >= 500) {
+      return { ok: false, error: body.error ?? 'Server error — try again in a moment' };
+    }
     return { ok: false, error: body.error ?? 'Something went wrong' };
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return { ok: false, error: 'Request timed out — try again' };
+    }
     return { ok: false, error: 'Network error — check your connection' };
   } finally {
     clearTimeout(timeout);

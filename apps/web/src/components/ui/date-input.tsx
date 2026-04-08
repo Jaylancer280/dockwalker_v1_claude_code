@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 interface DateInputProps {
   value: string; // ISO YYYY-MM-DD
   onChange: (value: string) => void;
+  onBlur?: () => void;
   className?: string;
   min?: string;
   max?: string;
@@ -46,7 +47,15 @@ function autoFormat(raw: string): string {
  * Uses a visible text input for display + a hidden native date input for mobile picker.
  * Value prop and onChange use ISO YYYY-MM-DD format.
  */
-export function DateInput({ value, onChange, className, min, max, disabled }: DateInputProps) {
+export function DateInput({
+  value,
+  onChange,
+  onBlur,
+  className,
+  min,
+  max,
+  disabled,
+}: DateInputProps) {
   const hiddenRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = React.useState(() => isoToDisplay(value));
 
@@ -101,6 +110,7 @@ export function DateInput({ value, onChange, className, min, max, disabled }: Da
         placeholder="dd/mm/yyyy"
         value={displayValue}
         onChange={handleTextChange}
+        onBlur={onBlur}
         onClick={handleTap}
         disabled={disabled}
         className={inputClasses}

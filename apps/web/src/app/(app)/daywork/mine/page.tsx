@@ -392,11 +392,10 @@ export default function MyPostingsPage() {
                       </Button>
                     )}
                     <Button
-                      variant="outline"
+                      variant="destructive"
                       size="sm"
                       onClick={() => setCancelId(posting.id)}
                       disabled={cancelling === posting.id}
-                      className="text-destructive hover:text-destructive"
                     >
                       {cancelling === posting.id ? 'Cancelling...' : 'Cancel'}
                     </Button>

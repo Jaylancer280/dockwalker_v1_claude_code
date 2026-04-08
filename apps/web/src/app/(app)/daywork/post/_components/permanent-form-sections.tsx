@@ -61,7 +61,9 @@ export function RoleLocationSection({
     <>
       {/* Vessel */}
       <div>
-        <Label>Vessel</Label>
+        <Label>
+          Vessel <span className="text-destructive">*</span>
+        </Label>
         <VesselSelector
           value={vesselId}
           onValueChange={setVesselId}
@@ -72,7 +74,9 @@ export function RoleLocationSection({
 
       {/* Role */}
       <div>
-        <Label>Role</Label>
+        <Label>
+          Role <span className="text-destructive">*</span>
+        </Label>
         <HierarchicalPills
           groups={rolesToGroups(
             roles.filter((r): r is typeof r & { department: string } => !!r.department),
@@ -85,7 +89,9 @@ export function RoleLocationSection({
 
       {/* Location */}
       <div>
-        <Label>Location (port/marina)</Label>
+        <Label>
+          Location (port/marina) <span className="text-destructive">*</span>
+        </Label>
         <LocationPicker
           mode="port-required"
           value={locationPortId ? { portId: locationPortId } : null}
@@ -95,7 +101,9 @@ export function RoleLocationSection({
 
       {/* Start date */}
       <div>
-        <Label>Start date</Label>
+        <Label>
+          Start date <span className="text-destructive">*</span>
+        </Label>
         <DateInput value={startDate} onChange={setStartDate} />
         <p className="mt-1 text-xs text-muted-foreground">
           Past dates are allowed — they display as &quot;ASAP&quot; on cards.
@@ -291,7 +299,9 @@ export function SalarySection({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <Label>Salary</Label>
+        <Label>
+          Salary <span className="text-destructive">*</span>
+        </Label>
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <input
             type="checkbox"
@@ -390,7 +400,9 @@ export function RequirementsSection({
     <>
       {/* Certifications */}
       <div>
-        <Label>Required certifications</Label>
+        <Label>
+          Required certifications <span className="text-destructive">*</span>
+        </Label>
         <HierarchicalPills
           groups={certsToGroups(
             certifications.filter((c): c is typeof c & { category: string } => !!c.category),

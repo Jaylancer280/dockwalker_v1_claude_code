@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import { usePreferences } from '@/hooks/use-preferences';
 import { feetToMeters } from '@dockwalker/shared';
+import { uuid } from '@/lib/uuid';
 
 import { WelcomeStep } from './_components/welcome-step';
 import { IdentityStep } from './_components/identity-step';
@@ -49,7 +50,7 @@ interface SizeBandFull {
 
 function emptyExperienceEntry(): VesselExperienceEntry {
   return {
-    key: crypto.randomUUID(),
+    key: uuid(),
     vessel: {
       imoNumber: '',
       name: '',
