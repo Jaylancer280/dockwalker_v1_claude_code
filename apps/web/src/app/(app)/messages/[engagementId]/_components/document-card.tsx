@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, Image, Download, X, Clock } from 'lucide-react';
+import { FileText, Image as ImageIcon, Download, X, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
@@ -83,7 +83,7 @@ export function DocumentCard({ doc, engagementId, userId, onDeleted }: DocumentC
       {isPdf ? (
         <FileText className="h-5 w-5 shrink-0 text-red-500" />
       ) : (
-        <Image className="h-5 w-5 shrink-0 text-blue-500" />
+        <ImageIcon className="h-5 w-5 shrink-0 text-blue-500" />
       )}
 
       <div className="min-w-0 flex-1">

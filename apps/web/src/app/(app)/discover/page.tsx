@@ -188,12 +188,6 @@ export default function DiscoverPage() {
       window.location.href = '/daywork/mine';
       return;
     }
-    // Profile readiness: check if key fields are missing
-    if (result.ok && result.data.profile) {
-      const p = result.data.profile;
-      const name = p.display_name ?? '';
-      const looksLikeEmailPrefix = /^[A-Za-z0-9._+-]+$/.test(name) && !name.includes(' ');
-    }
   }
 
   useEffect(() => {

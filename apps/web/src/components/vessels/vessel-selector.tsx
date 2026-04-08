@@ -24,6 +24,7 @@ interface VesselSelectorProps {
   onNdaChange?: (isNda: boolean) => void;
   onNameChange?: (name: string) => void;
   onRequestCreate?: () => void;
+  required?: boolean;
 }
 
 /**
@@ -37,6 +38,7 @@ export function VesselSelector({
   onNdaChange,
   onNameChange,
   onRequestCreate,
+  required,
 }: VesselSelectorProps) {
   const [vessels, setVessels] = useState<VesselOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +91,7 @@ export function VesselSelector({
     <div className="flex flex-col gap-2">
       <Select
         value={value}
+        required={required}
         onValueChange={(id) => {
           onValueChange(id);
           const v = vessels.find((vsl) => vsl.id === id);

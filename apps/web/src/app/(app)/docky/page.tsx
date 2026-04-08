@@ -72,6 +72,7 @@ export default function DockyPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [thinkingPhase, setThinkingPhase] = useState<'thinking' | null>(null);
   const [input, setInput] = useState('');
   const [limitReached, setLimitReached] = useState(false);
@@ -154,6 +155,7 @@ export default function DockyPage() {
 
     loadThread();
     refreshUsage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showError]);
 
   async function sendMessage(content: string) {

@@ -15,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { DateInput } from '@/components/ui/date-input';
 import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';

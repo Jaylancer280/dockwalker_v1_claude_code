@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, SlidersHorizontal } from 'lucide-react';
-import { LoadingSpinner } from '@/components/loading-spinner';
 import { CardSkeleton } from '@/components/card-skeleton';
 import { Button } from '@/components/ui/button';
 import { useLookups } from '@/hooks/use-lookups';

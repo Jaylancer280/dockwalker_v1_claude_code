@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { MapPin, Calendar, ClipboardCheck, Archive } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { LoadingSpinner } from '@/components/loading-spinner';
 import { ConversationSkeleton } from '@/components/conversation-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

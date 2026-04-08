@@ -11,6 +11,7 @@ export interface HierarchicalPillsProps {
   onValueChange: (v: string | string[]) => void;
   mode: 'single' | 'multi';
   placeholder?: string;
+  required?: boolean;
 }
 
 export function HierarchicalPills({
@@ -19,6 +20,7 @@ export function HierarchicalPills({
   onValueChange,
   mode,
   placeholder,
+  required,
 }: HierarchicalPillsProps) {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(() => {
     // Auto-expand the group containing the current value
@@ -88,7 +90,11 @@ export function HierarchicalPills({
   }, [groups, value, mode]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      className="flex flex-col gap-2"
+      role={mode === 'single' ? 'radiogroup' : 'group'}
+      aria-required={required || undefined}
+    >
       {/* Selected preview for single-select */}
       {mode === 'single' && selectedLabel && (
         <p className="text-xs text-muted-foreground">{selectedLabel}</p>

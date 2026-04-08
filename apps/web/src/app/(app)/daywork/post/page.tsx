@@ -548,6 +548,7 @@ function DayworkPostForm() {
             onNdaChange={setVesselNda}
             onNameChange={setVesselDisplayName}
             onRequestCreate={saveFormAndCreateVessel}
+            required
           />
           {fieldErrors.vessel && <p className="text-xs text-destructive">{fieldErrors.vessel}</p>}
         </div>
@@ -567,6 +568,7 @@ function DayworkPostForm() {
               clearFieldError('role');
             }}
             mode="single"
+            required
           />
           {fieldErrors.role && <p className="text-xs text-destructive">{fieldErrors.role}</p>}
         </div>
@@ -583,6 +585,7 @@ function DayworkPostForm() {
               setLocationPortId(v.portId ?? '');
               clearFieldError('location');
             }}
+            required
           />
           {fieldErrors.location && (
             <p className="text-xs text-destructive">{fieldErrors.location}</p>

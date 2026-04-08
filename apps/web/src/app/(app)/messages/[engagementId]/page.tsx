@@ -155,6 +155,7 @@ export default function ChatPage() {
       clearInterval(contextInterval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engagementId, loadContext, loadMessages, loadDocuments]);
 
   useEffect(() => {

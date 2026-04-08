@@ -1,8 +1,7 @@
-import { Ship, Plus, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Ship, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ExpandableText } from '@/components/expandable-text';
-import { computeTotalExperience, languageLabel } from '@dockwalker/shared';
+import { languageLabel } from '@dockwalker/shared';
 import { ProfileExperienceSection } from './profile-experience-section';
 
 interface Profile {
@@ -280,14 +279,4 @@ export function AgentProfileSection({
       </button>
     </div>
   );
-}
-
-function formatDateRange(start: string, end: string | null, isCurrent: boolean): string {
-  const fmt = (d: string) => {
-    const date = new Date(d + 'T00:00:00');
-    return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-  };
-  if (isCurrent) return `${fmt(start)} — Present`;
-  if (!end) return fmt(start);
-  return `${fmt(start)} — ${fmt(end)}`;
 }
