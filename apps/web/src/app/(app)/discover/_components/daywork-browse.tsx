@@ -1,13 +1,12 @@
 'use client';
 
 import { Textarea } from '@/components/ui/textarea';
-import { type RefObject, useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { type RefObject } from 'react';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { CardSkeleton } from '@/components/card-skeleton';
 import { EmptyState } from '@/components/empty-state';
-import { LoadingSpinner } from '@/components/loading-spinner';
 import {
   Select,
   SelectContent,
@@ -136,14 +135,6 @@ export function DayworkBrowse({
   const prefs = usePreferences();
   const lengthUnit = prefs.lengthUnit;
 
-  // Entrance animation — check reduced motion once on mount
-  const prefersReducedMotion = useMemo(
-    () =>
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-    [],
-  );
-
   const topCard = cards[0] ?? null;
   const nextCard = cards[1] ?? null;
 
@@ -254,7 +245,12 @@ export function DayworkBrowse({
 
           {/* Card stack */}
           <div className="relative flex flex-1 items-start justify-center pt-4">
-            {loading && <LoadingSpinner size="md" text="Finding jobs..." />}
+            {loading && (
+              <div className="flex w-full max-w-md flex-col gap-3">
+                <CardSkeleton />
+                <CardSkeleton />
+              </div>
+            )}
 
             {!loading && cards.length === 0 && (
               <EmptyState
@@ -272,12 +268,7 @@ export function DayworkBrowse({
             )}
 
             {!loading && cards.length > 0 && (
-              <motion.div
-                className="relative mx-auto h-[420px] w-full max-w-md overflow-hidden"
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-              >
+              <div className="relative mx-auto h-[420px] w-full max-w-md overflow-hidden">
                 {/* Next card preview (underneath) */}
                 {nextCard && (
                   <div className="absolute inset-0 z-0">
@@ -316,7 +307,7 @@ export function DayworkBrowse({
                     crewLangs={crewLangs}
                   />
                 )}
-              </motion.div>
+              </div>
             )}
           </div>
 

@@ -5,16 +5,45 @@
 
 ## Current Task
 
-(none)
+Stage 203 — LCP performance fixes
 
 ---
 
 ## Queue
 
-### Stage 202 fix — Delete conflicting middleware.ts
+### Stage 203 — LCP performance fixes (5.3s → target <2.5s)
 
-- [ ] **Delete `apps/web/src/middleware.ts`** — Next.js 16 uses `proxy.ts` (auto-detected by framework), not `middleware.ts`. Having both causes build error. The `proxy.ts` already wires rate limiting + session management correctly. The `middleware.ts` created in Stage 202 was based on a false audit finding.
-- [ ] **Verify build passes** after deletion: `turbo run build` should succeed.
+The discover page is 100% client-rendered. The entire page shows a spinner while JS hydrates, effects fire, the API responds, and React re-renders. The LCP element (`p.mt-1.text-xs.text-white/60` on a job card) can't paint until the full waterfall completes.
+
+#### P0 — Eliminate the animation delay on card entrance (saves ~500ms)
+
+- [x] **Remove or reduce Framer Motion entrance animation on DayworkBrowse.** In `discover/_components/daywork-browse.tsx`, the `motion.div` wrapping cards has `transition={{ duration: 0.5 }}`. This delays card visibility by 500ms AFTER data arrives. Either: (a) remove the animation entirely, (b) reduce duration to 150ms, or (c) use `opacity` only (no `y` translate) at 200ms. Cards should appear near-instantly when data arrives.
+
+#### P0 — Show skeleton cards instead of spinner (perceived LCP improvement)
+
+- [x] **Replace `<LoadingSpinner text="Finding jobs..." />` with skeleton cards.** In `discover/_components/daywork-browse.tsx`, when `loading === true`, render 2-3 `<CardSkeleton />` components (already exist in `components/card-skeleton.tsx`) instead of the spinner. This gives the browser a content-shaped LCP candidate immediately, dramatically improving perceived load time even if actual data arrives at the same time.
+
+#### P1 — Parallelise the discover page fetch waterfall
+
+- [x] **Fire discover API call immediately on mount, not after filter state settles.** In `discover/page.tsx`, the `loadCards()` effect depends on `[loadCards]` which is a `useCallback` with filter deps. On initial mount with no filters, this should fire instantly. Verify there's no unnecessary state update between mount and first fetch that causes a wasted render cycle. If `loadCards` is recreated on the first render due to state initialization, stabilize it with `useRef` for the initial call.
+- [x] **Move profile + availability fetches out of the blocking path.** In `discover/page.tsx`, `loadCrewCerts()` and `checkAvailability()` fire on mount but their results (cert IDs, languages, availability status) are only needed for card INTERACTION (cert pill coloring, apply button gating), not card RENDERING. Defer these fetches to after the first card render or run them via `requestIdleCallback` / `startTransition`.
+
+#### P1 — Optimise the discover API query (saves ~500-1000ms)
+
+- [x] **Audit the discover route SQL for unnecessary joins.** In `api/daywork/discover/route.ts`, the main query joins dayworks → yacht_roles → ports → cities → regions → experience_brackets → required_certification_ids. The `get_vessels_public_batch` RPC and profiles query add 2 more round trips. Check: (a) are all joined fields actually used in the response? (b) can any joins be replaced with client-side lookups from the LookupsProvider cache (roles, certs, brackets are already cached client-side)? (c) can the vessel batch RPC be folded into the main query?
+- [x] **Consider returning IDs instead of joined names.** The discover API hydrates `role_name`, `port_name`, `city_name`, `region_name`, `experience_bracket_label`, `cert_names` server-side. But the client already has all these lookups cached in LookupsProvider. Return only IDs and let the client resolve names from cache. This simplifies the query and reduces response payload.
+
+#### P1 — Preload critical fonts
+
+- [x] **Add font preload hints.** In `apps/web/src/app/layout.tsx`, the Geist font loads 4 weights (400, 500, 600, 700 = ~500KB total). Add `<link rel="preload" as="font" type="font/woff2" crossOrigin="anonymous" href="/_next/static/media/...">` for the Regular (400) and SemiBold (600) weights — these are the above-the-fold weights used on cards. Check the built output for exact font file paths.
+
+#### P2 — Reduce try/catch gaps found in re-audit
+
+3 more routes found with validation queries outside try/catch:
+
+- [x] **`api/daywork/route.ts` POST:** Wrap lines 175-207 (FK validation queries) inside the existing try block.
+- [x] **`api/daywork/[id]/apply/route.ts` POST:** Wrap lines 23-72 (daywork lookup, duplicate check, availability check) inside try.
+- [x] **`api/engagements/[id]/rate/route.ts` POST:** Wrap lines 20-65 (engagement lookup, existing rating check) inside try.
 
 ### Rate limiting local test (manual)
 

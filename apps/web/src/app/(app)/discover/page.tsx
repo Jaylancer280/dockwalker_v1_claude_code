@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { SlidersHorizontal, CalendarDays, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -194,10 +194,12 @@ export default function DiscoverPage() {
     sessionStorage.setItem('dockwalker:discover-tab', activeTab);
   }, [activeTab]);
 
-  // Parallel initial fetch: profile + availability fire simultaneously
+  // Defer profile + availability fetches — not needed for card rendering, only interaction
   useEffect(() => {
-    loadCrewCerts();
-    checkAvailability();
+    startTransition(() => {
+      loadCrewCerts();
+      checkAvailability();
+    });
   }, [checkAvailability]);
 
   // Re-fetch on tab focus

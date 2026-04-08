@@ -171,44 +171,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid meal option' }, { status: 400 });
   }
 
-  // Validate FK references exist
-  const [vesselResult, roleResult, portResult] = await Promise.all([
-    supabase
-      .from('vessels')
-      .select('id')
-      .eq('id', vesselId)
-      .eq('owner_person_id', user.id)
-      .single(),
-    supabase.from('yacht_roles').select('id').eq('id', roleId).single(),
-    supabase.from('ports').select('id').eq('id', locationPortId).single(),
-  ]);
-
-  if (!vesselResult.data) {
-    return NextResponse.json({ error: 'Vessel not found or not owned by you' }, { status: 404 });
-  }
-
-  if (!roleResult.data) {
-    return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 });
-  }
-
-  if (!portResult.data) {
-    return NextResponse.json({ error: 'Invalid port/marina ID' }, { status: 400 });
-  }
-
-  if (experienceBracketId) {
-    const { data: expBracket } = await supabase
-      .from('experience_brackets')
-      .select('id')
-      .eq('id', experienceBracketId)
-      .single();
-    if (!expBracket) {
-      return NextResponse.json({ error: 'Invalid experience bracket ID' }, { status: 400 });
-    }
-  }
-
-  const dayworkId = randomUUID();
-
   try {
+    // Validate FK references exist
+    const [vesselResult, roleResult, portResult] = await Promise.all([
+      supabase
+        .from('vessels')
+        .select('id')
+        .eq('id', vesselId)
+        .eq('owner_person_id', user.id)
+        .single(),
+      supabase.from('yacht_roles').select('id').eq('id', roleId).single(),
+      supabase.from('ports').select('id').eq('id', locationPortId).single(),
+    ]);
+
+    if (!vesselResult.data) {
+      return NextResponse.json({ error: 'Vessel not found or not owned by you' }, { status: 404 });
+    }
+
+    if (!roleResult.data) {
+      return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 });
+    }
+
+    if (!portResult.data) {
+      return NextResponse.json({ error: 'Invalid port/marina ID' }, { status: 400 });
+    }
+
+    if (experienceBracketId) {
+      const { data: expBracket } = await supabase
+        .from('experience_brackets')
+        .select('id')
+        .eq('id', experienceBracketId)
+        .single();
+      if (!expBracket) {
+        return NextResponse.json({ error: 'Invalid experience bracket ID' }, { status: 400 });
+      }
+    }
+
+    const dayworkId = randomUUID();
+
     await appendEvent(serviceClient, {
       eventType: 'DAYWORK.POSTED',
       aggregateId: dayworkId,

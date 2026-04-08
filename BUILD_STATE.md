@@ -364,6 +364,8 @@ v92 — Fix availability full-replace (92 migrations applied)
 
 - [Stage 202] Pre-launch remediation — rate limiting middleware wired (`middleware.ts` re-exports `proxy.ts`, cron routes exempted); `positions_filled`/`positions_remaining` stripped from crew-facing discover API + "Last position!" gamification removed; try/catch hardened on profile GET/PATCH + accept route; Escape key dismiss on BottomSheet (5 overlays), AvailabilityOverlay, ProfileOverlay; 3 new test files (call-ended, cron-document-cleanup, whatsapp-status — 13 tests); 990 tests pass
 
+- [Stage 203] LCP performance fixes — Framer Motion entrance animation removed from card stack (saves ~500ms); loading spinner replaced with CardSkeleton placeholders; profile + availability fetches deferred via `startTransition` (non-blocking); discover API SQL audit (all joins verified necessary, cert names removable as future optimization); font preloads handled by Next.js `localFont` + `display: swap`; try/catch hardened on daywork POST (FK validation), apply POST (lookup + availability), rate POST (engagement + rating check); 990 tests pass
+
 ## In Progress
 
 Mobile Phase 7 — first iOS build pending (user runs `eas build --platform ios --profile preview`)

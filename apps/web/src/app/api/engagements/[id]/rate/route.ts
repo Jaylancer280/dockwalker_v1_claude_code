@@ -17,65 +17,67 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!guard.ok) return guard.response;
   const { user, supabase, serviceClient } = guard.value;
 
-  const { data: engagement } = await supabase
-    .from('active_engagements')
-    .select('id, crew_person_id, employer_person_id, daywork_id, status, crew_completion_status')
-    .eq('id', engagementId)
-    .not('daywork_id', 'is', null)
-    .single();
-
-  if (!engagement) {
-    return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
-  }
-
-  const isCrew = engagement.crew_person_id === user.id;
-  const isEmployer = engagement.employer_person_id === user.id;
-
-  if (!isCrew && !isEmployer) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
-
-  if (engagement.status !== 'completed' && engagement.status !== 'cancelled') {
-    return NextResponse.json(
-      { error: 'Engagement must be completed or cancelled to rate' },
-      { status: 400 },
-    );
-  }
-
-  // Crew must have confirmed/disputed before rating completed engagements
-  if (engagement.status === 'completed' && isCrew && engagement.crew_completion_status === null) {
-    return NextResponse.json(
-      { error: 'You must confirm or dispute completion before rating' },
-      { status: 400 },
-    );
-  }
-
-  // Check if already rated
-  const { data: existingRating } = await supabase
-    .from('engagement_ratings')
-    .select('id')
-    .eq('engagement_id', engagementId)
-    .eq('rater_person_id', user.id)
-    .single();
-
-  if (existingRating) {
-    return NextResponse.json({ error: 'You have already rated this engagement' }, { status: 409 });
-  }
-
-  const body = await request.json().catch(() => ({}));
-
-  // Validate symmetric fields (required for both contexts)
-  if (typeof body.communication_accuracy !== 'boolean') {
-    return NextResponse.json(
-      { error: 'communication_accuracy must be a boolean' },
-      { status: 400 },
-    );
-  }
-  if (!Number.isInteger(body.overall_match) || body.overall_match < 1 || body.overall_match > 5) {
-    return NextResponse.json({ error: 'overall_match must be an integer 1-5' }, { status: 400 });
-  }
-
   try {
+    const { data: engagement } = await supabase
+      .from('active_engagements')
+      .select('id, crew_person_id, employer_person_id, daywork_id, status, crew_completion_status')
+      .eq('id', engagementId)
+      .not('daywork_id', 'is', null)
+      .single();
+
+    if (!engagement) {
+      return NextResponse.json({ error: 'Engagement not found' }, { status: 404 });
+    }
+
+    const isCrew = engagement.crew_person_id === user.id;
+    const isEmployer = engagement.employer_person_id === user.id;
+
+    if (!isCrew && !isEmployer) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (engagement.status !== 'completed' && engagement.status !== 'cancelled') {
+      return NextResponse.json(
+        { error: 'Engagement must be completed or cancelled to rate' },
+        { status: 400 },
+      );
+    }
+
+    // Crew must have confirmed/disputed before rating completed engagements
+    if (engagement.status === 'completed' && isCrew && engagement.crew_completion_status === null) {
+      return NextResponse.json(
+        { error: 'You must confirm or dispute completion before rating' },
+        { status: 400 },
+      );
+    }
+
+    // Check if already rated
+    const { data: existingRating } = await supabase
+      .from('engagement_ratings')
+      .select('id')
+      .eq('engagement_id', engagementId)
+      .eq('rater_person_id', user.id)
+      .single();
+
+    if (existingRating) {
+      return NextResponse.json(
+        { error: 'You have already rated this engagement' },
+        { status: 409 },
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
+
+    // Validate symmetric fields (required for both contexts)
+    if (typeof body.communication_accuracy !== 'boolean') {
+      return NextResponse.json(
+        { error: 'communication_accuracy must be a boolean' },
+        { status: 400 },
+      );
+    }
+    if (!Number.isInteger(body.overall_match) || body.overall_match < 1 || body.overall_match > 5) {
+      return NextResponse.json({ error: 'overall_match must be an integer 1-5' }, { status: 400 });
+    }
     if (engagement.status === 'cancelled') {
       // Cancelled-context rating — lighter form
       if (isCrew) {
