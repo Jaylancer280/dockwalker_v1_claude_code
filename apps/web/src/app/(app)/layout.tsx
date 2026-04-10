@@ -23,13 +23,33 @@ export default async function AppLayout({
 
   if (!user) redirect('/auth/login');
 
-  const { data: person } = await supabase
-    .from('persons')
-    .select('id, identity_type, current_hat')
-    .eq('id', user.id)
-    .single();
+  // Fast path: read from JWT claims (injected by custom_access_token_hook, migration 00078).
+  // Fallback: query persons table for brand-new users whose JWT hasn't refreshed yet.
+  const appMeta = user.app_metadata as
+    | { person_id?: string; current_hat?: string; identity_type?: string }
+    | undefined;
 
-  if (!person) redirect('/onboarding');
+  let personId: string;
+  let currentHat: string;
+  let identityType: string;
+
+  if (appMeta?.person_id && appMeta?.current_hat && appMeta?.identity_type) {
+    personId = appMeta.person_id;
+    currentHat = appMeta.current_hat;
+    identityType = appMeta.identity_type;
+  } else {
+    const { data: person } = await supabase
+      .from('persons')
+      .select('id, identity_type, current_hat')
+      .eq('id', user.id)
+      .single();
+
+    if (!person) redirect('/onboarding');
+
+    personId = person.id;
+    currentHat = person.current_hat;
+    identityType = person.identity_type;
+  }
 
   return (
     <ToastWrapper>
@@ -38,11 +58,11 @@ export default async function AppLayout({
           <NotificationCountsProvider>
             <OfflineBanner />
             <DeferredMount>
-              <IncomingCallListener personId={person.id} />
+              <IncomingCallListener personId={personId} />
             </DeferredMount>
-            <SidebarNav currentHat={person.current_hat} identityType={person.identity_type} />
+            <SidebarNav currentHat={currentHat} identityType={identityType} />
             <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
-            <BottomNav currentHat={person.current_hat} identityType={person.identity_type} />
+            <BottomNav currentHat={currentHat} identityType={identityType} />
           </NotificationCountsProvider>
         </LookupsProvider>
       </VoiceCallProvider>

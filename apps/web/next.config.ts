@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '1mb',
     },
   },
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: '**.supabase.co' }],
+    formats: ['image/webp', 'image/avif'],
+    minimumCacheTTL: 3600,
+  },
 };
 
 export default process.env.NEXT_PUBLIC_SENTRY_DSN

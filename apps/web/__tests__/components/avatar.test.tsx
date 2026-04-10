@@ -7,7 +7,7 @@ describe('Avatar component', () => {
     render(<Avatar src="https://example.com/photo.jpg" name="Alice" />);
     const img = screen.getByAltText('Alice');
     expect(img).toBeDefined();
-    expect(img.getAttribute('src')).toBe('https://example.com/photo.jpg');
+    expect(img.getAttribute('src')).toContain('photo.jpg');
   });
 
   it('renders initials when src is null', () => {

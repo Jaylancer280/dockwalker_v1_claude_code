@@ -30,9 +30,9 @@ export function Avatar({ src, name, size = 'md' }: AvatarProps) {
         alt={name}
         width={imgSize}
         height={imgSize}
+        sizes={`${imgSize}px`}
         className={`${sizeClass} shrink-0 rounded-full object-cover`}
         onError={() => setImgError(true)}
-        unoptimized
       />
     );
   }
