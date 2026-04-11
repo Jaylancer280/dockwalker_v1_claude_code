@@ -557,7 +557,7 @@ export default function ChatPage() {
 
   return (
     <main className="fixed inset-x-0 top-0 bottom-[calc(var(--nav-height)+env(safe-area-inset-bottom))] z-10 flex flex-col bg-background md:static md:inset-auto md:bottom-auto md:z-auto md:h-dvh lg:flex-row">
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <CallBar
           callState={voiceCall.callState}
           remoteName={context?.other_name ?? ''}
