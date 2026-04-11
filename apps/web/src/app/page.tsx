@@ -14,6 +14,7 @@ export default function LandingPage() {
             alt="DockWalker"
             width={112}
             height={112}
+            sizes="(min-width: 768px) 160px, 112px"
             className="mb-4 rounded-2xl md:mb-0 md:h-[160px] md:w-[160px]"
             priority
           />
@@ -94,6 +95,7 @@ export default function LandingPage() {
                 alt="Crew on deck"
                 width={400}
                 height={224}
+                sizes="(min-width: 768px) 384px, 100vw"
                 className="h-[120px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
               />
               <p className="px-2.5 py-2 text-center text-xs text-[var(--muted-foreground)]">
@@ -106,6 +108,7 @@ export default function LandingPage() {
                 alt="Vessel bridge"
                 width={400}
                 height={224}
+                sizes="(min-width: 768px) 384px, 100vw"
                 className="h-[120px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
               />
               <p className="px-2.5 py-2 text-center text-xs text-[var(--muted-foreground)]">

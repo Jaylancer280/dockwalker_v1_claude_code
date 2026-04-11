@@ -23,6 +23,7 @@ export function EmptyState({
           alt=""
           width={400}
           height={224}
+          sizes="(min-width: 768px) 400px, 100vw"
           className="h-[180px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
         />
         <div className="px-6 py-6">

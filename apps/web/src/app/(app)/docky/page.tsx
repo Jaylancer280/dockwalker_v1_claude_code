@@ -406,6 +406,7 @@ export default function DockyPage() {
                 alt=""
                 width={400}
                 height={267}
+                sizes="400px"
                 className="h-[180px] w-auto object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
               />
             </div>

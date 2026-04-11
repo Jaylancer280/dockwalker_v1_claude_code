@@ -43,7 +43,12 @@ import { usePreferences } from '@/hooks/use-preferences';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useToast } from '@/hooks/use-toast';
 import { ShareJobButton } from '@/components/share-job-button';
-import { PermanentMineSection } from './_components/permanent-mine-section';
+import dynamic from 'next/dynamic';
+
+const PermanentMineSection = dynamic(
+  () => import('./_components/permanent-mine-section').then((m) => m.PermanentMineSection),
+  { ssr: false },
+);
 import { DayworkActiveSection } from './_components/daywork-active-section';
 import { DayworkInProgressSection } from './_components/daywork-in-progress-section';
 import { DayworkCompletedSection } from './_components/daywork-completed-section';
