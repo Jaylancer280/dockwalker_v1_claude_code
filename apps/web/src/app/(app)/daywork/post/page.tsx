@@ -827,6 +827,34 @@ function DayworkPostForm() {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
+        {/* Live requirements checklist */}
+        {(() => {
+          const missing: string[] = [];
+          if (!vesselId) missing.push('Vessel selection');
+          if (!roleId) missing.push('Role selection');
+          if (!locationPortId) missing.push('Location');
+          if (!startDate) missing.push('Start date');
+          if (!endDate) missing.push('End date');
+          if (!dayRate) missing.push('Day rate');
+          if (missing.length > 0) {
+            return (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+                <p className="mb-1.5 text-xs font-semibold text-destructive">
+                  Complete before posting:
+                </p>
+                <ul className="flex flex-col gap-0.5">
+                  {missing.map((item) => (
+                    <li key={item} className="text-xs text-destructive/80">
+                      &bull; {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? 'Posting...' : 'Post daywork'}
         </Button>
