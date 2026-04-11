@@ -177,9 +177,11 @@
 - [Stage 168] Mobile Phase 3c — Daywork review (swipe stack, auto-view, accept/reject/shortlist), permanent review (shortlist/select with cap), applicant card, template hooks + selector
 - [Stage 169] Mobile Phase 4 — Conversation list, chat thread with realtime, summary cards, engagement action overlays (cancel/postpone/rate/checklist/work-started/complete), permanent actions. Fix: meal casing, selected_crew_name resolution
 
+- [Stage 205] Permanent engagement fixes + UX batch — (1) Migration 00093: permanent_postings RLS allows engaged crew/employer to read posting data regardless of status; (2) Messages page: permanent conversation support (interface, job context rendering with epaulettes, 'closed' status in history tab, date fix, replacement link guard, Closed badge); (3) Chat footer: 'closed' status disables input + shows banner; (4) Auth 401 redirect: safeFetch redirects to /auth/login on 401 instead of showing empty pages, status code exposed on errors, SWR no-retry on session expired; (5) Onboarding copy updated for permanent positions; (6) EpauletteBadge added to permanent mine cards + permanent chat summary card; (7) Role picker: per-department "select the role" prompt; (8) Nav: "Discover" renamed to "Opportunities"; (9) Working day calendar picker replaces number input on daywork post form (sends workingDayDates array, backend already supports it); 991 tests pass
+
 ## Current Schema Version
 
-v92 — Fix availability full-replace (92 migrations applied)
+v93 — Permanent postings RLS for engaged users (93 migrations applied)
 
 ## Migrations Applied
 
@@ -277,6 +279,7 @@ v92 — Fix availability full-replace (92 migrations applied)
 | `00090_engagement_documents.sql` | `engagement_documents` table (engagement FK, message FK, uploader FK, storage path, 48h expiry, soft-delete), `engagement-documents` private storage bucket, participant-gated RLS + storage policies |
 | `00091_gdpr_engagement_documents.sql` | DATA_SCRUBBED handler: soft-delete + expire `engagement_documents` for scrubbed users |
 | `00092_fix_availability_full_replace.sql` | AVAILABILITY.SET else branch: expire ALL windows (not just not_available) before inserting new range — fixes stale dates persisting |
+| `00093_permanent_postings_rls_engaged.sql` | Permanent postings SELECT RLS: allow crew/employer with active_engagement referencing the posting to read it regardless of posting status (fixes null data when posting is filled/cancelled) |
 
 ## Deferred Decisions
 

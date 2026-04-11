@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { currencySymbol } from '@dockwalker/shared';
 import type { EngagementContext } from './types';
 import { ExpandableText } from '@/components/expandable-text';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 
 interface PermanentSummaryCardProps {
   context: EngagementContext;
@@ -43,7 +44,10 @@ export function PermanentSummaryCard({ context }: PermanentSummaryCardProps) {
         </Badge>
       </div>
 
-      <p className="text-sm font-semibold">{pp.yacht_roles?.name ?? 'Unknown Role'}</p>
+      <div className="flex items-center gap-1.5">
+        {pp.yacht_roles?.name && <EpauletteBadge roleName={pp.yacht_roles.name} size="sm" />}
+        <p className="text-sm font-semibold">{pp.yacht_roles?.name ?? 'Unknown Role'}</p>
+      </div>
 
       <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
         <Ship className="h-3 w-3" />

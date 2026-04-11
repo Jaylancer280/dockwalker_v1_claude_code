@@ -161,6 +161,13 @@ export function ChatFooter({
           />
         )}
 
+        {/* Closed banner (permanent engagements) */}
+        {context?.status === 'closed' && (
+          <div className="rounded-lg bg-[var(--surface)] px-3 py-2 text-sm text-[var(--muted-foreground)]">
+            This conversation has been closed.
+          </div>
+        )}
+
         {/* Message input */}
         <form onSubmit={onSend} className="flex items-center gap-2">
           {context?.status === 'active' && (
@@ -194,12 +201,19 @@ export function ChatFooter({
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
             placeholder={
-              context?.status === 'completed' || context?.status === 'cancelled'
+              context?.status === 'completed' ||
+              context?.status === 'cancelled' ||
+              context?.status === 'closed'
                 ? 'This engagement has ended'
                 : 'Type a message...'
             }
             className="flex-1 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
-            disabled={sending || context?.status === 'completed' || context?.status === 'cancelled'}
+            disabled={
+              sending ||
+              context?.status === 'completed' ||
+              context?.status === 'cancelled' ||
+              context?.status === 'closed'
+            }
           />
           <Button
             type="submit"
@@ -208,7 +222,8 @@ export function ChatFooter({
               sending ||
               !input.trim() ||
               context?.status === 'completed' ||
-              context?.status === 'cancelled'
+              context?.status === 'cancelled' ||
+              context?.status === 'closed'
             }
             className="h-9 w-9 shrink-0 rounded-full"
           >

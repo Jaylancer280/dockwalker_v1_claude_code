@@ -119,6 +119,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Engagement Documents                          | 00090     | `engagement_documents` table + `engagement-documents` private storage bucket + participant-gated RLS + storage policies                                                                                                                                                                           |
 | GDPR Engagement Documents                     | 00091     | DATA_SCRUBBED handler: soft-delete + expire `engagement_documents` for scrubbed users                                                                                                                                                                                                             |
 | Fix Availability Full Replace                 | 00092     | AVAILABILITY.SET else branch: expire ALL windows before inserting new range (fixes stale dates persisting after date range change)                                                                                                                                                                |
+| Permanent Postings RLS Engaged                | 00093     | Permanent postings SELECT RLS: allow crew/employer with `active_engagements` referencing the posting to read it regardless of posting status                                                                                                                                                      |
 
 ## Daywork Status Lifecycle
 

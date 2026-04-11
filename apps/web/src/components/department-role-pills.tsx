@@ -143,6 +143,11 @@ export function DepartmentRolePills({ roles, value, onValueChange }: DepartmentR
               </button>
               {isExpanded && (
                 <div className="flex flex-wrap gap-1.5 px-2 pb-2 pt-1">
+                  {!value && (
+                    <p className="w-full text-xs text-[var(--accent)]">
+                      Select the role you&apos;re hiring for
+                    </p>
+                  )}
                   {dept.roles.map((role) => {
                     const isActive = value === role.id;
                     return (

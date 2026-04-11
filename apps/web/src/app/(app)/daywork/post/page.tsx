@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -36,6 +36,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLookups } from '@/hooks/use-lookups';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
+import { WorkingDayCalendar } from '@/components/working-day-calendar';
 import { LANGUAGES } from '@dockwalker/shared';
 import { PostingTypeSelector } from './_components/posting-type-selector';
 import { PermanentPostForm } from './_components/permanent-post-form';
@@ -137,7 +138,9 @@ function DayworkPostForm() {
   const [locationPortId, setLocationPortId] = useState((draft?.locationPortId as string) ?? '');
   const [startDate, setStartDate] = useState((draft?.startDate as string) ?? '');
   const [endDate, setEndDate] = useState((draft?.endDate as string) ?? '');
-  const [workingDays, setWorkingDays] = useState((draft?.workingDays as string) ?? '');
+  const [workingDayDates, setWorkingDayDates] = useState<string[]>(
+    (draft?.workingDayDates as string[]) ?? [],
+  );
   const [requiredCertIds, setRequiredCertIds] = useState<string[]>(
     (draft?.requiredCertIds as string[]) ?? [],
   );
@@ -167,20 +170,24 @@ function DayworkPostForm() {
   const certs = lookups.certifications as LookupItem[];
   const brackets = lookups.experienceBrackets.map((b) => ({ ...b, name: b.label })) as LookupItem[];
 
-  // Max working days = min(14, calendarSpan). Clamp when dates change.
-  const maxWorkingDays = useMemo(() => {
-    if (!startDate || !endDate) return 14;
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T00:00:00');
-    const span = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
-    return Math.max(1, Math.min(14, span));
-  }, [startDate, endDate]);
-
+  // When start/end dates change, re-initialise working day dates to all days in range
   useEffect(() => {
-    if (workingDays && parseInt(workingDays, 10) > maxWorkingDays) {
-      setWorkingDays(String(maxWorkingDays));
+    if (!startDate || !endDate) return;
+    const s = new Date(startDate + 'T00:00:00');
+    const e = new Date(endDate + 'T00:00:00');
+    if (e < s) return;
+    const dates: string[] = [];
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+      dates.push(d.toISOString().slice(0, 10));
     }
-  }, [maxWorkingDays, workingDays]);
+    // Only re-initialise if the range changed (not on every render)
+    setWorkingDayDates((prev) => {
+      const prevInRange = prev.filter((p) => p >= startDate && p <= endDate);
+      // If previous selection is empty or out of range, select all
+      if (prevInRange.length === 0) return dates;
+      return prevInRange;
+    });
+  }, [startDate, endDate]);
 
   const [showPostConfirm, setShowPostConfirm] = useState(false);
 
@@ -195,7 +202,7 @@ function DayworkPostForm() {
         locationPortId,
         startDate,
         endDate,
-        workingDays,
+        workingDayDates,
         requiredCertIds,
         requiredLangs,
         experienceBracketId,
@@ -217,7 +224,7 @@ function DayworkPostForm() {
     locationPortId,
     startDate,
     endDate,
-    workingDays,
+    workingDayDates,
     requiredCertIds,
     requiredLangs,
     experienceBracketId,
@@ -238,7 +245,7 @@ function DayworkPostForm() {
         locationPortId,
         startDate,
         endDate,
-        workingDays,
+        workingDayDates,
         requiredCertIds,
         requiredLangs,
         experienceBracketId,
@@ -263,7 +270,7 @@ function DayworkPostForm() {
       locationPortId,
       startDate,
       endDate,
-      workingDays,
+      workingDayDates,
       requiredCertIds,
       requiredLangs,
       experienceBracketId,
@@ -289,7 +296,9 @@ function DayworkPostForm() {
     // to a sparser one does not leave stale values in the form.
     setRoleId(t.role_id ?? '');
     setLocationPortId(t.location_port_id ?? '');
-    setWorkingDays(t.working_days ? String(t.working_days) : '');
+    // Templates store working_days count but no specific dates — useEffect will
+    // re-initialise workingDayDates to all days when start/end dates are set
+    setWorkingDayDates([]);
     setRequiredCertIds(t.required_certification_ids ?? []);
     setRequiredLangs(t.required_languages ?? []);
     setExperienceBracketId(t.experience_bracket_id ?? '');
@@ -331,7 +340,8 @@ function DayworkPostForm() {
           if (dw.vessel_id) setVesselId(dw.vessel_id);
           if (dw.role_id) setRoleId(dw.role_id);
           if (dw.location_port_id) setLocationPortId(dw.location_port_id);
-          if (dw.working_days) setWorkingDays(String(dw.working_days));
+          // working_day_dates will be re-initialised by useEffect when dates are set
+          setWorkingDayDates([]);
           if (dw.required_certification_ids?.length)
             setRequiredCertIds(dw.required_certification_ids);
           if (dw.required_languages?.length) setRequiredLangs(dw.required_languages);
@@ -397,7 +407,7 @@ function DayworkPostForm() {
         vesselId: vesselId || null,
         roleId: roleId || null,
         locationPortId: locationPortId || null,
-        workingDays: workingDays ? parseInt(workingDays, 10) : null,
+        workingDays: workingDayDates.length || null,
         requiredCertificationIds: requiredCertIds,
         requiredLanguages: requiredLangs,
         experienceBracketId: experienceBracketId || null,
@@ -463,7 +473,8 @@ function DayworkPostForm() {
         locationPortId,
         startDate,
         endDate,
-        workingDays: parseInt(workingDays, 10),
+        workingDays: workingDayDates.length,
+        workingDayDates,
         requiredCertificationIds: requiredCertIds,
         requiredLanguages: requiredLangs,
         experienceBracketId: experienceBracketId || undefined,
@@ -630,27 +641,27 @@ function DayworkPostForm() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* Working days */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="workingDays">Working days</Label>
-            <Input
-              id="workingDays"
-              type="number"
-              min="1"
-              max={maxWorkingDays}
-              placeholder={`1-${maxWorkingDays}`}
-              value={workingDays}
-              onChange={(e) => setWorkingDays(e.target.value)}
-              required
-            />
-            {startDate && endDate && (
-              <p className="text-xs text-muted-foreground">
-                Up to {maxWorkingDays} days for this date range
-              </p>
-            )}
-          </div>
+        {/* Working days calendar */}
+        {startDate &&
+          endDate &&
+          new Date(endDate + 'T00:00:00') >= new Date(startDate + 'T00:00:00') && (
+            <div className="flex flex-col gap-1.5">
+              <Label>Working days</Label>
+              <WorkingDayCalendar
+                startDate={startDate}
+                endDate={endDate}
+                selectedDates={workingDayDates}
+                onChange={setWorkingDayDates}
+              />
+            </div>
+          )}
+        {(!startDate || !endDate) && (
+          <p className="text-xs text-muted-foreground">
+            Set start and end dates to select working days
+          </p>
+        )}
 
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* Crew needed */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="positionsAvailable">Crew needed</Label>
@@ -843,7 +854,7 @@ function DayworkPostForm() {
             <span className="text-muted-foreground">Dates</span>
             <span className="font-medium">
               {startDate} → {endDate}
-              {workingDays ? ` (${workingDays} days)` : ''}
+              {workingDayDates.length > 0 ? ` (${workingDayDates.length} working days)` : ''}
             </span>
           </div>
           <div className="flex justify-between">

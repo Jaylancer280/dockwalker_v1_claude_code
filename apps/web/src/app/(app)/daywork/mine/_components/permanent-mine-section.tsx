@@ -20,6 +20,7 @@ import { currencySymbol } from '@dockwalker/shared';
 import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
 import { ShareJobButton } from '@/components/share-job-button';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Posting = any;
@@ -245,7 +246,10 @@ export function PermanentMineSection() {
               </div>
 
               {/* Role + vessel */}
-              <p className="text-sm font-semibold">{p.yacht_roles?.name ?? 'Unknown Role'}</p>
+              <div className="flex items-center gap-1.5">
+                {p.yacht_roles?.name && <EpauletteBadge roleName={p.yacht_roles.name} size="sm" />}
+                <p className="text-sm font-semibold">{p.yacht_roles?.name ?? 'Unknown Role'}</p>
+              </div>
               <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Ship className="h-3 w-3" />
                 <span>{p.vessels?.nda_flag ? 'NDA Vessel' : (p.vessels?.name ?? 'Unknown')}</span>

@@ -11,18 +11,25 @@ import { Button } from '@/components/ui/button';
 import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import { Avatar } from '@/components/avatar';
 import { NotificationBell } from '@/components/notification-bell';
+import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useSafeFetch } from '@/hooks/use-safe-fetch';
 import { createClient } from '@/lib/supabase/client';
 
 interface Conversation {
   id: string;
-  daywork_id: string;
+  daywork_id: string | null;
+  permanent_posting_id?: string | null;
   start_date: string;
-  end_date: string;
+  end_date: string | null;
   status: string;
+  type?: 'daywork' | 'permanent';
   has_rated: boolean;
   role: 'crew' | 'employer';
   dayworks: { yacht_roles: { name: string } | null; ports: { name: string } | null } | null;
+  permanent_postings: {
+    yacht_roles: { name: string } | null;
+    ports: { name: string } | null;
+  } | null;
   profiles: { display_name: string; avatar_url: string | null } | null;
   last_message: {
     content: string;
@@ -84,9 +91,12 @@ export default function MessagesPage() {
       (c.status === 'completed' && !c.has_rated) ||
       (c.status === 'cancelled' && !c.has_rated),
   );
-  // History: completed-and-rated + cancelled-and-rated — read-only
+  // History: completed-and-rated + cancelled-and-rated + closed (permanent terminal) — read-only
   const history = conversations.filter(
-    (c) => (c.status === 'completed' && c.has_rated) || (c.status === 'cancelled' && c.has_rated),
+    (c) =>
+      (c.status === 'completed' && c.has_rated) ||
+      (c.status === 'cancelled' && c.has_rated) ||
+      c.status === 'closed',
   );
 
   const current = tab === 'active' ? active : history;
@@ -196,6 +206,7 @@ export default function MessagesPage() {
                       {conv.status === 'cancelled' && conv.has_rated && (
                         <Badge variant="status-cancelled">Cancelled</Badge>
                       )}
+                      {conv.status === 'closed' && <Badge variant="status-cancelled">Closed</Badge>}
                       <span className="font-mono text-[11px] text-[var(--tertiary)]">
                         {conv.last_message
                           ? new Date(conv.last_message.created_at).toLocaleDateString()
@@ -206,23 +217,39 @@ export default function MessagesPage() {
 
                   {/* Job context */}
                   <div className="flex items-center gap-2 text-[13px] text-[var(--muted-foreground)]">
-                    {conv.dayworks?.yacht_roles?.name && (
-                      <span>{conv.dayworks.yacht_roles.name}</span>
-                    )}
-                    {conv.dayworks?.ports?.name && (
-                      <span className="flex items-center gap-0.5">
-                        <MapPin className="h-3 w-3" />
-                        {conv.dayworks.ports.name}
-                      </span>
-                    )}
+                    {(() => {
+                      const roleName =
+                        conv.dayworks?.yacht_roles?.name ??
+                        conv.permanent_postings?.yacht_roles?.name;
+                      const portName =
+                        conv.dayworks?.ports?.name ?? conv.permanent_postings?.ports?.name;
+                      return (
+                        <>
+                          {roleName && (
+                            <span className="flex items-center gap-1">
+                              <EpauletteBadge roleName={roleName} size="sm" />
+                              {roleName}
+                            </span>
+                          )}
+                          {portName && (
+                            <span className="flex items-center gap-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {portName}
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
                     <span className="flex items-center gap-0.5">
                       <Calendar className="h-3 w-3" />
-                      {conv.start_date} — {conv.end_date}
+                      {conv.end_date
+                        ? `${conv.start_date} — ${conv.end_date}`
+                        : `Start: ${conv.start_date}`}
                     </span>
                   </div>
 
-                  {/* Post replacement CTA for cancelled engagements (employer only) */}
-                  {conv.status === 'cancelled' && conv.role === 'employer' && (
+                  {/* Post replacement CTA for cancelled daywork engagements (employer only) */}
+                  {conv.status === 'cancelled' && conv.role === 'employer' && conv.daywork_id && (
                     <Link
                       href={`/daywork/post?fromDaywork=${conv.daywork_id}&replacementDates=true`}
                       onClick={(e) => e.stopPropagation()}

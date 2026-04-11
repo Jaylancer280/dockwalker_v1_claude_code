@@ -30,7 +30,32 @@ describe('safeFetch', () => {
     });
 
     const result = await safeFetch('/api/test');
-    expect(result).toEqual({ ok: false, error: 'Invalid input' });
+    expect(result).toEqual({ ok: false, error: 'Invalid input', status: 400 });
+  });
+
+  it('redirects to login on HTTP 401', async () => {
+    // Mock window.location
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, href: '' },
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ error: 'Unauthorized' })),
+    });
+
+    const result = await safeFetch('/api/test');
+    expect(result).toEqual({ ok: false, error: 'Session expired', status: 401 });
+    expect(window.location.href).toBe('/auth/login');
+
+    // Restore
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    });
   });
 
   it('returns network error on fetch failure', async () => {

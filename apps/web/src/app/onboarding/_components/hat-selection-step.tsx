@@ -69,7 +69,7 @@ export function HatSelectionStep(props: HatSelectionStepProps) {
               )}
             </div>
             <div>
-              <p className="font-semibold">Looking for daywork</p>
+              <p className="font-semibold">Looking for work</p>
               <p className="text-sm text-muted-foreground">
                 {loading && hat === 'crew'
                   ? 'Setting up your profile...'
@@ -106,7 +106,7 @@ export function HatSelectionStep(props: HatSelectionStepProps) {
               <p className="text-sm text-muted-foreground">
                 {loading && hat === 'employer'
                   ? 'Setting up your profile...'
-                  : 'Post daywork and find crew'}
+                  : 'Post jobs and find crew'}
               </p>
             </div>
           </button>

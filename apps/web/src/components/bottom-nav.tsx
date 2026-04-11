@@ -13,7 +13,7 @@ interface NavItem {
 }
 
 const crewNav: NavItem[] = [
-  { icon: Compass, label: 'Discover', href: '/discover' },
+  { icon: Compass, label: 'Opportunities', href: '/discover' },
   { icon: MessageSquare, label: 'Messages', href: '/messages', badgeKey: 'messages' },
   { icon: LifeBuoy, label: 'Docky', href: '/docky' },
   { icon: User, label: 'Profile', href: '/profile' },

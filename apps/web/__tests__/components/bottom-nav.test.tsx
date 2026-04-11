@@ -22,7 +22,7 @@ describe('BottomNav', () => {
   it('renders 4 items for crew hat', () => {
     render(<BottomNav currentHat="crew" identityType="crew" />);
 
-    expect(screen.getByText('Discover')).toBeInTheDocument();
+    expect(screen.getByText('Opportunities')).toBeInTheDocument();
     expect(screen.getByText('Messages')).toBeInTheDocument();
     expect(screen.getByText('Docky')).toBeInTheDocument();
     expect(screen.getByText('Profile')).toBeInTheDocument();
@@ -37,7 +37,7 @@ describe('BottomNav', () => {
     expect(screen.getByText('My Jobs')).toBeInTheDocument();
     expect(screen.getByText('Messages')).toBeInTheDocument();
     expect(screen.getByText('Profile')).toBeInTheDocument();
-    expect(screen.queryByText('Discover')).not.toBeInTheDocument();
+    expect(screen.queryByText('Opportunities')).not.toBeInTheDocument();
   });
 
   it('renders 4 items for agent hat (same as employer)', () => {
@@ -52,7 +52,7 @@ describe('BottomNav', () => {
   it('applies active styling to the current route', () => {
     render(<BottomNav currentHat="crew" identityType="crew" />);
 
-    const discoverLink = screen.getByText('Discover').closest('a');
+    const discoverLink = screen.getByText('Opportunities').closest('a');
     expect(discoverLink?.className).toContain('font-medium');
     expect(discoverLink?.className).toContain('text-[var(--accent)]');
 

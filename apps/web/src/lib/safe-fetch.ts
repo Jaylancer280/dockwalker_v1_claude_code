@@ -1,5 +1,5 @@
 type SafeFetchSuccess<T> = { ok: true; data: T };
-type SafeFetchError = { ok: false; error: string };
+type SafeFetchError = { ok: false; error: string; status?: number };
 type SafeFetchResult<T> = SafeFetchSuccess<T> | SafeFetchError;
 
 /**
@@ -39,6 +39,12 @@ export async function safeFetch<T = unknown>(
       return { ok: true, data };
     }
 
+    // 401 — session expired, redirect to login
+    if (res.status === 401 && typeof window !== 'undefined') {
+      window.location.href = '/auth/login';
+      return { ok: false, error: 'Session expired', status: 401 };
+    }
+
     // HTTP error — parse body safely
     const text = await res.text();
     const body = (() => {
@@ -49,9 +55,13 @@ export async function safeFetch<T = unknown>(
       }
     })();
     if (res.status >= 500) {
-      return { ok: false, error: body.error ?? 'Server error — try again in a moment' };
+      return {
+        ok: false,
+        error: body.error ?? 'Server error — try again in a moment',
+        status: res.status,
+      };
     }
-    return { ok: false, error: body.error ?? 'Something went wrong' };
+    return { ok: false, error: body.error ?? 'Something went wrong', status: res.status };
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
       return { ok: false, error: 'Request timed out — try again' };
