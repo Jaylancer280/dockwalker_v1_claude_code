@@ -403,14 +403,36 @@ export function RequirementsSection({
         <Label>
           Required certifications <span className="text-destructive">*</span>
         </Label>
-        <HierarchicalPills
-          groups={certsToGroups(
-            certifications.filter((c): c is typeof c & { category: string } => !!c.category),
-          )}
-          value={certificationIds}
-          onValueChange={(v) => setCertificationIds(v as string[])}
-          mode="multi"
-        />
+        {/* "None required" toggle — mutually exclusive with cert selections */}
+        <div className="mb-1.5">
+          <button
+            type="button"
+            className={`rounded-full px-3 py-1 text-xs transition-colors ${
+              certificationIds.includes('__none__')
+                ? 'bg-[var(--accent)] text-white'
+                : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
+            }`}
+            onClick={() => {
+              if (certificationIds.includes('__none__')) {
+                setCertificationIds([]);
+              } else {
+                setCertificationIds(['__none__']);
+              }
+            }}
+          >
+            None required
+          </button>
+        </div>
+        {!certificationIds.includes('__none__') && (
+          <HierarchicalPills
+            groups={certsToGroups(
+              certifications.filter((c): c is typeof c & { category: string } => !!c.category),
+            )}
+            value={certificationIds}
+            onValueChange={(v) => setCertificationIds(v as string[])}
+            mode="multi"
+          />
+        )}
       </div>
 
       {/* Languages */}

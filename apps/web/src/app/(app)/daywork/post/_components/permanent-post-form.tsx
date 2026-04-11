@@ -275,7 +275,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         salaryCurrency,
         salaryPeriod,
         liveAboard,
-        requiredCertificationIds: certificationIds,
+        requiredCertificationIds: certificationIds.filter((id) => id !== '__none__'),
         requiredLanguages: requiredLangs,
         experienceBracketId: experienceBracketId === 'any' ? null : experienceBracketId || null,
         shortlistCap: parseInt(shortlistCap, 10) || 5,
@@ -312,7 +312,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           salaryCurrency,
           salaryPeriod,
           liveAboard,
-          requiredCertificationIds: certificationIds,
+          requiredCertificationIds: certificationIds.filter((id) => id !== '__none__'),
           requiredLanguages: requiredLangs,
           experienceBracketId: experienceBracketId === 'any' ? null : experienceBracketId || null,
           shortlistCap: parseInt(shortlistCap, 10) || 5,
@@ -467,6 +467,8 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           if (!locationPortId) missing.push('Location');
           if (!startDate) missing.push('Start date');
           if (!salaryMin) missing.push('Salary');
+          if (certificationIds.length === 0)
+            missing.push('Certifications (select certs or "None required")');
           if (missing.length > 0) {
             return (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
@@ -489,7 +491,15 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         {/* Submit */}
         <Button
           className="w-full"
-          disabled={loading || !vesselId || !roleId || !locationPortId || !startDate || !salaryMin}
+          disabled={
+            loading ||
+            !vesselId ||
+            !roleId ||
+            !locationPortId ||
+            !startDate ||
+            !salaryMin ||
+            certificationIds.length === 0
+          }
           onClick={() => setShowConfirm(true)}
         >
           Review & Post

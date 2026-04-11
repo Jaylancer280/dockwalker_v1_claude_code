@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { useRef, useCallback } from 'react';
+import { Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DateInputProps {
@@ -45,7 +46,8 @@ function autoFormat(raw: string): string {
 
 /**
  * Date input that always displays dd/mm/yyyy format.
- * Uses a visible text input for display + a hidden native date input for mobile picker.
+ * Uses a visible text input for typing + a hidden native date input for the
+ * browser's date picker. A calendar icon button triggers the native picker.
  * Value prop and onChange use ISO YYYY-MM-DD format.
  */
 export function DateInput({
@@ -93,13 +95,20 @@ export function DateInput({
     [onChange],
   );
 
-  const handleTap = useCallback(() => {
-    // On mobile, open the native date picker
-    hiddenRef.current?.showPicker?.();
+  const openPicker = useCallback(() => {
+    if (hiddenRef.current) {
+      try {
+        hiddenRef.current.showPicker();
+      } catch {
+        // showPicker() not supported — focus the native input as fallback
+        hiddenRef.current.focus();
+        hiddenRef.current.click();
+      }
+    }
   }, []);
 
   const inputClasses = cn(
-    'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30',
+    'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 pr-9 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30',
     'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
     className,
   );
@@ -113,16 +122,23 @@ export function DateInput({
         value={displayValue}
         onChange={handleTextChange}
         onBlur={onBlur}
-        onClick={handleTap}
         disabled={disabled}
         required={required}
         aria-required={required || undefined}
         className={inputClasses}
         maxLength={10}
       />
-      {/* Native date input — sits on top with opacity-0 so tapping
-          opens the native picker directly on mobile. This is the
-          reliable fallback when showPicker() doesn't work. */}
+      {/* Calendar icon button — opens native date picker */}
+      <button
+        type="button"
+        onClick={openPicker}
+        disabled={disabled}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+        aria-label="Open date picker"
+      >
+        <Calendar className="h-4 w-4" />
+      </button>
+      {/* Hidden native date input for browser picker */}
       <input
         ref={hiddenRef}
         type="date"
@@ -131,7 +147,7 @@ export function DateInput({
         min={min}
         max={max}
         disabled={disabled}
-        className="absolute inset-0 opacity-0"
+        className="pointer-events-none absolute inset-0 opacity-0"
         tabIndex={-1}
         aria-hidden
       />
