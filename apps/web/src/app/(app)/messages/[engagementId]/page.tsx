@@ -539,7 +539,7 @@ export default function ChatPage() {
   // -----------------------------------------------------------------------
 
   return (
-    <main className="flex h-[calc(100svh-var(--nav-height)-env(safe-area-inset-bottom))] flex-col bg-background md:h-svh lg:flex-row">
+    <main className="flex h-[calc(100dvh-var(--nav-height)-env(safe-area-inset-bottom))] flex-col bg-background md:h-dvh lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col">
         <CallBar
           callState={voiceCall.callState}

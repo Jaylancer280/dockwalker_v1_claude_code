@@ -120,7 +120,9 @@ export function DateInput({
         className={inputClasses}
         maxLength={10}
       />
-      {/* Hidden native date input for mobile picker */}
+      {/* Native date input — sits on top with opacity-0 so tapping
+          opens the native picker directly on mobile. This is the
+          reliable fallback when showPicker() doesn't work. */}
       <input
         ref={hiddenRef}
         type="date"
@@ -129,7 +131,7 @@ export function DateInput({
         min={min}
         max={max}
         disabled={disabled}
-        className="pointer-events-none absolute inset-0 opacity-0"
+        className="absolute inset-0 opacity-0"
         tabIndex={-1}
         aria-hidden
       />

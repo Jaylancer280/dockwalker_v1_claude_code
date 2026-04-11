@@ -108,7 +108,7 @@ export function ChatFooter({
   }
 
   return (
-    <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3 pb-safe">
+    <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface)] px-4 py-3">
       <div className="page-width-wide flex  flex-col gap-2">
         {/* Work started confirmation banner */}
         {context?.status === 'active' &&
