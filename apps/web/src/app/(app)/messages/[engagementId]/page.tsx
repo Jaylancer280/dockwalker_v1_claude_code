@@ -18,6 +18,15 @@ import { ChatHeader } from './_components/chat-header';
 import { MessageList } from './_components/message-list';
 import { ChatFooter } from './_components/chat-footer';
 import { ChatDialogs } from './_components/chat-dialogs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { ChatSidebarActions } from './_components/chat-sidebar-actions';
 import { DayworkSummaryCard } from './_components/daywork-summary-card';
 import { PermanentSummaryCard } from './_components/permanent-summary-card';
@@ -64,6 +73,8 @@ export default function ChatPage() {
   const [showRevertSelection, setShowRevertSelection] = useState(false);
   const [showCloseConversation, setShowCloseConversation] = useState(false);
   const [cancelPostingId, setCancelPostingId] = useState<string | null>(null);
+  const [showCrewWithdraw, setShowCrewWithdraw] = useState(false);
+  const [showConfirmCancelAfterCrewCancel, setShowConfirmCancelAfterCrewCancel] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [relistingAfterRejection, setRelistingAfterRejection] = useState(false);
@@ -335,6 +346,12 @@ export default function ChatPage() {
   }
 
   async function handleRespondCrewCancel(action: 'relist' | 'cancel') {
+    // Confirm before cancelling the posting (destructive)
+    if (action === 'cancel' && !showConfirmCancelAfterCrewCancel) {
+      setShowConfirmCancelAfterCrewCancel(true);
+      return;
+    }
+    setShowConfirmCancelAfterCrewCancel(false);
     if (action === 'relist' && context) {
       const today = new Date().toISOString().split('T')[0];
       if (context.start_date < today) {
@@ -575,18 +592,7 @@ export default function ChatPage() {
           onShowRevertSelection={() => setShowRevertSelection(true)}
           onShowCloseConversation={() => setShowCloseConversation(true)}
           onCancelPosting={setCancelPostingId}
-          onCrewWithdraw={async () => {
-            if (!permPostingId) return;
-            const r = await safeFetch(`/api/permanent/${permPostingId}/withdraw`, {
-              method: 'POST',
-            });
-            if (r.ok) {
-              showSuccess('Application withdrawn');
-              router.push('/messages');
-            } else {
-              showError(r.error);
-            }
-          }}
+          onCrewWithdraw={() => setShowCrewWithdraw(true)}
           onWorkStarted={handleWorkStarted}
           onStartVoiceCall={voiceCall.startCall}
           voiceCallEnabled={voiceCallEnabled}
@@ -677,18 +683,7 @@ export default function ChatPage() {
               onShowRevertSelection={() => setShowRevertSelection(true)}
               onShowCloseConversation={() => setShowCloseConversation(true)}
               onCancelPosting={setCancelPostingId}
-              onCrewWithdraw={async () => {
-                if (!permPostingId) return;
-                const r = await safeFetch(`/api/permanent/${permPostingId}/withdraw`, {
-                  method: 'POST',
-                });
-                if (r.ok) {
-                  showSuccess('Application withdrawn');
-                  router.push('/messages');
-                } else {
-                  showError(r.error);
-                }
-              }}
+              onCrewWithdraw={() => setShowCrewWithdraw(true)}
               onWorkStarted={handleWorkStarted}
             />
           )}
@@ -809,6 +804,65 @@ export default function ChatPage() {
           }
         }}
       />
+
+      {/* Cancel posting after crew cancel — confirmation */}
+      <Dialog
+        open={showConfirmCancelAfterCrewCancel}
+        onOpenChange={setShowConfirmCancelAfterCrewCancel}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this posting?</DialogTitle>
+            <DialogDescription>
+              This will cancel the posting and reject all pending applicants. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowConfirmCancelAfterCrewCancel(false)}>
+              Keep posting
+            </Button>
+            <Button variant="destructive" onClick={() => handleRespondCrewCancel('cancel')}>
+              Cancel posting
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Crew withdraw confirmation */}
+      <Dialog open={showCrewWithdraw} onOpenChange={setShowCrewWithdraw}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Withdraw application?</DialogTitle>
+            <DialogDescription>
+              This will permanently withdraw your application for this position. You cannot undo
+              this action.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowCrewWithdraw(false)}>
+              Keep application
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                setShowCrewWithdraw(false);
+                if (!permPostingId) return;
+                const r = await safeFetch(`/api/permanent/${permPostingId}/withdraw`, {
+                  method: 'POST',
+                });
+                if (r.ok) {
+                  showSuccess('Application withdrawn');
+                  router.push('/messages');
+                } else {
+                  showError(r.error);
+                }
+              }}
+            >
+              Withdraw
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Profile overlay */}
       {viewProfileId && (
