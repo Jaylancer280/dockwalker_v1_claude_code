@@ -120,54 +120,59 @@ export default function MyPostingsPage() {
       if (filterPortId && filterPortId !== 'all') filterParams.set('portId', filterPortId);
       const filterSuffix = filterParams.toString() ? `&${filterParams.toString()}` : '';
 
-      const [activeResult, inProgressResult, completedResult, templatesResult] = await Promise.all([
-        safeFetch<{ dayworks?: DayworkPosting[] }>(
-          `/api/daywork/mine?status=active${filterSuffix}`,
-        ),
-        safeFetch<{ dayworks?: DayworkPosting[] }>(
-          `/api/daywork/mine?status=in_progress${filterSuffix}`,
-        ),
-        safeFetch<{ dayworks?: DayworkPosting[] }>(
-          `/api/daywork/mine?status=completed,cancelled${filterSuffix}`,
-        ),
-        safeFetch<{ templates?: Template[] }>('/api/daywork/templates'),
-      ]);
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const [activeResult, inProgressResult, completedResult, templatesResult, engagementsResult] =
+        await Promise.all([
+          safeFetch<{ dayworks?: DayworkPosting[] }>(
+            `/api/daywork/mine?status=active${filterSuffix}`,
+          ),
+          safeFetch<{ dayworks?: DayworkPosting[] }>(
+            `/api/daywork/mine?status=in_progress${filterSuffix}`,
+          ),
+          safeFetch<{ dayworks?: DayworkPosting[] }>(
+            `/api/daywork/mine?status=completed,cancelled${filterSuffix}`,
+          ),
+          safeFetch<{ templates?: Template[] }>('/api/daywork/templates'),
+          // Speculative fetch: all active engagements for this employer (filtered client-side)
+          user
+            ? supabase
+                .from('active_engagements')
+                .select(
+                  'id, daywork_id, crew_person_id, profiles!active_engagements_crew_person_id_profiles_fkey(display_name)',
+                )
+                .eq('employer_person_id', user.id)
+                .eq('status', 'active')
+            : Promise.resolve({ data: null }),
+        ]);
 
       if (activeResult.ok && activeResult.data.dayworks)
         setActivePostings(activeResult.data.dayworks);
       if (inProgressResult.ok && inProgressResult.data.dayworks) {
         setInProgressPostings(inProgressResult.data.dayworks);
-        // Fetch engagement IDs for in-progress postings so we can link to chat
-        const ipIds = (inProgressResult.data.dayworks as DayworkPosting[]).map(
-          (d: DayworkPosting) => d.id,
+        // Client-side filter: only engagements for in-progress daywork IDs
+        const ipIds = new Set(
+          (inProgressResult.data.dayworks as DayworkPosting[]).map((d) => d.id),
         );
-        if (ipIds.length > 0) {
-          const supabase = createClient();
-          const { data: engagements } = await supabase
-            .from('active_engagements')
-            .select(
-              'id, daywork_id, crew_person_id, profiles!active_engagements_crew_person_id_profiles_fkey(display_name)',
-            )
-            .in('daywork_id', ipIds)
-            .eq('status', 'active');
-          if (engagements) {
-            const map: Record<
-              string,
-              { id: string; crew_person_id: string; crew_name?: string }[]
-            > = {};
-            for (const eng of engagements) {
-              const profile = eng.profiles as unknown as { display_name: string } | null;
-              const entry = {
-                id: eng.id,
-                crew_person_id: eng.crew_person_id,
-                crew_name: profile?.display_name,
-              };
-              if (!map[eng.daywork_id]) map[eng.daywork_id] = [];
-              map[eng.daywork_id].push(entry);
-            }
-            setEngagementsByDaywork(map);
-          }
+        const filtered = (engagementsResult.data ?? []).filter((e: { daywork_id: string }) =>
+          ipIds.has(e.daywork_id),
+        );
+        const map: Record<string, { id: string; crew_person_id: string; crew_name?: string }[]> =
+          {};
+        for (const eng of filtered) {
+          const profile = eng.profiles as unknown as { display_name: string } | null;
+          const entry = {
+            id: eng.id,
+            crew_person_id: eng.crew_person_id,
+            crew_name: profile?.display_name,
+          };
+          if (!map[eng.daywork_id]) map[eng.daywork_id] = [];
+          map[eng.daywork_id].push(entry);
         }
+        setEngagementsByDaywork(map);
       }
       if (completedResult.ok && completedResult.data.dayworks)
         setCompletedPostings(completedResult.data.dayworks);

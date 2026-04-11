@@ -136,7 +136,7 @@ export async function GET(request: Request) {
 
     query = query.order('created_at', { ascending: false });
 
-    const BATCH_SIZE = 50;
+    const BATCH_SIZE = 20;
     const { data: dayworks, error } = await query.limit(BATCH_SIZE);
 
     if (error) {

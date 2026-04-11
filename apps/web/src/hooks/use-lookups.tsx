@@ -95,13 +95,16 @@ interface CachedLookups {
   cities: CityLookup[];
 }
 
-function readCache(): CachedLookups | null {
+function readCache(): (CachedLookups & { stale?: boolean }) | null {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedLookups;
-    if (!parsed.ts || Date.now() - parsed.ts > CACHE_MAX_AGE_MS) return null;
     if (!parsed.roles?.length) return null;
+    // Return data even if expired, flagged as stale for background refresh
+    if (!parsed.ts || Date.now() - parsed.ts > CACHE_MAX_AGE_MS) {
+      return { ...parsed, stale: true };
+    }
     return parsed;
   } catch {
     return null;
@@ -219,9 +222,10 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // Background revalidation on mount (skip if cache is still fresh)
+  // Background revalidation on mount (skip only if cache is fresh — stale cache triggers refresh)
   useEffect(() => {
-    if (fetchedAt > 0 && Date.now() - fetchedAt < CACHE_MAX_AGE_MS) return;
+    const cached = typeof window !== 'undefined' ? readCache() : null;
+    if (cached && !cached.stale) return; // fresh cache, skip
     let cancelled = false;
     const supabase = createClient();
     Promise.all([
@@ -270,7 +274,6 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Revalidate on visibility change if stale

@@ -65,54 +65,53 @@ export async function GET() {
       allEngagements = (asEmployer ?? []).map((e) => ({ ...e, role: 'employer' as const }));
     }
 
-    // Check which completed/cancelled engagements the user has already rated
+    // Tier 2: ratings + messages + unread counts in parallel (all depend on engagements)
+    const engagementIds = allEngagements.map((e) => e.id);
     const ratableIds = allEngagements
       .filter((e) => e.status === 'completed' || e.status === 'cancelled')
       .map((e) => e.id);
 
-    let ratedEngagementIds = new Set<string>();
-    if (ratableIds.length > 0) {
-      const { data: ratings } = await supabase
-        .from('engagement_ratings')
-        .select('engagement_id')
-        .eq('rater_person_id', user.id)
-        .in('engagement_id', ratableIds);
+    const [ratingsResult, messagesResult, unreadResult] = await Promise.all([
+      ratableIds.length > 0
+        ? supabase
+            .from('engagement_ratings')
+            .select('engagement_id')
+            .eq('rater_person_id', user.id)
+            .in('engagement_id', ratableIds)
+        : Promise.resolve({ data: null }),
+      engagementIds.length > 0
+        ? supabase
+            .from('messages')
+            .select('engagement_id, content, created_at, sender_person_id')
+            .in('engagement_id', engagementIds)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: null }),
+      engagementIds.length > 0
+        ? supabase.rpc('get_unread_counts', { p_person_id: user.id })
+        : Promise.resolve({ data: null }),
+    ]);
 
-      ratedEngagementIds = new Set((ratings ?? []).map((r) => r.engagement_id));
-    }
+    const ratedEngagementIds = new Set(
+      (ratingsResult.data ?? []).map((r: { engagement_id: string }) => r.engagement_id),
+    );
 
-    // Get last message for each engagement
-    const engagementIds = allEngagements.map((e) => e.id);
     const lastMessages: Record<
       string,
       { content: string; created_at: string; sender_person_id: string }
     > = {};
+    for (const msg of messagesResult.data ?? []) {
+      if (!lastMessages[msg.engagement_id]) {
+        lastMessages[msg.engagement_id] = {
+          content: msg.content,
+          created_at: msg.created_at,
+          sender_person_id: msg.sender_person_id,
+        };
+      }
+    }
+
     const unreadCounts: Record<string, number> = {};
-
-    if (engagementIds.length > 0) {
-      const { data: messages } = await supabase
-        .from('messages')
-        .select('engagement_id, content, created_at, sender_person_id')
-        .in('engagement_id', engagementIds)
-        .order('created_at', { ascending: false });
-
-      for (const msg of messages ?? []) {
-        if (!lastMessages[msg.engagement_id]) {
-          lastMessages[msg.engagement_id] = {
-            content: msg.content,
-            created_at: msg.created_at,
-            sender_person_id: msg.sender_person_id,
-          };
-        }
-      }
-
-      // Single RPC replaces N per-engagement COUNT queries + cursor lookup
-      const { data: unreadRows } = await supabase.rpc('get_unread_counts', {
-        p_person_id: user.id,
-      });
-      for (const r of unreadRows ?? []) {
-        unreadCounts[r.engagement_id as string] = r.unread_count as number;
-      }
+    for (const r of unreadResult.data ?? []) {
+      unreadCounts[r.engagement_id as string] = r.unread_count as number;
     }
 
     const todayStr = new Date().toISOString().slice(0, 10);

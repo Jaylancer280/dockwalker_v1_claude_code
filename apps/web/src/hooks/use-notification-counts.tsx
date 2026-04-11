@@ -46,27 +46,27 @@ export function NotificationCountsProvider({ children }: { children: ReactNode }
     }
   }, []);
 
+  // Defer initial fetch so it doesn't compete with page data loading for network bandwidth
   useEffect(() => {
     let cancelled = false;
-    safeFetch<{
-      notification_count?: number;
-      message_count?: number;
-      alt_notification_count?: number;
-      alt_message_count?: number;
-    }>('/api/notifications/count').then((result) => {
+    const defer =
+      typeof requestIdleCallback === 'function'
+        ? requestIdleCallback
+        : (cb: () => void) => setTimeout(cb, 2000);
+    const cancel =
+      typeof cancelIdleCallback === 'function'
+        ? cancelIdleCallback
+        : (id: number) => clearTimeout(id);
+
+    const id = defer(() => {
       if (cancelled) return;
-      if (result.ok) {
-        setCounts({
-          notificationCount: result.data.notification_count ?? 0,
-          messageCount: result.data.message_count ?? 0,
-          altNotificationCount: result.data.alt_notification_count ?? 0,
-          altMessageCount: result.data.alt_message_count ?? 0,
-        });
-      }
+      refresh();
     });
     return () => {
       cancelled = true;
+      cancel(id as number);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
