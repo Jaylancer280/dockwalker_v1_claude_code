@@ -118,12 +118,20 @@ export async function updateSession(request: NextRequest) {
       currentHat = appMeta!.current_hat!;
       identityType = appMeta!.identity_type!;
       onboarded = appMeta!.onboarded === true;
+
+      // Deactivated users: sign out and redirect to login
+      if (appMeta!.deactivated) {
+        await supabase.auth.signOut();
+        const url = request.nextUrl.clone();
+        url.pathname = '/auth/login';
+        return NextResponse.redirect(url);
+      }
     } else {
       // Fallback: DB query (backward compat for sessions minted before hook was enabled)
       const [{ data: person }, { data: profile }] = await Promise.all([
         supabase
           .from('persons')
-          .select('id, current_hat, identity_type')
+          .select('id, current_hat, identity_type, deactivated_at')
           .eq('id', user.id)
           .single(),
         supabase.from('profiles').select('person_id').eq('person_id', user.id).single(),
@@ -131,6 +139,14 @@ export async function updateSession(request: NextRequest) {
       currentHat = person?.current_hat ?? null;
       identityType = person?.identity_type ?? null;
       onboarded = !!(person && profile);
+
+      // Deactivated users: sign out and redirect to login
+      if (person?.deactivated_at) {
+        await supabase.auth.signOut();
+        const url = request.nextUrl.clone();
+        url.pathname = '/auth/login';
+        return NextResponse.redirect(url);
+      }
     }
 
     if (!onboarded) {

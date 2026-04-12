@@ -17,7 +17,10 @@ function guardOk(overrides: Record<string, unknown> = {}) {
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
       supabase: {},
-      serviceClient: { rpc: mockRpc },
+      serviceClient: {
+        rpc: mockRpc,
+        auth: { admin: { updateUserById: vi.fn().mockResolvedValue({ error: null }) } },
+      },
       ...overrides,
     },
   };
