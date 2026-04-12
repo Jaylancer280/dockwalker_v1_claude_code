@@ -181,7 +181,7 @@
 
 ## Current Schema Version
 
-v93 — Permanent postings RLS for engaged users (93 migrations applied)
+v94 — Fix deactivation hat constraint (94 migrations applied)
 
 ## Migrations Applied
 
@@ -280,6 +280,7 @@ v93 — Permanent postings RLS for engaged users (93 migrations applied)
 | `00091_gdpr_engagement_documents.sql` | DATA_SCRUBBED handler: soft-delete + expire `engagement_documents` for scrubbed users |
 | `00092_fix_availability_full_replace.sql` | AVAILABILITY.SET else branch: expire ALL windows (not just not_available) before inserting new range — fixes stale dates persisting |
 | `00093_permanent_postings_rls_engaged.sql` | Permanent postings SELECT RLS: allow crew/employer with active_engagement referencing the posting to read it regardless of posting status (fixes null data when posting is filled/cancelled) |
+| `00094_fix_deactivation_hat_constraint.sql` | PERSON.DEACTIVATED handler: set `deactivated_at=now()` instead of `current_hat='deactivated'` (violated CHECK constraint, blocked account deletion) |
 
 ## Deferred Decisions
 
