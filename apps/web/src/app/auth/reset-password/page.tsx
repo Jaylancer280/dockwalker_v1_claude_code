@@ -67,6 +67,10 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    // Sign out the recovery session so stale cookies don't interfere
+    // with the subsequent signInWithPassword on the login page
+    await supabase.auth.signOut();
+
     setSuccess(true);
     setLoading(false);
   }
