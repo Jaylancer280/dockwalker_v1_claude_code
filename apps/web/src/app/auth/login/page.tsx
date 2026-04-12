@@ -4,7 +4,6 @@ import { Suspense, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,25 +31,32 @@ function LoginContent() {
     setLoading(true);
 
     try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      // Server-side sign-in ensures session cookies are set via Set-Cookie
+      // headers, which the middleware can reliably read. Client-side
+      // signInWithPassword writes cookies via document.cookie, which can
+      // be lost between the browser client and the server middleware.
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (error) {
-        if (error.message.toLowerCase().includes('banned')) {
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg = data?.error ?? 'Sign in failed';
+        if (msg.toLowerCase().includes('banned')) {
           setError(
             'This account has been deactivated. Contact support if you believe this is an error.',
           );
         } else {
-          setError(error.message);
+          setError(msg);
         }
         setLoading(false);
         return;
       }
 
-      // Full page reload clears any stale client-side auth state (navigator.locks,
-      // singleton session) and ensures middleware processes fresh cookies.
-      // router.push can hang after password reset due to lock contention in
-      // @supabase/ssr's auth module.
+      // Cookies are set by the API response — full page reload picks them up
       window.location.href = '/onboarding';
     } catch {
       setError('Something went wrong. Please try again.');

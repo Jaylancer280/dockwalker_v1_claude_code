@@ -6,14 +6,6 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => ({ get: mockGet }),
 }));
 
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({
-    auth: {
-      signInWithPassword: vi.fn().mockResolvedValue({ error: null }),
-    },
-  }),
-}));
-
 vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => {
     const { fill, priority, ...rest } = props;
