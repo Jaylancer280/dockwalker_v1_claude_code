@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 
-const mockPush = vi.fn();
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
-}));
+// signup uses window.location.href for navigation (not router.push)
+Object.defineProperty(window, 'location', {
+  value: { href: '', origin: 'http://localhost:3000' },
+  writable: true,
+});
 
 const mockGetUser = vi.fn();
 const mockSignUp = vi.fn().mockResolvedValue({ error: null });
@@ -62,7 +63,7 @@ describe('SignUpPage — session polling after success', () => {
       await Promise.resolve();
     });
 
-    expect(mockPush).not.toHaveBeenCalled();
+    expect(window.location.href).not.toBe('/onboarding');
   });
 
   it('redirects to /onboarding when getUser returns a valid user', async () => {
@@ -78,7 +79,7 @@ describe('SignUpPage — session polling after success', () => {
       await Promise.resolve();
     });
 
-    expect(mockPush).toHaveBeenCalledWith('/onboarding');
+    expect(window.location.href).toBe('/onboarding');
   });
 
   it('cleans up interval on unmount', async () => {

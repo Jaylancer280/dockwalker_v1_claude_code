@@ -99,6 +99,7 @@ describe('Reset Password page', () => {
 
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' });
+      expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' });
       expect(screen.getByText(/sign in with your new password/i)).toBeDefined();
     });
   });

@@ -67,9 +67,11 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // Sign out the recovery session so stale cookies don't interfere
-    // with the subsequent signInWithPassword on the login page
-    await supabase.auth.signOut();
+    // Clear the recovery session locally so stale cookies don't interfere
+    // with the subsequent signInWithPassword on the login page.
+    // scope: 'local' avoids a network call to Supabase with the recovery
+    // token — the server-side session expires on its own.
+    await supabase.auth.signOut({ scope: 'local' });
 
     setSuccess(true);
     setLoading(false);
