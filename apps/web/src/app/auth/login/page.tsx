@@ -33,7 +33,7 @@ function LoginContent() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
         // Supabase returns "User is banned" for deactivated accounts
@@ -44,6 +44,18 @@ function LoginContent() {
         } else {
           setError(error.message);
         }
+        setLoading(false);
+        return;
+      }
+
+      // Verify session was actually established before navigating
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        setError(
+          `Sign-in succeeded but session was not established. User: ${data.user?.id ?? 'none'}. Check Supabase auth configuration.`,
+        );
         setLoading(false);
         return;
       }
