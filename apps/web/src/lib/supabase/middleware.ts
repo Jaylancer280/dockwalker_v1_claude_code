@@ -23,11 +23,19 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userData?.user ?? null;
 
   const path = request.nextUrl.pathname;
+
+  // DIAGNOSTIC: helper to redirect to login with a reason code in query
+  // string. Temporary — remove once the login bounce issue is fixed.
+  function redirectToLoginWithReason(reason: string) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/auth/login';
+    url.searchParams.set('login_error', `${reason}|path=${path}`);
+    return NextResponse.redirect(url);
+  }
 
   // API routes: pass identity via request headers so auth guard can skip getUser()
   if (path.startsWith('/api/')) {
@@ -81,9 +89,7 @@ export async function updateSession(request: NextRequest) {
 
   // Not authenticated → redirect to login (unless on public route or landing page)
   if (!user && !isPublicRoute && !isLandingPage) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/auth/login';
-    return NextResponse.redirect(url);
+    return redirectToLoginWithReason(`mw_no_user(${userError?.message ?? 'no_error'})`);
   }
 
   // Authenticated on login/signup → redirect to app (but NOT on reset-password or forgot-password)
@@ -122,9 +128,7 @@ export async function updateSession(request: NextRequest) {
       // Deactivated users: sign out and redirect to login
       if (appMeta!.deactivated) {
         await supabase.auth.signOut();
-        const url = request.nextUrl.clone();
-        url.pathname = '/auth/login';
-        return NextResponse.redirect(url);
+        return redirectToLoginWithReason('mw_deactivated_jwt_A');
       }
     } else {
       // Fallback: DB query (backward compat for sessions minted before hook was enabled)
@@ -143,9 +147,7 @@ export async function updateSession(request: NextRequest) {
       // Deactivated users: sign out and redirect to login
       if (person?.deactivated_at) {
         await supabase.auth.signOut();
-        const url = request.nextUrl.clone();
-        url.pathname = '/auth/login';
-        return NextResponse.redirect(url);
+        return redirectToLoginWithReason('mw_deactivated_db_A');
       }
     }
 
@@ -192,9 +194,7 @@ export async function updateSession(request: NextRequest) {
     // Deactivated users must not proceed through onboarding
     if (hasClaims && appMeta!.deactivated) {
       await supabase.auth.signOut();
-      const url = request.nextUrl.clone();
-      url.pathname = '/auth/login';
-      return NextResponse.redirect(url);
+      return redirectToLoginWithReason('mw_deactivated_jwt_B');
     }
 
     let currentHat: string | null = null;
@@ -213,9 +213,7 @@ export async function updateSession(request: NextRequest) {
       // DB fallback deactivation check for onboarding path
       if (person?.deactivated_at) {
         await supabase.auth.signOut();
-        const url = request.nextUrl.clone();
-        url.pathname = '/auth/login';
-        return NextResponse.redirect(url);
+        return redirectToLoginWithReason('mw_deactivated_db_B');
       }
 
       const { data: profile } = await supabase
