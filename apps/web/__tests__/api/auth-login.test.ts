@@ -57,7 +57,7 @@ describe('POST /api/auth/login', () => {
   it('redirects to /onboarding with cookies on success', async () => {
     mockSignInWithPassword.mockResolvedValue({ error: null });
     const res = await POST(makeFormRequest({ email: 'a@b.com', password: 'pass1234' }));
-    expect(res.status).toBe(307);
+    expect(res.status).toBe(303);
     expect(new URL(res.headers.get('location')!).pathname).toBe('/onboarding');
     expect(mockSignInWithPassword).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pass1234' });
     // Session cookies attached to redirect response
@@ -68,7 +68,7 @@ describe('POST /api/auth/login', () => {
   it('redirects to login with error on auth failure', async () => {
     mockSignInWithPassword.mockResolvedValue({ error: { message: 'Invalid credentials' } });
     const res = await POST(makeFormRequest({ email: 'a@b.com', password: 'wrong' }));
-    expect(res.status).toBe(307);
+    expect(res.status).toBe(303);
     const location = new URL(res.headers.get('location')!);
     expect(location.pathname).toBe('/auth/login');
     expect(location.searchParams.get('login_error')).toBe('Invalid credentials');
@@ -83,7 +83,7 @@ describe('POST /api/auth/login', () => {
 
   it('redirects with error when email is missing', async () => {
     const res = await POST(makeFormRequest({ password: 'pass1234' }));
-    expect(res.status).toBe(307);
+    expect(res.status).toBe(303);
     const location = new URL(res.headers.get('location')!);
     expect(location.pathname).toBe('/auth/login');
   });

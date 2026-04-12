@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   if (!email || !password) {
     return NextResponse.redirect(
       `${origin}/auth/login?login_error=${encodeURIComponent('Email and password are required')}`,
+      303,
     );
   }
 
@@ -46,13 +47,18 @@ export async function POST(request: Request) {
     const msg = error.message.toLowerCase().includes('banned')
       ? 'This account has been deactivated. Contact support if you believe this is an error.'
       : error.message;
-    return NextResponse.redirect(`${origin}/auth/login?login_error=${encodeURIComponent(msg)}`);
+    return NextResponse.redirect(
+      `${origin}/auth/login?login_error=${encodeURIComponent(msg)}`,
+      303,
+    );
   }
 
   // Redirect with session cookies attached — browser follows the redirect
-  // and the cookies are set in the same HTTP response. No JavaScript
-  // cookie handling, no fetch, no window.location.
-  const response = NextResponse.redirect(`${origin}/onboarding`);
+  // and the cookies are set in the same HTTP response. Status 303 (See
+  // Other) forces the browser to convert the POST into a GET — without
+  // this, a 307 redirect would make the browser POST to /onboarding,
+  // which is a page (GET only).
+  const response = NextResponse.redirect(`${origin}/onboarding`, 303);
   for (const { name, value, options } of pendingCookies) {
     response.cookies.set(name, value, options);
   }
