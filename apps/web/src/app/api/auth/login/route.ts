@@ -1,9 +1,12 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+import { createChunks, stringToBase64URL, DEFAULT_COOKIE_OPTIONS } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
+// @supabase/ssr serializes sessions to cookies with this prefix when
+// cookieEncoding is 'base64url' (the default for createServerClient).
+const BASE64_PREFIX = 'base64-';
+
 export async function POST(request: Request) {
-  // Accept native form POST (application/x-www-form-urlencoded)
   const formData = await request.formData();
   const email = formData.get('email') as string | null;
   const password = formData.get('password') as string | null;
@@ -16,51 +19,50 @@ export async function POST(request: Request) {
     );
   }
 
-  const cookieStore = await cookies();
-  const pendingCookies: { name: string; value: string; options: Record<string, unknown> }[] = [];
-
-  const supabase = createServerClient(
+  // Use vanilla supabase-js (no SSR storage adapter) — we manage cookies
+  // ourselves so there's no dependency on the async setAll subscriber chain
+  // that the SSR client uses, which has timing issues with route handlers.
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            try {
-              cookieStore.set(name, value, options);
-            } catch {
-              // Collected in pendingCookies as fallback
-            }
-            pendingCookies.push({ name, value, options });
-          });
-        },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
       },
     },
   );
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    const msg = error.message.toLowerCase().includes('banned')
+  if (error || !data.session) {
+    const msg = error?.message || 'Sign in failed';
+    const friendlyMsg = msg.toLowerCase().includes('banned')
       ? 'This account has been deactivated. Contact support if you believe this is an error.'
-      : error.message;
+      : msg;
     return NextResponse.redirect(
-      `${origin}/auth/login?login_error=${encodeURIComponent(msg)}`,
+      `${origin}/auth/login?login_error=${encodeURIComponent(friendlyMsg)}`,
       303,
     );
   }
 
-  // Redirect with session cookies attached — browser follows the redirect
-  // and the cookies are set in the same HTTP response. Status 303 (See
-  // Other) forces the browser to convert the POST into a GET — without
-  // this, a 307 redirect would make the browser POST to /onboarding,
-  // which is a page (GET only).
+  // Manually serialize the session into the exact cookie format that
+  // @supabase/ssr's createServerClient expects to read. This bypasses
+  // the SSR client's async storage flow entirely.
+  //
+  // Format (mirrors applyServerStorage in @supabase/ssr/cookies.js):
+  //   key:   `sb-{projectRef}-auth-token` (chunked if > 3180 chars)
+  //   value: `base64-{base64url(JSON.stringify(session))}`
+  const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0];
+  const storageKey = `sb-${projectRef}-auth-token`;
+  const sessionJson = JSON.stringify(data.session);
+  const encodedValue = BASE64_PREFIX + stringToBase64URL(sessionJson);
+  const chunks = createChunks(storageKey, encodedValue);
+
   const response = NextResponse.redirect(`${origin}/onboarding`, 303);
-  for (const { name, value, options } of pendingCookies) {
-    response.cookies.set(name, value, options);
+  for (const chunk of chunks) {
+    response.cookies.set(chunk.name, chunk.value, DEFAULT_COOKIE_OPTIONS);
   }
   return response;
 }
