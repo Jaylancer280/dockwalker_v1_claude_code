@@ -73,6 +73,24 @@ describe('POST /api/account/deactivate', () => {
     );
   });
 
+  it('returns 500 when ban fails after deactivation event', async () => {
+    const mockUpdateUser = vi.fn().mockResolvedValue({ error: { message: 'Ban failed' } });
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({
+        serviceClient: {
+          rpc: mockRpc,
+          auth: { admin: { updateUserById: mockUpdateUser } },
+        },
+      }),
+    );
+    mockRpc.mockResolvedValue({ error: null });
+
+    const res = await POST();
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toContain('ban failed');
+  });
+
   it('returns 500 when event append fails', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockRpc.mockResolvedValue({ error: { message: 'DB error' } });

@@ -3,12 +3,14 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 
 const mockUpdateUser = vi.fn();
 const mockGetSession = vi.fn();
+const mockOnAuthStateChange = vi.fn();
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
     auth: {
       getSession: mockGetSession,
       updateUser: mockUpdateUser,
+      onAuthStateChange: mockOnAuthStateChange,
     },
   }),
 }));
@@ -30,6 +32,9 @@ describe('Reset Password page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    mockOnAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } },
+    });
   });
 
   it('renders password and confirm password fields', async () => {

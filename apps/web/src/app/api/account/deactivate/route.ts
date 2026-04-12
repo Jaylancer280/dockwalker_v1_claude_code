@@ -33,10 +33,15 @@ export async function POST() {
       ban_duration: '876000h',
     });
     if (banError) {
-      // Log but don't fail — deactivation event already written, profile is hidden.
-      // The user won't be able to do anything meaningful even without the ban
-      // because requireDomainUser checks deactivated_at.
-      console.error('Failed to ban auth user after deactivation:', banError.message);
+      // Ban MUST succeed — without it, the user can sign back in.
+      // The deactivation event is already written (profile hidden via RLS),
+      // but we return 500 so the client knows the deletion is incomplete.
+      return NextResponse.json(
+        {
+          error: 'Account deactivated but session ban failed. Please try again or contact support.',
+        },
+        { status: 500 },
+      );
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to deactivate account';

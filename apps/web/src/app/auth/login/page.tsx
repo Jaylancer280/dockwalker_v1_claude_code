@@ -36,7 +36,14 @@ function LoginContent() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError(error.message);
+      // Supabase returns "User is banned" for deactivated accounts
+      if (error.message.toLowerCase().includes('banned')) {
+        setError(
+          'This account has been deactivated. Contact support if you believe this is an error.',
+        );
+      } else {
+        setError(error.message);
+      }
       setLoading(false);
       return;
     }

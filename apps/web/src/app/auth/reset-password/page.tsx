@@ -19,9 +19,27 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setHasSession(!!session);
+
+    // Listen for PASSWORD_RECOVERY event — this fires when the user arrives via
+    // a password reset link and the session is established with recovery context.
+    // More reliable than getSession() alone, which can return a stale non-recovery session.
+    // If this fires after getSession returned null, it flips to the form view.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN') {
+        setHasSession(true);
+      }
     });
+
+    // Also check existing session (covers page refresh after recovery session is established)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setHasSession((current) => current ?? !!session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {

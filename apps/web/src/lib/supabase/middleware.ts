@@ -187,8 +187,16 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // On onboarding page but already onboarded → redirect by hat
+  // On onboarding page — check deactivated first, then redirect if already onboarded
   if (user && path.startsWith('/onboarding')) {
+    // Deactivated users must not proceed through onboarding
+    if (hasClaims && appMeta!.deactivated) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = '/auth/login';
+      return NextResponse.redirect(url);
+    }
+
     let currentHat: string | null = null;
     let onboarded = false;
 
@@ -198,9 +206,17 @@ export async function updateSession(request: NextRequest) {
     } else {
       const { data: person } = await supabase
         .from('persons')
-        .select('id, current_hat, identity_type')
+        .select('id, current_hat, identity_type, deactivated_at')
         .eq('id', user.id)
         .single();
+
+      // DB fallback deactivation check for onboarding path
+      if (person?.deactivated_at) {
+        await supabase.auth.signOut();
+        const url = request.nextUrl.clone();
+        url.pathname = '/auth/login';
+        return NextResponse.redirect(url);
+      }
 
       const { data: profile } = await supabase
         .from('profiles')

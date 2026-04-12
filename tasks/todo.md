@@ -5,13 +5,51 @@
 
 ## Current Task
 
-(none)
+### CRITICAL: Password reset broken + Account deletion incomplete
+
+**Done condition:** Password reset flow works end-to-end. Deleted users cannot sign in. Test users can be fully removed via admin RPC.
+
+#### Password reset fix
+
+- [x] Update `/auth/callback/route.ts` — handle both `code` (PKCE) and `token_hash`+`type` (fallback) flows
+- [x] Update `/auth/reset-password/page.tsx` — use `onAuthStateChange` to detect `PASSWORD_RECOVERY` event instead of relying solely on `getSession()`
+- [x] Update login page — show clear message for banned/deactivated users instead of raw Supabase error
+
+#### Account deletion hardening
+
+- [x] Make ban failure a hard error in `/api/account/deactivate/route.ts` — if ban fails, return 500 (not silent success)
+- [x] Fix middleware — check deactivated on `/onboarding` path too (currently skipped, creates redirect loop)
+
+#### Admin user cleanup (FK constraint fix)
+
+- [x] Add migration with `admin_delete_person(target_id)` RPC — deletes all child rows in FK order, then persons row
+- [x] Add rollback for the migration
+- [x] Update tests for deactivate route (ban failure = 500)
+- [x] Update tests for callback route (token_hash flow)
+- [x] Verify type-check + lint pass
 
 ---
 
 ## Queue
 
-(empty — pick from Backlog or start new work)
+### BUG: Permanent withdrawal has no rating path
+
+**Root cause:** `PERMANENT.WITHDRAWN` sets engagement status to `'closed'` (migration 00059 line 697), but `canRate` in `page.tsx` line 528-532 only checks for `'completed'` and `'cancelled'`. Daywork cancellations use `'cancelled'` status which IS ratable — permanent withdrawals use `'closed'` which is NOT.
+
+- [ ] Decide: should `'closed'` engagements with outcome `'withdrew'` be ratable? If yes:
+  - Add `(context?.status === 'closed' && context.outcome === 'withdrew' && !context.has_rated)` to `canRate` in `page.tsx`
+  - Add a banner for closed-with-withdrawal in `chat-footer.tsx` (like CancellationBanner but simpler)
+  - Verify the rating API (`/api/engagements/[id]/rate`) accepts `'closed'` status — currently only allows `'completed'` and `'cancelled'`
+
+### BUG: DateInput transparent overlay may block interaction on some devices
+
+**Symptom:** Permanent post form start date reported as "unclickable." Same `DateInput` component used by daywork (which works).
+
+**Possible cause:** The `opacity-0` native date input now sits on top and captures taps, but on some Android browsers/webviews the native picker doesn't open from a transparent input — the tap is absorbed silently.
+
+- [ ] Test on the same device after deployment lands — may already be fixed
+- [ ] If still broken: add explicit calendar icon button next to the date input that calls `showPicker()` on tap (visual affordance + programmatic trigger)
+- [ ] Alternative: reverse stacking — put text input on top (for typing), keep native input behind with `pointer-events-none`, and rely solely on `showPicker()` with a fallback message "type date manually"
 
 ---
 
@@ -28,27 +66,12 @@
 
 ### User testing
 
-- [ ] Verify agent My Jobs — post job as agent, check My Jobs.
-
 ### Voice calling Session 3 — Browser testing (manual)
 
 - [ ] Chrome desktop + Android
 - [ ] Firefox
 - [ ] Safari macOS + iOS
 - [ ] Glare resolution, network drop, background tab, multi-tab, offline user, busy signal, hangup during navigation
-
-### Visual verification (manual)
-
-- [ ] Cards show visible department tint with per-card angle variation
-- [ ] Cards look consistent across discover, market, and messages
-- [ ] Skeleton dimensions match real content (no layout shift)
-- [ ] Discover page works with size band filter applied server-side
-- [ ] Confirm 8 fewer lookups queries on warm page load
-- [ ] Add `aria-label` to icon-only buttons (audit chat-header.tsx, bottom-nav.tsx)
-
-### Rate limiting local test (manual)
-
-- [ ] Test locally: >100 requests to `/api/health` in 60s (should pass, exempted). >100 requests to `/api/profile` (should 429 if Redis configured, pass-through if not). >30 POST requests to `/api/daywork` in 60s (should 429 on write limit).
 
 ---
 
@@ -85,10 +108,3 @@
 - **Resilience tests** — network failure, timeout, retry scenarios.
 - **Component tests for Permanent UI**.
 - **Component tests for Form Pickers**.
-
-### Deferred — Mobile (blocked, needs Mac + Xcode)
-
-- **Mobile Phase 7: TestFlight validation** — needs Xcode debugger.
-- **Mobile Phase 8: Android polish pass**.
-- **Capacitor removal** — waiting on Phase 7.
-- **Mobile OTA update test**.
