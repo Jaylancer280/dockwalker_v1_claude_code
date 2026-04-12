@@ -556,7 +556,7 @@ export default function ChatPage() {
   // -----------------------------------------------------------------------
 
   return (
-    <main className="fixed inset-x-0 top-0 bottom-[calc(var(--nav-height)+env(safe-area-inset-bottom))] z-10 flex flex-col bg-background md:static md:inset-auto md:bottom-auto md:z-auto md:h-dvh lg:flex-row">
+    <main className="fixed inset-x-0 top-0 bottom-0 z-10 flex flex-col bg-background pb-[calc(var(--nav-height)+env(safe-area-inset-bottom))] md:static md:inset-auto md:bottom-auto md:z-auto md:h-dvh md:pb-0 lg:flex-row">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <CallBar
           callState={voiceCall.callState}
