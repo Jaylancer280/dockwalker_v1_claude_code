@@ -1,5 +1,6 @@
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
 
 export async function GET(request: Request) {
@@ -7,13 +8,48 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/onboarding';
 
-  const supabase = await createClient();
+  const cookieStore = await cookies();
+
+  // Collect cookies during auth operations so we can explicitly attach
+  // them to the redirect response. cookies().set() alone can be lost
+  // when NextResponse.redirect() creates a separate response object.
+  const pendingCookies: { name: string; value: string; options: Record<string, unknown> }[] = [];
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            try {
+              cookieStore.set(name, value, options);
+            } catch {
+              // May throw in certain contexts — collected in pendingCookies as fallback
+            }
+            pendingCookies.push({ name, value, options });
+          });
+        },
+      },
+    },
+  );
+
+  function redirectWithCookies(path: string) {
+    const response = NextResponse.redirect(`${origin}${path}`);
+    for (const { name, value, options } of pendingCookies) {
+      response.cookies.set(name, value, options);
+    }
+    return response;
+  }
 
   // PKCE flow: Supabase redirects with a `code` parameter
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return redirectWithCookies(next);
     }
   }
 
@@ -24,7 +60,7 @@ export async function GET(request: Request) {
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
+      return redirectWithCookies(next);
     }
   }
 
