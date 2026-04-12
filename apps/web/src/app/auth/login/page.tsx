@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,6 @@ function LoginContent() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const authError = searchParams.get('error');
 
@@ -32,23 +31,29 @@ function LoginContent() {
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (error) {
-      // Supabase returns "User is banned" for deactivated accounts
-      if (error.message.toLowerCase().includes('banned')) {
-        setError(
-          'This account has been deactivated. Contact support if you believe this is an error.',
-        );
-      } else {
-        setError(error.message);
+      if (error) {
+        // Supabase returns "User is banned" for deactivated accounts
+        if (error.message.toLowerCase().includes('banned')) {
+          setError(
+            'This account has been deactivated. Contact support if you believe this is an error.',
+          );
+        } else {
+          setError(error.message);
+        }
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-      return;
-    }
 
-    router.push('/onboarding');
+      // Full page reload ensures middleware processes fresh session cookies
+      window.location.href = '/onboarding';
+    } catch {
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
   }
 
   return (

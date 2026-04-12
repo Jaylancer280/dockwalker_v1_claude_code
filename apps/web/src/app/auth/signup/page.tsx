@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +16,6 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const router = useRouter();
-
   // Poll for confirmed session after signup success
   useEffect(() => {
     if (!success) return;
@@ -29,12 +26,12 @@ export default function SignUpPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        router.push('/onboarding');
+        window.location.href = '/onboarding';
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [success, router]);
+  }, [success]);
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
