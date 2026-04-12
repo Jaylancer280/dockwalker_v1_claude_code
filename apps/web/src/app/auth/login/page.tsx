@@ -18,51 +18,10 @@ export default function LoginPage() {
 }
 
 function LoginContent() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const authError = searchParams.get('error');
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      // Server-side sign-in ensures session cookies are set via Set-Cookie
-      // headers, which the middleware can reliably read. Client-side
-      // signInWithPassword writes cookies via document.cookie, which can
-      // be lost between the browser client and the server middleware.
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const msg = data?.error ?? 'Sign in failed';
-        if (msg.toLowerCase().includes('banned')) {
-          setError(
-            'This account has been deactivated. Contact support if you believe this is an error.',
-          );
-        } else {
-          setError(msg);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Cookies are set by the API response — full page reload picks them up
-      window.location.href = '/onboarding';
-    } catch {
-      setError('Something went wrong. Please try again.');
-      setLoading(false);
-    }
-  }
+  const loginError = searchParams.get('login_error');
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
@@ -91,27 +50,29 @@ function LoginContent() {
             <CardDescription>Enter your email and password to continue</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            {/* Native form POST — server handles auth and redirects with
+                session cookies in the same HTTP response. No JavaScript
+                cookie handling. The browser follows the redirect and the
+                cookies are guaranteed to be set. */}
+            <form
+              method="POST"
+              action="/api/auth/login"
+              onSubmit={() => setLoading(true)}
+              className="flex flex-col gap-4"
+            >
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="crew@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
+                <Input id="password" name="password" type="password" required />
               </div>
               <div className="flex justify-end">
                 <Link
@@ -121,7 +82,7 @@ function LoginContent() {
                   Forgot password?
                 </Link>
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {loginError && <p className="text-sm text-destructive">{loginError}</p>}
               <Button type="submit" disabled={loading} className="w-full">
                 {loading ? 'Signing in...' : 'Sign in'}
               </Button>

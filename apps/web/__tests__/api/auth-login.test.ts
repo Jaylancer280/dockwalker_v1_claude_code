@@ -40,11 +40,12 @@ vi.mock('@supabase/ssr', () => ({
 
 import { POST } from '@/app/api/auth/login/route';
 
-function makeRequest(body: Record<string, unknown>) {
+function makeFormRequest(fields: Record<string, string>) {
+  const formData = new URLSearchParams(fields).toString();
   return new Request('http://localhost:3000/api/auth/login', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formData,
   });
 }
 
@@ -53,42 +54,37 @@ describe('POST /api/auth/login', () => {
     vi.clearAllMocks();
   });
 
-  it('returns 200 and sets cookies on success', async () => {
+  it('redirects to /onboarding with cookies on success', async () => {
     mockSignInWithPassword.mockResolvedValue({ error: null });
-    const res = await POST(makeRequest({ email: 'a@b.com', password: 'pass1234' }));
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.ok).toBe(true);
+    const res = await POST(makeFormRequest({ email: 'a@b.com', password: 'pass1234' }));
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get('location')!).pathname).toBe('/onboarding');
     expect(mockSignInWithPassword).toHaveBeenCalledWith({ email: 'a@b.com', password: 'pass1234' });
-    // Session cookies attached to response
+    // Session cookies attached to redirect response
     const setCookieHeader = res.headers.getSetCookie();
     expect(setCookieHeader.some((c: string) => c.includes('sb-test-auth-token'))).toBe(true);
   });
 
-  it('returns 401 with error message on auth failure', async () => {
+  it('redirects to login with error on auth failure', async () => {
     mockSignInWithPassword.mockResolvedValue({ error: { message: 'Invalid credentials' } });
-    const res = await POST(makeRequest({ email: 'a@b.com', password: 'wrong' }));
-    expect(res.status).toBe(401);
-    const data = await res.json();
-    expect(data.error).toBe('Invalid credentials');
+    const res = await POST(makeFormRequest({ email: 'a@b.com', password: 'wrong' }));
+    expect(res.status).toBe(307);
+    const location = new URL(res.headers.get('location')!);
+    expect(location.pathname).toBe('/auth/login');
+    expect(location.searchParams.get('login_error')).toBe('Invalid credentials');
   });
 
-  it('returns 400 when email is missing', async () => {
-    const res = await POST(makeRequest({ password: 'pass1234' }));
-    expect(res.status).toBe(400);
+  it('shows deactivation message for banned users', async () => {
+    mockSignInWithPassword.mockResolvedValue({ error: { message: 'User is banned' } });
+    const res = await POST(makeFormRequest({ email: 'a@b.com', password: 'pass' }));
+    const location = new URL(res.headers.get('location')!);
+    expect(location.searchParams.get('login_error')).toContain('deactivated');
   });
 
-  it('returns 400 when password is missing', async () => {
-    const res = await POST(makeRequest({ email: 'a@b.com' }));
-    expect(res.status).toBe(400);
-  });
-
-  it('returns 400 for invalid JSON body', async () => {
-    const req = new Request('http://localhost:3000/api/auth/login', {
-      method: 'POST',
-      body: 'not json',
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
+  it('redirects with error when email is missing', async () => {
+    const res = await POST(makeFormRequest({ password: 'pass1234' }));
+    expect(res.status).toBe(307);
+    const location = new URL(res.headers.get('location')!);
+    expect(location.pathname).toBe('/auth/login');
   });
 });

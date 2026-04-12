@@ -3,16 +3,16 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
-  let body: { email?: string; password?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
-  }
+  // Accept native form POST (application/x-www-form-urlencoded)
+  const formData = await request.formData();
+  const email = formData.get('email') as string | null;
+  const password = formData.get('password') as string | null;
+  const origin = new URL(request.url).origin;
 
-  const { email, password } = body;
   if (!email || !password) {
-    return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    return NextResponse.redirect(
+      `${origin}/auth/login?login_error=${encodeURIComponent('Email and password are required')}`,
+    );
   }
 
   const cookieStore = await cookies();
@@ -43,10 +43,16 @@ export async function POST(request: Request) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 401 });
+    const msg = error.message.toLowerCase().includes('banned')
+      ? 'This account has been deactivated. Contact support if you believe this is an error.'
+      : error.message;
+    return NextResponse.redirect(`${origin}/auth/login?login_error=${encodeURIComponent(msg)}`);
   }
 
-  const response = NextResponse.json({ ok: true });
+  // Redirect with session cookies attached — browser follows the redirect
+  // and the cookies are set in the same HTTP response. No JavaScript
+  // cookie handling, no fetch, no window.location.
+  const response = NextResponse.redirect(`${origin}/onboarding`);
   for (const { name, value, options } of pendingCookies) {
     response.cookies.set(name, value, options);
   }

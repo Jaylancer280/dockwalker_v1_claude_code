@@ -15,7 +15,7 @@ vi.mock('next/image', () => ({
 
 import LoginPage from '@/app/auth/login/page';
 
-describe('LoginPage — error query param', () => {
+describe('LoginPage — error display', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -30,16 +30,27 @@ describe('LoginPage — error query param', () => {
   });
 
   it('shows info message when error=auth_failed', () => {
-    mockGet.mockReturnValue('auth_failed');
+    mockGet.mockImplementation((key: string) => (key === 'error' ? 'auth_failed' : null));
     render(<LoginPage />);
 
     expect(screen.getByText(/couldn't verify your email automatically/i)).toBeInTheDocument();
   });
 
-  it('does not show message for other error values', () => {
-    mockGet.mockReturnValue('some_other_error');
+  it('shows login_error from server redirect', () => {
+    mockGet.mockImplementation((key: string) =>
+      key === 'login_error' ? 'Invalid credentials' : null,
+    );
     render(<LoginPage />);
 
-    expect(screen.queryByText(/couldn't verify/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Invalid credentials')).toBeInTheDocument();
+  });
+
+  it('form submits natively to /api/auth/login', () => {
+    mockGet.mockReturnValue(null);
+    render(<LoginPage />);
+
+    const form = screen.getByRole('button', { name: /sign in/i }).closest('form');
+    expect(form).toHaveAttribute('method', 'POST');
+    expect(form).toHaveAttribute('action', '/api/auth/login');
   });
 });
