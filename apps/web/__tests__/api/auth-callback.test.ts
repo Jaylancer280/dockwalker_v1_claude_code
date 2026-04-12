@@ -14,7 +14,7 @@ vi.mock('next/headers', () => ({
 }));
 
 vi.mock('@supabase/ssr', () => ({
-  createServerClient: (_url: string, _key: string, options: { cookies: { setAll: Function } }) => {
+  createServerClient: (_url: string, _key: string, options: { cookies: { setAll: (c: { name: string; value: string; options: Record<string, unknown> }[]) => void } }) => {
     // Simulate Supabase calling setAll when session is established
     return {
       auth: {
