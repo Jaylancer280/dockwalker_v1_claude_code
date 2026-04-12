@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,7 @@ function LoginContent() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const authError = searchParams.get('error');
 
@@ -31,41 +32,22 @@ function LoginContent() {
     setError(null);
     setLoading(true);
 
-    try {
-      const supabase = createClient();
-      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) {
-        // Supabase returns "User is banned" for deactivated accounts
-        if (error.message.toLowerCase().includes('banned')) {
-          setError(
-            'This account has been deactivated. Contact support if you believe this is an error.',
-          );
-        } else {
-          setError(error.message);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Verify session was actually established before navigating
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
+    if (error) {
+      if (error.message.toLowerCase().includes('banned')) {
         setError(
-          `Sign-in succeeded but session was not established. User: ${data.user?.id ?? 'none'}. Check Supabase auth configuration.`,
+          'This account has been deactivated. Contact support if you believe this is an error.',
         );
-        setLoading(false);
-        return;
+      } else {
+        setError(error.message);
       }
-
-      // Full page reload ensures middleware processes fresh session cookies
-      window.location.href = '/onboarding';
-    } catch {
-      setError('Something went wrong. Please try again.');
       setLoading(false);
+      return;
     }
+
+    router.push('/onboarding');
   }
 
   return (

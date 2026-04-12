@@ -1,12 +1,10 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, act, fireEvent } from '@testing-library/react';
 
-// signup uses window.location.href for navigation (not router.push)
-const locationAssignSpy = vi.fn();
-Object.defineProperty(window, 'location', {
-  value: { href: '', assign: locationAssignSpy },
-  writable: true,
-});
+const mockPush = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 const mockGetUser = vi.fn();
 const mockSignUp = vi.fn().mockResolvedValue({ error: null });
@@ -64,7 +62,7 @@ describe('SignUpPage — session polling after success', () => {
       await Promise.resolve();
     });
 
-    expect(window.location.href).not.toBe('/onboarding');
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('redirects to /onboarding when getUser returns a valid user', async () => {
@@ -80,7 +78,7 @@ describe('SignUpPage — session polling after success', () => {
       await Promise.resolve();
     });
 
-    expect(window.location.href).toBe('/onboarding');
+    expect(mockPush).toHaveBeenCalledWith('/onboarding');
   });
 
   it('cleans up interval on unmount', async () => {
