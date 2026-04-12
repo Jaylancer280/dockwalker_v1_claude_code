@@ -6,6 +6,7 @@ export type EventType =
   | 'PERSON.CREATED'
   | 'PERSON.HAT_CHANGED'
   | 'PERSON.DEACTIVATED'
+  | 'PERSON.REACTIVATED'
   | 'PERSON.DATA_SCRUBBED'
   // Profile (person aggregate)
   | 'PROFILE.CREATED'
@@ -99,6 +100,7 @@ export interface EventPayloadMap {
   'PERSON.CREATED': { identity_type: string; current_hat: string };
   'PERSON.HAT_CHANGED': { current_hat: 'crew' | 'employer' };
   'PERSON.DEACTIVATED': Record<string, never>;
+  'PERSON.REACTIVATED': Record<string, never>;
   'PERSON.DATA_SCRUBBED': Record<string, never>;
   'PROFILE.CREATED': {
     display_name: string;

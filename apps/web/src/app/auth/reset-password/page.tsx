@@ -15,6 +15,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [reactivated, setReactivated] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -67,12 +68,30 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    // If the user's account was deactivated, restore it. The recovery session
+    // cookies are sent automatically; the server clears persons.deactivated_at
+    // and lifts the auth ban via the service client.
+    let wasReactivated = false;
+    try {
+      const reactivateRes = await fetch('/api/auth/reactivate', { method: 'POST' });
+      if (reactivateRes.ok) {
+        const text = await reactivateRes.text();
+        const data = text ? JSON.parse(text) : {};
+        wasReactivated = !!data.reactivated;
+      }
+    } catch {
+      // Reactivation is best-effort. If it fails, the user can still sign in
+      // with their new password unless deactivated_at is set — in which case
+      // the login route's defensive check will surface the error.
+    }
+
     // Clear the recovery session locally so stale cookies don't interfere
     // with the subsequent signInWithPassword on the login page.
     // scope: 'local' avoids a network call to Supabase with the recovery
     // token — the server-side session expires on its own.
     await supabase.auth.signOut({ scope: 'local' });
 
+    setReactivated(wasReactivated);
     setSuccess(true);
     setLoading(false);
   }
@@ -136,10 +155,14 @@ export default function ResetPasswordPage() {
 
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-base">Set new password</CardTitle>
+            <CardTitle className="text-base">
+              {success && reactivated ? 'Welcome back' : 'Set new password'}
+            </CardTitle>
             <CardDescription>
               {success
-                ? 'Your password has been updated'
+                ? reactivated
+                  ? 'Your account has been restored and your password updated'
+                  : 'Your password has been updated'
                 : 'Choose a new password for your account'}
             </CardDescription>
           </CardHeader>

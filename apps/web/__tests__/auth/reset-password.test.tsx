@@ -38,6 +38,11 @@ describe('Reset Password page', () => {
       data: { subscription: { unsubscribe: vi.fn() } },
     });
     mockSignOut.mockResolvedValue({ error: null });
+    // Default fetch mock — reactivate returns no-op (account was active)
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(JSON.stringify({ reactivated: false })),
+    }) as unknown as typeof fetch;
   });
 
   it('renders password and confirm password fields', async () => {
@@ -99,7 +104,52 @@ describe('Reset Password page', () => {
 
     await waitFor(() => {
       expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'newpassword123' });
+      expect(global.fetch).toHaveBeenCalledWith('/api/auth/reactivate', { method: 'POST' });
       expect(mockSignOut).toHaveBeenCalledWith({ scope: 'local' });
+      expect(screen.getByText(/sign in with your new password/i)).toBeDefined();
+    });
+  });
+
+  it('shows "Welcome back" when reactivate returns reactivated: true', async () => {
+    mockUpdateUser.mockResolvedValue({ error: null });
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(JSON.stringify({ reactivated: true })),
+    }) as unknown as typeof fetch;
+
+    render(<ResetPasswordPage />);
+    await waitFor(() => screen.getByTestId('new-password'));
+
+    fireEvent.change(screen.getByTestId('new-password'), {
+      target: { value: 'newpassword123' },
+    });
+    fireEvent.change(screen.getByTestId('confirm-password'), {
+      target: { value: 'newpassword123' },
+    });
+    fireEvent.submit(screen.getByRole('button', { name: 'Update password' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome back')).toBeDefined();
+      expect(screen.getByText(/account has been restored/i)).toBeDefined();
+    });
+  });
+
+  it('still shows success when reactivate fetch fails', async () => {
+    mockUpdateUser.mockResolvedValue({ error: null });
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error')) as unknown as typeof fetch;
+
+    render(<ResetPasswordPage />);
+    await waitFor(() => screen.getByTestId('new-password'));
+
+    fireEvent.change(screen.getByTestId('new-password'), {
+      target: { value: 'newpassword123' },
+    });
+    fireEvent.change(screen.getByTestId('confirm-password'), {
+      target: { value: 'newpassword123' },
+    });
+    fireEvent.submit(screen.getByRole('button', { name: 'Update password' }));
+
+    await waitFor(() => {
       expect(screen.getByText(/sign in with your new password/i)).toBeDefined();
     });
   });

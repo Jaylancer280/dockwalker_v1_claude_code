@@ -122,6 +122,7 @@ The app depends on these Postgres functions in the `public` schema:
 | Permanent Postings RLS Engaged                | 00093     | Permanent postings SELECT RLS: allow crew/employer with `active_engagements` referencing the posting to read it regardless of posting status                                                                                                                                                      |
 | Fix Deactivation Hat Constraint               | 00094     | PERSON.DEACTIVATED handler: set `deactivated_at=now()` instead of `current_hat='deactivated'` (violated CHECK constraint)                                                                                                                                                                         |
 | Admin Delete Person                           | 00095     | `admin_delete_person(uuid)` security definer RPC — deletes all child rows in FK dependency order then persons row. Service-role only. Enables test user cleanup from Supabase dashboard.                                                                                                          |
+| `apply_projection` (PERSON.REACTIVATED)       | 00096     | Inverse of `PERSON.DEACTIVATED`. Clears `persons.deactivated_at`. Used by reset-to-reactivate flow (`POST /api/auth/reactivate`) within the 30-day retention window.                                                                                                                              |
 
 ## Daywork Status Lifecycle
 

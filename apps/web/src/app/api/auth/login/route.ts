@@ -1,10 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { createChunks, stringToBase64URL, DEFAULT_COOKIE_OPTIONS } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
+import { createServiceClient } from '@/lib/supabase/server';
 
 // @supabase/ssr serializes sessions to cookies with this prefix when
 // cookieEncoding is 'base64url' (the default for createServerClient).
 const BASE64_PREFIX = 'base64-';
+
+const DEACTIVATED_MESSAGE =
+  'This account has been deactivated. You can restore it within 30 days by resetting your password.';
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -38,13 +42,32 @@ export async function POST(request: Request) {
 
   if (error || !data.session) {
     const msg = error?.message || 'Sign in failed';
-    const friendlyMsg = msg.toLowerCase().includes('banned')
-      ? 'This account has been deactivated. Contact support if you believe this is an error.'
-      : msg;
+    const friendlyMsg = msg.toLowerCase().includes('banned') ? DEACTIVATED_MESSAGE : msg;
     return NextResponse.redirect(
       `${origin}/auth/login?login_error=${encodeURIComponent(friendlyMsg)}`,
       303,
     );
+  }
+
+  // Defensive: catch the zombie state where auth ban was lifted but
+  // persons.deactivated_at is still set. The middleware would otherwise
+  // bounce the user without explanation.
+  try {
+    const serviceClient = await createServiceClient();
+    const { data: person } = await serviceClient
+      .from('persons')
+      .select('deactivated_at')
+      .eq('id', data.session.user.id)
+      .single();
+    if (person?.deactivated_at) {
+      return NextResponse.redirect(
+        `${origin}/auth/login?login_error=${encodeURIComponent(DEACTIVATED_MESSAGE)}`,
+        303,
+      );
+    }
+  } catch {
+    // If the check fails, allow login to proceed — the middleware's
+    // deactivated check will catch it on the next request.
   }
 
   // Manually serialize the session into the exact cookie format that

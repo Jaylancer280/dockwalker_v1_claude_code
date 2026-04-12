@@ -1,12 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockSignInWithPassword = vi.fn();
+const mockServicePersonsSelect = vi.fn();
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({
     auth: {
       signInWithPassword: mockSignInWithPassword,
     },
+  }),
+}));
+
+vi.mock('@/lib/supabase/server', () => ({
+  createServiceClient: async () => ({
+    from: (_table: string) => ({
+      select: () => ({
+        eq: () => ({
+          single: () => Promise.resolve(mockServicePersonsSelect()),
+        }),
+      }),
+    }),
   }),
 }));
 
@@ -39,6 +52,8 @@ beforeEach(() => {
   // Set required env vars
   process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://abcdef.supabase.co';
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'anon-key';
+  // Default: persons row not deactivated
+  mockServicePersonsSelect.mockReturnValue({ data: { deactivated_at: null }, error: null });
 });
 
 describe('POST /api/auth/login', () => {
@@ -82,6 +97,21 @@ describe('POST /api/auth/login', () => {
 
     const res = await POST(makeFormRequest({ email: 'a@b.com', password: 'pass' }));
     const location = new URL(res.headers.get('location')!);
+    expect(location.searchParams.get('login_error')).toContain('deactivated');
+    expect(location.searchParams.get('login_error')).toContain('resetting your password');
+  });
+
+  it('blocks login when persons.deactivated_at is set (zombie state)', async () => {
+    mockSignInWithPassword.mockResolvedValue({ data: { session: FAKE_SESSION }, error: null });
+    mockServicePersonsSelect.mockReturnValue({
+      data: { deactivated_at: '2026-04-01T00:00:00Z' },
+      error: null,
+    });
+
+    const res = await POST(makeFormRequest({ email: 'a@b.com', password: 'pass1234' }));
+    expect(res.status).toBe(303);
+    const location = new URL(res.headers.get('location')!);
+    expect(location.pathname).toBe('/auth/login');
     expect(location.searchParams.get('login_error')).toContain('deactivated');
   });
 
