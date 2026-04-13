@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, CreditCard, LogOut, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { createClient } from '@/lib/supabase/client';
@@ -184,24 +185,21 @@ export function AccountSection({ email }: AccountSectionProps) {
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label>Current password</Label>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>New password</Label>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label>Confirm new password</Label>
-                <Input
-                  type="password"
+                <PasswordInput
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                 />
