@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
-const TABLES = [
+const CANONICAL_TABLES = [
   'regions',
   'cities',
   'ports',
@@ -17,7 +17,8 @@ const TABLES = [
   'vessel_size_bands',
 ] as const;
 
-type TableName = (typeof TABLES)[number];
+type CanonicalTable = (typeof CANONICAL_TABLES)[number];
+type ActiveTab = CanonicalTable | 'vessels';
 
 interface Row {
   id: string;
@@ -26,22 +27,115 @@ interface Row {
   [key: string]: unknown;
 }
 
+interface VesselRow {
+  id: string;
+  imo_number: string;
+  name: string;
+  vessel_type: string;
+  loa_meters: number | null;
+  nda_flag: boolean;
+  owner_name: string;
+  created_at: string;
+}
+
+function VesselsTab() {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  const params = new URLSearchParams({ page: String(page) });
+  if (search) params.set('search', search);
+
+  const { data, isLoading } = useSafeFetch<{ vessels: VesselRow[]; total: number }>(
+    `/api/admin/vessels?${params}`,
+  );
+
+  const vessels = data?.vessels ?? [];
+  const total = data?.total ?? 0;
+
+  return (
+    <>
+      <Input
+        placeholder="Search by name or IMO..."
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+        className="mb-4 max-w-sm"
+      />
+      {isLoading ? (
+        <p className="text-muted-foreground">Loading...</p>
+      ) : (
+        <>
+          <p className="mb-2 text-sm text-muted-foreground">{total} vessels</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="pb-2">Name</th>
+                <th className="pb-2">IMO</th>
+                <th className="pb-2">Type</th>
+                <th className="pb-2">LOA</th>
+                <th className="pb-2">NDA</th>
+                <th className="pb-2">Owner</th>
+                <th className="pb-2">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vessels.map((v) => (
+                <tr key={v.id} className="border-b">
+                  <td className="py-2">{v.name}</td>
+                  <td className="py-2 font-mono text-xs">{v.imo_number}</td>
+                  <td className="py-2">{v.vessel_type === 'motor' ? 'M/Y' : 'S/Y'}</td>
+                  <td className="py-2">{v.loa_meters ? `${v.loa_meters}m` : '—'}</td>
+                  <td className="py-2">{v.nda_flag ? 'Yes' : '—'}</td>
+                  <td className="py-2">{v.owner_name}</td>
+                  <td className="py-2">{new Date(v.created_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="px-2 py-1 text-sm text-muted-foreground">Page {page}</span>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={vessels.length < 50}
+              className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 export default function AdminCanonicalPage() {
   const { showSuccess, showError } = useToast();
-  const [activeTable, setActiveTable] = useState<TableName>('yacht_roles');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('yacht_roles');
   const [newLabel, setNewLabel] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
 
+  const isVessels = activeTab === 'vessels';
+  const canonicalTable = isVessels ? null : activeTab;
+
   const { data, isLoading, mutate } = useSafeFetch<{ rows: Row[] }>(
-    `/api/admin/canonical/${activeTable}`,
+    canonicalTable ? `/api/admin/canonical/${canonicalTable}` : null,
   );
 
   const rows = data?.rows ?? [];
 
   async function handleAdd() {
-    if (!newLabel.trim()) return;
-    const res = await safeFetch(`/api/admin/canonical/${activeTable}`, {
+    if (!newLabel.trim() || !canonicalTable) return;
+    const res = await safeFetch(`/api/admin/canonical/${canonicalTable}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ label: newLabel.trim() }),
@@ -56,8 +150,8 @@ export default function AdminCanonicalPage() {
   }
 
   async function handleEdit(id: string) {
-    if (!editLabel.trim()) return;
-    const res = await safeFetch(`/api/admin/canonical/${activeTable}`, {
+    if (!editLabel.trim() || !canonicalTable) return;
+    const res = await safeFetch(`/api/admin/canonical/${canonicalTable}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, label: editLabel.trim() }),
@@ -75,31 +169,39 @@ export default function AdminCanonicalPage() {
     return row.label ?? row.name ?? row.id;
   }
 
+  const allTabs: { key: ActiveTab; label: string }[] = [
+    ...CANONICAL_TABLES.map((t) => ({ key: t as ActiveTab, label: t.replace(/_/g, ' ') })),
+    { key: 'vessels', label: 'vessels' },
+  ];
+
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">Canonical Data</h1>
       <div className="mb-4 flex flex-wrap gap-2">
-        {TABLES.map((t) => (
+        {allTabs.map((t) => (
           <button
-            key={t}
+            key={t.key}
             onClick={() => {
-              setActiveTable(t);
+              setActiveTab(t.key);
               setEditId(null);
               setNewLabel('');
             }}
-            className={`rounded border px-3 py-1 text-sm ${activeTable === t ? 'bg-primary text-primary-foreground' : ''}`}
+            className={`rounded border px-3 py-1 text-sm ${activeTab === t.key ? 'bg-primary text-primary-foreground' : ''}`}
           >
-            {t.replace(/_/g, ' ')}
+            {t.label}
           </button>
         ))}
       </div>
-      {isLoading ? (
+
+      {isVessels ? (
+        <VesselsTab />
+      ) : isLoading ? (
         <p className="text-muted-foreground">Loading...</p>
       ) : (
         <>
           <div className="mb-4 flex gap-2">
             <Input
-              placeholder={`New ${activeTable.replace(/_/g, ' ')} label...`}
+              placeholder={`New ${activeTab.replace(/_/g, ' ')} label...`}
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               className="max-w-sm"

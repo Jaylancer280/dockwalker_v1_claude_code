@@ -8,10 +8,17 @@ vi.mock('@/lib/auth/require-admin', () => ({
   requireAdmin: () => mockRequireAdmin(),
 }));
 
-const mockAppendEvents = vi.fn().mockResolvedValue(['evt-1']);
+const mockCascadeBlock = vi.fn().mockResolvedValue({
+  engagements_cancelled: 0,
+  postings_hidden: 0,
+  availability_cleared: false,
+});
+vi.mock('@/lib/admin/cascade-block', () => ({
+  cascadeBlock: (...args: unknown[]) => mockCascadeBlock(...args),
+}));
+
 const mockAppendEvent = vi.fn().mockResolvedValue('evt-1');
 vi.mock('@dockwalker/db', () => ({
-  appendEvents: (...args: unknown[]) => mockAppendEvents(...args),
   appendEvent: (...args: unknown[]) => mockAppendEvent(...args),
 }));
 
@@ -130,56 +137,13 @@ describe('POST /api/admin/users/:personId/block', () => {
 
   it('blocks user and returns cascade summary', async () => {
     mockRequireAdmin.mockResolvedValue(adminOk());
-
-    function emptyChain() {
-      const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-      const resolved = Promise.resolve({ data: [], error: null });
-      chain.select = vi.fn().mockReturnValue(chain);
-      chain.or = vi.fn().mockReturnValue(chain);
-      chain.eq = vi.fn().mockReturnValue(chain);
-      chain.in = vi.fn().mockReturnValue(chain);
-      chain.gt = vi.fn().mockReturnValue(chain);
-      chain.limit = vi.fn().mockReturnValue(resolved);
-      chain.then = vi.fn((fn) => resolved.then(fn));
-      return chain;
-    }
-
-    let callCount = 0;
-    mockServiceFrom.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        return {
-          select: vi.fn().mockReturnThis(),
-          eq: vi.fn().mockReturnThis(),
-          single: vi.fn().mockResolvedValue({
-            data: { id: 'target-1', is_admin: false, blocked_at: null },
-            error: null,
-          }),
-        };
-      }
-      return emptyChain();
-    });
-
-    // Mock the application withdrawal + notification clear (chained after appendEvents)
-    const updateChain = {
-      update: vi.fn().mockReturnThis(),
+    mockServiceFrom.mockReturnValue({
+      select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      in: vi.fn().mockResolvedValue({ error: null }),
-      delete: vi.fn().mockReturnThis(),
-    };
-    // These calls happen after appendEvents — override for those calls
-    const origImpl = mockServiceFrom.getMockImplementation()!;
-    let postAppendCount = 0;
-    mockAppendEvents.mockImplementation(async () => {
-      // After appendEvents resolves, subsequent from() calls are for withdrawal/notification
-      const prevImpl = mockServiceFrom.getMockImplementation()!;
-      mockServiceFrom.mockImplementation(() => {
-        postAppendCount++;
-        return updateChain;
-      });
-      // Restore after a tick
-      setTimeout(() => mockServiceFrom.mockImplementation(prevImpl), 0);
-      return ['evt-1'];
+      single: vi.fn().mockResolvedValue({
+        data: { id: 'target-1', is_admin: false, blocked_at: null },
+        error: null,
+      }),
     });
 
     const res = await blockUser(
@@ -189,6 +153,12 @@ describe('POST /api/admin/users/:personId/block', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.success).toBe(true);
+    expect(mockCascadeBlock).toHaveBeenCalledWith(
+      expect.anything(),
+      'target-1',
+      'admin-1',
+      { reasonCategory: 'harassment', reasonText: 'Abusive messages' },
+    );
   });
 });
 

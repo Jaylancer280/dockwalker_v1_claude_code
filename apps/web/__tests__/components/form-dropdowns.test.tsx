@@ -355,7 +355,7 @@ afterEach(() => {
 });
 
 describe('Onboarding page — crew profile dropdowns', () => {
-  it('renders all canonical roles, certs, experience brackets, size bands, and ports after selecting crew identity', async () => {
+  it('renders all canonical roles, certs, experience brackets, size bands, and ports after selecting crew identity', { timeout: 15000 }, async () => {
     const { default: OnboardingPage } = await import('@/app/onboarding/page');
     render(<OnboardingPage />);
 

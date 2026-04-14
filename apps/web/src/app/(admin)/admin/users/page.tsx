@@ -10,10 +10,12 @@ interface UserRow {
   person_id: string;
   display_name: string;
   identity_type: string;
+  email: string | null;
   persons: {
     current_hat: string;
     is_admin: boolean;
     blocked_at: string | null;
+    deactivated_at: string | null;
     last_event_at: string | null;
   };
   created_at: string;
@@ -33,10 +35,22 @@ export default function AdminUsersPage() {
   const users = data?.users ?? [];
   const total = data?.total ?? 0;
 
-  function statusBadge(user: UserRow) {
-    if (user.persons?.blocked_at) return <Badge variant="destructive">Blocked</Badge>;
-    if (user.persons?.is_admin) return <Badge>Admin</Badge>;
-    return null;
+  function statusBadges(user: UserRow) {
+    const badges = [];
+    if (user.persons?.blocked_at)
+      badges.push(
+        <Badge key="b" variant="destructive">
+          Blocked
+        </Badge>,
+      );
+    if (user.persons?.deactivated_at)
+      badges.push(
+        <Badge key="d" variant="secondary">
+          Deleted
+        </Badge>,
+      );
+    if (user.persons?.is_admin) badges.push(<Badge key="a">Admin</Badge>);
+    return badges.length > 0 ? <div className="flex gap-1">{badges}</div> : null;
   }
 
   return (
@@ -60,6 +74,7 @@ export default function AdminUsersPage() {
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="pb-2">Name</th>
+                <th className="pb-2">Email</th>
                 <th className="pb-2">Type</th>
                 <th className="pb-2">Hat</th>
                 <th className="pb-2">Created</th>
@@ -75,6 +90,7 @@ export default function AdminUsersPage() {
                       {u.display_name}
                     </Link>
                   </td>
+                  <td className="py-2 text-muted-foreground">{u.email ?? '—'}</td>
                   <td className="py-2">{u.identity_type}</td>
                   <td className="py-2">{u.persons?.current_hat}</td>
                   <td className="py-2">
@@ -85,7 +101,7 @@ export default function AdminUsersPage() {
                       ? new Date(u.persons.last_event_at).toLocaleDateString()
                       : '—'}
                   </td>
-                  <td className="py-2">{statusBadge(u)}</td>
+                  <td className="py-2">{statusBadges(u)}</td>
                 </tr>
               ))}
             </tbody>

@@ -134,6 +134,13 @@ export default function SettingsPage() {
           onCurrencyPrefChange={handleCurrencyPref}
         />
 
+        <section className="rounded-lg border p-4">
+          <h2 className="mb-2 font-semibold">Help & Support</h2>
+          <a href="/support" className="text-sm text-primary underline">
+            Contact DockWalker
+          </a>
+        </section>
+
         <DangerZoneSection />
       </div>
     </main>

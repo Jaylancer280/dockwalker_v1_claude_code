@@ -68,6 +68,8 @@ export type EventType =
   | 'ADMIN.USER_UNBLOCKED'
   | 'ADMIN.ENGAGEMENT_CANCELLED'
   | 'ADMIN.POSTING_HIDDEN'
+  | 'SUPPORT.THREAD_OPENED'
+  | 'SUPPORT.MESSAGE_SENT'
   // Permanent aggregate
   | 'PERMANENT.POSTED'
   | 'PERMANENT.APPLIED'
@@ -82,7 +84,7 @@ export type EventType =
   | 'PERMANENT.ENGAGEMENT_CLOSED';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin' | 'permanent';
+export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin' | 'permanent' | 'support';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -438,6 +440,18 @@ export interface EventPayloadMap {
     posting_type: 'daywork' | 'permanent';
     reason: string;
     admin_person_id: string;
+  };
+  'SUPPORT.THREAD_OPENED': {
+    thread_id: string;
+    person_id: string;
+    subject?: string;
+    is_admin_initiated: boolean;
+  };
+  'SUPPORT.MESSAGE_SENT': {
+    message_id: string;
+    thread_id: string;
+    sender_person_id: string;
+    is_platform: boolean;
   };
   'PERMANENT.POSTED': {
     id: string;

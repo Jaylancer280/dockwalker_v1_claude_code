@@ -12,6 +12,15 @@ vi.mock('@dockwalker/db', () => ({
   appendEvents: (...args: unknown[]) => mockAppendEvents(...args),
 }));
 
+const mockCascadeBlock = vi.fn().mockResolvedValue({
+  engagements_cancelled: 0,
+  postings_hidden: 0,
+  availability_cleared: false,
+});
+vi.mock('@/lib/admin/cascade-block', () => ({
+  cascadeBlock: (...args: unknown[]) => mockCascadeBlock(...args),
+}));
+
 const mockFrom = vi.fn();
 const mockUpdateUserById = vi.fn();
 
@@ -83,12 +92,12 @@ describe('DELETE /api/admin/users/:personId (scrub + ban)', () => {
     expect(body.error).toContain('admin account');
   });
 
-  it('scrubs user and bans auth row on success', async () => {
+  it('scrubs user, cascades block, and bans auth row on success', async () => {
     mockRequireAdmin.mockResolvedValue(adminOk());
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: false } }),
+          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: false, blocked_at: null } }),
         }),
       }),
     });
@@ -97,14 +106,14 @@ describe('DELETE /api/admin/users/:personId (scrub + ban)', () => {
     const res = await DELETE(new Request('http://localhost'), makeParams('u1'));
     expect(res.status).toBe(200);
 
-    // Emits PERSON.DATA_SCRUBBED + PERSON.DEACTIVATED via appendEvents
+    expect(mockCascadeBlock).toHaveBeenCalledWith(
+      expect.anything(), 'u1', 'admin-1',
+      { reasonText: 'Account deleted by DockWalker' },
+    );
     expect(mockAppendEvents).toHaveBeenCalledTimes(1);
     const events = mockAppendEvents.mock.calls[0][1];
-    expect(events).toHaveLength(2);
     expect(events[0].eventType).toBe('PERSON.DATA_SCRUBBED');
     expect(events[1].eventType).toBe('PERSON.DEACTIVATED');
-
-    // Bans auth row (not hard-delete)
     expect(mockUpdateUserById).toHaveBeenCalledWith('u1', { ban_duration: '876000h' });
   });
 
@@ -113,7 +122,7 @@ describe('DELETE /api/admin/users/:personId (scrub + ban)', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: false } }),
+          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: false, blocked_at: null } }),
         }),
       }),
     });

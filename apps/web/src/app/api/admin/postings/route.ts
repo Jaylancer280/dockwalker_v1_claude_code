@@ -14,22 +14,25 @@ export async function GET(request: Request) {
   const offset = (page - 1) * perPage;
 
   try {
-    const results: {
+    interface PostingResult {
       type: string;
       id: string;
       status: string;
       role_id: string;
       port_id: string;
+      start_date: string;
       created_at: string;
+      poster_person_id: string;
       poster_name: string;
-    }[] = [];
+    }
+
+    const results: PostingResult[] = [];
 
     if (!type || type === 'daywork') {
       let dwQuery = serviceClient
         .from('dayworks')
         .select(
-          'id, status, role_id, location_port_id, start_date, end_date, created_at, positions_available, positions_filled, poster:profiles!dayworks_poster_person_id_fkey(display_name)',
-          { count: 'exact' },
+          'id, status, role_id, location_port_id, start_date, end_date, created_at, poster_person_id, positions_available, positions_filled',
         )
         .order('created_at', { ascending: false })
         .range(offset, offset + perPage - 1);
@@ -44,9 +47,10 @@ export async function GET(request: Request) {
           status: d.status,
           role_id: d.role_id,
           port_id: d.location_port_id,
+          start_date: d.start_date,
           created_at: d.created_at,
-          poster_name:
-            (d.poster as unknown as { display_name: string } | null)?.display_name ?? 'Unknown',
+          poster_person_id: d.poster_person_id,
+          poster_name: '',
         });
       }
     }
@@ -55,8 +59,7 @@ export async function GET(request: Request) {
       let pmQuery = serviceClient
         .from('permanent_postings')
         .select(
-          'id, status, role_id, port_id, start_date, created_at, positions_available, poster:profiles!permanent_postings_employer_person_id_fkey(display_name)',
-          { count: 'exact' },
+          'id, status, role_id, port_id, start_date, created_at, employer_person_id, positions_available',
         )
         .order('created_at', { ascending: false })
         .range(offset, offset + perPage - 1);
@@ -71,10 +74,23 @@ export async function GET(request: Request) {
           status: p.status,
           role_id: p.role_id,
           port_id: p.port_id,
+          start_date: p.start_date,
           created_at: p.created_at,
-          poster_name:
-            (p.poster as unknown as { display_name: string } | null)?.display_name ?? 'Unknown',
+          poster_person_id: p.employer_person_id,
+          poster_name: '',
         });
+      }
+    }
+
+    const posterIds = [...new Set(results.map((r) => r.poster_person_id))];
+    if (posterIds.length > 0) {
+      const { data: profiles } = await serviceClient
+        .from('profiles')
+        .select('person_id, display_name')
+        .in('person_id', posterIds);
+      const nameMap = new Map((profiles ?? []).map((p) => [p.person_id, p.display_name]));
+      for (const r of results) {
+        r.poster_name = nameMap.get(r.poster_person_id) ?? 'Unknown';
       }
     }
 

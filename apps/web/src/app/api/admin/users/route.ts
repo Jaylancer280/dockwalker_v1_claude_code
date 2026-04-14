@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     let query = serviceClient
       .from('profiles')
       .select(
-        'person_id, display_name, identity_type, location_port_id, created_at, persons!inner(current_hat, is_admin, blocked_at, last_event_at)',
+        'person_id, display_name, identity_type, location_port_id, created_at, persons!inner(current_hat, is_admin, blocked_at, deactivated_at, last_event_at)',
         { count: 'exact' },
       )
       .order('created_at', { ascending: false })
@@ -40,8 +40,31 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const rows = data ?? [];
+    const personIds = rows.map((r) => r.person_id);
+    const emailMap = new Map<string, string>();
+
+    if (personIds.length > 0) {
+      const { data: authData } = await serviceClient.auth.admin.listUsers({
+        page: 1,
+        perPage: personIds.length,
+      });
+      if (authData?.users) {
+        for (const u of authData.users) {
+          if (u.email && personIds.includes(u.id)) {
+            emailMap.set(u.id, u.email);
+          }
+        }
+      }
+    }
+
+    const users = rows.map((r) => ({
+      ...r,
+      email: emailMap.get(r.person_id) ?? null,
+    }));
+
     return NextResponse.json({
-      users: data ?? [],
+      users,
       total: count ?? 0,
       page,
       perPage,

@@ -126,6 +126,7 @@ export async function updateSession(request: NextRequest) {
     !isPublicRoute &&
     !isLandingPage &&
     !path.startsWith('/blocked') &&
+    !path.startsWith('/support') &&
     appMeta?.person_id
   ) {
     const blockedCheck = await supabase

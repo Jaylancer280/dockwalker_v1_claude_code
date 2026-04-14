@@ -185,7 +185,7 @@
 
 ## Current Schema Version
 
-v97 — Admin blocking + last_event_at tracking (97 migrations applied)
+v98 — Support channel tables + audit handlers (98 migrations applied)
 
 ## Migrations Applied
 
@@ -288,6 +288,7 @@ v97 — Admin blocking + last_event_at tracking (97 migrations applied)
 | `00095_admin_delete_person.sql` | `admin_delete_person(uuid)` RPC — deletes all child rows in FK dependency order then persons row, enabling test user cleanup from Supabase dashboard |
 | `00096_person_reactivated.sql` | `PERSON.REACTIVATED` handler in apply_projection — clears `deactivated_at`. Inverse of `PERSON.DEACTIVATED`. Used by reset-to-reactivate flow within retention window. |
 | `00097_admin_blocking.sql` | Admin blocking infrastructure — `blocked_at` + `last_event_at` on persons, `cancelled_by` CHECK extended with `'admin'`, 4 new handlers (USER_BLOCKED, USER_UNBLOCKED, ENGAGEMENT_CANCELLED, POSTING_HIDDEN), `last_event_at` tracking on every event, backfill. |
+| `00098_support_channel.sql` | Support channel — `support_threads` + `support_messages` tables with RLS, Realtime publication, `aggregate_type` CHECK extended with `'support'`, 2 audit no-op handlers (SUPPORT.THREAD_OPENED, SUPPORT.MESSAGE_SENT). |
 
 ## Deferred Decisions
 

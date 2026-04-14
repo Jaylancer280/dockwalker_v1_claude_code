@@ -8,6 +8,7 @@ const NAV_ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/engagements', label: 'Engagements' },
   { href: '/admin/postings', label: 'Postings' },
+  { href: '/admin/support', label: 'Support' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/canonical', label: 'Canonical' },
 ];

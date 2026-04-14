@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvents, type AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
+import { cascadeBlock } from '@/lib/admin/cascade-block';
 
 /**
  * DELETE /api/admin/users/:personId
@@ -24,7 +25,7 @@ export async function DELETE(
   try {
     const { data: target } = await serviceClient
       .from('persons')
-      .select('id, is_admin')
+      .select('id, is_admin, blocked_at')
       .eq('id', personId)
       .single();
 
@@ -34,6 +35,12 @@ export async function DELETE(
 
     if (target.is_admin) {
       return NextResponse.json({ error: 'Cannot delete an admin account' }, { status: 400 });
+    }
+
+    if (!target.blocked_at) {
+      await cascadeBlock(serviceClient, personId, adminPerson.id, {
+        reasonText: 'Account deleted by DockWalker',
+      });
     }
 
     const events: AppendEventParams<keyof EventPayloadMap>[] = [

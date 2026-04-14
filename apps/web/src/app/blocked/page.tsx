@@ -8,11 +8,17 @@ export default function BlockedPage() {
           discuss your account, please contact support.
         </p>
         <a
-          href="mailto:support@dockwalker.com"
+          href="/support"
           className="mt-6 inline-block rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground"
         >
           Contact Support
         </a>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Or email{' '}
+          <a href="mailto:support@dockwalker.com" className="underline">
+            support@dockwalker.com
+          </a>
+        </p>
       </div>
     </div>
   );

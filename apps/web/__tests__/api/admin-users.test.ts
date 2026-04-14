@@ -17,7 +17,16 @@ function adminOk() {
       person: { id: 'admin-1', identity_type: 'crew', current_hat: 'employer', is_admin: true },
       profile: { person_id: 'admin-1' },
       supabase: { from: vi.fn() },
-      serviceClient: { from: mockServiceFrom },
+      serviceClient: {
+        from: mockServiceFrom,
+        auth: {
+          admin: {
+            listUsers: vi.fn().mockResolvedValue({
+              data: { users: [{ id: 'u1', email: 'alice@test.com' }] },
+            }),
+          },
+        },
+      },
     },
   };
 }
