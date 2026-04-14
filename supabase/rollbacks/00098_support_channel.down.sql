@@ -1,7 +1,10 @@
 -- Rollback 00098: Remove support channel tables and revert to 00097 apply_projection
 
 -- 1. Remove from Realtime
-alter publication supabase_realtime drop table if exists public.support_messages;
+do $$ begin
+  alter publication supabase_realtime drop table public.support_messages;
+exception when undefined_object then null;
+end $$;
 
 -- 2. Drop tables (messages first due to FK cascade)
 drop table if exists public.support_messages;
