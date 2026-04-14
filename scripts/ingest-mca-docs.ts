@@ -63,9 +63,8 @@ function estimateTokens(text: string): number {
 
 function deriveDocumentName(filename: string): string {
   return basename(filename, '.pdf')
-    .replace(/-/g, ' ')
+    .replace(/[-_]/g, ' ')
     .replace(/\s+/g, ' ')
-    .replace(/^GOV /, 'GOV-')
     .trim();
 }
 
