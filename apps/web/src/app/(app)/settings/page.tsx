@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
@@ -136,9 +137,9 @@ export default function SettingsPage() {
 
         <section className="rounded-lg border p-4">
           <h2 className="mb-2 font-semibold">Help & Support</h2>
-          <a href="/support" className="text-sm text-primary underline">
+          <Link href="/support" className="text-sm text-primary underline">
             Contact DockWalker
-          </a>
+          </Link>
         </section>
 
         <DangerZoneSection />
