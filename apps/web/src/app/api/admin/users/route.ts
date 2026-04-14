@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     let query = serviceClient
       .from('profiles')
       .select(
-        'person_id, display_name, identity_type, location_port_id, created_at, persons!inner(current_hat, is_admin)',
+        'person_id, display_name, identity_type, location_port_id, created_at, persons!inner(current_hat, is_admin, blocked_at, last_event_at)',
         { count: 'exact' },
       )
       .order('created_at', { ascending: false })

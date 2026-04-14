@@ -64,6 +64,10 @@ export type EventType =
   | 'ADMIN.ENGAGEMENT_COMPLETED'
   | 'ADMIN.CANONICAL_ADDED'
   | 'ADMIN.CANONICAL_UPDATED'
+  | 'ADMIN.USER_BLOCKED'
+  | 'ADMIN.USER_UNBLOCKED'
+  | 'ADMIN.ENGAGEMENT_CANCELLED'
+  | 'ADMIN.POSTING_HIDDEN'
   // Permanent aggregate
   | 'PERMANENT.POSTED'
   | 'PERMANENT.APPLIED'
@@ -407,6 +411,32 @@ export interface EventPayloadMap {
     table: string;
     record_id: string;
     fields: Record<string, unknown>;
+    admin_person_id: string;
+  };
+  'ADMIN.USER_BLOCKED': {
+    person_id: string;
+    reason_category: string;
+    reason_text: string;
+    admin_person_id: string;
+  };
+  'ADMIN.USER_UNBLOCKED': {
+    person_id: string;
+    reason_text: string;
+    admin_person_id: string;
+  };
+  'ADMIN.ENGAGEMENT_CANCELLED': {
+    engagement_id: string;
+    posting_type: 'daywork' | 'permanent';
+    daywork_id?: string;
+    permanent_posting_id?: string;
+    reason_category: string;
+    reason_text: string;
+    admin_person_id: string;
+  };
+  'ADMIN.POSTING_HIDDEN': {
+    posting_id: string;
+    posting_type: 'daywork' | 'permanent';
+    reason: string;
     admin_person_id: string;
   };
   'PERMANENT.POSTED': {

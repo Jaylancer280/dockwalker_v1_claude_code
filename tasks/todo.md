@@ -5,30 +5,43 @@
 
 ## Current Task
 
-### CRITICAL: Password reset broken + Account deletion incomplete
+### Admin Launch Dashboard — Phase 2: Dashboard UI
 
-**Done condition:** Password reset flow works end-to-end. Deleted users cannot sign in. Test users can be fully removed via admin RPC.
+**Spec:** `tasks/admin-launch-dashboard.md`
+**Isolation:** Zero contamination to existing app. See spec §Isolation Decisions.
 
-#### Password reset fix
+#### Phase 0 — Fix admin auth (code-only)
 
-- [x] Update `/auth/callback/route.ts` — handle both `code` (PKCE) and `token_hash`+`type` (fallback) flows
-- [x] Update `/auth/reset-password/page.tsx` — use `onAuthStateChange` to detect `PASSWORD_RECOVERY` event instead of relying solely on `getSession()`
-- [x] Update login page — show clear message for banned/deactivated users instead of raw Supabase error
+- [x] Rewrite `apps/web/src/lib/auth/require-admin.ts` — DB-check `is_admin` instead of trusting fast path
+- [x] Add proxy guard in `apps/web/src/lib/supabase/middleware.ts` — redirect non-admins from `/admin/*`
+- [x] Tests: admin routes 200 for admin, 403 for non-admin (existing 17 tests pass)
 
-#### Account deletion hardening
+#### Phase 1 — Blocking + user deletion fix
 
-- [x] Make ban failure a hard error in `/api/account/deactivate/route.ts` — if ban fails, return 500 (not silent success)
-- [x] Fix middleware — check deactivated on `/onboarding` path too (currently skipped, creates redirect loop)
+**Migration:**
 
-#### Admin user cleanup (FK constraint fix)
+- [x] Write migration 00097: `blocked_at` + `last_event_at` columns, `cancelled_by` CHECK, 4 new handlers, `last_event_at` write, backfill (63 handlers total)
+- [x] Write rollback (59 handlers, self-contained)
+- [x] `npx supabase db push` — applied successfully
 
-- [x] Add migration with `admin_delete_person(target_id)` RPC — deletes all child rows in FK order, then persons row
-- [x] Add rollback for the migration
-- [x] Update tests for deactivate route (ban failure = 500)
-- [x] Update tests for callback route (token_hash flow)
-- [x] Verify type-check + lint pass
+**Blocking enforcement (isolated):**
 
----
+- [x] Create `lib/auth/check-not-blocked.ts` — standalone blocked check guard
+- [x] Add blocked user redirect in `middleware.ts` (DB query, no-op for existing users)
+- [x] Create `/blocked` page (static, email fallback)
+
+**API routes:**
+
+- [x] `POST /api/admin/users/:personId/block` — cascade via `appendEvents`
+- [x] `POST /api/admin/users/:personId/unblock` — emit `ADMIN.USER_UNBLOCKED`
+- [x] Replace `DELETE /api/admin/users/:personId` — scrub + ban instead of hard-delete
+- [x] Add 4 new event types to `packages/types/src/events.ts`
+
+**Tests (1029 total, +10 new):**
+
+- [x] Block: 403 non-admin, 400 self-block, 400 admin-on-admin, 400 invalid category, 400 already blocked, 200 happy path
+- [x] Unblock: 403 non-admin, 400 missing reason, 400 not blocked, 200 happy path
+- [x] Delete: 403 non-admin, 400 self-delete, 404 missing, 400 admin target, 200 scrub+ban, 500 ban failure
 
 ## Queue
 
@@ -57,7 +70,9 @@
 
 ### Stripe setup
 
-- [ ] Create Stripe products (Crew Pro 4.99, Employer Pro 14.99). Set up webhook. Set 4 Vercel env vars.
+- [x] Test mode: products, prices, test webhook (`https://www.dockwalker.io/api/webhooks/stripe`), and test env vars all configured. Full checkout → webhook → DB upsert → Crew Pro entitlement unlock verified end-to-end against real Vercel deployment.
+- [ ] Live mode go-live: (1) toggle Stripe Workbench to live mode, (2) recreate Crew Pro + Employer Pro products + prices, (3) point the existing live webhook at `https://www.dockwalker.io/api/webhooks/stripe` (the live one was created against the apex and will 307), (4) swap `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_CREW_PRO`, `STRIPE_PRICE_EMPLOYER_PRO` in Vercel Production env vars for live values, (5) redeploy.
+- [ ] Set `NEXT_PUBLIC_APP_URL=https://www.dockwalker.io` in Vercel Production env vars (currently falls back to `http://localhost:3000` — checkout still works because the apex-to-www redirect absorbs the broken URL, but it's one extra hop and masks future bugs).
 
 ### WhatsApp setup
 

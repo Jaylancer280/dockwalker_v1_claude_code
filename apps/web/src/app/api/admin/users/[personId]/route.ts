@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
+import { appendEvents, type AppendEventParams } from '@dockwalker/db';
+import type { EventPayloadMap } from '@dockwalker/types';
 
 /**
  * DELETE /api/admin/users/:personId
- * Hard-delete a user and all their data. Calls admin_delete_person RPC
- * (cleans child rows in FK order), then deletes the auth.users record.
- * Irreversible. Admin-only.
+ * Scrub user: emits PERSON.DATA_SCRUBBED + PERSON.DEACTIVATED, then bans auth row.
+ * Event rows preserved for audit. PII removed from projections.
  */
 export async function DELETE(
   _request: Request,
@@ -16,16 +17,14 @@ export async function DELETE(
   const { serviceClient, person: adminPerson } = guard.value;
   const { personId } = await params;
 
-  // Prevent self-deletion
   if (personId === adminPerson.id) {
     return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
   }
 
   try {
-    // Verify user exists
     const { data: target } = await serviceClient
       .from('persons')
-      .select('id')
+      .select('id, is_admin')
       .eq('id', personId)
       .single();
 
@@ -33,22 +32,38 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // 1. Delete all child data in FK dependency order
-    const { error: rpcError } = await serviceClient.rpc('admin_delete_person', {
-      target_id: personId,
-    });
-    if (rpcError) {
-      return NextResponse.json(
-        { error: `Failed to delete user data: ${rpcError.message}` },
-        { status: 500 },
-      );
+    if (target.is_admin) {
+      return NextResponse.json({ error: 'Cannot delete an admin account' }, { status: 400 });
     }
 
-    // 2. Delete the auth.users record
-    const { error: authError } = await serviceClient.auth.admin.deleteUser(personId);
-    if (authError) {
+    const events: AppendEventParams<keyof EventPayloadMap>[] = [
+      {
+        eventType: 'PERSON.DATA_SCRUBBED',
+        aggregateId: personId,
+        aggregateType: 'person',
+        roleContext: 'employer',
+        payload: {},
+        personId,
+      },
+      {
+        eventType: 'PERSON.DEACTIVATED',
+        aggregateId: personId,
+        aggregateType: 'person',
+        roleContext: 'employer',
+        payload: {},
+        personId,
+      },
+    ];
+
+    await appendEvents(serviceClient, events);
+
+    const { error: banError } = await serviceClient.auth.admin.updateUserById(personId, {
+      ban_duration: '876000h',
+    });
+
+    if (banError) {
       return NextResponse.json(
-        { error: `User data deleted but auth record removal failed: ${authError.message}` },
+        { error: `User scrubbed but auth ban failed: ${banError.message}` },
         { status: 500 },
       );
     }

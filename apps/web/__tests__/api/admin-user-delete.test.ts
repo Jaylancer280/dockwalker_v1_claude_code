@@ -7,9 +7,13 @@ vi.mock('@/lib/auth/require-admin', () => ({
   requireAdmin: () => mockRequireAdmin(),
 }));
 
+const mockAppendEvents = vi.fn().mockResolvedValue(['evt-1', 'evt-2']);
+vi.mock('@dockwalker/db', () => ({
+  appendEvents: (...args: unknown[]) => mockAppendEvents(...args),
+}));
+
 const mockFrom = vi.fn();
-const mockRpc = vi.fn();
-const mockDeleteUser = vi.fn();
+const mockUpdateUserById = vi.fn();
 
 function adminOk(adminId = 'admin-1') {
   return {
@@ -21,8 +25,7 @@ function adminOk(adminId = 'admin-1') {
       supabase: {},
       serviceClient: {
         from: mockFrom,
-        rpc: mockRpc,
-        auth: { admin: { deleteUser: mockDeleteUser } },
+        auth: { admin: { updateUserById: mockUpdateUserById } },
       },
     },
   };
@@ -32,7 +35,7 @@ function makeParams(personId: string) {
   return { params: Promise.resolve({ personId }) };
 }
 
-describe('DELETE /api/admin/users/:personId', () => {
+describe('DELETE /api/admin/users/:personId (scrub + ban)', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('returns 403 for non-admin', async () => {
@@ -65,55 +68,60 @@ describe('DELETE /api/admin/users/:personId', () => {
     expect(res.status).toBe(404);
   });
 
-  it('deletes user data and auth record on success', async () => {
+  it('returns 400 when trying to delete an admin', async () => {
     mockRequireAdmin.mockResolvedValue(adminOk());
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'u1' } }),
+          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: true } }),
         }),
       }),
     });
-    mockRpc.mockResolvedValue({ error: null });
-    mockDeleteUser.mockResolvedValue({ error: null });
+    const res = await DELETE(new Request('http://localhost'), makeParams('u1'));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain('admin account');
+  });
+
+  it('scrubs user and bans auth row on success', async () => {
+    mockRequireAdmin.mockResolvedValue(adminOk());
+    mockFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: false } }),
+        }),
+      }),
+    });
+    mockUpdateUserById.mockResolvedValue({ error: null });
 
     const res = await DELETE(new Request('http://localhost'), makeParams('u1'));
     expect(res.status).toBe(200);
-    expect(mockRpc).toHaveBeenCalledWith('admin_delete_person', { target_id: 'u1' });
-    expect(mockDeleteUser).toHaveBeenCalledWith('u1');
+
+    // Emits PERSON.DATA_SCRUBBED + PERSON.DEACTIVATED via appendEvents
+    expect(mockAppendEvents).toHaveBeenCalledTimes(1);
+    const events = mockAppendEvents.mock.calls[0][1];
+    expect(events).toHaveLength(2);
+    expect(events[0].eventType).toBe('PERSON.DATA_SCRUBBED');
+    expect(events[1].eventType).toBe('PERSON.DEACTIVATED');
+
+    // Bans auth row (not hard-delete)
+    expect(mockUpdateUserById).toHaveBeenCalledWith('u1', { ban_duration: '876000h' });
   });
 
-  it('returns 500 when RPC fails', async () => {
+  it('returns 500 when auth ban fails', async () => {
     mockRequireAdmin.mockResolvedValue(adminOk());
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'u1' } }),
+          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: false } }),
         }),
       }),
     });
-    mockRpc.mockResolvedValue({ error: { message: 'FK violation' } });
-
-    const res = await DELETE(new Request('http://localhost'), makeParams('u1'));
-    expect(res.status).toBe(500);
-    expect(mockDeleteUser).not.toHaveBeenCalled();
-  });
-
-  it('returns 500 when auth delete fails after RPC succeeds', async () => {
-    mockRequireAdmin.mockResolvedValue(adminOk());
-    mockFrom.mockReturnValue({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'u1' } }),
-        }),
-      }),
-    });
-    mockRpc.mockResolvedValue({ error: null });
-    mockDeleteUser.mockResolvedValue({ error: { message: 'Auth error' } });
+    mockUpdateUserById.mockResolvedValue({ error: { message: 'Auth error' } });
 
     const res = await DELETE(new Request('http://localhost'), makeParams('u1'));
     expect(res.status).toBe(500);
     const body = await res.json();
-    expect(body.error).toContain('auth record');
+    expect(body.error).toContain('auth ban failed');
   });
 });

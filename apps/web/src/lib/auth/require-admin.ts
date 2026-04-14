@@ -7,12 +7,19 @@ export async function requireAdmin(): Promise<AdminGuardResult> {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard;
 
-  if (!guard.value.person.is_admin) {
+  const { data, error } = await guard.value.supabase
+    .from('persons')
+    .select('is_admin')
+    .eq('id', guard.value.person.id)
+    .single();
+
+  if (error || !data?.is_admin) {
     return {
       ok: false,
       response: NextResponse.json({ error: 'Admin access required' }, { status: 403 }),
     };
   }
 
+  guard.value.person.is_admin = true;
   return guard;
 }

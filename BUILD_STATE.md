@@ -185,7 +185,7 @@
 
 ## Current Schema Version
 
-v96 — PERSON.REACTIVATED handler (96 migrations applied)
+v97 — Admin blocking + last_event_at tracking (97 migrations applied)
 
 ## Migrations Applied
 
@@ -287,6 +287,7 @@ v96 — PERSON.REACTIVATED handler (96 migrations applied)
 | `00094_fix_deactivation_hat_constraint.sql` | PERSON.DEACTIVATED handler: set `deactivated_at=now()` instead of `current_hat='deactivated'` (violated CHECK constraint, blocked account deletion) |
 | `00095_admin_delete_person.sql` | `admin_delete_person(uuid)` RPC — deletes all child rows in FK dependency order then persons row, enabling test user cleanup from Supabase dashboard |
 | `00096_person_reactivated.sql` | `PERSON.REACTIVATED` handler in apply_projection — clears `deactivated_at`. Inverse of `PERSON.DEACTIVATED`. Used by reset-to-reactivate flow within retention window. |
+| `00097_admin_blocking.sql` | Admin blocking infrastructure — `blocked_at` + `last_event_at` on persons, `cancelled_by` CHECK extended with `'admin'`, 4 new handlers (USER_BLOCKED, USER_UNBLOCKED, ENGAGEMENT_CANCELLED, POSTING_HIDDEN), `last_event_at` tracking on every event, backfill. |
 
 ## Deferred Decisions
 

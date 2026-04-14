@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Compass, MessageSquare, User, PenSquare, Briefcase, LifeBuoy } from 'lucide-react';
+import { Compass, MessageSquare, User, PenSquare, Briefcase, LifeBuoy, Shield } from 'lucide-react';
 import { useNotificationCounts } from '@/hooks/use-notification-counts';
 
 interface NavItem {
@@ -29,11 +29,14 @@ const employerNav: NavItem[] = [
 interface BottomNavProps {
   currentHat: string;
   identityType: string;
+  isAdmin?: boolean;
 }
 
-export function BottomNav({ currentHat }: BottomNavProps) {
+export function BottomNav({ currentHat, isAdmin }: BottomNavProps) {
   const pathname = usePathname();
-  const items = currentHat === 'crew' ? crewNav : employerNav;
+  const baseItems = currentHat === 'crew' ? crewNav : employerNav;
+  const adminItem: NavItem = { icon: Shield, label: 'Admin', href: '/admin' };
+  const items: NavItem[] = isAdmin ? [...baseItems, adminItem] : baseItems;
   const { messageCount } = useNotificationCounts();
 
   return (

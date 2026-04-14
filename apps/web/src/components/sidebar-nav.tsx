@@ -11,6 +11,7 @@ import {
   LifeBuoy,
   LogOut,
   Settings,
+  Shield,
 } from 'lucide-react';
 import { HatSwitcher } from '@/components/hat-switcher';
 import { NotificationBell } from '@/components/notification-bell';
@@ -41,9 +42,10 @@ const employerNav: NavItem[] = [
 interface SidebarNavProps {
   currentHat: string;
   identityType: string;
+  isAdmin?: boolean;
 }
 
-export function SidebarNav({ currentHat, identityType }: SidebarNavProps) {
+export function SidebarNav({ currentHat, identityType, isAdmin }: SidebarNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const items = currentHat === 'crew' ? crewNav : employerNav;
@@ -109,6 +111,15 @@ export function SidebarNav({ currentHat, identityType }: SidebarNavProps) {
           <HatSwitcher currentHat={currentHat} identityType={identityType} />
           <NotificationBell />
         </div>
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--sidebar-foreground)] transition-colors hover:bg-[var(--sidebar-accent)]"
+          >
+            <Shield className="h-5 w-5" />
+            Admin
+          </Link>
+        )}
         <button
           onClick={handleSignOut}
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[var(--sidebar-foreground)] transition-colors hover:bg-[var(--sidebar-accent)]"

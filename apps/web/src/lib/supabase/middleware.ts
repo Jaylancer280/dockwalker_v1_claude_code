@@ -102,10 +102,43 @@ export async function updateSession(request: NextRequest) {
         identity_type?: string;
         onboarded?: boolean;
         deactivated?: boolean;
+        is_admin?: boolean;
       }
     | undefined;
 
   const hasClaims = !!(appMeta?.person_id && appMeta?.current_hat && appMeta?.identity_type);
+
+  // Admin path guard: non-admins cannot access /admin/* pages
+  // DB check required — is_admin is not in the JWT hook claims
+  if (user && path.startsWith('/admin')) {
+    const adminCheck = await supabase.from('persons').select('is_admin').eq('id', user.id).single();
+    if (!adminCheck.data?.is_admin) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Blocked user redirect: send to /blocked page (DB check, only for authenticated non-public paths)
+  // This is a no-op for the entire existing userbase — no user has blocked_at set until admin blocks someone.
+  if (
+    user &&
+    !isPublicRoute &&
+    !isLandingPage &&
+    !path.startsWith('/blocked') &&
+    appMeta?.person_id
+  ) {
+    const blockedCheck = await supabase
+      .from('persons')
+      .select('blocked_at')
+      .eq('id', appMeta.person_id)
+      .single();
+    if (blockedCheck.data?.blocked_at) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/blocked';
+      return NextResponse.redirect(url);
+    }
+  }
 
   // Authenticated: check onboarding status
   if (user && !isPublicRoute && !path.startsWith('/onboarding')) {

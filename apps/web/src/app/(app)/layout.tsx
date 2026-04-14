@@ -32,15 +32,22 @@ export default async function AppLayout({
   let personId: string;
   let currentHat: string;
   let identityType: string;
+  let isAdmin = false;
 
   if (appMeta?.person_id && appMeta?.current_hat && appMeta?.identity_type) {
     personId = appMeta.person_id;
     currentHat = appMeta.current_hat;
     identityType = appMeta.identity_type;
+    const { data: adminCheck } = await supabase
+      .from('persons')
+      .select('is_admin')
+      .eq('id', personId)
+      .single();
+    isAdmin = adminCheck?.is_admin === true;
   } else {
     const { data: person } = await supabase
       .from('persons')
-      .select('id, identity_type, current_hat')
+      .select('id, identity_type, current_hat, is_admin')
       .eq('id', user.id)
       .single();
 
@@ -49,6 +56,7 @@ export default async function AppLayout({
     personId = person.id;
     currentHat = person.current_hat;
     identityType = person.identity_type;
+    isAdmin = person.is_admin === true;
   }
 
   return (
@@ -60,9 +68,9 @@ export default async function AppLayout({
             <DeferredMount>
               <IncomingCallListener personId={personId} />
             </DeferredMount>
-            <SidebarNav currentHat={currentHat} identityType={identityType} />
+            <SidebarNav currentHat={currentHat} identityType={identityType} isAdmin={isAdmin} />
             <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
-            <BottomNav currentHat={currentHat} identityType={identityType} />
+            <BottomNav currentHat={currentHat} identityType={identityType} isAdmin={isAdmin} />
           </NotificationCountsProvider>
         </LookupsProvider>
       </VoiceCallProvider>

@@ -40,22 +40,23 @@ describe('GET /api/admin/engagements', () => {
     expect(res.status).toBe(403);
   });
 
-  it('lists stuck engagements', async () => {
+  it('lists engagements', async () => {
     mockRequireAdmin.mockResolvedValue(adminOk());
     const chain = {
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
       lt: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({
+      range: vi.fn().mockResolvedValue({
         data: [{
-          id: 'eng-1', daywork_id: 'dw-1',
+          id: 'eng-1', status: 'active', daywork_id: 'dw-1', permanent_posting_id: null,
           crew_person_id: 'c1', employer_person_id: 'e1',
-          start_date: '2026-01-01', end_date: '2026-01-05',
+          start_date: '2026-01-01', end_date: '2026-01-05', cancelled_by: null,
           created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
           crew_profile: { display_name: 'Alice' },
           employer_profile: { display_name: 'Bob' },
         }],
+        count: 1,
         error: null,
       }),
     };
@@ -66,6 +67,7 @@ describe('GET /api/admin/engagements', () => {
     const body = await res.json();
     expect(body.engagements).toHaveLength(1);
     expect(body.engagements[0].crew_name).toBe('Alice');
+    expect(body.total).toBe(1);
   });
 });
 
