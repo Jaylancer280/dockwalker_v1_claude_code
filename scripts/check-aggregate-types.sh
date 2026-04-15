@@ -30,7 +30,7 @@ if [ -z "$CONSTRAINT_FILE" ]; then
 fi
 
 # 3. Extract allowed values — get all single-quoted strings near the constraint
-DB_TYPES=$(grep -A2 "events_aggregate_type_check" "$CONSTRAINT_FILE" \
+DB_TYPES=$(grep -A5 "events_aggregate_type_check" "$CONSTRAINT_FILE" \
   | grep -o "'[^']*'" \
   | sed "s/'//g" \
   | sort -u)

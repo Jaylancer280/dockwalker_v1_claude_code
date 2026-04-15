@@ -23,6 +23,10 @@ import { ProfileExperienceSection } from './_components/profile-experience-secti
 import { ProfileEditForm } from './_components/profile-edit-form';
 import { AgentProfileSection } from './_components/agent-profile-section';
 import { ProfileQuickStats } from './_components/profile-quick-stats';
+import {
+  ProfileShoreExperienceSection,
+  type ShoreExperienceEntry,
+} from './_components/profile-shore-experience-section';
 
 interface LookupItem {
   id: string;
@@ -116,11 +120,17 @@ export default function ProfilePage() {
   const [person, setPerson] = useState<Person | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  // Experience state
+  // Maritime experience state
   const [experiences, setExperiences] = useState<ExperienceEntry[]>([]);
   const [expandedExpId, setExpandedExpId] = useState<string | null>(null);
   const [deletingExpId, setDeletingExpId] = useState<string | null>(null);
   const [confirmDeleteExpId, setConfirmDeleteExpId] = useState<string | null>(null);
+
+  // Shore experience state
+  const [shoreExperiences, setShoreExperiences] = useState<ShoreExperienceEntry[]>([]);
+  const [expandedShoreId, setExpandedShoreId] = useState<string | null>(null);
+  const [deletingShoreId, setDeletingShoreId] = useState<string | null>(null);
+  const [confirmDeleteShoreId, setConfirmDeleteShoreId] = useState<string | null>(null);
 
   // Collapsible sections + preview
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
@@ -249,6 +259,15 @@ export default function ProfilePage() {
     }
   }, []);
 
+  const loadShoreExperiences = useCallback(async () => {
+    const result = await safeFetch<{ experiences?: ShoreExperienceEntry[] }>(
+      '/api/shore-experiences',
+    );
+    if (result.ok) {
+      setShoreExperiences(result.data.experiences ?? []);
+    }
+  }, []);
+
   const loadAvailability = useCallback(async () => {
     const result = await safeFetch<{
       windows?: AvailabilityWindow[];
@@ -271,7 +290,8 @@ export default function ProfilePage() {
     loadProfile();
     loadAvailability();
     loadExperiences();
-  }, [loadProfile, loadAvailability, loadExperiences]);
+    loadShoreExperiences();
+  }, [loadProfile, loadAvailability, loadExperiences, loadShoreExperiences]);
 
   // Re-fetch profile + experiences when tab regains focus (handles stale data after navigation)
   useEffect(() => {
@@ -280,12 +300,13 @@ export default function ProfilePage() {
         loadProfile();
         if (person?.identity_type === 'crew' || person?.identity_type === 'agent') {
           loadExperiences();
+          loadShoreExperiences();
         }
       }
     }
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [loadProfile, loadExperiences, person?.identity_type]);
+  }, [loadProfile, loadExperiences, loadShoreExperiences, person?.identity_type]);
 
   // Availability summary
   const availSummary = useMemo(() => {
@@ -402,6 +423,21 @@ export default function ProfilePage() {
       showError(result.error);
     }
     setDeletingExpId(null);
+  }
+
+  async function handleDeleteShoreExperience(id: string) {
+    setDeletingShoreId(id);
+    const result = await safeFetch<{ error?: string }>(`/api/shore-experiences/${id}`, {
+      method: 'DELETE',
+    });
+    if (result.ok) {
+      setShoreExperiences((prev) => prev.filter((e) => e.id !== id));
+      if (expandedShoreId === id) setExpandedShoreId(null);
+      showSuccess('Shore experience removed');
+    } else {
+      showError(result.error);
+    }
+    setDeletingShoreId(null);
   }
 
   if (loading) {
@@ -625,6 +661,13 @@ export default function ProfilePage() {
                 <ProfileSummarySection
                   profile={profile}
                   experiences={experiences}
+                  shoreExperienceCategories={[
+                    ...new Set(
+                      shoreExperiences
+                        .map((se) => se.shore_experience_categories?.name)
+                        .filter((n): n is string => !!n),
+                    ),
+                  ]}
                   expandedSections={expandedSections}
                   toggleSection={toggleSection}
                   sizeBandNames={sizeBandNames}
@@ -676,6 +719,20 @@ export default function ProfilePage() {
                 handleDeleteExperience={handleDeleteExperience}
                 onAddExperience={() => router.push('/profile/add-experience')}
                 onEditExperience={(id) => router.push(`/profile/edit-experience/${id}`)}
+              />
+
+              <ProfileShoreExperienceSection
+                experiences={shoreExperiences}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+                expandedId={expandedShoreId}
+                setExpandedId={setExpandedShoreId}
+                deletingId={deletingShoreId}
+                confirmDeleteId={confirmDeleteShoreId}
+                setConfirmDeleteId={setConfirmDeleteShoreId}
+                handleDelete={handleDeleteShoreExperience}
+                onAdd={() => router.push('/profile/add-shore-experience')}
+                onEdit={(id) => router.push(`/profile/edit-shore-experience/${id}`)}
               />
             </div>
 

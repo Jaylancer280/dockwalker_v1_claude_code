@@ -177,6 +177,7 @@
 - [Stage 168] Mobile Phase 3c — Daywork review (swipe stack, auto-view, accept/reject/shortlist), permanent review (shortlist/select with cap), applicant card, template hooks + selector
 - [Stage 169] Mobile Phase 4 — Conversation list, chat thread with realtime, summary cards, engagement action overlays (cancel/postpone/rate/checklist/work-started/complete), permanent actions. Fix: meal casing, selected_crew_name resolution
 
+- [Stage 210] Shore-based experience — 30 industry categories (Hospitality, Military, Fitness, etc.), `shore_experience_categories` + `shore_experiences` tables (migration 00099), event-sourced CRUD (SHORE_EXPERIENCE.ADDED/UPDATED/REMOVED), GDPR cleanup, categories API, view-only profile API returns shore experiences, `ProfileShoreExperienceSection` component, category pills in profile summary + applicant cards + profile overlay, add/edit forms with searchable category picker, onboarding shore_experience textarea replaced with hint. 1039 tests pass (+10 new).
 - [Stage 209] Docky accuracy fixes — MCA corpus expanded from 16 → 150 PDFs (756 → 6,445 chunks via `text-embedding-3-small`); manual dedup pass removed 6 files (4 exact filename dupes for MSN 1863/1904/1846 + MIN 511, MSN 1886 A2 superseded by A3, MSN 1877 base superseded by Amendment 2); 130 files renamed to a clean `TYPE-ID[-Version][-Topic].pdf` convention across MSN/MIN/MGN/EXAM/RO/GOV prefixes; `deriveDocumentName` in `scripts/ingest-mca-docs.ts` fixed to replace underscores as well as hyphens and drop the buggy `^GOV ` re-prefix step that broke `source-urls.json` matching; new `scripts/wipe-mca-chunks.ts` utility for full-table re-ingest. `BASE_SYSTEM_PROMPT` in `apps/web/src/lib/advisor/llm.ts` hardened: explicit "<mca_documentation> is your only source of regulatory facts" framing, 4 numbered grounding rules (direct-quote requirement, no invented section numbers, exact source citation, no from-memory claims), regulatory vs general-career-advice split with an exact refusal phrase when excerpts are silent, cross-turn consistency rule, anti-apology rule, tone subordinated to factual accuracy. `buildSystemBlock` now wraps chunks in `<mca_documentation>` tags with an explicit empty-case notice so the model always sees the boundary. Production `mca_document_chunks` wiped + re-ingested (0 failures, smoke test passed at 0.703 similarity, 6,445 rows). 1019 tests pass.
 - [Stage 208] Password visibility toggle — shared `PasswordInput` primitive in `components/ui/password-input.tsx` wrapping `Input` with Eye/EyeOff lucide icons, absolute-positioned toggle button, `aria-pressed` + `aria-label` for a11y. Adopted in login, signup, reset-password (both new + confirm), and settings change-password form (current + new + confirm) — 8 password fields total. 1019 tests pass.
 - [Stage 207] Reset-to-reactivate flow — `PERSON.REACTIVATED` event + apply_projection handler (migration 00096), new `POST /api/auth/reactivate` route called by reset-password page after `updateUser` succeeds, clears `persons.deactivated_at` and lifts the auth ban via service client. Login route improved: "banned" message now guides users to reset their password to restore the account; defensive `deactivated_at` check after sign-in catches zombie state. Reset-password page shows "Welcome back" copy when reactivation occurs. 1019 tests pass.
@@ -185,7 +186,7 @@
 
 ## Current Schema Version
 
-v98 — Support channel tables + audit handlers (98 migrations applied)
+v99 — Shore-based experience tables + event handlers (99 migrations applied)
 
 ## Migrations Applied
 
@@ -289,6 +290,7 @@ v98 — Support channel tables + audit handlers (98 migrations applied)
 | `00096_person_reactivated.sql` | `PERSON.REACTIVATED` handler in apply_projection — clears `deactivated_at`. Inverse of `PERSON.DEACTIVATED`. Used by reset-to-reactivate flow within retention window. |
 | `00097_admin_blocking.sql` | Admin blocking infrastructure — `blocked_at` + `last_event_at` on persons, `cancelled_by` CHECK extended with `'admin'`, 4 new handlers (USER_BLOCKED, USER_UNBLOCKED, ENGAGEMENT_CANCELLED, POSTING_HIDDEN), `last_event_at` tracking on every event, backfill. |
 | `00098_support_channel.sql` | Support channel — `support_threads` + `support_messages` tables with RLS, Realtime publication, `aggregate_type` CHECK extended with `'support'`, 2 audit no-op handlers (SUPPORT.THREAD_OPENED, SUPPORT.MESSAGE_SENT). |
+| `00099_shore_experiences.sql` | Shore-based experience — `shore_experience_categories` (30 seeded categories) + `shore_experiences` tables with RLS, `aggregate_type` CHECK extended with `'shore_experience'`, 3 handlers (SHORE_EXPERIENCE.ADDED/UPDATED/REMOVED), GDPR cleanup in DATA_SCRUBBED + admin_delete_person. |
 
 ## Deferred Decisions
 

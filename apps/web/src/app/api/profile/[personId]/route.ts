@@ -189,6 +189,16 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     .eq('person_id', personId)
     .order('start_date', { ascending: false });
 
+  // Fetch shore-based experiences
+  const { data: shoreExperiences } = await supabase
+    .from('shore_experiences')
+    .select(
+      `id, employer_name, job_title, start_date, end_date, is_current, description,
+       shore_experience_categories(id, name)`,
+    )
+    .eq('person_id', personId)
+    .order('start_date', { ascending: false });
+
   // Resolve visa names
   let visas: { id: string; name: string }[] = [];
   if (profile.visa_ids?.length > 0) {
@@ -258,6 +268,19 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
         contract_type: exp.contract_type,
         contract_details: exp.contract_details,
         description: exp.description,
+      };
+    }),
+    shore_experiences: (shoreExperiences ?? []).map((se: Record<string, unknown>) => {
+      const cat = se.shore_experience_categories as { id: string; name: string } | null;
+      return {
+        id: se.id,
+        category_name: cat?.name ?? null,
+        employer_name: se.employer_name,
+        job_title: se.job_title,
+        start_date: se.start_date,
+        end_date: se.end_date,
+        is_current: se.is_current,
+        description: se.description,
       };
     }),
   };

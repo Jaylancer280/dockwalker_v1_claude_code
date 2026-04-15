@@ -104,7 +104,6 @@ export default function OnboardingPage() {
   const [vesselSizeExposureIds, setVesselSizeExposureIds] = useState<string[]>([]);
 
   // Green crew fields
-  const [shoreExperience, setShoreExperience] = useState('');
   const [motivation, setMotivation] = useState('');
   const [availableToStart, setAvailableToStart] = useState('');
 
@@ -260,7 +259,6 @@ export default function OnboardingPage() {
         if (isGreen) {
           profileData.experienceBracketId = experienceBracketId || undefined;
           profileData.vesselSizeExposureIds = vesselSizeExposureIds;
-          profileData.shoreExperience = shoreExperience || undefined;
           profileData.motivation = motivation || undefined;
           profileData.availableToStart = availableToStart || undefined;
         }
@@ -443,8 +441,6 @@ export default function OnboardingPage() {
           setExperienceBracketId={setExperienceBracketId}
           vesselSizeExposureIds={vesselSizeExposureIds}
           setVesselSizeExposureIds={setVesselSizeExposureIds}
-          shoreExperience={shoreExperience}
-          setShoreExperience={setShoreExperience}
           motivation={motivation}
           setMotivation={setMotivation}
           availableToStart={availableToStart}

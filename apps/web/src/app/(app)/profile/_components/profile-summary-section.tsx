@@ -46,6 +46,7 @@ interface ExperienceEntry {
 interface ProfileSummarySectionProps {
   profile: Profile;
   experiences: ExperienceEntry[];
+  shoreExperienceCategories?: string[];
   expandedSections: Record<string, boolean>;
   toggleSection: (key: string) => void;
   sizeBandNames: Record<string, string>;
@@ -56,6 +57,7 @@ interface ProfileSummarySectionProps {
 export function ProfileSummarySection({
   profile,
   experiences,
+  shoreExperienceCategories,
   expandedSections,
   toggleSection,
   sizeBandNames,
@@ -141,6 +143,21 @@ export function ProfileSummarySection({
                     </span>
                   );
                 })}
+              </div>
+            </div>
+          )}
+          {shoreExperienceCategories && shoreExperienceCategories.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Shore-Based Experience</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {shoreExperienceCategories.map((cat) => (
+                  <span
+                    key={cat}
+                    className="rounded-full bg-[var(--success-lo)] border border-[var(--success)]/20 px-2 py-0.5 text-xs text-[var(--success)]"
+                  >
+                    {cat}
+                  </span>
+                ))}
               </div>
             </div>
           )}

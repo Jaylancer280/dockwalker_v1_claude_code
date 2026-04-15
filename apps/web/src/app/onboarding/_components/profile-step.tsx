@@ -63,8 +63,6 @@ export interface ProfileStepProps {
   setExperienceBracketId: (v: string) => void;
   vesselSizeExposureIds: string[];
   setVesselSizeExposureIds: (v: string[]) => void;
-  shoreExperience: string;
-  setShoreExperience: (v: string) => void;
   motivation: string;
   setMotivation: (v: string) => void;
   availableToStart: string;
@@ -146,8 +144,6 @@ export function ProfileStep(props: ProfileStepProps) {
     setExperienceBracketId,
     vesselSizeExposureIds,
     setVesselSizeExposureIds,
-    shoreExperience,
-    setShoreExperience,
     motivation,
     setMotivation,
     availableToStart,
@@ -343,15 +339,11 @@ export function ProfileStep(props: ProfileStepProps) {
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="shoreExperience">Shore-side experience</Label>
-                    <Textarea
-                      id="shoreExperience"
-                      placeholder="Relevant work experience outside yachting (e.g. bartending, hospitality, engineering)"
-                      value={shoreExperience}
-                      onChange={(e) => setShoreExperience(e.target.value)}
-                      maxLength={250}
-                    />
+                  <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+                    <p className="text-sm text-muted-foreground">
+                      Have shore-based work experience? You can add detailed entries from your
+                      profile after sign-up.
+                    </p>
                   </div>
 
                   <div className="flex flex-col gap-1.5">

@@ -126,6 +126,12 @@ describe('GET /api/daywork/:id/applicants', () => {
         in: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }),
       }),
     });
+    // shore experience categories
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
 
     const res = await GET(
       new Request('http://localhost?certificationId=cert-123'),
@@ -184,6 +190,12 @@ describe('GET /api/daywork/:id/applicants', () => {
         in: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }),
       }),
     });
+    // shore experience categories
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
 
     const res = await GET(
       new Request('http://localhost?minAvailableDays=2'),
@@ -232,6 +244,12 @@ describe('GET /api/daywork/:id/applicants', () => {
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         in: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }),
+      }),
+    });
+    // shore experience categories
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
       }),
     });
 
@@ -290,6 +308,12 @@ describe('GET /api/daywork/:id/applicants', () => {
         in: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({ data: [] }),
         }),
+      }),
+    });
+    // shore experience categories
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
       }),
     });
 

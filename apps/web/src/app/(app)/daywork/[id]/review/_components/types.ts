@@ -29,6 +29,7 @@ export interface Applicant {
   availability_not_available: boolean;
   past_daywork_count: number;
   source: string | null;
+  shore_experience_categories: string[];
 }
 
 export interface AvailableCrew {

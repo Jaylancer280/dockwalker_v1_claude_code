@@ -170,7 +170,7 @@ describe('POST /api/onboarding', () => {
       'onboard_person',
       expect.objectContaining({
         p_profile: expect.objectContaining({
-          shore_experience: 'Bartender for 3 years',
+          shore_experience: null,
           motivation: 'Want to work on yachts',
           languages: ['en', 'fr'],
           available_to_start: 'immediate',

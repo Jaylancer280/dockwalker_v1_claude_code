@@ -125,6 +125,7 @@ The app depends on these Postgres functions in the `public` schema:
 | `apply_projection` (PERSON.REACTIVATED)       | 00096     | Inverse of `PERSON.DEACTIVATED`. Clears `persons.deactivated_at`. Used by reset-to-reactivate flow (`POST /api/auth/reactivate`) within the 30-day retention window.                                                                                                                              |
 | Admin blocking + last_event_at                | 00097     | `blocked_at` + `last_event_at` on persons, `cancelled_by` CHECK extended with `'admin'`, 4 new handlers (USER_BLOCKED/UNBLOCKED, ENGAGEMENT_CANCELLED, POSTING_HIDDEN), last_event_at tracking, backfill.                                                                                         |
 | Support channel                               | 00098     | `support_threads` + `support_messages` tables with RLS, Realtime, `aggregate_type` CHECK with `'support'`, 2 audit handlers (SUPPORT.THREAD_OPENED, SUPPORT.MESSAGE_SENT).                                                                                                                        |
+| Shore-based experience                        | 00099     | `shore_experience_categories` (30 seeded) + `shore_experiences` tables with RLS, `aggregate_type` CHECK with `'shore_experience'`, 3 handlers (SHORE_EXPERIENCE.ADDED/UPDATED/REMOVED), GDPR cleanup in DATA_SCRUBBED + admin_delete_person.                                                      |
 
 ## Daywork Status Lifecycle
 

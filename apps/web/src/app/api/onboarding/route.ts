@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       location_port_id: profile.locationPortId || null,
       location_city_id: profile.locationCityId || null,
       // Green crew fields
-      shore_experience: profile.shoreExperience || null,
+      shore_experience: null,
       motivation: profile.motivation || null,
       languages: profile.languages || [],
       available_to_start: profile.availableToStart || null,

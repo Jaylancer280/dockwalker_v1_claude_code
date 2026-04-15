@@ -26,6 +26,17 @@ interface CrewExperience {
   description: string | null;
 }
 
+interface ShoreExperienceEntry {
+  id: string;
+  category_name: string | null;
+  employer_name: string;
+  job_title: string;
+  start_date: string;
+  end_date: string | null;
+  is_current: boolean;
+  description: string | null;
+}
+
 interface CrewProfile {
   person_id: string;
   display_name: string;
@@ -44,6 +55,7 @@ interface CrewProfile {
   location: { port: string; city: string; region: string } | null;
   city_location: { city: string; region: string | null } | null;
   experiences: CrewExperience[];
+  shore_experiences?: ShoreExperienceEntry[];
   permanent_availability: string | null;
   notice_period_days: number | null;
   smoker: boolean | null;
@@ -396,6 +408,41 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
                       <p className="mt-2 text-sm text-muted-foreground">{exp.description}</p>
                     )}
                   </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Shore-based experience */}
+      {profile.shore_experiences && profile.shore_experiences.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Shore-Based Experience
+          </p>
+          {profile.shore_experiences.map((se) => {
+            const dateRange = formatDateRange(se.start_date, se.end_date, se.is_current);
+            return (
+              <div key={se.id} className="rounded-lg border border-border p-3">
+                <div className="flex items-center gap-3">
+                  <Briefcase className="h-4 w-4 flex-shrink-0 text-[var(--success)]" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-medium">{se.employer_name}</p>
+                      {se.category_name && (
+                        <span className="shrink-0 rounded-full bg-[var(--success-lo)] px-2 py-0.5 text-[10px] font-medium text-[var(--success)]">
+                          {se.category_name}
+                        </span>
+                      )}
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {se.job_title} · {dateRange}
+                    </p>
+                  </div>
+                </div>
+                {se.description && (
+                  <p className="mt-2 text-sm text-muted-foreground">{se.description}</p>
                 )}
               </div>
             );

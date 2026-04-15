@@ -130,12 +130,32 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
+    // Shore experience categories per crew member
+    const shoreCategoryMap: Record<string, string[]> = {};
+    if (crewIds.length > 0) {
+      const { data: shoreExps } = await serviceClient
+        .from('shore_experiences')
+        .select('person_id, shore_experience_categories(name)')
+        .in('person_id', crewIds);
+
+      for (const se of shoreExps ?? []) {
+        const cat = se.shore_experience_categories as unknown as { name: string } | null;
+        if (cat?.name) {
+          if (!shoreCategoryMap[se.person_id]) shoreCategoryMap[se.person_id] = [];
+          if (!shoreCategoryMap[se.person_id].includes(cat.name)) {
+            shoreCategoryMap[se.person_id].push(cat.name);
+          }
+        }
+      }
+    }
+
     let enriched = (applications ?? []).map((app) => ({
       ...app,
       available_days: availabilityMap[app.crew_person_id] ?? 0,
       availability_city: availabilityCityMap[app.crew_person_id] ?? null,
       availability_not_available: notAvailableSet.has(app.crew_person_id),
       past_daywork_count: engagementCountMap[app.crew_person_id] ?? 0,
+      shore_experience_categories: shoreCategoryMap[app.crew_person_id] ?? [],
     }));
 
     // Post-enrichment filters

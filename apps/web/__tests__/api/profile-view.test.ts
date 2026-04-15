@@ -123,6 +123,8 @@ describe('GET /api/profile/[personId]', () => {
 
     // Experiences fetch
     mockFrom.mockReturnValueOnce(mockChain([]));
+    // Shore experiences fetch
+    mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
@@ -156,6 +158,8 @@ describe('GET /api/profile/[personId]', () => {
     mockFrom.mockReturnValueOnce(mockChain(crewProfile));
 
     // Experiences fetch
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Shore experiences fetch
     mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
@@ -246,6 +250,8 @@ describe('GET /api/profile/[personId]', () => {
     );
     // Experiences
     mockFrom.mockReturnValueOnce(mockChain([]));
+    // Shore experiences
+    mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
@@ -291,6 +297,8 @@ describe('GET /api/profile/[personId]', () => {
         },
       ]),
     );
+    // Shore experiences
+    mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
@@ -330,6 +338,8 @@ describe('GET /api/profile/[personId]', () => {
     );
     // Experiences
     mockFrom.mockReturnValueOnce(mockChain([]));
+    // Shore experiences
+    mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams('22222222-2222-2222-2222-222222222222'));
     expect(res.status).toBe(200);
@@ -360,6 +370,8 @@ describe('GET /api/profile/[personId]', () => {
       }),
     );
     // Experiences
+    mockFrom.mockReturnValueOnce(mockChain([]));
+    // Shore experiences
     mockFrom.mockReturnValueOnce(mockChain([]));
 
     const res = await GET(new Request('http://localhost'), makeParams(selfId));

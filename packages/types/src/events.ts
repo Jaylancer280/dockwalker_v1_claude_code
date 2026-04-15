@@ -84,7 +84,7 @@ export type EventType =
   | 'PERMANENT.ENGAGEMENT_CLOSED';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin' | 'permanent' | 'support';
+export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin' | 'permanent' | 'support' | 'shore_experience';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -519,6 +519,26 @@ export interface EventPayloadMap {
     outcome: 'successful_placement' | 'not_successful' | 'withdrew';
     closed_by: 'crew' | 'employer';
   };
+  'SHORE_EXPERIENCE.ADDED': {
+    id: string;
+    category_id: string;
+    employer_name: string;
+    job_title: string;
+    start_date: string;
+    end_date: string | null;
+    is_current: boolean;
+    description: string | null;
+  };
+  'SHORE_EXPERIENCE.UPDATED': {
+    category_id?: string;
+    employer_name?: string;
+    job_title?: string;
+    start_date?: string;
+    end_date?: string | null;
+    is_current?: boolean;
+    description?: string | null;
+  };
+  'SHORE_EXPERIENCE.REMOVED': Record<string, never>;
 }
 
 /** Materialised daywork invitation row */

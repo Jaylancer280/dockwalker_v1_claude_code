@@ -5,43 +5,82 @@
 
 ## Current Task
 
-### Admin Launch Dashboard — Phase 2: Dashboard UI
+### Shore-Based Experience — Structured entries for green crew differentiation
 
-**Spec:** `tasks/admin-launch-dashboard.md`
-**Isolation:** Zero contamination to existing app. See spec §Isolation Decisions.
+**Goal:** Green crew can add structured shore-based experience entries (category, employer, job title, dates, description). Employers see category pills on crew cards and profiles. NOT calculated in maritime experience brackets.
 
-#### Phase 0 — Fix admin auth (code-only)
+#### Phase 1 — Database + Types
 
-- [x] Rewrite `apps/web/src/lib/auth/require-admin.ts` — DB-check `is_admin` instead of trusting fast path
-- [x] Add proxy guard in `apps/web/src/lib/supabase/middleware.ts` — redirect non-admins from `/admin/*`
-- [x] Tests: admin routes 200 for admin, 403 for non-admin (existing 17 tests pass)
+- [ ] Migration 00099: `shore_experience_categories` lookup table (30 categories, seeded), `shore_experiences` table (id, person_id, category_id, employer_name, job_title, start_date, end_date, is_current, description, created_at, updated_at), RLS (owner SELECT + authenticated SELECT for active persons — writes via service client through events), 3 new handlers in `apply_projection` (68 total), aggregate_type CHECK updated to include `shore_experience`. SHORE_EXPERIENCE handlers must NOT call `derive_experience_profile`. PERSON.DATA_SCRUBBED handler updated to `DELETE FROM shore_experiences`. Admin delete function updated to include `DELETE FROM shore_experiences WHERE person_id = target_id`
+- [ ] Rollback 00099: self-contained, drops tables, restores 65-handler `apply_projection` from 00098, restores CHECK without `shore_experience`, restores DATA_SCRUBBED and admin delete without shore_experiences cleanup
+- [ ] Add event types to `packages/types/src/events.ts`: `SHORE_EXPERIENCE.ADDED`, `SHORE_EXPERIENCE.UPDATED`, `SHORE_EXPERIENCE.REMOVED`
+- [ ] Add `ShoreExperience` model to `packages/types/src/models.ts` (id, person_id, category_id, employer_name, job_title, start_date, end_date, is_current, description, created_at, updated_at)
+- [ ] Add `ShoreExperienceCategory` interface to models (id, name, sort_order)
+- [ ] `npx supabase db push` — apply migration
 
-#### Phase 1 — Blocking + user deletion fix
+#### Phase 2 — API Routes
 
-**Migration:**
+- [ ] `GET /api/shore-experiences` — list user's shore experiences with category join, ordered by start_date DESC
+- [ ] `POST /api/shore-experiences` — validate required fields (categoryId, employerName, jobTitle, startDate), max 250 chars description, append `SHORE_EXPERIENCE.ADDED` event with aggregateType `shore_experience`
+- [ ] `PATCH /api/shore-experiences/[id]` — owner-only partial update, append `SHORE_EXPERIENCE.UPDATED`
+- [ ] `DELETE /api/shore-experiences/[id]` — owner-only, append `SHORE_EXPERIENCE.REMOVED`
+- [ ] `GET /api/shore-experience-categories` — public list of all categories for the picker
+- [ ] Update `GET /api/profile/[personId]` (view-only) — query `shore_experiences` joined with `shore_experience_categories`, return in crew profile response
 
-- [x] Write migration 00097: `blocked_at` + `last_event_at` columns, `cancelled_by` CHECK, 4 new handlers, `last_event_at` write, backfill (63 handlers total)
-- [x] Write rollback (59 handlers, self-contained)
-- [x] `npx supabase db push` — applied successfully
+#### Phase 3 — UI: Add/Edit Forms
 
-**Blocking enforcement (isolated):**
+- [ ] Split "Add experience" entry point on profile page into two options: "Add maritime experience" / "Add shore-based experience" (bottom sheet or inline choice)
+- [ ] New page `/profile/add-shore-experience` — category picker (searchable list of 30 categories), employer name input, job title input, start/end date, is_current toggle, description textarea (250 chars)
+- [ ] New page `/profile/edit-shore-experience/[id]` — same form, pre-populated
 
-- [x] Create `lib/auth/check-not-blocked.ts` — standalone blocked check guard
-- [x] Add blocked user redirect in `middleware.ts` (DB query, no-op for existing users)
-- [x] Create `/blocked` page (static, email fallback)
+#### Phase 4 — UI: Profile Display
 
-**API routes:**
+- [ ] New `ProfileShoreExperienceSection` component — collapsible section below maritime experience, category-coloured icon instead of Ship, employer name + job title instead of vessel name + role, expandable details with dates + description
+- [ ] Wire into profile page with expand/collapse, edit, delete (reuse confirmation dialog pattern)
+- [ ] Add shore experience category pills to `ProfileSummarySection` — row of pills below experience bracket (only shown when shore experiences exist)
 
-- [x] `POST /api/admin/users/:personId/block` — cascade via `appendEvents`
-- [x] `POST /api/admin/users/:personId/unblock` — emit `ADMIN.USER_UNBLOCKED`
-- [x] Replace `DELETE /api/admin/users/:personId` — scrub + ban instead of hard-delete
-- [x] Add 4 new event types to `packages/types/src/events.ts`
+#### Phase 5 — UI: Crew Cards + Profile Overlay
 
-**Tests (1029 total, +10 new):**
+**Daywork review feed:**
 
-- [x] Block: 403 non-admin, 400 self-block, 400 admin-on-admin, 400 invalid category, 400 already blocked, 200 happy path
-- [x] Unblock: 403 non-admin, 400 missing reason, 400 not blocked, 200 happy path
-- [x] Delete: 403 non-admin, 400 self-delete, 404 missing, 400 admin target, 200 scrub+ban, 500 ban failure
+- [ ] Update `GET /api/daywork/[id]/applicants` — add subquery for distinct shore_experience category names per crew_person_id
+- [ ] Update `ApplicantProfile` type in `daywork/[id]/review/_components/types.ts` — add `shore_experience_categories: string[]`
+- [ ] Add category pills to applicant cards in `applicants-tab.tsx` (below badges section, max 3 with "+N" overflow)
+
+**Available crew:**
+
+- [ ] Update `GET /api/daywork/[id]/available-crew` — add shore category subquery
+- [ ] Update `AvailableCrew` type in `types.ts` — add `shore_experience_categories: string[]`
+- [ ] Add category pills to available crew cards in `available-crew-tab.tsx`
+
+**Permanent review:**
+
+- [ ] Update `GET /api/permanent/[id]/review` — add shore category subquery
+- [ ] Update inline `Applicant` type in `permanent/[id]/review/page.tsx` — add `shore_experience_categories: string[]`
+- [ ] Add category pills to permanent applicant cards
+
+**Profile overlay:**
+
+- [ ] Update `CrewProfile` interface in `profile-overlay.tsx` — add `shore_experiences` array
+- [ ] Add shore experience section to `CrewProfileView` (below maritime experience, before bio)
+- [ ] Update `buildCrewProfile` in view-only API to return shore experiences
+
+#### Phase 6 — Onboarding Hint
+
+- [ ] Replace green crew `shore_experience` textarea in `profile-step.tsx` with a static hint: "You can add detailed shore-based experience from your profile after sign-up"
+- [ ] Remove `shoreExperience` state from `onboarding/page.tsx` and `shore_experience` from the PROFILE.CREATED payload in `api/onboarding/route.ts`
+- [ ] Leave existing `profiles.shore_experience` column in place (no data migration — column is legacy, never displayed, minimal data)
+
+#### Phase 7 — Tests + Cleanup
+
+- [ ] API tests for shore-experiences routes: CRUD happy paths, 401 unauth, 400 invalid input (missing required fields), owner-only PATCH/DELETE enforcement
+- [ ] API test: view-only profile includes shore experiences
+- [ ] Component test: `ProfileShoreExperienceSection` renders entries correctly
+- [ ] Verify `turbo run type-check` passes (zero errors)
+- [ ] Verify `turbo run lint` passes (zero warnings)
+- [ ] Pre-commit passes (no console.log, no TODO, rollback exists, schema version matches)
+
+---
 
 ## Queue
 
@@ -76,8 +115,10 @@
 
 ### WhatsApp setup
 
-- [ ] Request Twilio WhatsApp sender access (2-4 weeks — START NOW)
-- [ ] Submit templates, set env vars, sign DPA
+- [ ] Get dedicated number (prepaid SIM or Google Voice for Workspace)
+- [ ] Register with Meta Cloud API directly (not Twilio)
+- [ ] Swap Twilio dispatcher for Meta Graph API calls
+- [ ] Submit templates for Meta approval
 
 ### User testing
 

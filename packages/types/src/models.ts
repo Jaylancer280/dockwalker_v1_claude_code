@@ -162,6 +162,28 @@ export interface CrewExperience {
   updated_at: string;
 }
 
+/** Shore-based experience entry — non-maritime work history */
+export interface ShoreExperience {
+  id: string;
+  person_id: string;
+  category_id: string;
+  employer_name: string;
+  job_title: string;
+  start_date: string;
+  end_date: string | null;
+  is_current: boolean;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Shore experience category lookup */
+export interface ShoreExperienceCategory {
+  id: string;
+  name: string;
+  sort_order: number;
+}
+
 /** Subscription — Stripe-owned state */
 export interface Subscription {
   id: string;
