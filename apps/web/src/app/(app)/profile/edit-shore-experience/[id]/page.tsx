@@ -190,7 +190,7 @@ export default function EditShoreExperiencePage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="startDate">Start Date *</Label>
                 <Input
