@@ -73,7 +73,14 @@ export function ChatFooter({
     setUploading(true);
     const documentIds: string[] = [];
 
+    const MAX_FILE_SIZE = 4 * 1024 * 1024;
     for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        showError(
+          `${file.name} is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum file size is 4MB.`,
+        );
+        continue;
+      }
       const formData = new FormData();
       formData.append('file', file);
       const res = await safeFetch<{ documentId?: string; error?: string }>(
