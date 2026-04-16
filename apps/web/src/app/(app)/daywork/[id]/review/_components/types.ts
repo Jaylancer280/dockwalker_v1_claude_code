@@ -51,6 +51,7 @@ export interface AvailableCrew {
   } | null;
   available_days: number;
   nationalities: { name: string; flag_emoji: string } | null;
+  shore_experience_categories: string[];
 }
 
 export type TabView = 'applicants' | 'shortlist' | 'available';

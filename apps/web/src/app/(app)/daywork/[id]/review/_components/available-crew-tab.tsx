@@ -320,6 +320,25 @@ export function AvailableCrewCard({
           )}
         </div>
 
+        {/* Shore experience categories */}
+        {crew.shore_experience_categories?.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {crew.shore_experience_categories.slice(0, 3).map((cat) => (
+              <span
+                key={cat}
+                className="rounded-full bg-[var(--success-lo)] px-2 py-0.5 text-[10px] font-medium text-[var(--success)]"
+              >
+                {cat}
+              </span>
+            ))}
+            {crew.shore_experience_categories.length > 3 && (
+              <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-[10px] text-muted-foreground">
+                +{crew.shore_experience_categories.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Bio */}
         {crew.bio && (
           <ExpandableText

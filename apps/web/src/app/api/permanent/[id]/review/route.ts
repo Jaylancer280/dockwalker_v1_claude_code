@@ -67,6 +67,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     ).length;
     const selectedCrew = rows.find((a) => a.status === 'selected');
 
+    // Shore experience categories per applicant
+    const crewIds = rows.map((r) => r.crew_person_id);
+    const shoreCategoryMap: Record<string, string[]> = {};
+    if (crewIds.length > 0) {
+      const { data: shoreExps } = await serviceClient
+        .from('shore_experiences')
+        .select('person_id, shore_experience_categories(name)')
+        .in('person_id', crewIds);
+
+      for (const se of shoreExps ?? []) {
+        const cat = se.shore_experience_categories as unknown as { name: string } | null;
+        if (cat?.name) {
+          if (!shoreCategoryMap[se.person_id]) shoreCategoryMap[se.person_id] = [];
+          if (!shoreCategoryMap[se.person_id].includes(cat.name)) {
+            shoreCategoryMap[se.person_id].push(cat.name);
+          }
+        }
+      }
+    }
+
     const applicants = rows.map((app) => {
       const profile = app.profiles;
       return {
@@ -91,6 +111,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         permanent_availability: profile?.permanent_availability ?? null,
         notice_period_days: profile?.notice_period_days ?? null,
         currently_employed: profile?.currently_employed ?? false,
+        shore_experience_categories: shoreCategoryMap[app.crew_person_id] ?? [],
       };
     });
 

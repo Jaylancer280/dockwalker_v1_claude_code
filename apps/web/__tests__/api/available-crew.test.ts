@@ -123,6 +123,15 @@ function mockProfiles(data: Record<string, unknown>[]) {
   });
 }
 
+// Helper: mock shore_experiences query (runs after profiles when matched crew > 0)
+function mockShoreExperiences(data: Record<string, unknown>[] = []) {
+  mockFromAuth.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ data }),
+    }),
+  });
+}
+
 const baseDaywork = {
   id: 'd1',
   poster_person_id: 'u1',
@@ -155,6 +164,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
     ]);
+    mockShoreExperiences();
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     expect(res.status).toBe(200);
@@ -162,6 +172,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     expect(body.crew).toHaveLength(1);
     expect(body.crew[0].person_id).toBe('c1');
     expect(body.crew[0].available_days).toBe(3);
+    expect(body.crew[0].shore_experience_categories).toEqual([]);
     expect(body.invitation_count).toBe(0);
     expect(body.invitation_limit).toBe(3);
   });
@@ -181,6 +192,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockProfiles([
       { person_id: 'c2', display_name: 'Crew Two', primary_role_id: 'role-deckhand' },
     ]);
+    mockShoreExperiences();
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     const body = await res.json();
@@ -203,6 +215,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
     ]);
+    mockShoreExperiences();
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     const body = await res.json();
@@ -226,6 +239,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
     ]);
+    mockShoreExperiences();
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     const body = await res.json();
@@ -249,6 +263,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
       { person_id: 'c2', display_name: 'Crew Two', primary_role_id: 'role-engineer' },
     ]);
+    mockShoreExperiences();
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     const body = await res.json();
@@ -271,6 +286,11 @@ describe('GET /api/daywork/:id/available-crew', () => {
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
       { person_id: 'c2', display_name: 'Crew Two', primary_role_id: 'role-engineer' },
     ]);
+    mockShoreExperiences([
+      { person_id: 'c1', shore_experience_categories: { name: 'Hospitality' } },
+      { person_id: 'c1', shore_experience_categories: { name: 'Fitness' } },
+      { person_id: 'c2', shore_experience_categories: { name: 'Military' } },
+    ]);
 
     const res = await GET(
       new Request('http://localhost?allRoles=true'),
@@ -278,6 +298,10 @@ describe('GET /api/daywork/:id/available-crew', () => {
     );
     const body = await res.json();
     expect(body.crew).toHaveLength(2);
+    const c1 = body.crew.find((c: { person_id: string }) => c.person_id === 'c1');
+    const c2 = body.crew.find((c: { person_id: string }) => c.person_id === 'c2');
+    expect(c1.shore_experience_categories).toEqual(['Hospitality', 'Fitness']);
+    expect(c2.shore_experience_categories).toEqual(['Military']);
   });
 
   it('returns 403 if not posting owner', async () => {

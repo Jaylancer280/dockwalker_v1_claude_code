@@ -82,6 +82,17 @@ describe('GET /api/permanent/:id/review', () => {
       error: null,
     });
     mockFromAuth.mockReturnValueOnce(appsChain);
+    // Shore experiences query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({
+          data: [
+            { person_id: 'c1', shore_experience_categories: { name: 'Hospitality' } },
+            { person_id: 'c1', shore_experience_categories: { name: 'Fitness' } },
+          ],
+        }),
+      }),
+    });
 
     const res = await GET(req, { params });
     expect(res.status).toBe(200);
@@ -93,6 +104,7 @@ describe('GET /api/permanent/:id/review', () => {
     expect(data.selected_crew_id).toBeNull();
     expect(data.applicants[0].display_name).toBe('Crew One');
     expect(data.applicants[0].permanent_availability).toBe('immediate');
+    expect(data.applicants[0].shore_experience_categories).toEqual(['Hospitality', 'Fitness']);
   });
 
   it('includes shortlist_cap, shortlist_count, posting_status', async () => {
@@ -117,6 +129,12 @@ describe('GET /api/permanent/:id/review', () => {
       error: null,
     });
     mockFromAuth.mockReturnValueOnce(appsChain);
+    // Shore experiences query
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
 
     const res = await GET(req, { params });
     const data = await res.json();

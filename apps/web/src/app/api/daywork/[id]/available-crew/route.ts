@@ -184,6 +184,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       matchedProfiles = matchedProfiles.filter((p) => p.primary_role_id === daywork.role_id);
     }
 
+    // Shore experience categories per matched crew member
+    const matchedIds = matchedProfiles.map((p) => p.person_id);
+    const shoreCategoryMap: Record<string, string[]> = {};
+    if (matchedIds.length > 0) {
+      const { data: shoreExps } = await supabase
+        .from('shore_experiences')
+        .select('person_id, shore_experience_categories(name)')
+        .in('person_id', matchedIds);
+
+      for (const se of shoreExps ?? []) {
+        const cat = se.shore_experience_categories as unknown as { name: string } | null;
+        if (cat?.name) {
+          if (!shoreCategoryMap[se.person_id]) shoreCategoryMap[se.person_id] = [];
+          if (!shoreCategoryMap[se.person_id].includes(cat.name)) {
+            shoreCategoryMap[se.person_id].push(cat.name);
+          }
+        }
+      }
+    }
+
     // Build enriched crew list
     const crew = matchedProfiles
       .map((p) => ({
@@ -200,6 +220,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         experience_brackets: p.experience_brackets,
         ports: p.ports,
         available_days: availMap[p.person_id] ?? 0,
+        shore_experience_categories: shoreCategoryMap[p.person_id] ?? [],
       }))
       .sort((a, b) => b.available_days - a.available_days)
       .slice(0, 50);
