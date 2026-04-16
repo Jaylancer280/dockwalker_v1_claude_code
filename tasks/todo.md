@@ -5,6 +5,8 @@
 
 ## Current Task
 
+### Performance Enhancements — No/Low Risk (Spec Phase 2 + 2.5 + new findings)
+
 (none)
 
 ---

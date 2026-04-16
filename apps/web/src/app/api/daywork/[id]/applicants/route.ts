@@ -66,35 +66,46 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Enrich with availability overlap for the daywork dates
     const crewIds = (applications ?? []).map((a) => a.crew_person_id);
 
     const availabilityMap: Record<string, number> = {};
     const availabilityCityMap: Record<string, string> = {};
     const notAvailableSet = new Set<string>();
-    if (crewIds.length > 0) {
-      const { data: availWindows } = await serviceClient
-        .from('availability_windows')
-        .select('person_id, date, city_id, not_available')
-        .in('person_id', crewIds)
-        .gt('expires_at', new Date().toISOString());
+    const engagementCountMap: Record<string, number> = {};
+    const shoreCategoryMap: Record<string, string[]> = {};
 
-      // Separate not-available markers from real availability
+    if (crewIds.length > 0) {
+      const [availResult, engResult, shoreResult] = await Promise.all([
+        serviceClient
+          .from('availability_windows')
+          .select('person_id, date, city_id, not_available')
+          .in('person_id', crewIds)
+          .gt('expires_at', new Date().toISOString()),
+        serviceClient
+          .from('active_engagements')
+          .select('crew_person_id')
+          .in('crew_person_id', crewIds)
+          .eq('status', 'completed'),
+        serviceClient
+          .from('shore_experiences')
+          .select('person_id, shore_experience_categories(name)')
+          .in('person_id', crewIds),
+      ]);
+
+      const availWindows = availResult.data ?? [];
       const cityIds = new Set<string>();
-      for (const w of availWindows ?? []) {
+      for (const w of availWindows) {
         if (w.not_available) {
           notAvailableSet.add(w.person_id);
           if (w.city_id) cityIds.add(w.city_id);
           continue;
         }
-        // Only count windows within the daywork date range
         if (w.date >= daywork.start_date && w.date <= daywork.end_date) {
           availabilityMap[w.person_id] = (availabilityMap[w.person_id] ?? 0) + 1;
         }
         if (w.city_id) cityIds.add(w.city_id);
       }
 
-      // Resolve city names
       if (cityIds.size > 0) {
         const { data: cities } = await serviceClient
           .from('cities')
@@ -107,38 +118,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           cityNameMap.set(c.id, `${c.name}, ${regions?.name ?? ''}`);
         }
 
-        // Map first city_id per crew member
-        for (const w of availWindows ?? []) {
+        for (const w of availWindows) {
           if (w.city_id && !availabilityCityMap[w.person_id]) {
             availabilityCityMap[w.person_id] = cityNameMap.get(w.city_id) ?? '';
           }
         }
       }
-    }
 
-    // Count past completed engagements per crew member
-    const engagementCountMap: Record<string, number> = {};
-    if (crewIds.length > 0) {
-      const { data: pastEngagements } = await serviceClient
-        .from('active_engagements')
-        .select('crew_person_id')
-        .in('crew_person_id', crewIds)
-        .eq('status', 'completed');
-
-      for (const e of pastEngagements ?? []) {
+      for (const e of engResult.data ?? []) {
         engagementCountMap[e.crew_person_id] = (engagementCountMap[e.crew_person_id] ?? 0) + 1;
       }
-    }
 
-    // Shore experience categories per crew member
-    const shoreCategoryMap: Record<string, string[]> = {};
-    if (crewIds.length > 0) {
-      const { data: shoreExps } = await serviceClient
-        .from('shore_experiences')
-        .select('person_id, shore_experience_categories(name)')
-        .in('person_id', crewIds);
-
-      for (const se of shoreExps ?? []) {
+      for (const se of shoreResult.data ?? []) {
         const cat = se.shore_experience_categories as unknown as { name: string } | null;
         if (cat?.name) {
           if (!shoreCategoryMap[se.person_id]) shoreCategoryMap[se.person_id] = [];

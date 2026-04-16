@@ -146,48 +146,46 @@ export async function GET(request: Request) {
     const filtered = (dayworks ?? []) as unknown as DiscoverDayworkRow[];
 
     const vesselIds = [...new Set(filtered.map((dw) => dw.vessel_id).filter(Boolean))];
-    const vesselMap = new Map<string, PublicVesselRow | null>();
-    if (vesselIds.length > 0) {
-      const { data: vessels, error: vesselError } = await supabase.rpc('get_vessels_public_batch', {
-        p_vessel_ids: vesselIds,
-      });
-      if (vesselError) {
-        return NextResponse.json({ error: vesselError.message }, { status: 500 });
-      }
-      for (const v of (vessels ?? []) as PublicVesselRow[]) {
-        vesselMap.set(v.id, v);
-      }
+    const posterIds = [...new Set(filtered.map((d) => d.poster_person_id))];
+    const allCertIds = [...new Set(filtered.flatMap((r) => r.required_certification_ids ?? []))];
+
+    const [vesselResult, posterResult, certResult] = await Promise.all([
+      vesselIds.length > 0
+        ? supabase.rpc('get_vessels_public_batch', { p_vessel_ids: vesselIds })
+        : Promise.resolve({ data: null, error: null }),
+      posterIds.length > 0
+        ? supabase
+            .from('profiles')
+            .select('person_id, display_name, identity_type')
+            .in('person_id', posterIds)
+        : Promise.resolve({ data: null, error: null }),
+      allCertIds.length > 0
+        ? supabase.from('certifications').select('id, name').in('id', allCertIds)
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    if (vesselResult.error) {
+      return NextResponse.json({ error: vesselResult.error.message }, { status: 500 });
+    }
+    if (posterResult.error) {
+      return NextResponse.json({ error: posterResult.error.message }, { status: 500 });
     }
 
-    // Resolve poster display names and identity types
-    const posterIds = [...new Set(filtered.map((d) => d.poster_person_id))];
+    const vesselMap = new Map<string, PublicVesselRow | null>();
+    for (const v of (vesselResult.data ?? []) as PublicVesselRow[]) {
+      vesselMap.set(v.id, v);
+    }
+
     const posterNameMap = new Map<string, string>();
     const posterIdentityMap = new Map<string, string>();
-    if (posterIds.length > 0) {
-      const { data: posterProfiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('person_id, display_name, identity_type')
-        .in('person_id', posterIds);
-      if (profileError) {
-        return NextResponse.json({ error: profileError.message }, { status: 500 });
-      }
-      for (const p of posterProfiles ?? []) {
-        posterNameMap.set(p.person_id, p.display_name);
-        posterIdentityMap.set(p.person_id, p.identity_type);
-      }
+    for (const p of posterResult.data ?? []) {
+      posterNameMap.set(p.person_id, p.display_name);
+      posterIdentityMap.set(p.person_id, p.identity_type);
     }
 
-    // Resolve cert names
-    const allCertIds = [...new Set(filtered.flatMap((r) => r.required_certification_ids ?? []))];
     const certNameMap = new Map<string, string>();
-    if (allCertIds.length > 0) {
-      const { data: certs } = await supabase
-        .from('certifications')
-        .select('id, name')
-        .in('id', allCertIds);
-      for (const c of certs ?? []) {
-        certNameMap.set(c.id, c.name);
-      }
+    for (const c of certResult.data ?? []) {
+      certNameMap.set(c.id, c.name);
     }
 
     const hydrated = filtered.map((daywork) => {

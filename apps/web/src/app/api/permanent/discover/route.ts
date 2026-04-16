@@ -113,14 +113,24 @@ export async function GET(request: Request) {
     if (filterLiveAboard && filterLiveAboard !== 'any') {
       query = query.eq('live_aboard', filterLiveAboard === 'true' || filterLiveAboard === 'yes');
     }
+    if (filterSizeBandId) {
+      const { data: matchingVessels } = await supabase
+        .from('vessels')
+        .select('id')
+        .eq('size_band_id', filterSizeBandId);
+      const matchingVesselIds = (matchingVessels ?? []).map((v) => v.id);
+      if (matchingVesselIds.length === 0) {
+        return NextResponse.json({ postings: [], has_more: false, next_cursor: null });
+      }
+      query = query.in('vessel_id', matchingVesselIds);
+    }
     if (cursor) {
       query = query.lt('created_at', cursor);
     }
 
     query = query.order('created_at', { ascending: false });
 
-    const fetchLimit = filterSizeBandId ? BATCH_SIZE * 10 : BATCH_SIZE;
-    const { data: postings, error } = await query.limit(fetchLimit);
+    const { data: postings, error } = await query.limit(BATCH_SIZE);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -132,50 +142,46 @@ export async function GET(request: Request) {
       return NextResponse.json({ postings: [], has_more: false, next_cursor: null });
     }
 
-    // Hydrate vessel data (single batch query instead of N+1)
     const vesselIds = [...new Set(rows.map((r) => r.vessel_id as string).filter(Boolean))];
-    const vesselMap = new Map<string, PublicVesselRow | null>();
-    if (vesselIds.length > 0) {
-      const { data: vessels } = await supabase.rpc('get_vessels_public_batch', {
-        p_vessel_ids: vesselIds,
-      });
-      for (const v of (vessels ?? []) as PublicVesselRow[]) {
-        vesselMap.set(v.id, v);
-      }
-    }
-
-    // Resolve poster display names and identity types
     const posterIds = [...new Set(rows.map((r) => r.employer_person_id as string))];
-    const posterNameMap = new Map<string, string>();
-    const posterIdentityMap = new Map<string, string>();
-    if (posterIds.length > 0) {
-      const { data: posterProfiles } = await supabase
-        .from('profiles')
-        .select('person_id, display_name, identity_type')
-        .in('person_id', posterIds);
-      for (const p of posterProfiles ?? []) {
-        posterNameMap.set(p.person_id, p.display_name);
-        posterIdentityMap.set(p.person_id, p.identity_type);
-      }
-    }
-
-    // Resolve cert names
     const allCertIds = [
       ...new Set(rows.flatMap((r) => (r.required_certification_ids as string[]) ?? [])),
     ];
+
+    const [vesselResult, posterResult, certResult] = await Promise.all([
+      vesselIds.length > 0
+        ? supabase.rpc('get_vessels_public_batch', { p_vessel_ids: vesselIds })
+        : Promise.resolve({ data: null }),
+      posterIds.length > 0
+        ? supabase
+            .from('profiles')
+            .select('person_id, display_name, identity_type')
+            .in('person_id', posterIds)
+        : Promise.resolve({ data: null }),
+      allCertIds.length > 0
+        ? supabase.from('certifications').select('id, name').in('id', allCertIds)
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const vesselMap = new Map<string, PublicVesselRow | null>();
+    for (const v of (vesselResult.data ?? []) as PublicVesselRow[]) {
+      vesselMap.set(v.id, v);
+    }
+
+    const posterNameMap = new Map<string, string>();
+    const posterIdentityMap = new Map<string, string>();
+    for (const p of posterResult.data ?? []) {
+      posterNameMap.set(p.person_id, p.display_name);
+      posterIdentityMap.set(p.person_id, p.identity_type);
+    }
+
     const certNameMap = new Map<string, string>();
-    if (allCertIds.length > 0) {
-      const { data: certs } = await supabase
-        .from('certifications')
-        .select('id, name')
-        .in('id', allCertIds);
-      for (const c of certs ?? []) {
-        certNameMap.set(c.id, c.name);
-      }
+    for (const c of certResult.data ?? []) {
+      certNameMap.set(c.id, c.name);
     }
 
     // Hydrate response
-    let hydrated = rows.map((posting) => {
+    const hydrated = rows.map((posting) => {
       const vessel = vesselMap.get(posting.vessel_id as string);
       const role = posting.yacht_roles as { id: string; name: string; department: string } | null;
       const port = posting.ports as {
@@ -221,15 +227,7 @@ export async function GET(request: Request) {
       };
     });
 
-    // Post-fetch filter: sizeBandId
-    if (filterSizeBandId) {
-      hydrated = hydrated.filter((p) => p.vessel_size_band_id === filterSizeBandId);
-    }
-
-    const hasMore = filterSizeBandId ? hydrated.length > BATCH_SIZE : rows.length === BATCH_SIZE;
-    if (filterSizeBandId && hydrated.length > BATCH_SIZE) {
-      hydrated = hydrated.slice(0, BATCH_SIZE);
-    }
+    const hasMore = rows.length === BATCH_SIZE;
     const nextCursor =
       hasMore && hydrated.length > 0 ? (hydrated[hydrated.length - 1].created_at as string) : null;
 
