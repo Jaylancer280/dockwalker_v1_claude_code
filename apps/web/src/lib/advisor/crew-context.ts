@@ -4,6 +4,11 @@ export interface CrewContextResult {
   markdown: string;
   certNames: string[];
   roleName: string;
+  debug?: {
+    profileError: unknown;
+    personId: string;
+    rawProfilePresent: boolean;
+  };
 }
 
 interface ProfileJoins {
@@ -56,7 +61,12 @@ export async function buildCrewContext(
 
   if (profileError || !rawProfile) {
     console.error('buildCrewContext failed:', profileError, 'personId:', personId);
-    return { markdown: '', certNames: [], roleName: '' };
+    return {
+      markdown: '',
+      certNames: [],
+      roleName: '',
+      debug: { profileError, personId, rawProfilePresent: !!rawProfile },
+    };
   }
 
   const profile = rawProfile as unknown as ProfileJoins;
