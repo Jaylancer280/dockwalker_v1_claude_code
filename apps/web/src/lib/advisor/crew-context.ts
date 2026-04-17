@@ -31,6 +31,8 @@ interface ExperienceRow {
   flag_state: string | null;
   contract_type: string | null;
   description: string | null;
+  sea_time_days: number | null;
+  sea_time_nautical_miles: number | null;
   vessels: unknown;
   yacht_roles: unknown;
 }
@@ -68,7 +70,7 @@ export async function buildCrewContext(
       .select(
         `
         start_date, end_date, is_current, vessel_operation, flag_state,
-        contract_type, description,
+        contract_type, description, sea_time_days, sea_time_nautical_miles,
         vessels(name, vessel_type, loa_meters, vessel_size_bands(label)),
         yacht_roles(name)
       `,
@@ -124,6 +126,15 @@ export async function buildCrewContext(
     lines.push(`**Vessel Size Exposure:** ${labels.join(', ')}`);
   }
 
+  const totalSeaDays = experiences.reduce((sum, e) => sum + (e.sea_time_days ?? 0), 0);
+  const totalSeaMiles = experiences.reduce((sum, e) => sum + (e.sea_time_nautical_miles ?? 0), 0);
+  if (totalSeaDays > 0 || totalSeaMiles > 0) {
+    const parts: string[] = [];
+    if (totalSeaDays > 0) parts.push(`${totalSeaDays} days`);
+    if (totalSeaMiles > 0) parts.push(`${totalSeaMiles} nautical miles`);
+    lines.push(`**Total Sea Time:** ${parts.join(', ')}`);
+  }
+
   if (profile.bio) lines.push(`**Bio:** ${profile.bio}`);
   if (profile.shore_experience) lines.push(`**Shore Experience:** ${profile.shore_experience}`);
   if (profile.motivation) lines.push(`**Motivation:** ${profile.motivation}`);
@@ -160,6 +171,12 @@ export async function buildCrewContext(
       const details: string[] = [];
       if (exp.flag_state) details.push(`Flag: ${exp.flag_state}`);
       if (exp.contract_type) details.push(`Contract: ${exp.contract_type}`);
+      if (exp.sea_time_days || exp.sea_time_nautical_miles) {
+        const seaParts: string[] = [];
+        if (exp.sea_time_days) seaParts.push(`${exp.sea_time_days} days`);
+        if (exp.sea_time_nautical_miles) seaParts.push(`${exp.sea_time_nautical_miles} nm`);
+        details.push(`Sea time: ${seaParts.join(', ')}`);
+      }
       if (details.length > 0) lines.push(`   ${details.join(' | ')}`);
     });
   } else if (profile.shore_experience) {
