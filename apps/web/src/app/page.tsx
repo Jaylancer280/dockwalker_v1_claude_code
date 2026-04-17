@@ -7,28 +7,35 @@ export default function LandingPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       {/* Hero — logo-led, above the fold */}
-      <section className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center md:text-left">
-        <div className="md:flex md:max-w-3xl md:flex-row-reverse md:items-center md:gap-12">
+      <section className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-16 text-center md:py-24 md:text-left">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 hidden md:block md:bg-[radial-gradient(ellipse_at_top,var(--accent-lo)_0%,transparent_60%)]"
+        />
+        <div className="relative md:flex md:max-w-4xl md:flex-row-reverse md:items-center md:gap-14">
           <Image
             src="/images/brand/dw_app_icon_cropped.png"
             alt="DockWalker"
-            width={112}
-            height={112}
-            sizes="(min-width: 768px) 160px, 112px"
-            className="mb-4 rounded-2xl md:mb-0 md:h-[160px] md:w-[160px]"
+            width={208}
+            height={208}
+            sizes="(min-width: 768px) 208px, 144px"
+            className="mx-auto mb-6 h-[144px] w-[144px] rounded-[28px] shadow-xl ring-1 ring-black/5 md:mx-0 md:mb-0 md:h-[208px] md:w-[208px]"
             priority
           />
           <div>
-            <h1 className="text-[28px] font-bold tracking-[-0.5px] text-foreground">DockWalker</h1>
-            <p className="mt-1 text-[18px] text-[var(--muted-foreground)]">
-              Superyacht hiring, simplified
+            <h1 className="text-[36px] font-bold leading-[1.05] tracking-[-1px] text-foreground md:text-[52px]">
+              DockWalker
+            </h1>
+            <p className="mt-2 text-[20px] font-medium text-foreground md:text-[24px]">
+              Superyacht hiring, simplified.
             </p>
-            <p className="mt-3 max-w-xs text-[13px] leading-relaxed text-[var(--tertiary)] md:max-w-md">
-              Daywork cover and permanent placements — find work or fill roles, all in one place.
+            <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-[var(--muted-foreground)] md:max-w-md md:text-[16px]">
+              Swipe through live daywork postings. Apply for permanent roles. Connect directly with
+              vessels — no hidden ranking, no pay-to-rank.
             </p>
-            <div className="mt-6 flex gap-3 md:justify-start">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center md:justify-start">
               <Button asChild size="lg" className="rounded-full px-8">
-                <Link href="/auth/signup">Sign up</Link>
+                <Link href="/auth/signup">Get started</Link>
               </Button>
               <Button asChild variant="outline" size="lg" className="rounded-full px-8">
                 <Link href="/auth/login">Log in</Link>
