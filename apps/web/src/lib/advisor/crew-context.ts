@@ -4,11 +4,6 @@ export interface CrewContextResult {
   markdown: string;
   certNames: string[];
   roleName: string;
-  debug?: {
-    profileError: unknown;
-    personId: string;
-    rawProfilePresent: boolean;
-  };
 }
 
 interface ProfileJoins {
@@ -50,7 +45,7 @@ export async function buildCrewContext(
     .select(
       `
       display_name, bio, shore_experience, motivation, languages, available_to_start,
-      primary_role_id, yacht_roles(name),
+      primary_role_id, yacht_roles!profiles_primary_role_id_fkey(name),
       certification_ids, experience_bracket_id, experience_brackets(label),
       vessel_size_exposure_ids,
       location_port_id, ports(name, city_id, cities(name, region_id, regions(name)))
@@ -61,12 +56,7 @@ export async function buildCrewContext(
 
   if (profileError || !rawProfile) {
     console.error('buildCrewContext failed:', profileError, 'personId:', personId);
-    return {
-      markdown: '',
-      certNames: [],
-      roleName: '',
-      debug: { profileError, personId, rawProfilePresent: !!rawProfile },
-    };
+    return { markdown: '', certNames: [], roleName: '' };
   }
 
   const profile = rawProfile as unknown as ProfileJoins;

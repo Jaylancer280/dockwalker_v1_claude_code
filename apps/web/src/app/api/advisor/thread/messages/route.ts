@@ -143,27 +143,6 @@ export async function POST(request: Request) {
     const fullCrewContext = [crewCtx.markdown, certGap].filter(Boolean).join('\n\n');
     console.info('Crew context length:', fullCrewContext.length, 'Chunks:', chunks.length);
 
-    // TEMP DEBUG — surface why crew context is empty for Pro users
-    // Only fires when buildCrewContext hit its early-return failure path
-    // (debug field is only set there). Tests pass empty markdown without
-    // a debug field, so they skip this branch.
-    if (isPro && !fullCrewContext && 'debug' in crewCtx && crewCtx.debug) {
-      return NextResponse.json(
-        {
-          error: 'debug_empty_crew_context',
-          isPro,
-          subResult,
-          personId: user.id,
-          crewCtxDebug: 'debug' in crewCtx ? crewCtx.debug : null,
-          crewCtxMarkdownLength: crewCtx.markdown.length,
-          crewCtxCertNamesCount: crewCtx.certNames.length,
-          crewCtxRoleName: crewCtx.roleName,
-          certGapLength: certGap.length,
-        },
-        { status: 500 },
-      );
-    }
-
     // Streaming LLM call
     const llmStartTime = Date.now();
     let streamResult;
