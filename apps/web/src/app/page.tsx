@@ -7,7 +7,7 @@ export default function LandingPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background">
       {/* Hero — logo-led, above the fold */}
-      <section className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-16 text-center md:py-24 md:text-left">
+      <section className="relative flex flex-col items-center justify-center overflow-hidden px-6 py-16 text-center md:py-24 md:text-left">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 hidden md:block md:bg-[radial-gradient(ellipse_at_top,var(--accent-lo)_0%,transparent_60%)]"
@@ -45,54 +45,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Value props */}
-      <section className="border-t border-[var(--border)] bg-[var(--surface)] px-6 py-12">
-        <div className="page-width-wide flex flex-col gap-8 md:flex-row md:gap-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
-              <Search className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-[15px] font-semibold text-foreground">
-                Short-term daywork cover
-              </h2>
-              <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-                Swipe through live postings and lock in 1-14 day engagements in seconds — no CV
-                uploads, no agency calls.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--success-lo)] text-[var(--success)]">
-              <Briefcase className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-[15px] font-semibold text-foreground">Permanent positions</h2>
-              <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-                Post a role, shortlist candidates, and place the right crew through a structured
-                hiring pipeline.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <h2 className="text-[15px] font-semibold text-foreground">
-                Smart features, fair visibility
-              </h2>
-              <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-                AI career advisor, crew invitations, and pre-arrival checklists — with no hidden
-                algorithms or pay-to-rank.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* How it works */}
-      <section className="border-t border-[var(--border)] px-6 py-12">
+      <section className="border-t border-[var(--border)] bg-[var(--surface)] px-6 py-12">
         <div className="page-width-wide">
           <h2 className="mb-6 text-center text-lg font-semibold text-foreground">How it works</h2>
           <div className="mb-6 grid grid-cols-2 gap-3">
@@ -149,6 +103,52 @@ export default function LandingPage() {
               </p>
             </li>
           </ol>
+        </div>
+      </section>
+
+      {/* Value props */}
+      <section className="border-t border-[var(--border)] px-6 py-12">
+        <div className="page-width-wide flex flex-col gap-8 md:flex-row md:gap-6">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
+              <Search className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-semibold text-foreground">
+                Short-term daywork cover
+              </h2>
+              <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
+                Swipe through live postings and lock in 1-14 day engagements in seconds — no CV
+                uploads, no agency calls.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--success-lo)] text-[var(--success)]">
+              <Briefcase className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-semibold text-foreground">Permanent positions</h2>
+              <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
+                Post a role, shortlist candidates, and place the right crew through a structured
+                hiring pipeline.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-lo)] text-[var(--accent)]">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-semibold text-foreground">
+                Smart features, fair visibility
+              </h2>
+              <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
+                AI career advisor, crew invitations, and pre-arrival checklists — with no hidden
+                algorithms or pay-to-rank.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

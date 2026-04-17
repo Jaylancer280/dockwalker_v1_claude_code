@@ -25,8 +25,11 @@ function LoginContent() {
   const loginError = searchParams.get('login_error');
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-12 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
-      <div className="flex w-full max-w-sm flex-col items-center gap-6">
+    <main className="flex min-h-svh flex-col items-center justify-center bg-background bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_75%)] px-4 py-10">
+      <div className="flex w-full max-w-sm flex-col items-center gap-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">
+          DockWalker · Superyacht hiring
+        </p>
         <div className="relative w-full pt-14">
           <div className="pointer-events-none absolute left-1/2 top-0 z-10 -translate-x-1/2">
             <Image
@@ -105,6 +108,21 @@ function LoginContent() {
             Sign up
           </Link>
         </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 pt-2 text-xs text-[var(--muted-foreground)]">
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+            Daywork in seconds
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--success)]" />
+            Permanent roles
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+            No pay-to-rank
+          </span>
+        </div>
       </div>
     </main>
   );
