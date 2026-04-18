@@ -243,8 +243,8 @@ export function DayworkBrowse({
             </Card>
           )}
 
-          {/* Card stack */}
-          <div className="relative flex flex-1 items-start justify-center pt-2">
+          {/* Card stack — no flex-1 so the action row sits right below the 420px card, no dead air between */}
+          <div className="relative flex items-start justify-center pt-2">
             {loading && (
               <div className="flex w-full max-w-md flex-col gap-3">
                 <CardSkeleton />
