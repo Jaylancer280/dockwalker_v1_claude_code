@@ -243,8 +243,8 @@ export function DayworkBrowse({
             </Card>
           )}
 
-          {/* Card stack — flex-1 with min-h-0 lets it shrink on short viewports */}
-          <div className="relative flex min-h-0 flex-1 items-stretch justify-center pt-2">
+          {/* Card stack */}
+          <div className="relative flex flex-1 items-start justify-center pt-2">
             {loading && (
               <div className="flex w-full max-w-md flex-col gap-3">
                 <CardSkeleton />
@@ -268,7 +268,7 @@ export function DayworkBrowse({
             )}
 
             {!loading && cards.length > 0 && (
-              <div className="relative mx-auto h-full max-h-[420px] w-full max-w-md overflow-hidden">
+              <div className="relative mx-auto h-[420px] w-full max-w-md overflow-hidden">
                 {/* Next card preview (underneath) */}
                 {nextCard && (
                   <div className="absolute inset-0 z-0">
