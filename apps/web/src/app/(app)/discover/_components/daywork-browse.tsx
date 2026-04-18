@@ -143,7 +143,7 @@ export function DayworkBrowse({
       {browseMode === 'permanent' && permanentFeed}
 
       {browseMode === 'daywork' && (
-        <div className="page-width flex w-full flex-1 flex-col gap-4 px-4 py-6">
+        <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 pt-4 pb-3">
           {/* Filters panel */}
           {showFilters && (
             <Card>
@@ -243,8 +243,8 @@ export function DayworkBrowse({
             </Card>
           )}
 
-          {/* Card stack */}
-          <div className="relative flex flex-1 items-start justify-center pt-4">
+          {/* Card stack — flex-1 with min-h-0 lets it shrink on short viewports */}
+          <div className="relative flex min-h-0 flex-1 items-stretch justify-center pt-2">
             {loading && (
               <div className="flex w-full max-w-md flex-col gap-3">
                 <CardSkeleton />
@@ -268,7 +268,7 @@ export function DayworkBrowse({
             )}
 
             {!loading && cards.length > 0 && (
-              <div className="relative mx-auto h-[420px] w-full max-w-md overflow-hidden">
+              <div className="relative mx-auto h-full max-h-[420px] w-full max-w-md overflow-hidden">
                 {/* Next card preview (underneath) */}
                 {nextCard && (
                   <div className="absolute inset-0 z-0">
@@ -311,73 +311,81 @@ export function DayworkBrowse({
             )}
           </div>
 
-          {/* Action buttons or message compose */}
-          {!loading && topCard && !composingMessage && (
-            <div className="mx-auto flex max-w-md items-center justify-center gap-6 pb-4">
-              <button
-                onClick={() => onPass(topCard.id)}
-                disabled={applying}
-                className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--destructive)] text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)] hover:text-white disabled:opacity-50"
-              >
-                <X className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => {
-                  if (requireAvailability()) onApply(topCard.id);
-                }}
-                disabled={applying}
-                className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--success)] text-[var(--success)] transition-colors hover:bg-[var(--success)] hover:text-white disabled:opacity-50"
-              >
-                <Check className="h-5 w-5" />
-              </button>
-            </div>
-          )}
+          {/* Action row: counter + buttons (always visible, swipe still works on the card) */}
+          {!loading && topCard && (
+            <div className="mx-auto flex w-full max-w-md flex-col gap-2 pb-2">
+              {cards.length > 0 && (
+                <p className="text-center text-[11px] text-muted-foreground">
+                  {cards.length} job{cards.length !== 1 ? 's' : ''} available
+                  {loadingMore && ' · loading more...'}
+                </p>
+              )}
 
-          {!loading && topCard && composingMessage && (
-            <div className="mx-auto flex max-w-md flex-col gap-2 pb-4">
-              <div className="relative">
-                <Textarea
-                  value={messageText}
-                  onChange={(e) => onMessageTextChange(e.target.value.slice(0, 250))}
-                  placeholder="Why are you a great fit for this job?"
-                  className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
-                  rows={3}
-                  maxLength={250}
-                  autoFocus
-                />
-                <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground/60">
-                  {messageText.length}/250
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={onCancelMessage}
-                  disabled={applying}
-                >
-                  Cancel message
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={onMessageSubmit}
-                  disabled={applying || !messageText.trim()}
-                >
-                  <Check className="mr-1 h-3.5 w-3.5" />
-                  Submit & apply
-                </Button>
-              </div>
+              {!composingMessage ? (
+                <div className="flex gap-3">
+                  <Button
+                    variant="destructive"
+                    size="lg"
+                    className="h-12 flex-1 text-sm"
+                    onClick={() => onPass(topCard.id)}
+                    disabled={applying}
+                    aria-label="Show next job"
+                  >
+                    <X className="mr-1.5 h-4 w-4" />
+                    Show next
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="h-12 flex-1 bg-[var(--success)] text-sm text-white hover:brightness-[1.08]"
+                    onClick={() => {
+                      if (requireAvailability()) onApply(topCard.id);
+                    }}
+                    disabled={applying}
+                    aria-label="Apply to this job"
+                  >
+                    <Check className="mr-1.5 h-4 w-4" />
+                    Apply
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <Textarea
+                      value={messageText}
+                      onChange={(e) => onMessageTextChange(e.target.value.slice(0, 250))}
+                      placeholder="Why are you a great fit for this job?"
+                      className="w-full rounded-lg border border-border bg-accent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+                      rows={3}
+                      maxLength={250}
+                      autoFocus
+                    />
+                    <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground/60">
+                      {messageText.length}/250
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={onCancelMessage}
+                      disabled={applying}
+                    >
+                      Cancel message
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={onMessageSubmit}
+                      disabled={applying || !messageText.trim()}
+                    >
+                      <Check className="mr-1 h-3.5 w-3.5" />
+                      Submit & apply
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-
-          {/* Counter + loading more */}
-          {!loading && cards.length > 0 && (
-            <p className="text-center text-xs text-muted-foreground">
-              {cards.length} job{cards.length !== 1 ? 's' : ''} available
-              {loadingMore && ' · loading more...'}
-            </p>
           )}
         </div>
       )}
