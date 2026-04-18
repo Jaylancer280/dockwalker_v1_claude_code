@@ -287,4 +287,125 @@ describe('POST /api/engagements/:id/rate', () => {
     const payload = mockRpc.mock.calls[0][1].p_payload;
     expect(payload).not.toHaveProperty('permanent_opportunity_accuracy');
   });
+
+  // ---------------------------------------------------------------------------
+  // Permanent engagement rating (status='closed' with outcome)
+  // ---------------------------------------------------------------------------
+
+  it('crew can rate a permanent engagement closed with outcome=withdrew', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(
+        makeChain({
+          id: 'e1',
+          crew_person_id: 'crew1',
+          employer_person_id: 'emp1',
+          daywork_id: null,
+          permanent_posting_id: 'pm1',
+          status: 'closed',
+          outcome: 'withdrew',
+          crew_completion_status: null,
+        }),
+      )
+      .mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(
+      makeRequest({
+        notice_given: 'yes',
+        communication_accuracy: true,
+        overall_match: 4,
+      }),
+      makeParams('e1'),
+    );
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({ p_event_type: 'ENGAGEMENT.CANCELLATION_RATED_BY_CREW' }),
+    );
+  });
+
+  it('employer can rate a permanent engagement closed with outcome=not_successful', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk('emp1'));
+    mockFromAuth
+      .mockReturnValueOnce(
+        makeChain({
+          id: 'e1',
+          crew_person_id: 'crew1',
+          employer_person_id: 'emp1',
+          daywork_id: null,
+          permanent_posting_id: 'pm1',
+          status: 'closed',
+          outcome: 'not_successful',
+          crew_completion_status: null,
+        }),
+      )
+      .mockReturnValueOnce(makeChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    const res = await POST(
+      makeRequest({
+        communication_accuracy: true,
+        overall_match: 3,
+      }),
+      makeParams('e1'),
+    );
+    expect(res.status).toBe(200);
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({ p_event_type: 'ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER' }),
+    );
+  });
+
+  it('rejects rating on closed engagement with outcome=successful_placement', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'e1',
+        crew_person_id: 'crew1',
+        employer_person_id: 'emp1',
+        daywork_id: null,
+        permanent_posting_id: 'pm1',
+        status: 'closed',
+        outcome: 'successful_placement',
+        crew_completion_status: null,
+      }),
+    );
+
+    const res = await POST(
+      makeRequest({
+        notice_given: 'yes',
+        communication_accuracy: true,
+        overall_match: 5,
+      }),
+      makeParams('e1'),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects rating on closed engagement with no outcome', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(
+      makeChain({
+        id: 'e1',
+        crew_person_id: 'crew1',
+        employer_person_id: 'emp1',
+        daywork_id: null,
+        permanent_posting_id: 'pm1',
+        status: 'closed',
+        outcome: null,
+        crew_completion_status: null,
+      }),
+    );
+
+    const res = await POST(
+      makeRequest({
+        notice_given: 'yes',
+        communication_accuracy: true,
+        overall_match: 5,
+      }),
+      makeParams('e1'),
+    );
+    expect(res.status).toBe(400);
+  });
 });

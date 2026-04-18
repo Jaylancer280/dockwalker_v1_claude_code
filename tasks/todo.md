@@ -5,32 +5,11 @@
 
 ## Current Task
 
-### Performance Enhancements — No/Low Risk (Spec Phase 2 + 2.5 + new findings)
-
 (none)
 
 ---
 
 ## Queue
-
-### BUG: Permanent withdrawal has no rating path
-
-**Root cause:** `PERMANENT.WITHDRAWN` sets engagement status to `'closed'` (migration 00059 line 697), but `canRate` in `page.tsx` line 528-532 only checks for `'completed'` and `'cancelled'`. Daywork cancellations use `'cancelled'` status which IS ratable — permanent withdrawals use `'closed'` which is NOT.
-
-- [ ] Decide: should `'closed'` engagements with outcome `'withdrew'` be ratable? If yes:
-  - Add `(context?.status === 'closed' && context.outcome === 'withdrew' && !context.has_rated)` to `canRate` in `page.tsx`
-  - Add a banner for closed-with-withdrawal in `chat-footer.tsx` (like CancellationBanner but simpler)
-  - Verify the rating API (`/api/engagements/[id]/rate`) accepts `'closed'` status — currently only allows `'completed'` and `'cancelled'`
-
-### BUG: DateInput transparent overlay may block interaction on some devices
-
-**Symptom:** Permanent post form start date reported as "unclickable." Same `DateInput` component used by daywork (which works).
-
-**Possible cause:** The `opacity-0` native date input now sits on top and captures taps, but on some Android browsers/webviews the native picker doesn't open from a transparent input — the tap is absorbed silently.
-
-- [ ] Test on the same device after deployment lands — may already be fixed
-- [ ] If still broken: add explicit calendar icon button next to the date input that calls `showPicker()` on tap (visual affordance + programmatic trigger)
-- [ ] Alternative: reverse stacking — put text input on top (for typing), keep native input behind with `pointer-events-none`, and rely solely on `showPicker()` with a fallback message "type date manually"
 
 ---
 

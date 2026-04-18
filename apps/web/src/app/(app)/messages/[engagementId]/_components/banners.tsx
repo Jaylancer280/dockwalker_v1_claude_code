@@ -355,6 +355,48 @@ export function CompletionBanner({
 }
 
 // ---------------------------------------------------------------------------
+// Closed Banner (permanent engagements — withdrew, not_successful, successful_placement)
+// ---------------------------------------------------------------------------
+
+export function ClosedBanner({
+  context,
+  canRate,
+  onOpenRating,
+}: {
+  context: EngagementContext;
+  canRate: boolean;
+  onOpenRating: () => void;
+}) {
+  if (context.has_rated) {
+    return <RatedBanner context={context} />;
+  }
+
+  const copy =
+    context.outcome === 'withdrew'
+      ? 'This application was withdrawn.'
+      : context.outcome === 'not_successful'
+        ? 'This engagement ended without a placement.'
+        : context.outcome === 'successful_placement'
+          ? 'Placement confirmed. This conversation is closed.'
+          : 'This conversation has been closed.';
+
+  return (
+    <div className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <XCircle className="h-4 w-4 shrink-0" />
+        <span>{copy}</span>
+      </div>
+      {canRate && (
+        <Button variant="outline" size="sm" onClick={onOpenRating} className="w-full">
+          <ClipboardCheck className="mr-1.5 h-4 w-4" />
+          Rate this experience
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

@@ -73,6 +73,8 @@ export async function updateSession(request: NextRequest) {
     '/auth/callback',
     '/auth/forgot-password',
     '/auth/reset-password',
+    '/privacy',
+    '/terms',
   ];
   const isPublicRoute =
     publicRoutes.some((route) => path.startsWith(route)) || path.startsWith('/jobs');

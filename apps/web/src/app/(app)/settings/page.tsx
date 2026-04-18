@@ -142,6 +142,18 @@ export default function SettingsPage() {
           </Link>
         </section>
 
+        <section className="rounded-lg border p-4">
+          <h2 className="mb-2 font-semibold">Legal</h2>
+          <div className="flex flex-col gap-1.5 text-sm">
+            <Link href="/privacy" className="text-primary underline">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="text-primary underline">
+              Terms of Service
+            </Link>
+          </div>
+        </section>
+
         <DangerZoneSection />
       </div>
     </main>

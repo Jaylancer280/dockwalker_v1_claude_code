@@ -11,6 +11,7 @@ import {
   PostponementBanner,
   CompletionBanner,
   CancellationBanner,
+  ClosedBanner,
 } from './banners';
 
 interface ChatFooterProps {
@@ -168,11 +169,9 @@ export function ChatFooter({
           />
         )}
 
-        {/* Closed banner (permanent engagements) */}
+        {/* Closed banner (permanent engagements — withdrew, not_successful, successful_placement) */}
         {context?.status === 'closed' && (
-          <div className="rounded-lg bg-[var(--surface)] px-3 py-2 text-sm text-[var(--muted-foreground)]">
-            This conversation has been closed.
-          </div>
+          <ClosedBanner context={context} canRate={canRate} onOpenRating={onOpenRating} />
         )}
 
         {/* Message input */}

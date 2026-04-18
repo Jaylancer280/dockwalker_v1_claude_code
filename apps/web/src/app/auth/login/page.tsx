@@ -123,6 +123,16 @@ function LoginContent() {
             No pay-to-rank
           </span>
         </div>
+
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground">
+          <Link href="/terms" className="hover:underline">
+            Terms
+          </Link>
+          <span>·</span>
+          <Link href="/privacy" className="hover:underline">
+            Privacy
+          </Link>
+        </div>
       </div>
     </main>
   );

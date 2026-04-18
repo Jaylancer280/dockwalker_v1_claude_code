@@ -542,11 +542,15 @@ export default function ChatPage() {
     }
   }, [voiceCall.callState, voiceCall.duration, engagementId]);
   const permPostingStatus = context?.permanent_postings?.status ?? null;
+  const closedIsRatable =
+    context?.status === 'closed' &&
+    (context.outcome === 'withdrew' || context.outcome === 'not_successful');
   const canRate =
     (context?.status === 'completed' &&
       context.has_rated === false &&
       ((isCrew && context.crew_completion_status !== null) || isEmployer === true)) ||
-    (context?.status === 'cancelled' && context.has_rated === false);
+    (context?.status === 'cancelled' && context.has_rated === false) ||
+    (closedIsRatable && context?.has_rated === false);
 
   const cancelLabel =
     context?.work_started_status === 'confirmed' ? 'Terminate job early' : 'Cancel engagement';
@@ -725,7 +729,7 @@ export default function ChatPage() {
       {showRating && context && userId && (
         <RatingFormOverlay
           isCrew={isCrew ?? false}
-          isCancelled={context.status === 'cancelled'}
+          isCancelled={context.status === 'cancelled' || context.status === 'closed'}
           hasPermanentOpportunity={context.dayworks?.permanent_opportunity ?? false}
           submitting={submittingRating}
           onSubmit={handleSubmitRating}

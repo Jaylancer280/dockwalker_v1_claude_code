@@ -9,9 +9,9 @@
 ## Status
 
 - [ ] Lawyer review
-- [ ] Fill in placeholders: [COMPANY NAME], [REGISTERED ADDRESS], [SUPABASE REGION], [DPO EMAIL], [SUPPORT EMAIL], [JURISDICTION]
-- [ ] Create `/privacy` page (currently a dead 404 link from landing page line 163)
-- [ ] Create `/terms` page (currently no link exists)
+- [ ] Fill in placeholders in `apps/web/src/lib/legal-placeholders.ts`: companyName (Nautalink Technologies, Inc. — confirm), registeredAddress, jurisdiction, supportEmail, dpoEmail, supabaseRegion
+- [x] Create `/privacy` page (Stage 214)
+- [x] Create `/terms` page (Stage 214)
 
 ---
 
@@ -233,12 +233,12 @@ Material changes communicated via email and/or in-app notification. Continued us
 ## Implementation Checklist
 
 - [ ] Lawyer review of this spec + the Terms of Service in `tasks/founder-drafts.md`
-- [ ] Fill ALL placeholders (company name, address, region, emails, jurisdiction)
+- [ ] Fill ALL placeholders in `apps/web/src/lib/legal-placeholders.ts`
 - [ ] Decide: cookie consent banner needed for target jurisdictions? (Functional cookies only — likely not required under GDPR, but check local law)
-- [ ] Create `apps/web/src/app/privacy/page.tsx` — static page rendering this policy
-- [ ] Create `apps/web/src/app/terms/page.tsx` — static page rendering the ToS
-- [ ] Add Terms of Service link to landing page footer alongside Privacy Policy
-- [ ] Add privacy policy + terms links to onboarding flow (pre-signup consent)
-- [ ] Add privacy policy link to Settings page
+- [x] Create `apps/web/src/app/privacy/page.tsx` — static page rendering this policy (Stage 214)
+- [x] Create `apps/web/src/app/terms/page.tsx` — static page rendering the ToS (Stage 214)
+- [x] Add Terms of Service link to landing page footer alongside Privacy Policy (pre-existing footer, verified live)
+- [x] Add pre-signup consent line on the signup form linking to /terms + /privacy (Stage 214)
+- [x] Add privacy policy + terms links to Settings page (Stage 214)
 - [ ] Verify data export (`/api/account/export`) covers all data listed in Section 2
 - [ ] Verify data scrub (`PERSON.DATA_SCRUBBED`) covers all PII listed in Section 2

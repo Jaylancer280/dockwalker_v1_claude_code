@@ -20,9 +20,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const { data: engagement } = await supabase
       .from('active_engagements')
-      .select('id, crew_person_id, employer_person_id, daywork_id, status, crew_completion_status')
+      .select(
+        'id, crew_person_id, employer_person_id, daywork_id, permanent_posting_id, status, outcome, crew_completion_status',
+      )
       .eq('id', engagementId)
-      .not('daywork_id', 'is', null)
       .single();
 
     if (!engagement) {
@@ -36,9 +37,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    if (engagement.status !== 'completed' && engagement.status !== 'cancelled') {
+    // Permanent engagements end in 'closed' status with an outcome tag.
+    // Only withdrew / not_successful are ratable; successful_placement closures are not.
+    const closedIsRatable =
+      engagement.status === 'closed' &&
+      (engagement.outcome === 'withdrew' || engagement.outcome === 'not_successful');
+
+    if (
+      engagement.status !== 'completed' &&
+      engagement.status !== 'cancelled' &&
+      !closedIsRatable
+    ) {
       return NextResponse.json(
-        { error: 'Engagement must be completed or cancelled to rate' },
+        {
+          error:
+            'Engagement must be completed, cancelled, or closed (withdrew/not_successful) to rate',
+        },
         { status: 400 },
       );
     }
@@ -78,8 +92,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!Number.isInteger(body.overall_match) || body.overall_match < 1 || body.overall_match > 5) {
       return NextResponse.json({ error: 'overall_match must be an integer 1-5' }, { status: 400 });
     }
-    if (engagement.status === 'cancelled') {
+    if (engagement.status === 'cancelled' || closedIsRatable) {
       // Cancelled-context rating — lighter form
+      // Used for daywork cancellations, permanent withdrawals, and permanent 'not_successful' closures.
       if (isCrew) {
         if (!VALID_YES_NO_PARTIAL.includes(body.notice_given)) {
           return NextResponse.json(
