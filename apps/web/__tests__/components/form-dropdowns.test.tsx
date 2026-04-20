@@ -12,9 +12,9 @@ const MOCK_ROLES = [
 ];
 
 const MOCK_CERTS = [
-  { id: 'cert-1', name: 'STCW Basic Safety Training', category: 'safety' },
-  { id: 'cert-2', name: 'ENG1 Medical Certificate', category: 'medical' },
-  { id: 'cert-3', name: 'Powerboat Level 2', category: 'deck' },
+  { id: 'cert-1', name: 'STCW 95 (STCW 2010)', category: 'basic', subcategory: null, sort_order: 1 },
+  { id: 'cert-2', name: 'ENG1 Medical Certificate', category: 'basic', subcategory: null, sort_order: 2 },
+  { id: 'cert-3', name: 'HELM (Operational)', category: 'basic', subcategory: null, sort_order: 15 },
 ];
 
 const MOCK_BRACKETS = [

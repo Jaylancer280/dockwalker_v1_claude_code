@@ -15,12 +15,8 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchableNationalitySelect } from '@/components/searchable-nationality-select';
 import { LocationPicker } from '@/components/location-picker';
-import {
-  HierarchicalPills,
-  rolesToGroups,
-  certsToGroups,
-  citiesToGroups,
-} from '@/components/hierarchical-pills';
+import { HierarchicalPills, rolesToGroups, citiesToGroups } from '@/components/hierarchical-pills';
+import { CertificationPicker } from '@/components/certification-picker';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { LANGUAGES } from '@dockwalker/shared';
 
@@ -96,7 +92,13 @@ export interface ProfileStepProps {
 
   // Lookups
   roles: LookupItem[];
-  certs: LookupItem[];
+  certs: {
+    id: string;
+    name: string;
+    category: string | null;
+    subcategory: string | null;
+    sort_order: number;
+  }[];
   brackets: LookupItem[];
   sizeBands: LookupItem[];
   nationalities: { id: string; name: string; flag_emoji: string }[];
@@ -376,18 +378,12 @@ export function ProfileStep(props: ProfileStepProps) {
 
               <div className="flex flex-col gap-1.5">
                 <Label>Certifications</Label>
-                {certs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Loading certifications...</p>
-                ) : (
-                  <HierarchicalPills
-                    groups={certsToGroups(
-                      certs.filter((c): c is typeof c & { category: string } => !!c.category),
-                    )}
-                    value={certificationIds}
-                    onValueChange={(v) => setCertificationIds(v as string[])}
-                    mode="multi"
-                  />
-                )}
+                <CertificationPicker
+                  selectedIds={certificationIds}
+                  onChange={setCertificationIds}
+                  mode="profile"
+                  certs={certs}
+                />
               </div>
 
               {/* Languages — all crew */}

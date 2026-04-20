@@ -4,12 +4,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { SearchableNationalitySelect } from '@/components/searchable-nationality-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
-import {
-  HierarchicalPills,
-  rolesToGroups,
-  certsToGroups,
-  citiesToGroups,
-} from '@/components/hierarchical-pills';
+import { HierarchicalPills, rolesToGroups, citiesToGroups } from '@/components/hierarchical-pills';
+import { CertificationPicker } from '@/components/certification-picker';
 import { LANGUAGES } from '@dockwalker/shared';
 
 interface LookupItem {
@@ -73,7 +69,6 @@ interface ProfileEditFormProps {
   setPlacementCityIds: (v: string[]) => void;
   // Lookups
   roles: LookupItem[];
-  certs: LookupItem[];
   nationalities: NationalityItem[];
   visaTypes: VisaItem[];
   cities: CityItem[];
@@ -116,7 +111,6 @@ export function ProfileEditForm({
   placementCityIds,
   setPlacementCityIds,
   roles,
-  certs,
   nationalities,
   visaTypes,
   cities,
@@ -196,13 +190,10 @@ export function ProfileEditForm({
 
         <div className="flex flex-col gap-1.5">
           <Label>Certifications</Label>
-          <HierarchicalPills
-            groups={certsToGroups(
-              certs.filter((c): c is typeof c & { category: string } => !!c.category),
-            )}
-            value={certificationIds}
-            onValueChange={(v) => setCertificationIds(v as string[])}
-            mode="multi"
+          <CertificationPicker
+            selectedIds={certificationIds}
+            onChange={setCertificationIds}
+            mode="profile"
           />
         </div>
 

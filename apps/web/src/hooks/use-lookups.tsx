@@ -14,6 +14,8 @@ export interface CertLookup {
   id: string;
   name: string;
   category: string;
+  subcategory: string | null;
+  sort_order: number;
 }
 
 export interface ExperienceBracketLookup {
@@ -179,7 +181,12 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     const [rolesRes, certsRes, bracketsRes, bandsRes, natRes, visaRes, portsRes, citiesRes] =
       await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-        supabase.from('certifications').select('id, name, category').order('sort_order'),
+        supabase
+          .from('certifications')
+          .select('id, name, category, subcategory, sort_order')
+          .order('category')
+          .order('subcategory')
+          .order('sort_order'),
         supabase.from('experience_brackets').select('id, label').order('min_months'),
         supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
         supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
@@ -230,7 +237,12 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     Promise.all([
       supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-      supabase.from('certifications').select('id, name, category').order('sort_order'),
+      supabase
+        .from('certifications')
+        .select('id, name, category, subcategory, sort_order')
+        .order('category')
+        .order('subcategory')
+        .order('sort_order'),
       supabase.from('experience_brackets').select('id, label').order('min_months'),
       supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
       supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),

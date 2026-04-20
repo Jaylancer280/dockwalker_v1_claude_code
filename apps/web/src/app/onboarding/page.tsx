@@ -150,7 +150,15 @@ export default function OnboardingPage() {
 
   // Lookup data
   const [roles, setRoles] = useState<LookupItem[]>([]);
-  const [certs, setCerts] = useState<LookupItem[]>([]);
+  const [certs, setCerts] = useState<
+    {
+      id: string;
+      name: string;
+      category: string | null;
+      subcategory: string | null;
+      sort_order: number;
+    }[]
+  >([]);
   const [brackets, setBrackets] = useState<LookupItem[]>([]);
   const [sizeBands, setSizeBands] = useState<LookupItem[]>([]);
   const [sizeBandsFull, setSizeBandsFull] = useState<SizeBandFull[]>([]);
@@ -178,7 +186,12 @@ export default function OnboardingPage() {
         citiesRes,
       ] = await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-        supabase.from('certifications').select('id, name, category').order('sort_order'),
+        supabase
+          .from('certifications')
+          .select('id, name, category, subcategory, sort_order')
+          .order('category')
+          .order('subcategory')
+          .order('sort_order'),
         supabase.from('experience_brackets').select('id, label').order('sort_order'),
         supabase
           .from('vessel_size_bands')

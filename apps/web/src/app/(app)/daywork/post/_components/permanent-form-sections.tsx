@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/select';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
 import { LocationPicker } from '@/components/location-picker';
-import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
+import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
+import { CertificationPicker } from '@/components/certification-picker';
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
 import { ContractDetailsInput } from '@/components/contract-details-input';
 import { type CurrencyCode } from '@dockwalker/shared';
@@ -376,7 +377,6 @@ export function SalarySection({
 // ── RequirementsSection ──
 
 export interface RequirementsSectionProps {
-  certifications: LookupItem[];
   certificationIds: string[];
   setCertificationIds: React.Dispatch<React.SetStateAction<string[]>>;
   requiredLangs: string[];
@@ -387,7 +387,6 @@ export interface RequirementsSectionProps {
 }
 
 export function RequirementsSection({
-  certifications,
   certificationIds,
   setCertificationIds,
   requiredLangs,
@@ -424,13 +423,10 @@ export function RequirementsSection({
           </button>
         </div>
         {!certificationIds.includes('__none__') && (
-          <HierarchicalPills
-            groups={certsToGroups(
-              certifications.filter((c): c is typeof c & { category: string } => !!c.category),
-            )}
-            value={certificationIds}
-            onValueChange={(v) => setCertificationIds(v as string[])}
-            mode="multi"
+          <CertificationPicker
+            selectedIds={certificationIds}
+            onChange={setCertificationIds}
+            mode="required"
           />
         )}
       </div>

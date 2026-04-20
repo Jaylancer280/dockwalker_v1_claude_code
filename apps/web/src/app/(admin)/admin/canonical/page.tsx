@@ -117,12 +117,27 @@ function VesselsTab() {
   );
 }
 
+const CERT_CATEGORIES = [
+  'basic',
+  'deck_bridge',
+  'engineering',
+  'interior',
+  'galley',
+  'watersports',
+  'helideck',
+  'other',
+] as const;
+
 export default function AdminCanonicalPage() {
   const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState<ActiveTab>('yacht_roles');
   const [newLabel, setNewLabel] = useState('');
+  const [newCertCategory, setNewCertCategory] = useState<string>('basic');
+  const [newCertSubcategory, setNewCertSubcategory] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
+  const [editCertCategory, setEditCertCategory] = useState<string>('basic');
+  const [editCertSubcategory, setEditCertSubcategory] = useState('');
 
   const isVessels = activeTab === 'vessels';
   const canonicalTable = isVessels ? null : activeTab;
@@ -135,14 +150,23 @@ export default function AdminCanonicalPage() {
 
   async function handleAdd() {
     if (!newLabel.trim() || !canonicalTable) return;
+    const payload: Record<string, unknown> =
+      canonicalTable === 'certifications'
+        ? {
+            name: newLabel.trim(),
+            category: newCertCategory,
+            subcategory: newCertSubcategory.trim() || null,
+          }
+        : { label: newLabel.trim() };
     const res = await safeFetch(`/api/admin/canonical/${canonicalTable}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label: newLabel.trim() }),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       showSuccess('Added');
       setNewLabel('');
+      setNewCertSubcategory('');
       mutate();
     } else {
       showError('Failed to add');
@@ -151,10 +175,19 @@ export default function AdminCanonicalPage() {
 
   async function handleEdit(id: string) {
     if (!editLabel.trim() || !canonicalTable) return;
+    const payload: Record<string, unknown> =
+      canonicalTable === 'certifications'
+        ? {
+            id,
+            name: editLabel.trim(),
+            category: editCertCategory,
+            subcategory: editCertSubcategory.trim() || null,
+          }
+        : { id, label: editLabel.trim() };
     const res = await safeFetch(`/api/admin/canonical/${canonicalTable}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, label: editLabel.trim() }),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
       showSuccess('Updated');
@@ -199,14 +232,36 @@ export default function AdminCanonicalPage() {
         <p className="text-muted-foreground">Loading...</p>
       ) : (
         <>
-          <div className="mb-4 flex gap-2">
+          <div className="mb-4 flex flex-wrap gap-2">
             <Input
-              placeholder={`New ${activeTab.replace(/_/g, ' ')} label...`}
+              placeholder={`New ${activeTab.replace(/_/g, ' ')} ${activeTab === 'certifications' ? 'name' : 'label'}...`}
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               className="max-w-sm"
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
+            {activeTab === 'certifications' && (
+              <>
+                <select
+                  value={newCertCategory}
+                  onChange={(e) => setNewCertCategory(e.target.value)}
+                  className="rounded border bg-background px-2 text-sm"
+                  aria-label="Category"
+                >
+                  {CERT_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  placeholder="Subcategory (optional)"
+                  value={newCertSubcategory}
+                  onChange={(e) => setNewCertSubcategory(e.target.value)}
+                  className="max-w-xs"
+                />
+              </>
+            )}
             <Button onClick={handleAdd} disabled={!newLabel.trim()}>
               Add
             </Button>
@@ -224,12 +279,44 @@ export default function AdminCanonicalPage() {
                 <tr key={row.id} className="border-b">
                   <td className="py-2">
                     {editId === row.id ? (
-                      <Input
-                        value={editLabel}
-                        onChange={(e) => setEditLabel(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleEdit(row.id)}
-                        className="h-8"
-                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          value={editLabel}
+                          onChange={(e) => setEditLabel(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleEdit(row.id)}
+                          className="h-8 max-w-sm"
+                        />
+                        {activeTab === 'certifications' && (
+                          <>
+                            <select
+                              value={editCertCategory}
+                              onChange={(e) => setEditCertCategory(e.target.value)}
+                              className="rounded border bg-background px-2 text-sm"
+                              aria-label="Category"
+                            >
+                              {CERT_CATEGORIES.map((c) => (
+                                <option key={c} value={c}>
+                                  {c}
+                                </option>
+                              ))}
+                            </select>
+                            <Input
+                              placeholder="Subcategory (optional)"
+                              value={editCertSubcategory}
+                              onChange={(e) => setEditCertSubcategory(e.target.value)}
+                              className="h-8 max-w-xs"
+                            />
+                          </>
+                        )}
+                      </div>
+                    ) : activeTab === 'certifications' ? (
+                      <span>
+                        {displayName(row)}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          [{String(row.category ?? '—')}
+                          {row.subcategory ? ` / ${row.subcategory}` : ''}]
+                        </span>
+                      </span>
                     ) : (
                       displayName(row)
                     )}
@@ -254,6 +341,10 @@ export default function AdminCanonicalPage() {
                         onClick={() => {
                           setEditId(row.id);
                           setEditLabel(String(displayName(row)));
+                          if (activeTab === 'certifications') {
+                            setEditCertCategory(String(row.category ?? 'basic'));
+                            setEditCertSubcategory(String(row.subcategory ?? ''));
+                          }
                         }}
                       >
                         Edit

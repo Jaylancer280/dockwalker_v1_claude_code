@@ -29,7 +29,8 @@ import {
 import { LocationPicker } from '@/components/location-picker';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { currencySymbol } from '@dockwalker/shared';
-import { HierarchicalPills, rolesToGroups, certsToGroups } from '@/components/hierarchical-pills';
+import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
+import { CertificationPicker } from '@/components/certification-picker';
 import { ExperienceBracketPills } from '@/components/experience-bracket-pills';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
@@ -691,11 +692,10 @@ function DayworkPostForm() {
         {/* Required certs */}
         <div className="flex flex-col gap-1.5">
           <Label>Required certifications (optional)</Label>
-          <HierarchicalPills
-            groups={certsToGroups(certs)}
-            value={requiredCertIds}
-            onValueChange={(v) => setRequiredCertIds(v as string[])}
-            mode="multi"
+          <CertificationPicker
+            selectedIds={requiredCertIds}
+            onChange={setRequiredCertIds}
+            mode="required"
           />
         </div>
 

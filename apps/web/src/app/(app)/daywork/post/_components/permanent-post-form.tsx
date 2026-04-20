@@ -424,7 +424,6 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         />
 
         <RequirementsSection
-          certifications={certifications}
           certificationIds={certificationIds}
           setCertificationIds={setCertificationIds}
           requiredLangs={requiredLangs}

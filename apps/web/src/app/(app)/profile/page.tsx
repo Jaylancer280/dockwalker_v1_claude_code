@@ -186,7 +186,6 @@ export default function ProfilePage() {
   // Lookups from cached context
   const lookups = useLookups();
   const roles = lookups.roles as LookupItem[];
-  const certs = lookups.certifications as LookupItem[];
   const nationalities = lookups.nationalities;
   const visaTypes = lookups.visaTypes;
 
@@ -782,7 +781,6 @@ export default function ProfilePage() {
             placementCityIds={placementCityIds}
             setPlacementCityIds={setPlacementCityIds}
             roles={roles}
-            certs={certs}
             nationalities={nationalities}
             visaTypes={visaTypes}
             cities={lookups.cities}

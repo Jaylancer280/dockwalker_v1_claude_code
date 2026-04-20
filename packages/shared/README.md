@@ -10,7 +10,8 @@ Pure business logic shared between `apps/web/` and `apps/mobile/`.
 | `languages`                | `LANGUAGES`, `LANGUAGE_CODES`, `languageLabel`                                                                                                                                                                                           |
 | `compute-total-experience` | `computeTotalExperience`                                                                                                                                                                                                                 |
 | `epaulettes`               | `getDepartmentColor`, `EpauletteInfo`, `getEpaulette`                                                                                                                                                                                    |
-| `grouping`                 | `PillGroup`, `rolesToGroups`, `certsToGroups`, `citiesToGroups`                                                                                                                                                                          |
+| `grouping`                 | `PillGroup`, `rolesToGroups`, `certsToGroups`, `citiesToGroups`, `CertInput`, `CertCategoryGroup`, `groupCertsByCategoryAndSubcategory`                                                                                                  |
+| `cert-labels`              | `certCategoryLabel`, `certSubcategoryLabel`                                                                                                                                                                                              |
 
 ## Usage
 

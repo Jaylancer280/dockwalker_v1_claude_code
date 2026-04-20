@@ -29,4 +29,9 @@ export {
   rolesToGroups,
   certsToGroups,
   citiesToGroups,
+  type CertInput,
+  type CertCategoryGroup,
+  groupCertsByCategoryAndSubcategory,
 } from './grouping';
+
+export { certCategoryLabel, certSubcategoryLabel } from './cert-labels';
