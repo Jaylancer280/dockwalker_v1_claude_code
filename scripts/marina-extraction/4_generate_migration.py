@@ -198,17 +198,105 @@ ORIGINAL_PORTS: list[dict[str, Any]] = [
 # looked up in the English-name table below. Nominatim returns lowercased
 # ISO codes — we uppercase on read.
 COUNTRY_NAME_BY_CODE: dict[str, str] = {
-    "FR": "France",
-    "ES": "Spain",
-    "US": "United States",
-    "BS": "Bahamas",
     "AE": "United Arab Emirates",
-    "TR": "Türkiye",
-    "MC": "Monaco",
-    "SX": "Sint Maarten",
     "AG": "Antigua and Barbuda",
-    "VI": "United States Virgin Islands",
+    "AI": "Anguilla",
+    "AL": "Albania",
+    "AR": "Argentina",
+    "AU": "Australia",
+    "AW": "Aruba",
+    "BB": "Barbados",
+    "BE": "Belgium",
+    "BH": "Bahrain",
+    "BL": "Saint Barthélemy",
+    "BM": "Bermuda",
+    "BQ": "Caribbean Netherlands",
+    "BR": "Brazil",
+    "BS": "Bahamas",
+    "CA": "Canada",
+    "CL": "Chile",
+    "CO": "Colombia",
+    "CU": "Cuba",
+    "CW": "Curaçao",
+    "CY": "Cyprus",
+    "DM": "Dominica",
+    "DO": "Dominican Republic",
+    "DZ": "Algeria",
+    "EC": "Ecuador",
+    "EG": "Egypt",
+    "ES": "Spain",
+    "FJ": "Fiji",
+    "FO": "Faroe Islands",
+    "FR": "France",
+    "GB": "United Kingdom",
+    "GD": "Grenada",
+    "GF": "French Guiana",
+    "GI": "Gibraltar",
+    "GP": "Guadeloupe",
+    "GR": "Greece",
+    "GY": "Guyana",
+    "HK": "Hong Kong",
+    "HR": "Croatia",
+    "HT": "Haiti",
+    "ID": "Indonesia",
+    "IE": "Ireland",
+    "IL": "Israel",
+    "IS": "Iceland",
+    "IT": "Italy",
+    "JM": "Jamaica",
+    "JO": "Jordan",
+    "JP": "Japan",
+    "KE": "Kenya",
+    "KW": "Kuwait",
+    "KY": "Cayman Islands",
+    "LB": "Lebanon",
+    "LC": "Saint Lucia",
+    "LY": "Libya",
+    "MA": "Morocco",
+    "MC": "Monaco",
+    "ME": "Montenegro",
+    "MF": "Saint Martin",
+    "MG": "Madagascar",
+    "MQ": "Martinique",
+    "MS": "Montserrat",
+    "MT": "Malta",
+    "MU": "Mauritius",
+    "MV": "Maldives",
+    "MX": "Mexico",
+    "MY": "Malaysia",
+    "NC": "New Caledonia",
+    "NZ": "New Zealand",
+    "OM": "Oman",
+    "PE": "Peru",
+    "PF": "French Polynesia",
+    "PH": "Philippines",
+    "PR": "Puerto Rico",
+    "PT": "Portugal",
+    "QA": "Qatar",
+    "RE": "Réunion",
+    "SA": "Saudi Arabia",
+    "SC": "Seychelles",
+    "SG": "Singapore",
+    "SI": "Slovenia",
+    "SR": "Suriname",
+    "SX": "Sint Maarten",
+    "TC": "Turks and Caicos Islands",
+    "TH": "Thailand",
+    "TN": "Tunisia",
+    "TO": "Tonga",
+    "TR": "Türkiye",
     "TT": "Trinidad and Tobago",
+    "TZ": "Tanzania",
+    "US": "United States",
+    "UY": "Uruguay",
+    "VC": "Saint Vincent and the Grenadines",
+    "VE": "Venezuela",
+    "VG": "British Virgin Islands",
+    "VI": "United States Virgin Islands",
+    "VN": "Vietnam",
+    "VU": "Vanuatu",
+    "WS": "Samoa",
+    "ZA": "South Africa",
 }
 
 
@@ -341,15 +429,34 @@ def generate_migration(records: list[dict]) -> tuple[str, str]:
     extra_from_cities = sorted({c["country_code"] for c in ORIGINAL_CITIES})
     all_countries = sorted(set(countries_in_csv) | set(extra_from_cities))
 
-    # Country name lookup: prefer COUNTRY_NAME_BY_CODE, fallback to first CSV row for the country.
+    # Country name lookup: prefer COUNTRY_NAME_BY_CODE, fallback to the first
+    # CSV row whose country name isn't just the code again (Nominatim sometimes
+    # returns the alpha-2 code in the `country` field for less-common places).
     country_name_from_csv: dict[str, str] = {}
     for r in records:
         cc = r["country_code"].upper()
+        name = (r["country"] or "").strip()
+        if not name or name.upper() == cc:
+            continue
         if cc not in country_name_from_csv:
-            country_name_from_csv[cc] = r["country"]
+            country_name_from_csv[cc] = name
 
     def country_name(cc: str) -> str:
         return COUNTRY_NAME_BY_CODE.get(cc) or country_name_from_csv.get(cc) or cc
+
+    up.append("-- ============================================================")
+    up.append("-- Step 0: Rename the 7 legacy region rows so their country-canonical")
+    up.append("-- names (Bahamas, UAE, Turkey, etc.) don't collide with the new")
+    up.append("-- UUIDv5 rows we're about to insert (regions.name is UNIQUE).")
+    up.append("-- Step 3 then deletes these renamed rows once cities have moved.")
+    up.append("-- ============================================================")
+    up.append("")
+    for r in ORIGINAL_REGIONS:
+        up.append(
+            f"update public.regions set name = name || '_legacy_{r['id'][-12:]}' "
+            f"where id = {sql_quote(r['id'])};"
+        )
+    up.append("")
 
     up.append("-- ============================================================")
     up.append("-- Step 1: Insert/upsert region rows (deterministic UUIDv5 by country_code)")
