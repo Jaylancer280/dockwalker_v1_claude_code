@@ -15,8 +15,10 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchableNationalitySelect } from '@/components/searchable-nationality-select';
 import { LocationPicker } from '@/components/location-picker';
-import { HierarchicalPills, rolesToGroups, citiesToGroups } from '@/components/hierarchical-pills';
+import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
 import { CertificationPicker } from '@/components/certification-picker';
+import { CitiesPicker } from '@/components/cities-picker';
+import { EntryRightPicker } from '@/components/entry-right-picker';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { LANGUAGES } from '@dockwalker/shared';
 
@@ -79,8 +81,8 @@ export interface ProfileStepProps {
   setVisibleTattoos: (v: boolean | null) => void;
   nationalityId: string;
   setNationalityId: (v: string) => void;
-  visaIds: string[];
-  setVisaIds: (v: string[]) => void;
+  entryRightIds: string[];
+  setEntryRightIds: (v: string[]) => void;
 
   // Agent fields
   agencyName: string;
@@ -102,8 +104,12 @@ export interface ProfileStepProps {
   brackets: LookupItem[];
   sizeBands: LookupItem[];
   nationalities: { id: string; name: string; flag_emoji: string }[];
-  visaTypes: { id: string; name: string }[];
-  cities: { id: string; name: string; regions: { name: string } | null }[];
+  entryRights: {
+    id: string;
+    name: string;
+    category: 'citizenship' | 'residence' | 'visa';
+    sort_order: number;
+  }[];
 
   // Navigation
   onBack: () => void;
@@ -166,8 +172,8 @@ export function ProfileStep(props: ProfileStepProps) {
     setVisibleTattoos,
     nationalityId,
     setNationalityId,
-    visaIds,
-    setVisaIds,
+    entryRightIds,
+    setEntryRightIds,
     agencyName,
     setAgencyName,
     roleSpecializationIds,
@@ -179,8 +185,7 @@ export function ProfileStep(props: ProfileStepProps) {
     brackets,
     sizeBands,
     nationalities,
-    visaTypes,
-    cities,
+    entryRights,
     onBack,
     onNext,
     onSkip,
@@ -421,33 +426,16 @@ export function ProfileStep(props: ProfileStepProps) {
                 />
               </div>
 
-              {/* Visas */}
+              {/* Entry rights */}
               <div className="flex flex-col gap-1.5">
                 <Label>
-                  Visas <span className="text-xs text-muted-foreground">(optional)</span>
+                  Entry rights <span className="text-xs text-muted-foreground">(optional)</span>
                 </Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {visaTypes.map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                        visaIds.includes(v.id)
-                          ? 'bg-[var(--accent)] text-white'
-                          : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
-                      }`}
-                      onClick={() =>
-                        setVisaIds(
-                          visaIds.includes(v.id)
-                            ? visaIds.filter((id) => id !== v.id)
-                            : [...visaIds, v.id],
-                        )
-                      }
-                    >
-                      {v.name}
-                    </button>
-                  ))}
-                </div>
+                <EntryRightPicker
+                  selectedIds={entryRightIds}
+                  onChange={setEntryRightIds}
+                  entryRights={entryRights}
+                />
               </div>
 
               {/* Desired role — optional */}
@@ -588,11 +576,10 @@ export function ProfileStep(props: ProfileStepProps) {
                 <p className="text-xs text-muted-foreground">
                   Cities where you actively place crew — separate from your office location
                 </p>
-                <HierarchicalPills
-                  groups={citiesToGroups(cities)}
-                  value={placementCityIds}
-                  onValueChange={(v) => setPlacementCityIds(v as string[])}
-                  mode="multi"
+                <CitiesPicker
+                  selectedIds={placementCityIds}
+                  onChange={setPlacementCityIds}
+                  placeholder="Search cities where you place crew…"
                 />
               </div>
             </>

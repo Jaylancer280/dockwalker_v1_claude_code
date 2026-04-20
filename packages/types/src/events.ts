@@ -126,7 +126,7 @@ export interface EventPayloadMap {
     onboarding_version?: number;
     avatar_url?: string | null;
     nationality_id?: string | null;
-    visa_ids?: string[];
+    entry_right_ids?: string[];
     desired_role_id?: string | null;
     deck_name?: string | null;
     location_city_id?: string | null;
@@ -149,7 +149,7 @@ export interface EventPayloadMap {
     available_to_start?: string | null;
     avatar_url?: string | null;
     nationality_id?: string | null;
-    visa_ids?: string[];
+    entry_right_ids?: string[];
     permanent_availability?: string | null;
     notice_period_days?: number | null;
     currently_employed?: boolean;

@@ -34,13 +34,6 @@ interface FlagState {
   name: string;
 }
 
-interface CityLookup {
-  id: string;
-  name: string;
-  region_id: string;
-  regions: { name: string } | null;
-}
-
 interface SizeBandFull {
   id: string;
   label: string;
@@ -116,9 +109,9 @@ export default function OnboardingPage() {
   const [smoker, setSmoker] = useState<boolean | null>(null);
   const [visibleTattoos, setVisibleTattoos] = useState<boolean | null>(null);
 
-  // Nationality & visas
+  // Nationality & entry rights
   const [nationalityId, setNationalityId] = useState('');
-  const [visaIds, setVisaIds] = useState<string[]>([]);
+  const [entryRightIds, setEntryRightIds] = useState<string[]>([]);
 
   // Agent fields
   const [agencyName, setAgencyName] = useState('');
@@ -166,8 +159,14 @@ export default function OnboardingPage() {
   const [nationalities, setNationalities] = useState<
     { id: string; name: string; flag_emoji: string }[]
   >([]);
-  const [visaTypes, setVisaTypes] = useState<{ id: string; name: string }[]>([]);
-  const [cities, setCities] = useState<CityLookup[]>([]);
+  const [entryRights, setEntryRights] = useState<
+    {
+      id: string;
+      name: string;
+      category: 'citizenship' | 'residence' | 'visa';
+      sort_order: number;
+    }[]
+  >([]);
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
 
   const needsLookups = step === 'profile' || step === 'vessel-experience';
@@ -182,8 +181,7 @@ export default function OnboardingPage() {
         sizesRes,
         flagsRes,
         nationalitiesRes,
-        visaTypesRes,
-        citiesRes,
+        entryRightsRes,
       ] = await Promise.all([
         supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
         supabase
@@ -199,8 +197,11 @@ export default function OnboardingPage() {
           .order('sort_order'),
         supabase.from('flag_states').select('id, name').order('sort_order'),
         supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
-        supabase.from('visa_types').select('id, name').order('sort_order'),
-        supabase.from('cities').select('id, name, region_id, regions(name)').order('name'),
+        supabase
+          .from('entry_rights')
+          .select('id, name, category, sort_order')
+          .order('category')
+          .order('sort_order'),
       ]);
       if (rolesRes.data) setRoles(rolesRes.data);
       if (certsRes.data) setCerts(certsRes.data);
@@ -211,8 +212,16 @@ export default function OnboardingPage() {
       }
       if (flagsRes.data) setFlagStates(flagsRes.data);
       if (nationalitiesRes.data) setNationalities(nationalitiesRes.data);
-      if (visaTypesRes.data) setVisaTypes(visaTypesRes.data);
-      if (citiesRes.data) setCities(citiesRes.data as unknown as CityLookup[]);
+      if (entryRightsRes.data) {
+        setEntryRights(
+          entryRightsRes.data as {
+            id: string;
+            name: string;
+            category: 'citizenship' | 'residence' | 'visa';
+            sort_order: number;
+          }[],
+        );
+      }
       setLookupsLoaded(true);
     }
     loadLookups();
@@ -258,7 +267,7 @@ export default function OnboardingPage() {
         profileData.primaryRoleId = primaryRoleId || undefined;
         profileData.certificationIds = certificationIds;
         profileData.nationalityId = nationalityId || null;
-        profileData.visaIds = visaIds;
+        profileData.entryRightIds = entryRightIds;
         profileData.deckName = deckName || undefined;
         profileData.desiredRoleId = desiredRoleId || undefined;
         profileData.permanentAvailability = permanentAvailability || undefined;
@@ -474,8 +483,8 @@ export default function OnboardingPage() {
           setVisibleTattoos={setVisibleTattoos}
           nationalityId={nationalityId}
           setNationalityId={setNationalityId}
-          visaIds={visaIds}
-          setVisaIds={setVisaIds}
+          entryRightIds={entryRightIds}
+          setEntryRightIds={setEntryRightIds}
           agencyName={agencyName}
           setAgencyName={setAgencyName}
           roleSpecializationIds={roleSpecializationIds}
@@ -487,8 +496,7 @@ export default function OnboardingPage() {
           brackets={brackets}
           sizeBands={sizeBands}
           nationalities={nationalities}
-          visaTypes={visaTypes}
-          cities={cities}
+          entryRights={entryRights}
           onBack={() => setStep(identityType === 'crew' ? 'experience-fork' : 'identity')}
           onNext={() => setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'hat')}
           onSkip={() => setStep('hat')}

@@ -141,7 +141,7 @@ select public.onboard_person(
     'location_port_id', 'c0000000-0000-0000-0000-000000000001',
     'avatar_url', '/images/dw-system-avatar.png',
     'nationality_id', (select id from public.nationalities where country_code = 'ZA'),
-    'visa_ids', (select jsonb_agg(id) from public.visa_types where name in ('Schengen', 'B1/B2 (US)'))
+    'entry_right_ids', (select jsonb_agg(id) from public.entry_rights where name in ('Schengen visa', 'US B1/B2'))
   ),
   '11111111-1111-1111-1111-111111111111'
 );
@@ -162,7 +162,7 @@ select public.onboard_person(
     'location_port_id', 'c0000000-0000-0000-0000-000000000001',
     'avatar_url', '/images/dw-system-avatar.png',
     'nationality_id', (select id from public.nationalities where country_code = 'GB'),
-    'visa_ids', (select jsonb_agg(id) from public.visa_types where name in ('Schengen'))
+    'entry_right_ids', (select jsonb_agg(id) from public.entry_rights where name in ('Schengen visa'))
   ),
   '22222222-2222-2222-2222-222222222222'
 );
@@ -317,7 +317,7 @@ select public.onboard_person(
     'location_port_id', 'c0000000-0000-0000-0000-000000000008',
     'avatar_url', '/images/dw-system-avatar.png',
     'nationality_id', (select id from public.nationalities where country_code = 'FR'),
-    'visa_ids', (select jsonb_agg(id) from public.visa_types where name in ('Schengen'))
+    'entry_right_ids', (select jsonb_agg(id) from public.entry_rights where name in ('Schengen visa'))
   ),
   '77777777-7777-7777-7777-777777777777'
 );
@@ -404,7 +404,7 @@ select public.onboard_person(
     'location_port_id', 'c0000000-0000-0000-0000-000000000020',
     'avatar_url', '/images/dw-system-avatar.png',
     'nationality_id', (select id from public.nationalities where country_code = 'GB'),
-    'visa_ids', (select jsonb_agg(id) from public.visa_types where name in ('Schengen', 'B1/B2 (US)'))
+    'entry_right_ids', (select jsonb_agg(id) from public.entry_rights where name in ('Schengen visa', 'US B1/B2'))
   ),
   '99999999-9999-9999-9999-999999999999'
 );

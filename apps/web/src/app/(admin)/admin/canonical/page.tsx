@@ -128,16 +128,56 @@ const CERT_CATEGORIES = [
   'other',
 ] as const;
 
+interface PortFields {
+  latitude: string;
+  longitude: string;
+  osm_type: string;
+  osm_id: string;
+  website: string;
+  phone: string;
+  capacity: string;
+  vhf: string;
+}
+
+const EMPTY_PORT_FIELDS: PortFields = {
+  latitude: '',
+  longitude: '',
+  osm_type: '',
+  osm_id: '',
+  website: '',
+  phone: '',
+  capacity: '',
+  vhf: '',
+};
+
+function portFieldsToPayload(pf: PortFields): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (pf.latitude.trim()) out.latitude = Number(pf.latitude);
+  if (pf.longitude.trim()) out.longitude = Number(pf.longitude);
+  if (pf.osm_type.trim()) out.osm_type = pf.osm_type.trim();
+  if (pf.osm_id.trim()) out.osm_id = Number(pf.osm_id);
+  if (pf.website.trim()) out.website = pf.website.trim();
+  if (pf.phone.trim()) out.phone = pf.phone.trim();
+  if (pf.capacity.trim()) out.capacity = pf.capacity.trim();
+  if (pf.vhf.trim()) out.vhf = pf.vhf.trim();
+  return out;
+}
+
 export default function AdminCanonicalPage() {
   const { showSuccess, showError } = useToast();
   const [activeTab, setActiveTab] = useState<ActiveTab>('yacht_roles');
   const [newLabel, setNewLabel] = useState('');
   const [newCertCategory, setNewCertCategory] = useState<string>('basic');
   const [newCertSubcategory, setNewCertSubcategory] = useState('');
+  const [newRegionCountryCode, setNewRegionCountryCode] = useState('');
+  const [newPortCityId, setNewPortCityId] = useState('');
+  const [newPortFields, setNewPortFields] = useState<PortFields>(EMPTY_PORT_FIELDS);
   const [editId, setEditId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [editCertCategory, setEditCertCategory] = useState<string>('basic');
   const [editCertSubcategory, setEditCertSubcategory] = useState('');
+  const [editRegionCountryCode, setEditRegionCountryCode] = useState('');
+  const [editPortFields, setEditPortFields] = useState<PortFields>(EMPTY_PORT_FIELDS);
 
   const isVessels = activeTab === 'vessels';
   const canonicalTable = isVessels ? null : activeTab;
@@ -150,14 +190,33 @@ export default function AdminCanonicalPage() {
 
   async function handleAdd() {
     if (!newLabel.trim() || !canonicalTable) return;
-    const payload: Record<string, unknown> =
-      canonicalTable === 'certifications'
-        ? {
-            name: newLabel.trim(),
-            category: newCertCategory,
-            subcategory: newCertSubcategory.trim() || null,
-          }
-        : { label: newLabel.trim() };
+    let payload: Record<string, unknown>;
+    if (canonicalTable === 'certifications') {
+      payload = {
+        name: newLabel.trim(),
+        category: newCertCategory,
+        subcategory: newCertSubcategory.trim() || null,
+      };
+    } else if (canonicalTable === 'regions') {
+      const cc = newRegionCountryCode.trim().toUpperCase();
+      if (cc && !/^[A-Z]{2}$/.test(cc)) {
+        showError('country_code must be ISO-3166-1 alpha-2 (2 letters)');
+        return;
+      }
+      payload = { name: newLabel.trim(), country_code: cc || null };
+    } else if (canonicalTable === 'ports') {
+      if (!newPortCityId.trim()) {
+        showError('city_id is required for ports');
+        return;
+      }
+      payload = {
+        name: newLabel.trim(),
+        city_id: newPortCityId.trim(),
+        ...portFieldsToPayload(newPortFields),
+      };
+    } else {
+      payload = { label: newLabel.trim() };
+    }
     const res = await safeFetch(`/api/admin/canonical/${canonicalTable}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -167,6 +226,9 @@ export default function AdminCanonicalPage() {
       showSuccess('Added');
       setNewLabel('');
       setNewCertSubcategory('');
+      setNewRegionCountryCode('');
+      setNewPortCityId('');
+      setNewPortFields(EMPTY_PORT_FIELDS);
       mutate();
     } else {
       showError('Failed to add');
@@ -175,15 +237,30 @@ export default function AdminCanonicalPage() {
 
   async function handleEdit(id: string) {
     if (!editLabel.trim() || !canonicalTable) return;
-    const payload: Record<string, unknown> =
-      canonicalTable === 'certifications'
-        ? {
-            id,
-            name: editLabel.trim(),
-            category: editCertCategory,
-            subcategory: editCertSubcategory.trim() || null,
-          }
-        : { id, label: editLabel.trim() };
+    let payload: Record<string, unknown>;
+    if (canonicalTable === 'certifications') {
+      payload = {
+        id,
+        name: editLabel.trim(),
+        category: editCertCategory,
+        subcategory: editCertSubcategory.trim() || null,
+      };
+    } else if (canonicalTable === 'regions') {
+      const cc = editRegionCountryCode.trim().toUpperCase();
+      if (cc && !/^[A-Z]{2}$/.test(cc)) {
+        showError('country_code must be ISO-3166-1 alpha-2 (2 letters)');
+        return;
+      }
+      payload = { id, name: editLabel.trim(), country_code: cc || null };
+    } else if (canonicalTable === 'ports') {
+      payload = {
+        id,
+        name: editLabel.trim(),
+        ...portFieldsToPayload(editPortFields),
+      };
+    } else {
+      payload = { id, label: editLabel.trim() };
+    }
     const res = await safeFetch(`/api/admin/canonical/${canonicalTable}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -192,6 +269,8 @@ export default function AdminCanonicalPage() {
     if (res.ok) {
       showSuccess('Updated');
       setEditId(null);
+      setEditPortFields(EMPTY_PORT_FIELDS);
+      setEditRegionCountryCode('');
       mutate();
     } else {
       showError('Failed to update');
@@ -262,10 +341,80 @@ export default function AdminCanonicalPage() {
                 />
               </>
             )}
+            {activeTab === 'regions' && (
+              <Input
+                placeholder="Country code (2 letters, e.g. FR)"
+                value={newRegionCountryCode}
+                onChange={(e) => setNewRegionCountryCode(e.target.value.toUpperCase())}
+                maxLength={2}
+                className="w-24 uppercase"
+                aria-label="Country code"
+              />
+            )}
             <Button onClick={handleAdd} disabled={!newLabel.trim()}>
               Add
             </Button>
           </div>
+
+          {activeTab === 'ports' && (
+            <div className="mb-4 grid gap-2 rounded border p-3 md:grid-cols-2">
+              <Input
+                placeholder="City UUID (required)"
+                value={newPortCityId}
+                onChange={(e) => setNewPortCityId(e.target.value)}
+                aria-label="City UUID"
+              />
+              <Input
+                placeholder="Latitude (optional)"
+                value={newPortFields.latitude}
+                onChange={(e) => setNewPortFields({ ...newPortFields, latitude: e.target.value })}
+                inputMode="decimal"
+              />
+              <Input
+                placeholder="Longitude (optional)"
+                value={newPortFields.longitude}
+                onChange={(e) => setNewPortFields({ ...newPortFields, longitude: e.target.value })}
+                inputMode="decimal"
+              />
+              <select
+                value={newPortFields.osm_type}
+                onChange={(e) => setNewPortFields({ ...newPortFields, osm_type: e.target.value })}
+                className="rounded border bg-background px-2 text-sm"
+                aria-label="OSM type"
+              >
+                <option value="">osm_type (optional)</option>
+                <option value="node">node</option>
+                <option value="way">way</option>
+                <option value="relation">relation</option>
+              </select>
+              <Input
+                placeholder="OSM id (optional)"
+                value={newPortFields.osm_id}
+                onChange={(e) => setNewPortFields({ ...newPortFields, osm_id: e.target.value })}
+                inputMode="numeric"
+              />
+              <Input
+                placeholder="Website (optional)"
+                value={newPortFields.website}
+                onChange={(e) => setNewPortFields({ ...newPortFields, website: e.target.value })}
+              />
+              <Input
+                placeholder="Phone (optional)"
+                value={newPortFields.phone}
+                onChange={(e) => setNewPortFields({ ...newPortFields, phone: e.target.value })}
+              />
+              <Input
+                placeholder="Capacity (optional)"
+                value={newPortFields.capacity}
+                onChange={(e) => setNewPortFields({ ...newPortFields, capacity: e.target.value })}
+              />
+              <Input
+                placeholder="VHF channel (optional)"
+                value={newPortFields.vhf}
+                onChange={(e) => setNewPortFields({ ...newPortFields, vhf: e.target.value })}
+              />
+            </div>
+          )}
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -308,6 +457,92 @@ export default function AdminCanonicalPage() {
                             />
                           </>
                         )}
+                        {activeTab === 'regions' && (
+                          <Input
+                            placeholder="Country code"
+                            value={editRegionCountryCode}
+                            onChange={(e) => setEditRegionCountryCode(e.target.value.toUpperCase())}
+                            maxLength={2}
+                            className="h-8 w-24 uppercase"
+                            aria-label="Country code"
+                          />
+                        )}
+                        {activeTab === 'ports' && (
+                          <div className="grid w-full gap-1 md:grid-cols-2">
+                            <Input
+                              placeholder="Latitude"
+                              value={editPortFields.latitude}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, latitude: e.target.value })
+                              }
+                              inputMode="decimal"
+                              className="h-8"
+                            />
+                            <Input
+                              placeholder="Longitude"
+                              value={editPortFields.longitude}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, longitude: e.target.value })
+                              }
+                              inputMode="decimal"
+                              className="h-8"
+                            />
+                            <select
+                              value={editPortFields.osm_type}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, osm_type: e.target.value })
+                              }
+                              className="h-8 rounded border bg-background px-2 text-sm"
+                              aria-label="OSM type"
+                            >
+                              <option value="">osm_type</option>
+                              <option value="node">node</option>
+                              <option value="way">way</option>
+                              <option value="relation">relation</option>
+                            </select>
+                            <Input
+                              placeholder="OSM id"
+                              value={editPortFields.osm_id}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, osm_id: e.target.value })
+                              }
+                              inputMode="numeric"
+                              className="h-8"
+                            />
+                            <Input
+                              placeholder="Website"
+                              value={editPortFields.website}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, website: e.target.value })
+                              }
+                              className="h-8"
+                            />
+                            <Input
+                              placeholder="Phone"
+                              value={editPortFields.phone}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, phone: e.target.value })
+                              }
+                              className="h-8"
+                            />
+                            <Input
+                              placeholder="Capacity"
+                              value={editPortFields.capacity}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, capacity: e.target.value })
+                              }
+                              className="h-8"
+                            />
+                            <Input
+                              placeholder="VHF"
+                              value={editPortFields.vhf}
+                              onChange={(e) =>
+                                setEditPortFields({ ...editPortFields, vhf: e.target.value })
+                              }
+                              className="h-8"
+                            />
+                          </div>
+                        )}
                       </div>
                     ) : activeTab === 'certifications' ? (
                       <span>
@@ -316,6 +551,15 @@ export default function AdminCanonicalPage() {
                           [{String(row.category ?? '—')}
                           {row.subcategory ? ` / ${row.subcategory}` : ''}]
                         </span>
+                      </span>
+                    ) : activeTab === 'regions' ? (
+                      <span>
+                        {displayName(row)}
+                        {Boolean(row.country_code) && (
+                          <span className="ml-2 text-xs font-mono text-muted-foreground">
+                            [{String(row.country_code)}]
+                          </span>
+                        )}
                       </span>
                     ) : (
                       displayName(row)
@@ -344,6 +588,19 @@ export default function AdminCanonicalPage() {
                           if (activeTab === 'certifications') {
                             setEditCertCategory(String(row.category ?? 'basic'));
                             setEditCertSubcategory(String(row.subcategory ?? ''));
+                          } else if (activeTab === 'regions') {
+                            setEditRegionCountryCode(String(row.country_code ?? ''));
+                          } else if (activeTab === 'ports') {
+                            setEditPortFields({
+                              latitude: row.latitude != null ? String(row.latitude) : '',
+                              longitude: row.longitude != null ? String(row.longitude) : '',
+                              osm_type: row.osm_type != null ? String(row.osm_type) : '',
+                              osm_id: row.osm_id != null ? String(row.osm_id) : '',
+                              website: row.website != null ? String(row.website) : '',
+                              phone: row.phone != null ? String(row.phone) : '',
+                              capacity: row.capacity != null ? String(row.capacity) : '',
+                              vhf: row.vhf != null ? String(row.vhf) : '',
+                            });
                           }
                         }}
                       >

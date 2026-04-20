@@ -20,7 +20,7 @@ export async function GET() {
         `
         person_id, display_name, identity_type, bio, avatar_url, deck_name,
         primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
-        vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, visa_ids,
+        vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, entry_right_ids,
         languages,
         permanent_availability, notice_period_days, currently_employed,
         smoker, visible_tattoos,
@@ -102,7 +102,7 @@ export async function PATCH(request: Request) {
     if (body.locationPortId !== undefined) payload.location_port_id = body.locationPortId;
     if (body.locationCityId !== undefined) payload.location_city_id = body.locationCityId;
     if (body.nationalityId !== undefined) payload.nationality_id = body.nationalityId;
-    if (body.visaIds !== undefined) payload.visa_ids = body.visaIds;
+    if (body.entryRightIds !== undefined) payload.entry_right_ids = body.entryRightIds;
     if (body.languages !== undefined) {
       if (
         Array.isArray(body.languages) &&

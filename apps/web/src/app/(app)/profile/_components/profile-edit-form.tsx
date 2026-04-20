@@ -4,8 +4,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { SearchableNationalitySelect } from '@/components/searchable-nationality-select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { LocationPicker } from '@/components/location-picker';
-import { HierarchicalPills, rolesToGroups, citiesToGroups } from '@/components/hierarchical-pills';
+import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
 import { CertificationPicker } from '@/components/certification-picker';
+import { CitiesPicker } from '@/components/cities-picker';
+import { EntryRightPicker } from '@/components/entry-right-picker';
 import { LANGUAGES } from '@dockwalker/shared';
 
 interface LookupItem {
@@ -20,17 +22,6 @@ interface NationalityItem {
   id: string;
   name: string;
   flag_emoji: string;
-}
-
-interface VisaItem {
-  id: string;
-  name: string;
-}
-
-interface CityItem {
-  id: string;
-  name: string;
-  regions: { name: string } | null;
 }
 
 interface ProfileEditFormProps {
@@ -52,8 +43,8 @@ interface ProfileEditFormProps {
   setCertificationIds: (v: string[]) => void;
   nationalityId: string;
   setNationalityId: (v: string) => void;
-  visaIds: string[];
-  setVisaIds: (v: string[]) => void;
+  entryRightIds: string[];
+  setEntryRightIds: (v: string[]) => void;
   profileLanguages: string[];
   setProfileLanguages: (v: string[]) => void;
   smoker: boolean | null;
@@ -70,8 +61,6 @@ interface ProfileEditFormProps {
   // Lookups
   roles: LookupItem[];
   nationalities: NationalityItem[];
-  visaTypes: VisaItem[];
-  cities: CityItem[];
 }
 
 function toggleArrayItem(arr: string[], item: string, setter: (v: string[]) => void) {
@@ -96,8 +85,8 @@ export function ProfileEditForm({
   setCertificationIds,
   nationalityId,
   setNationalityId,
-  visaIds,
-  setVisaIds,
+  entryRightIds,
+  setEntryRightIds,
   profileLanguages,
   setProfileLanguages,
   smoker,
@@ -112,8 +101,6 @@ export function ProfileEditForm({
   setPlacementCityIds,
   roles,
   nationalities,
-  visaTypes,
-  cities,
 }: ProfileEditFormProps) {
   if (identityType === 'crew') {
     return (
@@ -213,23 +200,8 @@ export function ProfileEditForm({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label>Visas</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {visaTypes.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                    visaIds.includes(v.id)
-                      ? 'bg-[var(--accent)] text-white'
-                      : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
-                  }`}
-                  onClick={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
-                >
-                  {v.name}
-                </button>
-              ))}
-            </div>
+            <Label>Entry rights</Label>
+            <EntryRightPicker selectedIds={entryRightIds} onChange={setEntryRightIds} />
           </div>
         </div>
 
@@ -374,33 +346,17 @@ export function ProfileEditForm({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label>Visas</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {visaTypes.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              className={`rounded-full px-3 py-1 text-xs transition-colors ${
-                visaIds.includes(v.id)
-                  ? 'bg-[var(--accent)] text-white'
-                  : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
-              }`}
-              onClick={() => toggleArrayItem(visaIds, v.id, setVisaIds)}
-            >
-              {v.name}
-            </button>
-          ))}
-        </div>
+        <Label>Entry rights</Label>
+        <EntryRightPicker selectedIds={entryRightIds} onChange={setEntryRightIds} />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label>Placement Locations</Label>
         <p className="text-xs text-muted-foreground">Cities where you actively place crew</p>
-        <HierarchicalPills
-          groups={citiesToGroups(cities)}
-          value={placementCityIds}
-          onValueChange={(v) => setPlacementCityIds(v as string[])}
-          mode="multi"
+        <CitiesPicker
+          selectedIds={placementCityIds}
+          onChange={setPlacementCityIds}
+          placeholder="Search cities where you place crew…"
         />
       </div>
     </div>

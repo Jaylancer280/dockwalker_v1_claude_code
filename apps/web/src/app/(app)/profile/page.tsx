@@ -52,7 +52,7 @@ interface Profile {
   agency_name: string | null;
   role_specialization_ids: string[];
   nationality_id: string | null;
-  visa_ids: string[];
+  entry_right_ids: string[];
   languages: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
   deck_name: string | null;
@@ -176,7 +176,7 @@ export default function ProfilePage() {
   const [agencyName, setAgencyName] = useState('');
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
   const [nationalityId, setNationalityId] = useState('');
-  const [visaIds, setVisaIds] = useState<string[]>([]);
+  const [entryRightIds, setEntryRightIds] = useState<string[]>([]);
   const [profileLanguages, setProfileLanguages] = useState<string[]>([]);
   const [deckName, setDeckName] = useState('');
   const [smoker, setSmoker] = useState<boolean | null>(null);
@@ -187,7 +187,7 @@ export default function ProfilePage() {
   const lookups = useLookups();
   const roles = lookups.roles as LookupItem[];
   const nationalities = lookups.nationalities;
-  const visaTypes = lookups.visaTypes;
+  const entryRights = lookups.entryRights;
 
   // Name maps for view-mode pills (derived from context)
   const certNames = useMemo(() => {
@@ -196,16 +196,36 @@ export default function ProfilePage() {
     return map;
   }, [lookups.certifications]);
 
-  const placementCitiesDisplay = useMemo(() => {
-    return placementCityIds
-      .map((id) => {
-        const city = lookups.cities.find((c) => c.id === id);
-        return city
-          ? { id: city.id, name: city.name, region_name: city.regions?.name ?? null }
-          : null;
+  const [placementCitiesDisplay, setPlacementCitiesDisplay] = useState<
+    { id: string; name: string; region_name: string | null }[]
+  >([]);
+  useEffect(() => {
+    if (placementCityIds.length === 0) {
+      setPlacementCitiesDisplay([]);
+      return;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ cities: placementCityIds.join(',') });
+    safeFetch<{
+      results: {
+        id: string;
+        kind: 'port' | 'city';
+        name: string;
+        region_name: string | null;
+      }[];
+    }>(`/api/locations/by-ids?${params.toString()}`)
+      .then((res) => {
+        if (cancelled || !res.ok) return;
+        const cities = res.data.results
+          .filter((r) => r.kind === 'city')
+          .map((c) => ({ id: c.id, name: c.name, region_name: c.region_name }));
+        setPlacementCitiesDisplay(cities);
       })
-      .filter((c): c is NonNullable<typeof c> => c !== null);
-  }, [placementCityIds, lookups.cities]);
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [placementCityIds]);
   const sizeBandNames = useMemo(() => {
     const map: Record<string, string> = {};
     for (const s of lookups.sizeBands) map[s.id] = s.label;
@@ -231,7 +251,8 @@ export default function ProfilePage() {
           setProfile(result.data.profile);
           if (result.data.profile.nationality_id)
             setNationalityId(result.data.profile.nationality_id);
-          if (result.data.profile.visa_ids) setVisaIds(result.data.profile.visa_ids);
+          if (result.data.profile.entry_right_ids)
+            setEntryRightIds(result.data.profile.entry_right_ids);
           setDesiredRoleId(result.data.profile.desired_role_id ?? '');
           setPermAvail(result.data.profile.permanent_availability ?? null);
           setNoticeDays(result.data.profile.notice_period_days ?? null);
@@ -351,7 +372,7 @@ export default function ProfilePage() {
     setAgencyName(profile.agency_name ?? '');
     setRoleSpecializationIds(profile.role_specialization_ids ?? []);
     setNationalityId(profile.nationality_id ?? '');
-    setVisaIds(profile.visa_ids ?? []);
+    setEntryRightIds(profile.entry_right_ids ?? []);
     setProfileLanguages(profile.languages ?? []);
     setDeckName(profile.deck_name ?? '');
     setSmoker(profile.smoker ?? null);
@@ -375,7 +396,7 @@ export default function ProfilePage() {
       body.certificationIds = certificationIds;
       // vesselSizeExposureIds is auto-derived — not sent in PATCH
       body.nationalityId = nationalityId || null;
-      body.visaIds = visaIds;
+      body.entryRightIds = entryRightIds;
       body.languages = profileLanguages;
       body.smoker = smoker;
       body.visibleTattoos = visibleTattoos;
@@ -385,7 +406,7 @@ export default function ProfilePage() {
       body.bio = bio || null;
       body.deckName = deckName || null;
       body.nationalityId = nationalityId || null;
-      body.visaIds = visaIds;
+      body.entryRightIds = entryRightIds;
       body.languages = profileLanguages;
       body.placementCityIds = placementCityIds;
     }
@@ -698,8 +719,8 @@ export default function ProfilePage() {
                 <ProfileAboutSection
                   profile={profile}
                   certNames={certNames}
-                  visaIds={visaIds}
-                  visaTypes={visaTypes}
+                  entryRightIds={entryRightIds}
+                  entryRights={entryRights}
                   expandedSections={expandedSections}
                   toggleSection={toggleSection}
                   onEnterEdit={enterEdit}
@@ -766,8 +787,8 @@ export default function ProfilePage() {
             setCertificationIds={setCertificationIds}
             nationalityId={nationalityId}
             setNationalityId={setNationalityId}
-            visaIds={visaIds}
-            setVisaIds={setVisaIds}
+            entryRightIds={entryRightIds}
+            setEntryRightIds={setEntryRightIds}
             profileLanguages={profileLanguages}
             setProfileLanguages={setProfileLanguages}
             smoker={smoker}
@@ -782,8 +803,6 @@ export default function ProfilePage() {
             setPlacementCityIds={setPlacementCityIds}
             roles={roles}
             nationalities={nationalities}
-            visaTypes={visaTypes}
-            cities={lookups.cities}
           />
         )}
 
@@ -792,7 +811,7 @@ export default function ProfilePage() {
           <AgentProfileSection
             profile={profile}
             experiences={experiences}
-            visaTypes={visaTypes}
+            entryRights={entryRights}
             placementCities={placementCitiesDisplay}
             roles={roles}
             expandedSections={expandedSections}

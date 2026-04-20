@@ -102,7 +102,7 @@ export async function POST(request: Request) {
       onboarding_version: profile.onboardingVersion ?? 1,
       ...(profile.avatarUrl ? { avatar_url: profile.avatarUrl } : {}),
       nationality_id: profile.nationalityId || null,
-      visa_ids: profile.visaIds || [],
+      entry_right_ids: profile.entryRightIds || [],
       // Optional crew fields (149c)
       deck_name: profile.deckName || null,
       desired_role_id: profile.desiredRoleId || null,

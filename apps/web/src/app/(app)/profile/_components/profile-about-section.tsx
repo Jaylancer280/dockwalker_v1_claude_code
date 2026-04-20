@@ -7,22 +7,23 @@ interface Profile {
   deck_name: string | null;
   bio: string | null;
   certification_ids: string[];
-  visa_ids: string[];
+  entry_right_ids: string[];
   languages: string[];
   smoker: boolean | null;
   visible_tattoos: boolean | null;
 }
 
-interface VisaType {
+interface EntryRight {
   id: string;
   name: string;
+  category: 'citizenship' | 'residence' | 'visa';
 }
 
 interface ProfileAboutSectionProps {
   profile: Profile;
   certNames: Record<string, string>;
-  visaIds: string[];
-  visaTypes: VisaType[];
+  entryRightIds: string[];
+  entryRights: EntryRight[];
   expandedSections: Record<string, boolean>;
   toggleSection: (key: string) => void;
   onEnterEdit: () => void;
@@ -31,8 +32,8 @@ interface ProfileAboutSectionProps {
 export function ProfileAboutSection({
   profile,
   certNames,
-  visaIds,
-  visaTypes,
+  entryRightIds,
+  entryRights,
   expandedSections,
   toggleSection,
   onEnterEdit,
@@ -54,7 +55,9 @@ export function ProfileAboutSection({
                 profile.certification_ids?.length > 0
                   ? `${profile.certification_ids.length} certs`
                   : null,
-                visaIds.length > 0 ? `${visaIds.length} visas` : null,
+                entryRightIds.length > 0
+                  ? `${entryRightIds.length} entry right${entryRightIds.length > 1 ? 's' : ''}`
+                  : null,
                 profile.languages?.length > 0 ? `${profile.languages.length} languages` : null,
                 profile.smoker !== null ? `Smoker: ${profile.smoker ? 'Yes' : 'No'}` : null,
                 profile.visible_tattoos !== null
@@ -140,15 +143,15 @@ export function ProfileAboutSection({
               Add your certifications — employers check these against job requirements
             </button>
           )}
-          {visaIds.length > 0 ? (
+          {entryRightIds.length > 0 ? (
             <div>
-              <p className="text-xs text-muted-foreground">Visas</p>
+              <p className="text-xs text-muted-foreground">Entry rights</p>
               <div className="mt-1 flex flex-wrap gap-1.5">
-                {visaTypes
-                  .filter((v) => visaIds.includes(v.id))
-                  .map((v) => (
-                    <Badge key={v.id} variant="outline">
-                      {v.name}
+                {entryRights
+                  .filter((e) => entryRightIds.includes(e.id))
+                  .map((e) => (
+                    <Badge key={e.id} variant="outline">
+                      {e.name}
                     </Badge>
                   ))}
               </div>
@@ -158,7 +161,7 @@ export function ProfileAboutSection({
               onClick={onEnterEdit}
               className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
             >
-              Add visa info — helps employers in regulated ports find qualified crew faster
+              Add your entry rights — citizenship, residence, and visas you hold for yacht hubs
             </button>
           )}
           {profile.languages?.length > 0 ? (

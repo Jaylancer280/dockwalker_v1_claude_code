@@ -34,22 +34,11 @@ export interface NationalityLookup {
   flag_emoji: string;
 }
 
-export interface VisaTypeLookup {
+export interface EntryRightLookup {
   id: string;
   name: string;
-}
-
-export interface PortLookup {
-  id: string;
-  name: string;
-  cities: { name: string; regions: { name: string } } | null;
-}
-
-export interface CityLookup {
-  id: string;
-  name: string;
-  region_id: string;
-  regions: { name: string } | null;
+  category: 'citizenship' | 'residence' | 'visa';
+  sort_order: number;
 }
 
 export interface LookupsData {
@@ -58,9 +47,7 @@ export interface LookupsData {
   experienceBrackets: ExperienceBracketLookup[];
   sizeBands: SizeBandLookup[];
   nationalities: NationalityLookup[];
-  visaTypes: VisaTypeLookup[];
-  ports: PortLookup[];
-  cities: CityLookup[];
+  entryRights: EntryRightLookup[];
   languages: { code: string; label: string }[];
   loading: boolean;
 }
@@ -73,16 +60,16 @@ const defaultLookups: LookupsData = {
   experienceBrackets: [],
   sizeBands: [],
   nationalities: [],
-  visaTypes: [],
-  ports: [],
-  cities: [],
+  entryRights: [],
   languages: LANGUAGES_LIST,
   loading: true,
 };
 
 const LookupsContext = createContext<LookupsData>(defaultLookups);
 
-const CACHE_KEY = 'dw-lookups';
+// Bump cache version when the lookup shape changes so stale clients drop the
+// old payload cleanly. v3 renames visaTypes → entryRights (category-aware).
+const CACHE_KEY = 'dw-lookups-v3';
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CachedLookups {
@@ -92,9 +79,7 @@ interface CachedLookups {
   experienceBrackets: ExperienceBracketLookup[];
   sizeBands: SizeBandLookup[];
   nationalities: NationalityLookup[];
-  visaTypes: VisaTypeLookup[];
-  ports: PortLookup[];
-  cities: CityLookup[];
+  entryRights: EntryRightLookup[];
 }
 
 function readCache(): (CachedLookups & { stale?: boolean }) | null {
@@ -103,7 +88,6 @@ function readCache(): (CachedLookups & { stale?: boolean }) | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedLookups;
     if (!parsed.roles?.length) return null;
-    // Return data even if expired, flagged as stale for background refresh
     if (!parsed.ts || Date.now() - parsed.ts > CACHE_MAX_AGE_MS) {
       return { ...parsed, stale: true };
     }
@@ -127,9 +111,7 @@ function buildLookupsData(
   experienceBrackets: ExperienceBracketLookup[],
   sizeBands: SizeBandLookup[],
   nationalities: NationalityLookup[],
-  visaTypes: VisaTypeLookup[],
-  ports: PortLookup[],
-  cities: CityLookup[],
+  entryRights: EntryRightLookup[],
 ): LookupsData {
   return {
     roles,
@@ -137,9 +119,7 @@ function buildLookupsData(
     experienceBrackets,
     sizeBands,
     nationalities,
-    visaTypes,
-    ports,
-    cities,
+    entryRights,
     languages: LANGUAGES_LIST,
     loading: false,
   };
@@ -147,7 +127,6 @@ function buildLookupsData(
 
 export function LookupsProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<LookupsData>(() => {
-    // Hydrate from cache synchronously if available
     if (typeof window === 'undefined') return defaultLookups;
     const cached = readCache();
     if (cached) {
@@ -157,9 +136,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         cached.experienceBrackets,
         cached.sizeBands,
         cached.nationalities,
-        cached.visaTypes,
-        cached.ports,
-        cached.cities,
+        cached.entryRights,
       );
     }
     return defaultLookups;
@@ -178,31 +155,30 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [rolesRes, certsRes, bracketsRes, bandsRes, natRes, visaRes, portsRes, citiesRes] =
-      await Promise.all([
-        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-        supabase
-          .from('certifications')
-          .select('id, name, category, subcategory, sort_order')
-          .order('category')
-          .order('subcategory')
-          .order('sort_order'),
-        supabase.from('experience_brackets').select('id, label').order('min_months'),
-        supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
-        supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
-        supabase.from('visa_types').select('id, name').order('sort_order'),
-        supabase.from('ports').select('id, name, cities(name, regions(name))').order('name'),
-        supabase.from('cities').select('id, name, region_id, regions(name)').order('name'),
-      ]);
+    const [rolesRes, certsRes, bracketsRes, bandsRes, natRes, entryRightsRes] = await Promise.all([
+      supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+      supabase
+        .from('certifications')
+        .select('id, name, category, subcategory, sort_order')
+        .order('category')
+        .order('subcategory')
+        .order('sort_order'),
+      supabase.from('experience_brackets').select('id, label').order('min_months'),
+      supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
+      supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
+      supabase
+        .from('entry_rights')
+        .select('id, name, category, sort_order')
+        .order('category')
+        .order('sort_order'),
+    ]);
 
     const roles = (rolesRes.data ?? []) as RoleLookup[];
     const certifications = (certsRes.data ?? []) as CertLookup[];
     const experienceBrackets = (bracketsRes.data ?? []) as ExperienceBracketLookup[];
     const sizeBands = (bandsRes.data ?? []) as SizeBandLookup[];
     const nationalities = (natRes.data ?? []) as NationalityLookup[];
-    const visaTypes = (visaRes.data ?? []) as VisaTypeLookup[];
-    const ports = (portsRes.data ?? []) as unknown as PortLookup[];
-    const cities = (citiesRes.data ?? []) as unknown as CityLookup[];
+    const entryRights = (entryRightsRes.data ?? []) as EntryRightLookup[];
 
     setData(
       buildLookupsData(
@@ -211,9 +187,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         experienceBrackets,
         sizeBands,
         nationalities,
-        visaTypes,
-        ports,
-        cities,
+        entryRights,
       ),
     );
     setFetchedAt(Date.now());
@@ -223,16 +197,14 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
       experienceBrackets,
       sizeBands,
       nationalities,
-      visaTypes,
-      ports,
-      cities,
+      entryRights,
     });
   }, []);
 
-  // Background revalidation on mount (skip only if cache is fresh — stale cache triggers refresh)
+  // Background revalidation on mount (skip if cache is fresh — stale cache triggers refresh)
   useEffect(() => {
     const cached = typeof window !== 'undefined' ? readCache() : null;
-    if (cached && !cached.stale) return; // fresh cache, skip
+    if (cached && !cached.stale) return;
     let cancelled = false;
     const supabase = createClient();
     Promise.all([
@@ -246,19 +218,19 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
       supabase.from('experience_brackets').select('id, label').order('min_months'),
       supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
       supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
-      supabase.from('visa_types').select('id, name').order('sort_order'),
-      supabase.from('ports').select('id, name, cities(name, regions(name))').order('name'),
-      supabase.from('cities').select('id, name, region_id, regions(name)').order('name'),
-    ]).then(([rolesRes, certsRes, bracketsRes, bandsRes, natRes, visaRes, portsRes, citiesRes]) => {
+      supabase
+        .from('entry_rights')
+        .select('id, name, category, sort_order')
+        .order('category')
+        .order('sort_order'),
+    ]).then(([rolesRes, certsRes, bracketsRes, bandsRes, natRes, entryRightsRes]) => {
       if (cancelled) return;
       const roles = (rolesRes.data ?? []) as RoleLookup[];
       const certifications = (certsRes.data ?? []) as CertLookup[];
       const experienceBrackets = (bracketsRes.data ?? []) as ExperienceBracketLookup[];
       const sizeBands = (bandsRes.data ?? []) as SizeBandLookup[];
       const nationalities = (natRes.data ?? []) as NationalityLookup[];
-      const visaTypes = (visaRes.data ?? []) as VisaTypeLookup[];
-      const ports = (portsRes.data ?? []) as unknown as PortLookup[];
-      const cities = (citiesRes.data ?? []) as unknown as CityLookup[];
+      const entryRights = (entryRightsRes.data ?? []) as EntryRightLookup[];
       setData(
         buildLookupsData(
           roles,
@@ -266,9 +238,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
           experienceBrackets,
           sizeBands,
           nationalities,
-          visaTypes,
-          ports,
-          cities,
+          entryRights,
         ),
       );
       setFetchedAt(Date.now());
@@ -278,9 +248,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         experienceBrackets,
         sizeBands,
         nationalities,
-        visaTypes,
-        ports,
-        cities,
+        entryRights,
       });
     });
     return () => {

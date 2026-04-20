@@ -11,7 +11,7 @@ interface Profile {
   deck_name: string | null;
   nationality_id: string | null;
   nationalities: { id: string; name: string; flag_emoji: string } | null;
-  visa_ids: string[];
+  entry_right_ids: string[];
   languages: string[];
   ports: {
     id: string;
@@ -46,9 +46,10 @@ interface ExperienceEntry {
   yacht_roles: { id: string; name: string; department: string } | null;
 }
 
-interface VisaType {
+interface EntryRight {
   id: string;
   name: string;
+  category: 'citizenship' | 'residence' | 'visa';
 }
 
 interface CityDisplay {
@@ -60,7 +61,7 @@ interface CityDisplay {
 interface AgentProfileSectionProps {
   profile: Profile;
   experiences: ExperienceEntry[];
-  visaTypes: VisaType[];
+  entryRights: EntryRight[];
   placementCities: CityDisplay[];
   roles: { id: string; name: string; department?: string }[];
   expandedSections: Record<string, boolean>;
@@ -80,7 +81,7 @@ interface AgentProfileSectionProps {
 export function AgentProfileSection({
   profile,
   experiences,
-  visaTypes,
+  entryRights,
   placementCities,
   roles,
   expandedSections,
@@ -221,15 +222,15 @@ export function AgentProfileSection({
               </div>
             </div>
           )}
-          {profile.visa_ids?.length > 0 && (
+          {profile.entry_right_ids?.length > 0 && (
             <div>
-              <p className="text-xs text-muted-foreground">Visas</p>
+              <p className="text-xs text-muted-foreground">Entry rights</p>
               <div className="mt-1 flex flex-wrap gap-1.5">
-                {visaTypes
-                  .filter((v) => profile.visa_ids.includes(v.id))
-                  .map((v) => (
-                    <Badge key={v.id} variant="outline">
-                      {v.name}
+                {entryRights
+                  .filter((e) => profile.entry_right_ids.includes(e.id))
+                  .map((e) => (
+                    <Badge key={e.id} variant="outline">
+                      {e.name}
                     </Badge>
                   ))}
               </div>

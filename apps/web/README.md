@@ -64,6 +64,7 @@ The current app expects the following RPCs to exist in `public`:
 - `get_vessel_public`
 - `get_vessels_public_batch` (batch version — used by discover, applications, invitations routes)
 - `increment_advisor_usage`
+- `search_locations` / `get_locations_by_ids` / `top_locations` (pg_trgm + unaccent fuzzy location search — used by `/api/locations/search`, `/api/locations/by-ids`, `/api/locations/top` and consumed by `LocationPicker` + `CitiesPicker`)
 - `custom_access_token_hook` (Auth hook — injects person_id/current_hat/identity_type into JWT; enable in Dashboard → Auth → Hooks)
 
 If you see errors like:

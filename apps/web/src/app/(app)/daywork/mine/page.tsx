@@ -14,6 +14,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LocationPicker } from '@/components/location-picker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -90,11 +91,6 @@ export default function MyPostingsPage() {
   const [filterPortId, setFilterPortId] = useState('');
   const lookups = useLookups();
   const roles = lookups.roles;
-  const ports = lookups.ports as unknown as {
-    id: string;
-    name: string;
-    cities: { name: string };
-  }[];
   const [isAgent, setIsAgent] = useState(false);
 
   useEffect(() => {
@@ -530,20 +526,28 @@ export default function MyPostingsPage() {
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Location</label>
-                    <Select value={filterPortId} onValueChange={setFilterPortId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All locations" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All locations</SelectItem>
-                        {ports.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                            {p.cities?.name ? ` — ${p.cities.name}` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <LocationPicker
+                          mode="port-required"
+                          value={
+                            filterPortId && filterPortId !== 'all' ? { portId: filterPortId } : null
+                          }
+                          onValueChange={(v) => setFilterPortId(v.portId ?? 'all')}
+                          placeholder="All locations"
+                        />
+                      </div>
+                      {filterPortId && filterPortId !== 'all' && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setFilterPortId('all')}
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -191,7 +191,7 @@ vi.mock('@/hooks/use-lookups', () => ({
     experienceBrackets: MOCK_BRACKETS,
     sizeBands: MOCK_SIZE_BANDS,
     nationalities: [],
-    visaTypes: [],
+    entryRights: [],
     ports: MOCK_PORTS,
     cities: [],
     languages: [],

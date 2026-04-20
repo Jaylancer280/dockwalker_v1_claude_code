@@ -35,6 +35,9 @@ Thumbs.db
 # MCA corpus PDFs (large binaries, not for git)
 corpus/mca/*.pdf
 
+# Marina extraction pipeline outputs (regenerable, multi-GB intermediate files)
+scripts/marina-extraction/data/
+
 # claude code sessions
 .claude/
 

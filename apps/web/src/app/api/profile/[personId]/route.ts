@@ -44,7 +44,7 @@ export async function GET(
         `
       person_id, display_name, identity_type, bio, avatar_url, deck_name,
       primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
-      vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, visa_ids,
+      vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, entry_right_ids,
       languages, permanent_availability, notice_period_days,
       smoker, visible_tattoos,
       agency_name, role_specialization_ids,
@@ -199,14 +199,14 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     .eq('person_id', personId)
     .order('start_date', { ascending: false });
 
-  // Resolve visa names
-  let visas: { id: string; name: string }[] = [];
-  if (profile.visa_ids?.length > 0) {
+  // Resolve entry-right names
+  let entryRights: { id: string; name: string; category: string }[] = [];
+  if (profile.entry_right_ids?.length > 0) {
     const { data } = await supabase
-      .from('visa_types')
-      .select('id, name')
-      .in('id', profile.visa_ids);
-    visas = data ?? [];
+      .from('entry_rights')
+      .select('id, name, category')
+      .in('id', profile.entry_right_ids);
+    entryRights = data ?? [];
   }
 
   const ports = profile.ports as {
@@ -234,7 +234,7 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     primary_role: profile.yacht_roles,
     desired_role: profile.desired_roles ?? null,
     nationality: profile.nationalities ?? null,
-    visas,
+    entry_rights: entryRights,
     languages: profile.languages ?? [],
     certifications,
     experience_bracket: profile.experience_brackets,

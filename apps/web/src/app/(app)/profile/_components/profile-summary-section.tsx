@@ -17,7 +17,7 @@ interface Profile {
   agency_name: string | null;
   role_specialization_ids: string[];
   nationality_id: string | null;
-  visa_ids: string[];
+  entry_right_ids: string[];
   languages: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
   deck_name: string | null;

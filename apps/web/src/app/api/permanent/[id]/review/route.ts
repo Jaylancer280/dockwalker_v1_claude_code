@@ -42,7 +42,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         profiles!applications_crew_person_id_profiles_fkey(
           display_name, bio, avatar_url,
           primary_role_id, certification_ids, languages, experience_bracket_id,
-          vessel_size_exposure_ids, nationality_id, visa_ids,
+          vessel_size_exposure_ids, nationality_id, entry_right_ids,
           permanent_availability, notice_period_days, currently_employed,
           yacht_roles:primary_role_id(name, department),
           experience_brackets:experience_bracket_id(label),

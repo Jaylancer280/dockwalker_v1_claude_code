@@ -5,46 +5,78 @@
 
 ## Current Task
 
-### Qualifications V1 — expand canonical cert list + shared picker
+### Locations V1 — global marina dataset + scaling LocationPicker
 
-> Spec: `tasks/qualifications-v1.md` (17 → ~265 canonical certs, 8 categories with drill-down sub-cats, shared `CertificationPicker` component). Expiry-date tracking deferred to V1.1.
+> Spec: `tasks/marina-locations-prompt.md`. Ship order: Phase B (prep schema) → Phase A scripts → Phase C extraction run (external) → Phase D data-import migration → Phase F admin CRUD → Phase E picker scaling (can run in parallel while extraction pipeline is busy).
+>
+> **Coupling warning:** Phase D data import must not go live before Phase E picker scaling — eager-loading ~20K ports crashes every location surface on first page load.
 
-**Phase A — Schema & canonical data**
+**Phase A — Python extraction pipeline**
 
-- [x] Write migration `supabase/migrations/00100_certifications_v1_expansion.sql`
-- [x] Write rollback `supabase/rollbacks/00100_certifications_v1_expansion.down.sql`
-- [x] Apply: `npx supabase db push`
-- [x] Verify via Supabase SQL editor (migration applied cleanly; canonical seed reflects V1 taxonomy)
-- [x] Update `supabase/seed/001_canonical_data.sql` CERTIFICATIONS block
+- [x] `scripts/marina-extraction/` created with 4 scripts, README, requirements.txt
+- [x] `scripts/marina-extraction/data/` added to root `.gitignore`
+- [x] Stage 1 `1_extract_marinas.py` implemented
+- [x] Stage 2 `2_enrich_locations.py` implemented
+- [x] Stage 3 `3_finalize.py` implemented
+- [x] Stage 4 `4_generate_migration.py` implemented with baselines + idempotent UUIDv5
 
-**Phase B — Shared types & grouping**
+**Phase B — Preparatory schema migration**
 
-- [x] Extend `CertLookup` type with `subcategory` (use-lookups.tsx + mobile stub not touched)
-- [x] `packages/shared/src/grouping.ts`: add `groupCertsByCategoryAndSubcategory(certs)`
-- [x] `packages/shared/src/cert-labels.ts` (new): display labels for category + subcategory keys
-- [x] Unit tests covering flat + drill-down paths
+- [x] Migration `supabase/migrations/00101_locations_v1_preparatory.sql`
+- [x] Rollback `supabase/rollbacks/00101_locations_v1_preparatory.down.sql`
+- [x] Applied via `npx supabase db push`
 
-**Phase C — Shared CertificationPicker component**
+**Phase C — Execute extraction (external runtime)**
 
-- [x] Create `apps/web/src/components/certification-picker.tsx`
-- [x] Component test `apps/web/__tests__/components/certification-picker.test.tsx`
+- [x] Stage 1 running in background (Overpass, 30 regions, 20-40 min)
+- [ ] Stage 2 Nominatim enrichment (several hours; resumable)
+- [ ] Stage 3 dedup + `data/report.txt` hub sanity check
+- [ ] Spot-check: `grep -i "port vauban\|atlantis\|yacht haven" data/marinas.csv`
 
-**Phase D — Wire the picker into every surface**
+**Phase D — Data import migration**
 
-- [x] `app/onboarding/_components/profile-step.tsx`
-- [x] `app/(app)/profile/_components/profile-edit-form.tsx`
-- [x] `app/(app)/daywork/post/page.tsx`
-- [x] `app/(app)/daywork/post/_components/permanent-form-sections.tsx`
-- [x] `app/(admin)/admin/canonical/page.tsx` — add `subcategory` input
-- [x] Discover filter (daywork-browse) — left as-is; single-select cert filter semantics diverge from multi-select picker. Noted for V1.1.
+- [ ] Run Stage 4 → `data/migration/NNNNN_marinas_v1_expansion.{sql,down.sql}`
+- [ ] Review generated SQL (UUID preservation, re-parenting, sort orders)
+- [ ] Copy to `supabase/migrations/` + `supabase/rollbacks/` as `00102_*`
+- [ ] Apply via `npx supabase db push`
+- [ ] Verify counts + UUID preservation
+- [ ] Idempotency check (re-run Stage 4 → empty delta)
 
-**Phase E — Verify & document**
+**Phase E — LocationPicker scaling + fuzzy search (blocks D production merge)**
 
-- [x] `turbo run type-check lint` — 0 errors
-- [x] `cd apps/web && npx vitest run` — 1072 tests pass
-- [x] Update `packages/shared/README.md`
-- [x] Update `supabase/README.md` — append migration 00100
-- [x] Update `BUILD_STATE.md` — stage entry, schema version bump to 100, deferred decision (expiry V1.1)
+- [x] Migration `00102_pg_trgm_location_search.sql` — extensions + `immutable_unaccent` + trigram indexes + `search_locations` / `get_locations_by_ids` / `top_locations` RPCs
+- [x] `apps/web/src/app/api/locations/search/route.ts` — top-50 fuzzy match via `search_locations` RPC
+- [x] `apps/web/src/app/api/locations/top/route.ts` — top-N ports ranked by usage count + sort_order
+- [x] `apps/web/src/app/api/locations/by-ids/route.ts` — batch label resolver
+- [x] Refactor `location-picker.tsx` — top-N on open, debounced search after 2 chars, diacritic-insensitive, ODbL attribution
+- [x] Remove `ports` + `cities` from `useLookups` (cache key bumped to `dw-lookups-v2`)
+- [x] `CitiesPicker` component for agent placement cities (multi-select backed by /search)
+- [x] Rewired: daywork/mine port filter (LocationPicker), profile placement cities display (/by-ids), onboarding + profile-edit agent placement cities (CitiesPicker)
+- [x] 10 new location API tests; 1082 tests pass
+- [x] Helper copy: "Can't find your port? Pick the closest one." / No-results: "No match — try the nearest city or port instead."
+
+**Phase F — Admin canonical CRUD adjustments**
+
+- [ ] Region form gains `country_code` input (required, ISO-3166-1 alpha-2)
+- [ ] Port form gains `latitude/longitude/osm_type/osm_id/website/phone/capacity/vhf` (all optional)
+- [ ] City form gains country dropdown sourced from `regions`
+
+**Phase G — Verify & document**
+
+- [ ] `turbo run type-check lint`, `npx vitest run`
+- [ ] Update `apps/web/README.md` (new `/api/locations/*` routes + pg_trgm/unaccent requirement)
+- [ ] Update `packages/types/README.md` (region `country_code`, port geo/OSM columns)
+- [ ] Update `supabase/README.md` (2 new migrations + extensions)
+- [ ] Update `BUILD_STATE.md` (new stage, schema version, migration table, deferred decisions)
+
+**Out of scope / explicitly deferred (V1.1)**
+
+- `location_collections` editorial-groupings table
+- Admin OSM-ID pre-fill button (`/api/locations/osm-lookup`)
+- Proximity sort on daywork discover using new lat/lon
+- OSM re-sync cadence automation
+- Mobile (`apps/mobile/` blocked)
+- Free-text "request a port" flow — explicitly rejected
 
 ---
 
@@ -112,101 +144,6 @@
 ---
 
 ## Queue
-
-### Locations V1 — global marina dataset + scaling LocationPicker
-
-> Spec: `tasks/marina-locations-prompt.md` (OSM extraction pipeline → ~15-25K marinas imported into `regions`/`cities`/`ports` with UUID preservation). Ship certs first (simpler) then use its implementation as a reference for parts of this work.
-
-**Coupling warning:** Phase D (data import) must not merge to production before Phase E (picker scaling) is live. Importing 20K ports without a scaled picker will break every location-selection surface on first page load (multi-MB eager-fetch fails). Plan the merge order accordingly.
-
-**Phase A — Python extraction pipeline**
-
-- [ ] Create `scripts/marina-extraction/` directory with the four Python scripts, `README.md`, `requirements.txt` (per spec § Directory layout)
-- [ ] Add `scripts/marina-extraction/data/` to root `.gitignore`
-- [ ] Implement Stage 1 (`1_extract_marinas.py`): Overpass queries across the 30 bounding-box regions with mirror rotation, retries, resumability, `--regions X,Y` flag
-- [ ] Implement Stage 2 (`2_enrich_locations.py`): Nominatim reverse geocoding with `accept-language=en`, tags-first fallback, disk cache flushed every 50 records, town priority `city → town → village → municipality → county → suburb`, non-Latin name acceptance
-- [ ] Implement Stage 3 (`3_finalize.py`): dedup on `(country_code, town, name)` normalised, richness-scored keep, ISO-3166-1 English country canonicalization, hub sanity table in `report.txt`
-- [ ] Implement Stage 4 (`4_generate_migration.py`): live-DB snapshot helper, hardcoded baselines (ORIGINAL_REGIONS/CITIES/PORTS + CARIBBEAN_CITY_TO_COUNTRY), region UUID regeneration via `uuid5(NS_REGIONS, country_code.upper())`, city/port match-then-enrich, alphabetical `sort_order` defaults, idempotency guard
-- [ ] All four scripts parse clean: `python -m py_compile scripts/marina-extraction/*.py`
-- [ ] Stage 1 smoke test: run with `--regions europe_west` only, confirm `data/regions/europe_west.json` populated
-
-**Phase B — Preparatory schema migration**
-
-- [ ] Write migration `supabase/migrations/NNNNN_locations_v1_preparatory.sql`:
-  - `alter table public.regions add column country_code char(2) null`
-  - `alter table public.ports add column latitude numeric(9,6), longitude numeric(9,6), osm_type text check (osm_type in ('node','way','relation')), osm_id bigint, website text, phone text, capacity text, vhf text` — all null
-  - `create index idx_ports_lat_lon on public.ports (latitude, longitude) where latitude is not null`
-  - `create unique index idx_ports_osm on public.ports (osm_type, osm_id) where osm_id is not null`
-- [ ] Write rollback `supabase/rollbacks/NNNNN_locations_v1_preparatory.down.sql` — drop indexes then columns in reverse order
-- [ ] Apply: `npx supabase db push`
-- [ ] Verify existing RLS policies still cover new columns (they should — authenticated-read is table-level, not column-level)
-
-**Phase C — Execute extraction (external runtime, not CI)**
-
-- [ ] Run Stage 1: `python 1_extract_marinas.py` (expect 20-40 min across 30 regions)
-- [ ] Run Stage 2: `python 2_enrich_locations.py` (expect several hours on first run; subsequent re-runs are cached and fast)
-- [ ] Run Stage 3: `python 3_finalize.py` (seconds)
-- [ ] Inspect `data/report.txt`: hub sanity table must show Monaco ≥1, Antibes ≥3, Palma ≥5, Fort Lauderdale ≥20, Göcek ≥3, Antigua ≥3. If any fails: stop and investigate before proceeding.
-- [ ] Spot-check the CSV: `grep -i "port vauban\|atlantis\|yacht haven" data/marinas.csv` — confirm existing curated ports found in OSM
-
-**Phase D — Data import migration**
-
-- [ ] Pull live DB snapshot: run Stage 4's snapshot helper against the linked Supabase project → `data/existing_state.json`
-- [ ] Run Stage 4: `python 4_generate_migration.py` → `data/migration/NNNNN_marinas_v1_expansion.sql` + `.down.sql`
-- [ ] Review generated SQL manually: confirm (1) 7 original region UUIDs deleted after cities re-parented, (2) 29 city UUIDs preserved with updated `region_id`, (3) 67 port UUIDs preserved with enriched metadata, (4) new rows use UUIDv5
-- [ ] Copy SQL files to `supabase/migrations/` and `supabase/rollbacks/` with correct sequential number
-- [ ] Apply: `npx supabase db push`
-- [ ] Verify via SQL editor: `select count(*) from regions`, `select count(*) from cities`, `select count(*) from ports` match Stage 4's printed summary
-- [ ] Verify UUID preservation: `select id from ports where id in (<original 67 port UUIDs>)` returns exactly 67 rows
-- [ ] **Idempotency check:** re-run Stage 4 → generated migration must contain zero INSERTs and only unchanged UPDATEs (or empty file with comment). Blocker if re-run produces real deltas.
-
-**Phase E — LocationPicker scaling + fuzzy search (P0, blocks D's production deploy)**
-
-- [ ] Enable PostgreSQL extensions in Supabase: `create extension if not exists unaccent; create extension if not exists pg_trgm;` (new migration or preparatory addendum)
-- [ ] Create `apps/web/src/app/api/locations/search/route.ts`: accepts `?q=<query>`, returns top-50 ranked fuzzy matches across regions/cities/ports. Query: `similarity(unaccent(lower(name)), unaccent(lower($1))) > 0.3` ranked by score DESC, limit 50
-- [ ] Create `apps/web/src/app/api/locations/top/route.ts`: returns top-N most-used ports by count of references in `profiles.location_port_id`, `dayworks.location_port_id`, `permanent_postings.port_id`. Used for the picker's empty-state list
-- [ ] Refactor `apps/web/src/components/location-picker.tsx`:
-  - Remove eager load of all `regions`/`cities`/`ports`
-  - Load top-N ports via `/api/locations/top` on open
-  - Typeahead hits `/api/locations/search` after 2 chars (debounce 200ms)
-  - Diacritic-insensitive rendering: show "Göcek" as matched when user typed "Gocek"
-  - Helper text under picker: _"Can't find your port? Pick the closest one."_
-  - No-results state: _"No match — try the nearest city or port instead."_
-  - Keep `port-required` / `port-optional` modes unchanged
-  - ODbL attribution: add info tooltip/hint "© OpenStreetMap contributors" at the bottom of the popover
-- [ ] Remove `ports` + `cities` from `apps/web/src/hooks/use-lookups.tsx` context and cache
-- [ ] Find every consumer that reads `useLookups().ports` or `.cities` (grep): refactor to use picker props or a direct fetch. Label resolution (given a `port_id`, display "Port Vauban — Antibes, France") goes through a server endpoint or an added `/api/locations/by-ids` route
-- [ ] Component test: renders top ports on focus, typing filters via API, no-results shows the helper copy, diacritic query matches
-- [ ] Integration test: `/api/locations/search?q=gocek` returns Göcek results
-
-**Phase F — Admin canonical CRUD adjustments**
-
-- [ ] `apps/web/src/app/(admin)/admin/canonical/page.tsx`:
-  - Region form: add `country_code` input (required, char(2), validate against ISO-3166-1 alpha-2 list)
-  - Port form: add `latitude`/`longitude` numeric inputs, `osm_type` select (node/way/relation), `osm_id` number, `website`/`phone`/`capacity`/`vhf` text — all optional
-  - City form: add country dropdown sourced from `regions` (replaces raw region_id typing)
-
-**Phase G — Verify & document**
-
-- [ ] `turbo run type-check lint` — zero errors
-- [ ] `cd apps/web && npx vitest run` — all pass
-- [ ] `cd apps/web && npm run test:integration` — all pass
-- [ ] Manual smoke test (per `tasks/lessons.md` post-migration procedure): onboarding with new marina selection, daywork post, permanent post, availability set, agent placement cities, profile edit — every surface works with new picker
-- [ ] Update `apps/web/README.md` — new `/api/locations/search`, `/api/locations/top` routes, PostgreSQL extension requirements
-- [ ] Update `packages/types/README.md` — region gains `country_code`, port gains `latitude/longitude/osm_type/osm_id/website/phone/capacity/vhf`
-- [ ] Update `supabase/README.md` — two new migrations (preparatory + marinas), new extensions
-- [ ] Update `BUILD_STATE.md` — new stage entry, schema version bump, migration table, any new deferred decisions
-
-**Out of scope / explicitly deferred (V1.1)**
-
-- `location_collections` editorial-groupings table (spec § Follow-up #2)
-- Admin OSM-ID pre-fill button (spec § Follow-up #3)
-- Proximity sort on daywork discover using new `latitude`/`longitude` (spec § Follow-up #4)
-- OSM re-sync cadence automation (spec § Follow-up #5) — manual for now
-- Mobile (`apps/mobile/` blocked)
-- Free-text "request a port" user flow — **explicitly rejected**, admin-adds-via-canonical-CRUD is the only path
-
----
 
 ### Entry Rights V1 — replace `visa_types` with citizenship/residence/visa model
 
