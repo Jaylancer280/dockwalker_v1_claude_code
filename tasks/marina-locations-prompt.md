@@ -544,6 +544,52 @@ Track as separate items in `tasks/todo.md`:
 
 ---
 
+---
+
+## Post-implementation audit — deviations + gaps (2026-04-21)
+
+> Flagged during the Stage 217 marina-import post-mortem. Not blocking for launch but each is worth addressing before the next major location-data change.
+
+### Best-practice deviations in the shipped implementation
+
+1. **Direct-to-prod apply, no staging validation** — migration 00104 was applied to the live Supabase project without an intermediate staging environment. Pragmatic given we don't currently run a separate staging DB and the migration is reversible, but a production-grade playbook would stage → smoke-test → promote.
+
+2. **No automated migration-replay test for 00104** — the project has `npm run test:integration` that replays events against a real DB. No integration test was added covering the new location schema (regions.country_code, ports OSM columns, search_locations / get_locations_by_ids / top_locations RPCs). Risk: future migrations could silently break locations.
+
+3. **`/admin/canonical` not paginated** — pre-existing gap, newly exposed. Opening the "ports" or "cities" tab returns the full table (~6K / ~3.4K rows). Admin-only surface with rare traffic, but worth paginating.
+
+4. **No `CHECK` constraint on `regions.country_code` format** — column is `char(2)` but accepts any 2-char string. Add `CHECK (country_code ~ '^[A-Z]{2}$')` in a follow-up migration so admin edits can't break the ISO-3166-1 invariant.
+
+5. **Legacy region rename workaround (`name || '_legacy_*'`)** — the Step 0 rename in `00104_marinas_v1_expansion.sql` is pragmatic but a code smell. A cleaner rewrite would use temporary region UUIDs plus a multi-step reorder (insert new → update cities → delete old → finalise names). Works as-is, non-obvious to readers.
+
+6. **Hub normalization is hardcoded** in `scripts/marina-extraction/3c_normalize.py`. Adding new curated hubs (e.g. Greek Aegean islands, Croatian hubs) requires manually extending `TOWN_ALIASES`. Consider moving aliases into a CSV / JSON config that lives alongside `supabase/seed/` so they're versioned with the canonical data.
+
+### Quality gaps (accepted trade-offs, document + revisit later)
+
+7. **No data-quality monitoring** — nothing alerts on orphan FKs, empty cities, or stale OSM data. Add a periodic job or a `/admin/canonical/integrity` dashboard surfacing counts (regions without cities, cities without ports, ports with missing OSM metadata).
+
+8. **Nominatim free tier** is fine for one-off ingestion but not production-grade for repeat syncs. For quarterly/yearly refreshes consider: a paid geocoder, a self-hosted Nominatim instance, or a licensed marinas dataset (TheYachtMarket, Marinas.com, D-Marin industry data).
+
+9. **No re-sync automation** — the pipeline isn't scheduled; OSM data changes and the dataset ages. Spec already deferred this to Follow-up #5. Stage 4 is idempotent by UUIDv5 so re-runs are safe, but there's no trigger.
+
+10. **Filter thresholds are judgment calls** (`COUNTRY_WHITELIST`, `NAME_STEMS` in `3b_filter.py`) — not empirically tuned. A data-quality follow-up would measure false-positive rates per country and refine.
+
+11. **US at 45% of the dataset** — 2,695 US ports reflects OSM tagging density, not superyacht relevance. Many are small-craft coastal marinas. More rigorous filter would weight by capacity, website presence, and name-richness signals. Didn't do that.
+
+12. **UI sanity pass not done** — the DB audit (regions/cities/ports counts, FK integrity, no orphans) passed. Not yet verified: spot-check 20 random non-curated ports by fuzzy-searching them in the live picker to confirm they surface and render correctly with their city/country context.
+
+### Highest-value follow-ups
+
+If time is tight, prioritise in this order:
+
+1. `CHECK` constraint on `regions.country_code` (1 line, prevents admin error)
+2. Paginate `/admin/canonical/ports` and `/cities` (~30 min, prevents admin stalls)
+3. Migration-replay integration test covering the location schema (~1 hr, catches regressions)
+4. UI sanity pass on the live picker (~15 min, real-user validation)
+5. Move `TOWN_ALIASES` + `COUNTRY_CODE_FIXES` into a versioned config file (~30 min, reduces drift when extending curated hubs)
+
+---
+
 ## Quote-back requirement
 
 Before writing any code, the coding agent must confirm in one line that it understands:
