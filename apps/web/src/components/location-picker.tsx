@@ -290,7 +290,7 @@ export function LocationPicker({
   );
 
   const resultsBody = (
-    <div className="flex flex-1 flex-col overflow-y-auto">
+    <>
       {showLoading && (
         <p className="px-3 py-4 text-center text-xs text-muted-foreground">Searching…</p>
       )}
@@ -324,7 +324,7 @@ export function LocationPicker({
           Start typing to search.
         </p>
       )}
-    </div>
+    </>
   );
 
   const footer = (
@@ -362,7 +362,7 @@ export function LocationPicker({
 
       <PopoverContent className="w-[min(26rem,calc(100vw-2rem))] max-h-[28rem] overflow-hidden p-0">
         <div className="flex h-[28rem] flex-col">
-          <div className="flex items-center gap-2 border-b px-3 py-2">
+          <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               ref={searchRef}
@@ -375,8 +375,8 @@ export function LocationPicker({
               aria-label="Search location"
             />
           </div>
-          {resultsBody}
-          {footer}
+          <div className="min-h-0 flex-1 overflow-y-auto">{resultsBody}</div>
+          <div className="shrink-0">{footer}</div>
         </div>
       </PopoverContent>
     </Popover>
@@ -402,6 +402,38 @@ function LocationPickerSheet({
 }) {
   useBodyScrollLock(open);
 
+  // Track the visual viewport height so the modal shrinks to match whatever
+  // screen space is ACTUALLY available once the keyboard is open. `dvh` in
+  // CSS handles modern iOS/Android, but older Safari + edge cases still
+  // leak through. `visualViewport.height` is the authoritative source of
+  // truth — fall back to window.innerHeight when the API is unavailable.
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function update() {
+      if (window.visualViewport) {
+        setViewportHeight(window.visualViewport.height);
+      } else {
+        setViewportHeight(window.innerHeight);
+      }
+    }
+    update();
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener('resize', update);
+      vv.addEventListener('scroll', update);
+    }
+    window.addEventListener('resize', update);
+    return () => {
+      if (vv) {
+        vv.removeEventListener('resize', update);
+        vv.removeEventListener('scroll', update);
+      }
+      window.removeEventListener('resize', update);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -418,16 +450,27 @@ function LocationPickerSheet({
 
   if (!open) return null;
 
+  // Prefer JS-measured height when available (robust across Safari versions
+  // and split-screen / Stage Manager). Fall back to `dvh` via the CSS
+  // default. The modal fills the full visible viewport — header, search
+  // input, scrollable results, and footer stack vertically so the input
+  // is ALWAYS pinned at the top above the keyboard.
+  const heightStyle: React.CSSProperties = viewportHeight
+    ? { height: `${viewportHeight}px` }
+    : { height: '100dvh' };
+
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 outline-none"
+      className="fixed inset-x-0 top-0 z-[60] bg-black/50"
+      style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85vh] min-h-[60vh] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background"
+        className="flex w-full max-w-lg flex-col bg-background md:mx-auto md:my-auto md:rounded-2xl md:shadow-xl"
+        style={heightStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b px-4 pt-4 pb-3">
+        <div className="flex shrink-0 items-center justify-between border-b px-4 pt-4 pb-3">
           <h2 className="text-sm font-bold">Select location</h2>
           <button
             onClick={onClose}
@@ -437,7 +480,7 @@ function LocationPickerSheet({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="flex items-center gap-2 border-b px-4 py-3">
+        <div className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             ref={searchRef}
@@ -449,8 +492,8 @@ function LocationPickerSheet({
             aria-label="Search location"
           />
         </div>
-        {resultsBody}
-        {footer}
+        <div className="min-h-0 flex-1 overflow-y-auto">{resultsBody}</div>
+        <div className="shrink-0">{footer}</div>
       </div>
     </div>
   );
