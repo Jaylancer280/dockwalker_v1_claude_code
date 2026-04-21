@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 import { ProfileOverlay } from '@/components/profile-overlay';
+import { ReportDialog } from '@/components/report-dialog';
 
 import type { Message, EngagementContext } from './_components/types';
 import { POLL_INTERVAL } from './_components/types';
@@ -69,6 +70,7 @@ export default function ChatPage() {
   const [showChecklistForm, setShowChecklistForm] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [viewProfileId, setViewProfileId] = useState<string | null>(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [showConfirmPlacement, setShowConfirmPlacement] = useState(false);
   const [showRevertSelection, setShowRevertSelection] = useState(false);
   const [showCloseConversation, setShowCloseConversation] = useState(false);
@@ -587,6 +589,7 @@ export default function ChatPage() {
           completing={completing}
           workStarting={workStarting}
           onViewProfile={setViewProfileId}
+          onReportUser={() => setReportDialogOpen(true)}
           onShowCancelForm={() => setShowCancelForm(true)}
           onShowCrewCancelForm={() => setShowCrewCancelForm(true)}
           onShowChecklistForm={() => setShowChecklistForm(true)}
@@ -678,6 +681,7 @@ export default function ChatPage() {
               completing={completing}
               workStarting={workStarting}
               onViewProfile={setViewProfileId}
+              onReportUser={() => setReportDialogOpen(true)}
               onShowCancelForm={() => setShowCancelForm(true)}
               onShowCrewCancelForm={() => setShowCrewCancelForm(true)}
               onShowChecklistForm={() => setShowChecklistForm(true)}
@@ -874,6 +878,17 @@ export default function ChatPage() {
           personId={viewProfileId}
           isOpen={true}
           onClose={() => setViewProfileId(null)}
+        />
+      )}
+
+      {/* Report user dialog */}
+      {context && (
+        <ReportDialog
+          open={reportDialogOpen}
+          onClose={() => setReportDialogOpen(false)}
+          reportedPersonId={isCrew ? context.employer_person_id : context.crew_person_id}
+          reportedName={context.other_name ?? undefined}
+          engagementId={engagementId}
         />
       )}
     </main>

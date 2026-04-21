@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase } from 'lucide-react';
+import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase, Flag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { languageLabel } from '@dockwalker/shared';
@@ -9,6 +9,7 @@ import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { safeFetch } from '@/lib/safe-fetch';
+import { ReportDialog } from '@/components/report-dialog';
 
 interface CrewExperience {
   vessel_name: string | null;
@@ -109,6 +110,7 @@ export function ProfileOverlay({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -179,8 +181,30 @@ export function ProfileOverlay({
             ) : (
               <EmployerProfileView profile={profile as EmployerProfile} />
             ))}
+
+          {!loading && !error && profile && (
+            <div className="mt-4 border-t border-[var(--border)] pt-3">
+              <button
+                type="button"
+                onClick={() => setReportDialogOpen(true)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Flag className="h-3 w-3" />
+                Report this user
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {profile && (
+        <ReportDialog
+          open={reportDialogOpen}
+          onClose={() => setReportDialogOpen(false)}
+          reportedPersonId={profile.person_id}
+          reportedName={profile.display_name}
+        />
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   Clock,
   MoreVertical,
   Phone,
+  Flag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { EngagementContext } from './types';
@@ -30,6 +31,7 @@ interface ChatHeaderProps {
   completing: boolean;
   workStarting: boolean;
   onViewProfile: (personId: string) => void;
+  onReportUser: () => void;
   onShowCancelForm: () => void;
   onShowCrewCancelForm: () => void;
   onShowChecklistForm: () => void;
@@ -60,6 +62,7 @@ export function ChatHeader({
   completing,
   workStarting,
   onViewProfile,
+  onReportUser,
   onShowCancelForm,
   onShowCrewCancelForm,
   onShowChecklistForm,
@@ -116,6 +119,18 @@ export function ChatHeader({
                   }}
                 >
                   View profile
+                </button>
+
+                {/* Report user */}
+                <button
+                  className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                  onClick={() => {
+                    setShowActionMenu(false);
+                    onReportUser();
+                  }}
+                >
+                  <Flag className="h-4 w-4" />
+                  Report user
                 </button>
 
                 {/* ── Permanent-specific actions ── */}

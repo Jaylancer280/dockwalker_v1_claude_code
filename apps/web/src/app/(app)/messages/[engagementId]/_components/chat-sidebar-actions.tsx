@@ -1,5 +1,13 @@
 import { Button } from '@/components/ui/button';
-import { CheckCircle, ClipboardCheck, ClipboardList, Clock, XCircle, User } from 'lucide-react';
+import {
+  CheckCircle,
+  ClipboardCheck,
+  ClipboardList,
+  Clock,
+  XCircle,
+  User,
+  Flag,
+} from 'lucide-react';
 import type { EngagementContext } from './types';
 
 interface ChatSidebarActionsProps {
@@ -12,6 +20,7 @@ interface ChatSidebarActionsProps {
   completing: boolean;
   workStarting: boolean;
   onViewProfile: (personId: string) => void;
+  onReportUser: () => void;
   onShowCancelForm: () => void;
   onShowCrewCancelForm: () => void;
   onShowChecklistForm: () => void;
@@ -35,6 +44,7 @@ export function ChatSidebarActions({
   completing,
   workStarting,
   onViewProfile,
+  onReportUser,
   onShowCancelForm,
   onShowCrewCancelForm,
   onShowChecklistForm,
@@ -62,6 +72,10 @@ export function ChatSidebarActions({
       >
         <User className="h-4 w-4" />
         View profile
+      </Button>
+      <Button variant="outline" size="sm" className="justify-start gap-2" onClick={onReportUser}>
+        <Flag className="h-4 w-4" />
+        Report user
       </Button>
 
       {/* Permanent-specific actions */}

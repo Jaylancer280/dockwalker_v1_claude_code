@@ -204,7 +204,7 @@
 
 ## Current Schema Version
 
-v106 — Admin user_notes table + scrub extension (106 migrations applied)
+v107 — Admin Phase 2 reports table (107 migrations applied)
 
 ## Migrations Applied
 
@@ -315,7 +315,8 @@ v106 — Admin user_notes table + scrub extension (106 migrations applied)
 | `00103_entry_rights.sql` | Entry Rights V1 — rename `visa_types` → `entry_rights`, drop `region`, add `category` (citizenship/residence/visa), preserve 5 UUIDs with renamed/recategorised rows, delete 5 work-permit/Other, insert 19 new canonical rows, rename `profiles.visa_ids` → `entry_right_ids`, `apply_projection` coalesces entry_right_ids vs visa_ids with live-entry-rights filter. |
 | `00104_marinas_v1_expansion.sql` | Locations V1 marina import — OSM-sourced global marina dataset (5,957 filtered + hub-normalized records). Renames 7 launch-region rows to `\_legacy*\*`(avoiding unique-name collision), upserts 63 country-based regions via UUIDv5, re-parents 29 curated cities, deletes legacy region rows, inserts 3,336 new cities, updates 4 curated ports with OSM lat/lon/metadata, inserts 5,933 new ports. Dubai/Abu Dhabi/Antibes/St. Maarten etc. districts normalized onto hub cities. |
 |`00105_jwt_hook_admin_and_blocked.sql`| Admin Phase 0 — extend`custom_access_token_hook`to inject`is_admin`and`blocked`JWT claims. Existing claims preserved. Middleware reads the new claims on the fast path for`/admin/\*`guard and blocked-user redirect; DB fallback retained for pre-hook sessions. API-layer gates unchanged. |
-|`00106_user_notes.sql`| Admin Phase 1 —`user_notes`table (service-role only, no authenticated RLS policies). FKs:`person_id`RESTRICT,`admin_person_id`ON DELETE SET NULL. Extends`PERSON.DATA_SCRUBBED`to rewrite content of notes about the scrubbed subject to`'[content scrubbed]'`. Extends `admin_delete_person` RPC to cover user_notes for both subject and author. |
+|`00106_user_notes.sql`| Admin Phase 1 —`user_notes`table (service-role only, no authenticated RLS policies). FKs:`person_id`RESTRICT,`admin_person_id`ON DELETE SET NULL. Extends`PERSON.DATA_SCRUBBED`to rewrite content of notes about the scrubbed subject to`'[content scrubbed]'`. Extends `admin_delete_person`RPC to cover user_notes for both subject and author. |
+|`00107_reports.sql`| Admin Phase 2 —`reports`CRUD table with CHECK constraints (reason_category enum, reason_text ≤1000, status enum, resolution enum, self-report prevention), indexes on`(status, reason_category)`and`reported_person_id`. RLS: authenticated INSERT where reporter_person_id = auth.uid(), SELECT own; admin reads via service client. Extends `admin_delete_person` to delete reports where target is reporter/reported and null out admin_person_id. |
 
 ## Deferred Decisions
 
