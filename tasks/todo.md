@@ -29,12 +29,9 @@
 - [ ] Admin UI: Notes section on user detail page (read, add, edit-own).
 - [ ] `npx supabase db push`, commit + push + CI green.
 
-#### Chunk 3 — Messages RLS tightening
+#### Chunk 3 — Messages RLS tightening [SKIPPED]
 
-- [ ] Migration `00107_messages_insert_active_only.sql` — drop & recreate messages INSERT policy requiring `active_engagements.status = 'active'`.
-- [ ] Rollback `00107_messages_insert_active_only.down.sql` — restore prior policy.
-- [ ] Check all existing tests — any that post a message on a non-active engagement will now correctly fail at RLS; update test seed accordingly.
-- [ ] `npx supabase db push`, commit + push + CI green.
+Spec §3.9 assumed a permissive `messages` INSERT RLS policy that needs tightening. In this codebase no such policy exists — all INSERTs flow through `apply_projection` (SECURITY DEFINER, RLS-bypassing). The API route at `apps/web/src/app/api/messages/[engagementId]/route.ts:85-87` already rejects when `engagement.status !== 'active'`. No migration needed.
 
 #### Chunk 4 — Admin force-cancel engagement + hide posting routes
 
