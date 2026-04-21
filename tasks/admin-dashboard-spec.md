@@ -17,14 +17,14 @@
 | ------------------------------------ | ----------- | -------------------------------------------------------------------------------- |
 | Phase 0 — Prerequisites              | DONE        | §0.1/0.3 already in place; §0.2 shipped in migration 00105                       |
 | Phase 1 — Blocking + user moderation | DONE        | Cascade, requireDomainUser blocked check, user_notes, force-cancel + hide routes |
-| Phase 2 — Reporting system           | NOT STARTED | Reports table, user-facing report flow, admin queue                              |
+| Phase 2 — Reporting system           | DONE        | reports CRUD + RLS, user-facing report flow, admin queue, user-detail drill-down |
 | Phase 3 — Support channel            | NOT STARTED | Support threads + messages, user feedback, admin inbox                           |
 | Phase 4 — Admin dashboard UI         | NOT STARTED | Layout, pages, all read views, action panels                                     |
 | Phase 5 — Platform health metrics    | NOT STARTED | Query-time aggregations, dashboard landing page                                  |
 | Phase 6 — Event log browser          | NOT STARTED | Filterable raw event view, power-user tool                                       |
 | Phase 7 — Intelligence layer (V2)    | NOT STARTED | Materialized metrics, anomaly detection, automated alerts                        |
 
-**Last session:** 2026-04-21 — Phase 1 shipped (migration 00106 + API routes + UI)
+**Last session:** 2026-04-21 — Phase 2 shipped (migration 00107 + admin queue + user-facing dialog)
 
 ---
 

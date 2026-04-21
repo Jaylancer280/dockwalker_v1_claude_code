@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useSafeFetch } from '@/hooks/use-safe-fetch';
@@ -49,6 +50,17 @@ interface UserNote {
   updated_at: string;
 }
 
+interface ReportSummaryRow {
+  id: string;
+  reporter_person_id: string;
+  reporter_name: string | null;
+  reported_person_id: string;
+  reported_name: string | null;
+  reason_category: string;
+  status: string;
+  created_at: string;
+}
+
 export default function AdminUserDetailPage() {
   const { personId } = useParams<{ personId: string }>();
   const router = useRouter();
@@ -74,9 +86,17 @@ export default function AdminUserDetailPage() {
   const { data: notesData, mutate: mutateNotes } = useSafeFetch<{ notes: UserNote[] }>(
     `/api/admin/users/${personId}/notes`,
   );
+  const { data: reportsAgainstData } = useSafeFetch<{ reports: ReportSummaryRow[] }>(
+    `/api/admin/reports?filed_against=${personId}&status=open,reviewing,dismissed,actioned`,
+  );
+  const { data: reportsByData } = useSafeFetch<{ reports: ReportSummaryRow[] }>(
+    `/api/admin/reports?filed_by=${personId}&status=open,reviewing,dismissed,actioned`,
+  );
 
   const events = eventsData?.events ?? [];
   const notes = notesData?.notes ?? [];
+  const reportsAgainst = reportsAgainstData?.reports ?? [];
+  const reportsBy = reportsByData?.reports ?? [];
 
   async function handleAddNote() {
     const content = noteDraft.trim();
@@ -401,6 +421,17 @@ export default function AdminUserDetailPage() {
         </div>
       </section>
 
+      <section className="mb-6">
+        <h2 className="mb-2 text-lg font-semibold">Reports</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <ReportMiniList
+            title={`Filed against (${reportsAgainst.length})`}
+            rows={reportsAgainst}
+          />
+          <ReportMiniList title={`Filed by (${reportsBy.length})`} rows={reportsBy} />
+        </div>
+      </section>
+
       <section>
         <h2 className="mb-2 text-lg font-semibold">Event Timeline ({eventCount} total)</h2>
         {events.length === 0 ? (
@@ -432,6 +463,41 @@ export default function AdminUserDetailPage() {
           </table>
         )}
       </section>
+    </div>
+  );
+}
+
+function ReportMiniList({ title, rows }: { title: string; rows: ReportSummaryRow[] }) {
+  return (
+    <div className="rounded border p-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </p>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">None</p>
+      ) : (
+        <ul className="flex flex-col gap-1 text-xs">
+          {rows.slice(0, 5).map((r) => (
+            <li key={r.id} className="flex items-center justify-between gap-2">
+              <Link href="/admin/reports" className="text-primary hover:underline">
+                <span className="capitalize">{r.reason_category.replace(/_/g, ' ')}</span>
+                <span className="ml-2 text-muted-foreground">· {r.status}</span>
+              </Link>
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(r.created_at).toLocaleDateString()}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {rows.length > 5 && (
+        <Link
+          href="/admin/reports"
+          className="mt-2 inline-block text-[11px] text-primary hover:underline"
+        >
+          + {rows.length - 5} more
+        </Link>
+      )}
     </div>
   );
 }
