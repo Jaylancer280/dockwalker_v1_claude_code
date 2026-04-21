@@ -5,18 +5,44 @@
 
 ## Current Task
 
-### Admin Phase 0 — JWT hook extension (only remaining Phase 0 work)
+### Admin Phase 1 — Blocking + user moderation
 
-> §0.1 (`requireAdmin` DB lookup) and §0.3 (middleware `/admin` + blocked guards) already shipped. §0.2 is the only remaining item: inject `is_admin` and `blocked` into JWT claims so middleware can skip the DB query on every authenticated page load.
+> Already shipped (Stage 218 and in-flight work): migration 00097 schema + projection handlers, `/api/admin/users/:id/block|unblock|restore|DELETE` routes, `cascadeBlock` helper, `/blocked` page, middleware admin/blocked guards, admin user detail UI (uncommitted). Remaining work breaks into 4 chunks — each must commit cleanly and pass CI before the next.
 
-- [x] Create `supabase/migrations/00105_jwt_hook_admin_and_blocked.sql` — `CREATE OR REPLACE` on `custom_access_token_hook`, extending the select list with `is_admin, blocked_at` and injecting both claims (is_admin only when true; blocked only when blocked_at not null).
-- [x] Create `supabase/rollbacks/00105_jwt_hook_admin_and_blocked.down.sql` — `CREATE OR REPLACE` restoring the 00078 hook body verbatim (no DROP — later rollbacks in the reverse chain will drop it via 00078.down).
-- [x] Update `apps/web/src/lib/supabase/middleware.ts` — read `is_admin` + `blocked` from `appMeta` fast path for `/admin` guard and blocked-user redirect; retain DB fallback only when the claim is missing (pre-hook sessions).
-- [x] Update `BUILD_STATE.md` — v104 → v105, add migration 00105 row, add stage entry.
-- [x] Update `tasks/admin-dashboard-spec.md` Progress Tracker — Phase 0 → DONE.
-- [x] Run `turbo run type-check lint` + `cd apps/web && npx vitest run` — zero errors, 1082 tests pass.
-- [x] Apply migration to remote: `npx supabase db push`.
-- [ ] Commit (includes migration + rollback + middleware + BUILD_STATE + spec) + push.
+#### Chunk 1 — API-layer blocked enforcement + commit the admin UI
+
+- [ ] Add `blocked_at` check to `apps/web/src/lib/auth/require-domain-user.ts` across all 3 paths (header fast path, JWT claims path, DB fallback) — return `403 'Account suspended. Contact support.'` when blocked.
+- [ ] Add optional `{ allowBlocked?: boolean }` parameter so support-facing routes can explicitly admit blocked users.
+- [ ] Middleware: set `x-blocked: true` header on API requests when `appMeta.blocked === true` so the header fast path can read it without a DB query.
+- [ ] Write tests: blocked user rejected (all three paths), blocked user admitted with `allowBlocked: true`, deactivated + allowBlocked still rejected.
+- [ ] Commit + push + wait for CI green.
+- [ ] Second commit: the already-working admin user detail page (`apps/web/src/app/(admin)/admin/users/[personId]/page.tsx`) now that the backend it consumes is stable. Commit + push.
+
+#### Chunk 2 — `user_notes` table + API + scrub extension
+
+- [ ] Migration `00106_user_notes.sql` — table with RLS (admin-only), FKs per §3.11, INDEX on person_id, extend `PERSON.DATA_SCRUBBED` to rewrite content of notes **about** the scrubbed user to `'[content scrubbed]'`.
+- [ ] Rollback `00106_user_notes.down.sql` — drop table, restore prior `PERSON.DATA_SCRUBBED` body verbatim.
+- [ ] `GET /api/admin/users/:personId/notes` — chronological list with admin display names.
+- [ ] `POST /api/admin/users/:personId/notes` — body `{ content }`, sets `admin_person_id = guard.value.person.id`.
+- [ ] `PATCH /api/admin/users/:personId/notes/:noteId` — author-only edit (check `admin_person_id`).
+- [ ] Tests: list, create, edit by author succeeds, edit by other admin rejected, content max-length enforced, scrub rewrites target's notes.
+- [ ] Admin UI: Notes section on user detail page (read, add, edit-own).
+- [ ] `npx supabase db push`, commit + push + CI green.
+
+#### Chunk 3 — Messages RLS tightening
+
+- [ ] Migration `00107_messages_insert_active_only.sql` — drop & recreate messages INSERT policy requiring `active_engagements.status = 'active'`.
+- [ ] Rollback `00107_messages_insert_active_only.down.sql` — restore prior policy.
+- [ ] Check all existing tests — any that post a message on a non-active engagement will now correctly fail at RLS; update test seed accordingly.
+- [ ] `npx supabase db push`, commit + push + CI green.
+
+#### Chunk 4 — Admin force-cancel engagement + hide posting routes
+
+- [ ] `POST /api/admin/engagements/:id/cancel` — body `{ reason_category, reason_text }`, emits `ADMIN.ENGAGEMENT_CANCELLED` (handler already in 00097).
+- [ ] `POST /api/admin/postings/:id/hide` — body `{ posting_type, reason }`, emits `ADMIN.POSTING_HIDDEN` (handler already in 00097).
+- [ ] Tests: happy path, non-active engagement rejection, invalid reason rejection.
+- [ ] Update `tasks/admin-dashboard-spec.md` Progress Tracker — Phase 1 → DONE.
+- [ ] Commit + push + CI green.
 
 ### Imagery rollout — maritime feel + empty-state completeness
 

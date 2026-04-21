@@ -177,6 +177,8 @@
 - [Stage 168] Mobile Phase 3c — Daywork review (swipe stack, auto-view, accept/reject/shortlist), permanent review (shortlist/select with cap), applicant card, template hooks + selector
 - [Stage 169] Mobile Phase 4 — Conversation list, chat thread with realtime, summary cards, engagement action overlays (cancel/postpone/rate/checklist/work-started/complete), permanent actions. Fix: meal casing, selected_crew_name resolution
 
+- [Stage 219] Admin Phase 1 (chunks 1-2) — API-layer blocked enforcement + `user_notes`. Added `blocked_at` check to `requireDomainUser` across all 3 paths (header, JWT, DB), new `{ allowBlocked: true }` option for support routes, middleware propagates `x-blocked` header from the JWT claim. Migration 00106 creates `user_notes` (service-role only), extends `PERSON.DATA_SCRUBBED` to rewrite note content about the scrubbed subject, extends `admin_delete_person` RPC. New routes `/api/admin/users/:id/notes` (GET, POST) + `/notes/:noteId` (PATCH, author-only). Admin user detail page wires Restore action and a Notes section (list + add + edit-own). 1097 tests pass (+15 new).
+
 - [Stage 218] Admin Phase 0 — JWT hook extended with `is_admin` and `blocked` claims (migration 00105). Middleware now reads both claims on the fast path for the `/admin/*` guard and the blocked-user redirect, with DB fallback for pre-hook sessions (~1 hour propagation window). `requireAdmin` (§0.1) and middleware admin/blocked redirects (§0.3) were already in place; §0.2 was the only remaining gap. API-layer gates unchanged — middleware is UX only. 1082 tests still pass.
 
 - [Stage 217b] CI fix for migration 00104 — initial CI run failed on `supabase db reset` with `ports_city_id_fkey` FK violation because seed files run AFTER all migrations, so the curated city UUIDs that 00104's port INSERTs referenced didn't exist yet on a fresh DB (prod was fine because `supabase db push` applies migrations to an already-seeded DB). Fixed by (1) adding idempotent UPSERT preamble to 00104 for the 7 legacy regions + 30 curated cities + 55 curated ports, (2) removing the regions/cities/ports block from `supabase/seed/001_canonical_data.sql` — migration 00104 is now the single source of truth for location canonical data, (3) patching Stage 4 generator so re-runs emit the preamble automatically. Rollback unchanged. 1082 tests still pass.
@@ -200,7 +202,7 @@
 
 ## Current Schema Version
 
-v105 — JWT hook extended with is_admin + blocked claims (105 migrations applied)
+v106 — Admin user_notes table + scrub extension (106 migrations applied)
 
 ## Migrations Applied
 
@@ -310,7 +312,8 @@ v105 — JWT hook extended with is_admin + blocked claims (105 migrations applie
 | `00102_pg_trgm_location_search.sql` | Locations V1 fuzzy-search infra — `unaccent` + `pg_trgm` extensions, `immutable_unaccent` wrapper, trigram GIN indexes on regions/cities/ports, `search_locations` / `get_locations_by_ids` / `top_locations` RPCs. |
 | `00103_entry_rights.sql` | Entry Rights V1 — rename `visa_types` → `entry_rights`, drop `region`, add `category` (citizenship/residence/visa), preserve 5 UUIDs with renamed/recategorised rows, delete 5 work-permit/Other, insert 19 new canonical rows, rename `profiles.visa_ids` → `entry_right_ids`, `apply_projection` coalesces entry_right_ids vs visa_ids with live-entry-rights filter. |
 | `00104_marinas_v1_expansion.sql` | Locations V1 marina import — OSM-sourced global marina dataset (5,957 filtered + hub-normalized records). Renames 7 launch-region rows to `\_legacy*\*`(avoiding unique-name collision), upserts 63 country-based regions via UUIDv5, re-parents 29 curated cities, deletes legacy region rows, inserts 3,336 new cities, updates 4 curated ports with OSM lat/lon/metadata, inserts 5,933 new ports. Dubai/Abu Dhabi/Antibes/St. Maarten etc. districts normalized onto hub cities. |
-|`00105_jwt_hook_admin_and_blocked.sql`| Admin Phase 0 — extend`custom_access_token_hook`to inject`is_admin`and`blocked`JWT claims. Existing claims preserved. Middleware reads the new claims on the fast path for`/admin/\*` guard and blocked-user redirect; DB fallback retained for pre-hook sessions. API-layer gates unchanged. |
+|`00105_jwt_hook_admin_and_blocked.sql`| Admin Phase 0 — extend`custom_access_token_hook`to inject`is_admin`and`blocked`JWT claims. Existing claims preserved. Middleware reads the new claims on the fast path for`/admin/\*`guard and blocked-user redirect; DB fallback retained for pre-hook sessions. API-layer gates unchanged. |
+|`00106_user_notes.sql`| Admin Phase 1 —`user_notes`table (service-role only, no authenticated RLS policies). FKs:`person_id`RESTRICT,`admin_person_id`ON DELETE SET NULL. Extends`PERSON.DATA_SCRUBBED`to rewrite content of notes about the scrubbed subject to`'[content scrubbed]'`. Extends `admin_delete_person` RPC to cover user_notes for both subject and author. |
 
 ## Deferred Decisions
 

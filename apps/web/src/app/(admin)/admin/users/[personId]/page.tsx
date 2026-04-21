@@ -40,6 +40,15 @@ interface EventRow {
   payload: Record<string, unknown>;
 }
 
+interface UserNote {
+  id: string;
+  admin_person_id: string | null;
+  admin_display_name: string | null;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function AdminUserDetailPage() {
   const { personId } = useParams<{ personId: string }>();
   const router = useRouter();
@@ -49,6 +58,10 @@ export default function AdminUserDetailPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [blockReason, setBlockReason] = useState('');
   const [blockCategory, setBlockCategory] = useState('other');
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNoteDraft, setEditNoteDraft] = useState('');
 
   const {
     data: user,
@@ -58,8 +71,47 @@ export default function AdminUserDetailPage() {
   const { data: eventsData } = useSafeFetch<{ events: EventRow[] }>(
     `/api/admin/events?person_id=${personId}&limit=50`,
   );
+  const { data: notesData, mutate: mutateNotes } = useSafeFetch<{ notes: UserNote[] }>(
+    `/api/admin/users/${personId}/notes`,
+  );
 
   const events = eventsData?.events ?? [];
+  const notes = notesData?.notes ?? [];
+
+  async function handleAddNote() {
+    const content = noteDraft.trim();
+    if (!content) return;
+    setNoteSaving(true);
+    const res = await safeFetch(`/api/admin/users/${personId}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    setNoteSaving(false);
+    if (res.ok) {
+      setNoteDraft('');
+      mutateNotes();
+    } else {
+      showError(res.error ?? 'Failed to add note');
+    }
+  }
+
+  async function handleSaveEdit(noteId: string) {
+    const content = editNoteDraft.trim();
+    if (!content) return;
+    const res = await safeFetch(`/api/admin/users/${personId}/notes/${noteId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    if (res.ok) {
+      setEditingNoteId(null);
+      setEditNoteDraft('');
+      mutateNotes();
+    } else {
+      showError(res.error ?? 'Failed to save note');
+    }
+  }
 
   async function handleBlock() {
     if (!blockReason.trim()) return;
@@ -270,6 +322,83 @@ export default function AdminUserDetailPage() {
         ) : (
           <p className="text-sm text-muted-foreground">No profile</p>
         )}
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 text-lg font-semibold">Admin Notes</h2>
+        {notes.length === 0 ? (
+          <p className="mb-3 text-sm text-muted-foreground">No notes</p>
+        ) : (
+          <ul className="mb-3 flex flex-col gap-2">
+            {notes.map((note) => {
+              const isEditing = editingNoteId === note.id;
+              return (
+                <li key={note.id} className="rounded border p-3 text-sm">
+                  <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {note.admin_display_name ?? '[unknown admin]'} ·{' '}
+                      {new Date(note.created_at).toLocaleString()}
+                      {note.updated_at !== note.created_at && ' · edited'}
+                    </span>
+                    {!isEditing && note.admin_person_id && (
+                      <button
+                        type="button"
+                        className="text-xs text-primary hover:underline"
+                        onClick={() => {
+                          setEditingNoteId(note.id);
+                          setEditNoteDraft(note.content);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <>
+                      <textarea
+                        value={editNoteDraft}
+                        onChange={(e) => setEditNoteDraft(e.target.value)}
+                        rows={3}
+                        maxLength={4000}
+                        className="mb-2 w-full rounded border p-2 text-sm"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleSaveEdit(note.id)}>
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingNoteId(null);
+                            setEditNoteDraft('');
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{note.content}</p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <div>
+          <textarea
+            value={noteDraft}
+            onChange={(e) => setNoteDraft(e.target.value)}
+            rows={3}
+            maxLength={4000}
+            placeholder="Add a note about this user..."
+            className="mb-2 w-full rounded border p-2 text-sm"
+          />
+          <Button size="sm" onClick={handleAddNote} disabled={noteSaving || !noteDraft.trim()}>
+            {noteSaving ? 'Saving...' : 'Add note'}
+          </Button>
+        </div>
       </section>
 
       <section>
