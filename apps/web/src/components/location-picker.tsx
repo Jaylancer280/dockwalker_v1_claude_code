@@ -1,12 +1,30 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { ChevronDown, Search, MapPin, Check } from 'lucide-react';
+import { ChevronDown, Search, MapPin, Check, X } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { safeFetch } from '@/lib/safe-fetch';
 import type { LocationSearchResult } from '@/app/api/locations/search/route';
 import type { TopLocationResult } from '@/app/api/locations/top/route';
 import type { LocationByIdResult } from '@/app/api/locations/by-ids/route';
+
+/** Matches Tailwind's md breakpoint (768px). Initialises from
+ * window.innerWidth so the first render matches the real device, avoiding
+ * a flash of the wrong overlay. */
+function useIsMobile(): boolean {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 767px)');
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+  return isMobile;
+}
 
 export interface LocationValue {
   cityId?: string;
@@ -241,6 +259,96 @@ export function LocationPicker({
 
   const defaultPlaceholder = mode === 'port-required' ? 'Select port/marina' : 'Select location';
   const isSearching = debouncedQuery.length >= 2;
+  const isMobile = useIsMobile();
+
+  // Don't show a "Searching…" flash the very first time the sheet opens —
+  // top results arrive fast enough that rendering an empty list reads as
+  // instant. Only show the loading state for subsequent user-driven searches.
+  const showLoading = loading && isSearching;
+
+  function handleClose() {
+    setOpen(false);
+    setQuery('');
+  }
+
+  const triggerButton = (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      disabled={disabled}
+      aria-required={required || undefined}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      className="flex w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 dark:bg-input/30 dark:hover:bg-input/50"
+      data-size="default"
+    >
+      <span className={displayLabel ? 'truncate' : 'text-muted-foreground'}>
+        {displayLabel ?? placeholder ?? defaultPlaceholder}
+      </span>
+      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+    </button>
+  );
+
+  const resultsBody = (
+    <div className="flex flex-1 flex-col overflow-y-auto">
+      {showLoading && (
+        <p className="px-3 py-4 text-center text-xs text-muted-foreground">Searching…</p>
+      )}
+
+      {!showLoading && isSearching && searchResults !== null && searchResults.length === 0 && (
+        <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+          No match — try the nearest city or port instead.
+        </p>
+      )}
+
+      {!showLoading && isSearching && searchResults && searchResults.length > 0 && (
+        <SearchResultsList
+          results={searchResults}
+          mode={mode}
+          value={value}
+          onSelectPort={selectPort}
+          onSelectCity={selectCity}
+        />
+      )}
+
+      {!showLoading && !isSearching && topResults && topResults.length > 0 && (
+        <TopResultsList results={topResults} value={value} onSelectPort={selectPort} />
+      )}
+
+      {!showLoading && !isSearching && topResults === null && (
+        <p className="px-3 py-4 text-center text-xs text-muted-foreground">Loading top ports…</p>
+      )}
+
+      {!showLoading && !isSearching && topResults && topResults.length === 0 && (
+        <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+          Start typing to search.
+        </p>
+      )}
+    </div>
+  );
+
+  const footer = (
+    <p className="border-t px-3 py-2 text-[10px] leading-tight text-muted-foreground">
+      Can&apos;t find your port? Pick the closest one. · © OpenStreetMap contributors
+    </p>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        {triggerButton}
+        <LocationPickerSheet
+          open={open}
+          onClose={handleClose}
+          query={query}
+          setQuery={setQuery}
+          searchRef={searchRef}
+          resultsBody={resultsBody}
+          footer={footer}
+        />
+      </>
+    );
+  }
 
   return (
     <Popover
@@ -250,74 +358,101 @@ export function LocationPicker({
         if (!o) setQuery('');
       }}
     >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          aria-required={required || undefined}
-          className="flex w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 dark:bg-input/30 dark:hover:bg-input/50"
-          data-size="default"
-        >
-          <span className={displayLabel ? 'truncate' : 'text-muted-foreground'}>
-            {displayLabel ?? placeholder ?? defaultPlaceholder}
-          </span>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-        </button>
-      </PopoverTrigger>
+      <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
 
-      <PopoverContent className="w-[min(24rem,calc(100vw-2rem))] max-h-96 overflow-hidden p-0">
-        <div className="flex items-center gap-2 border-b px-3 py-2">
+      <PopoverContent className="w-[min(26rem,calc(100vw-2rem))] max-h-[28rem] overflow-hidden p-0">
+        <div className="flex h-[28rem] flex-col">
+          <div className="flex items-center gap-2 border-b px-3 py-2">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search city or port..."
+              className="h-7 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              inputMode="search"
+              autoFocus
+              aria-label="Search location"
+            />
+          </div>
+          {resultsBody}
+          {footer}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function LocationPickerSheet({
+  open,
+  onClose,
+  query,
+  setQuery,
+  searchRef,
+  resultsBody,
+  footer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  query: string;
+  setQuery: (v: string) => void;
+  searchRef: React.RefObject<HTMLInputElement | null>;
+  resultsBody: React.ReactNode;
+  footer: React.ReactNode;
+}) {
+  useBodyScrollLock(open);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    // Focus the search input on open so the keyboard comes up immediately.
+    const t = setTimeout(() => searchRef.current?.focus(), 50);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      clearTimeout(t);
+    };
+  }, [open, onClose, searchRef]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 outline-none"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] min-h-[60vh] w-full max-w-lg animate-in slide-in-from-bottom flex-col rounded-t-2xl bg-background"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b px-4 pt-4 pb-3">
+          <h2 className="text-sm font-bold">Select location</h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-full p-1 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2 border-b px-4 py-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
           <input
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search city or port..."
-            className="h-7 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            className="h-7 w-full bg-transparent text-base outline-none placeholder:text-muted-foreground"
             inputMode="search"
-            autoFocus
             aria-label="Search location"
           />
         </div>
-
-        <div className="max-h-64 overflow-y-auto p-1">
-          {loading && (
-            <p className="px-3 py-4 text-center text-xs text-muted-foreground">Searching…</p>
-          )}
-
-          {!loading && isSearching && searchResults !== null && searchResults.length === 0 && (
-            <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-              No match — try the nearest city or port instead.
-            </p>
-          )}
-
-          {!loading && isSearching && searchResults && searchResults.length > 0 && (
-            <SearchResultsList
-              results={searchResults}
-              mode={mode}
-              value={value}
-              onSelectPort={selectPort}
-              onSelectCity={selectCity}
-            />
-          )}
-
-          {!loading && !isSearching && topResults && topResults.length > 0 && (
-            <TopResultsList results={topResults} value={value} onSelectPort={selectPort} />
-          )}
-
-          {!loading && !isSearching && topResults && topResults.length === 0 && (
-            <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-              Start typing to search.
-            </p>
-          )}
-        </div>
-
-        <div className="border-t px-3 py-2 text-[10px] leading-tight text-muted-foreground">
-          <p>Can&apos;t find your port? Pick the closest one.</p>
-          <p>Data © OpenStreetMap contributors (ODbL).</p>
-        </div>
-      </PopoverContent>
-    </Popover>
+        {resultsBody}
+        {footer}
+      </div>
+    </div>
   );
 }
 
