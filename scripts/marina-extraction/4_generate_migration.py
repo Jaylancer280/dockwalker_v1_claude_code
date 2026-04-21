@@ -654,8 +654,21 @@ def generate_migration(records: list[dict]) -> tuple[str, str]:
     )
     down.append("")
 
-    # 3. Restore original regions FIRST (by id + name + sort_order) so FKs from cities resolve.
-    down.append("-- Step 3: reinsert original 7 launch regions with their legacy UUIDs")
+    # 3a. Rename UUIDv5 regions to a temp suffix so the step-3b inserts of the
+    # legacy regions (with their real country-name aliases — Bahamas, Turkey,
+    # etc.) don't collide on regions.name's UNIQUE constraint. Step 5 then
+    # deletes these renamed rows. Mirror of the forward migration's Step 0.
+    down.append("-- Step 3a: rename UUIDv5 regions to free up country names for the legacy inserts")
+    down.append(
+        "update public.regions set name = name || '_legacy_pending_rollback' "
+        "where id not in ("
+        + ", ".join(sql_quote(rid) for rid in sorted(original_region_ids))
+        + ");"
+    )
+    down.append("")
+
+    # 3b. Restore original regions (by id + name + sort_order) so FKs from cities resolve.
+    down.append("-- Step 3b: reinsert original 7 launch regions with their legacy UUIDs")
     for r in ORIGINAL_REGIONS:
         down.append(
             f"insert into public.regions (id, name, sort_order) values "
