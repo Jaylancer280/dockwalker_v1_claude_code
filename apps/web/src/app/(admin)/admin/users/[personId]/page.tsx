@@ -93,6 +93,20 @@ export default function AdminUserDetailPage() {
     }
   }
 
+  async function handleRestore() {
+    const res = await safeFetch(`/api/admin/users/${personId}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason_text: 'Admin restore' }),
+    });
+    if (res.ok) {
+      showSuccess('User restored — they can log in again and will need to re-enter profile data');
+      mutate();
+    } else {
+      showError('Failed to restore user');
+    }
+  }
+
   async function handleDelete() {
     const res = await safeFetch(`/api/admin/users/${personId}`, { method: 'DELETE' });
     setShowDeleteDialog(false);
@@ -132,6 +146,11 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          {(isBlocked || isDeactivated) && (
+            <Button variant="default" onClick={handleRestore}>
+              Restore
+            </Button>
+          )}
           {isBlocked ? (
             <Button variant="outline" onClick={handleUnblock}>
               Unblock
