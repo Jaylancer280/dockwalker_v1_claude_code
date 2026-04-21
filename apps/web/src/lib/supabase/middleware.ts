@@ -105,24 +105,35 @@ export async function updateSession(request: NextRequest) {
         onboarded?: boolean;
         deactivated?: boolean;
         is_admin?: boolean;
+        blocked?: boolean;
       }
     | undefined;
 
   const hasClaims = !!(appMeta?.person_id && appMeta?.current_hat && appMeta?.identity_type);
 
-  // Admin path guard: non-admins cannot access /admin/* pages
-  // DB check required — is_admin is not in the JWT hook claims
+  // Admin path guard: non-admins cannot access /admin/* pages.
+  // Fast path reads is_admin from the JWT claim injected by 00105. Fallback DB
+  // query covers sessions minted before 00105 shipped (up to ~1 hour).
   if (user && path.startsWith('/admin')) {
-    const adminCheck = await supabase.from('persons').select('is_admin').eq('id', user.id).single();
-    if (!adminCheck.data?.is_admin) {
+    let isAdmin = appMeta?.is_admin === true;
+    if (!isAdmin && appMeta?.is_admin === undefined) {
+      const adminCheck = await supabase
+        .from('persons')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single();
+      isAdmin = adminCheck.data?.is_admin === true;
+    }
+    if (!isAdmin) {
       const url = request.nextUrl.clone();
       url.pathname = '/';
       return NextResponse.redirect(url);
     }
   }
 
-  // Blocked user redirect: send to /blocked page (DB check, only for authenticated non-public paths)
-  // This is a no-op for the entire existing userbase — no user has blocked_at set until admin blocks someone.
+  // Blocked user redirect: send to /blocked page. Fast path reads the blocked
+  // claim; falls back to DB for pre-hook sessions. Authoritative enforcement
+  // still lives in the API layer (requireDomainUser) — middleware is UX only.
   if (
     user &&
     !isPublicRoute &&
@@ -131,12 +142,16 @@ export async function updateSession(request: NextRequest) {
     !path.startsWith('/support') &&
     appMeta?.person_id
   ) {
-    const blockedCheck = await supabase
-      .from('persons')
-      .select('blocked_at')
-      .eq('id', appMeta.person_id)
-      .single();
-    if (blockedCheck.data?.blocked_at) {
+    let isBlocked = appMeta.blocked === true;
+    if (!isBlocked && appMeta.blocked === undefined) {
+      const blockedCheck = await supabase
+        .from('persons')
+        .select('blocked_at')
+        .eq('id', appMeta.person_id)
+        .single();
+      isBlocked = !!blockedCheck.data?.blocked_at;
+    }
+    if (isBlocked) {
       const url = request.nextUrl.clone();
       url.pathname = '/blocked';
       return NextResponse.redirect(url);

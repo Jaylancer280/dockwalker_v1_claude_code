@@ -5,6 +5,19 @@
 
 ## Current Task
 
+### Admin Phase 0 — JWT hook extension (only remaining Phase 0 work)
+
+> §0.1 (`requireAdmin` DB lookup) and §0.3 (middleware `/admin` + blocked guards) already shipped. §0.2 is the only remaining item: inject `is_admin` and `blocked` into JWT claims so middleware can skip the DB query on every authenticated page load.
+
+- [x] Create `supabase/migrations/00105_jwt_hook_admin_and_blocked.sql` — `CREATE OR REPLACE` on `custom_access_token_hook`, extending the select list with `is_admin, blocked_at` and injecting both claims (is_admin only when true; blocked only when blocked_at not null).
+- [x] Create `supabase/rollbacks/00105_jwt_hook_admin_and_blocked.down.sql` — `CREATE OR REPLACE` restoring the 00078 hook body verbatim (no DROP — later rollbacks in the reverse chain will drop it via 00078.down).
+- [x] Update `apps/web/src/lib/supabase/middleware.ts` — read `is_admin` + `blocked` from `appMeta` fast path for `/admin` guard and blocked-user redirect; retain DB fallback only when the claim is missing (pre-hook sessions).
+- [x] Update `BUILD_STATE.md` — v104 → v105, add migration 00105 row, add stage entry.
+- [x] Update `tasks/admin-dashboard-spec.md` Progress Tracker — Phase 0 → DONE.
+- [x] Run `turbo run type-check lint` + `cd apps/web && npx vitest run` — zero errors, 1082 tests pass.
+- [x] Apply migration to remote: `npx supabase db push`.
+- [ ] Commit (includes migration + rollback + middleware + BUILD_STATE + spec) + push.
+
 ### Imagery rollout — maritime feel + empty-state completeness
 
 > From Stage 214 session. Full audit of imagery opportunities across the app. Work item-by-item; confirm surface, copy, and photo choice with user before each commit. Assets: `apps/web/public/images/{empty-states,onboarding,departments,brand}/` plus stock in top-level `assets/images/`.
