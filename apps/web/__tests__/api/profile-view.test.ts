@@ -104,7 +104,7 @@ describe('GET /api/profile/[personId]', () => {
       location_port_id: null,
       location_city_id: null,
       nationality_id: null,
-      visa_ids: [],
+      entry_right_ids: [],
       languages: [],
       agency_name: null,
       role_specialization_ids: [],

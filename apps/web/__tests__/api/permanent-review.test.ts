@@ -77,7 +77,7 @@ describe('GET /api/permanent/:id/review', () => {
     appsChain.order = vi.fn().mockResolvedValue({
       data: [{
         id: 'a1', crew_person_id: 'c1', status: 'applied', message: 'Hi', created_at: '2026-03-20', source: 'direct',
-        profiles: { display_name: 'Crew One', bio: null, avatar_url: null, yacht_roles: { name: 'Deckhand', department: 'deck' }, experience_brackets: { label: '2-5 years' }, ports: null, nationalities: null, permanent_availability: 'immediate', notice_period_days: null, currently_employed: false, certification_ids: [], vessel_size_exposure_ids: [], nationality_id: null, visa_ids: [] },
+        profiles: { display_name: 'Crew One', bio: null, avatar_url: null, yacht_roles: { name: 'Deckhand', department: 'deck' }, experience_brackets: { label: '2-5 years' }, ports: null, nationalities: null, permanent_availability: 'immediate', notice_period_days: null, currently_employed: false, certification_ids: [], vessel_size_exposure_ids: [], nationality_id: null, entry_right_ids: [] },
       }],
       error: null,
     });
