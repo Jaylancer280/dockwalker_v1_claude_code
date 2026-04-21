@@ -50,7 +50,7 @@ interface CrewProfile {
   experience_bracket: { id: string; label: string } | null;
   vessel_size_exposure: { id: string; label: string }[];
   nationality: { id: string; name: string; country_code: string; flag_emoji: string } | null;
-  visas: { id: string; name: string }[];
+  entry_rights: { id: string; name: string; category: string }[];
   languages: string[];
   location: { port: string; city: string; region: string } | null;
   city_location: { city: string; region: string | null } | null;
@@ -307,12 +307,12 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
         </div>
       )}
 
-      {/* Visas */}
-      {profile.visas.length > 0 && (
+      {/* Entry rights */}
+      {profile.entry_rights.length > 0 && (
         <div>
-          <p className="mb-1 text-xs text-muted-foreground">Visas</p>
+          <p className="mb-1 text-xs text-muted-foreground">Entry rights</p>
           <div className="flex flex-wrap gap-1">
-            {profile.visas.map((v) => (
+            {profile.entry_rights.map((v) => (
               <span
                 key={v.id}
                 className="rounded-full bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 text-xs"

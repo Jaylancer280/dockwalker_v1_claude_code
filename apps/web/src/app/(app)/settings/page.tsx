@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
@@ -134,25 +133,6 @@ export default function SettingsPage() {
           currencyPref={currencyPref}
           onCurrencyPrefChange={handleCurrencyPref}
         />
-
-        <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-semibold">Help & Support</h2>
-          <Link href="/support" className="text-sm text-primary underline">
-            Contact DockWalker
-          </Link>
-        </section>
-
-        <section className="rounded-lg border p-4">
-          <h2 className="mb-2 font-semibold">Legal</h2>
-          <div className="flex flex-col gap-1.5 text-sm">
-            <Link href="/privacy" className="text-primary underline">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="text-primary underline">
-              Terms of Service
-            </Link>
-          </div>
-        </section>
 
         <DangerZoneSection />
       </div>

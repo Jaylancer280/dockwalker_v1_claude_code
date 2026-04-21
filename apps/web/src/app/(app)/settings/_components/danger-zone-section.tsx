@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Download, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -135,37 +136,33 @@ export function DangerZoneSection() {
 
           <Separator />
 
-          <a
-            href="https://dockwalker.com/terms"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/terms"
             className="flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
           >
             Terms of Service
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </a>
+          </Link>
 
           <Separator />
 
-          <a
-            href="https://dockwalker.com/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/privacy"
             className="flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
           >
             Privacy Policy
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </a>
+          </Link>
 
           <Separator />
 
-          <a
-            href="mailto:support@dockwalker.com"
+          <Link
+            href="/support"
             className="flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors hover:bg-accent"
           >
             Contact Support
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </a>
+          </Link>
 
           <Separator />
 
