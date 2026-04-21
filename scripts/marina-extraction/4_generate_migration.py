@@ -444,6 +444,48 @@ def generate_migration(records: list[dict]) -> tuple[str, str]:
     def country_name(cc: str) -> str:
         return COUNTRY_NAME_BY_CODE.get(cc) or country_name_from_csv.get(cc) or cc
 
+    # ------------------------------------------------------------------
+    # Pre-step: idempotent UPSERT of the 7 legacy regions, 30 curated
+    # cities, and 55 curated ports that the rest of this migration
+    # references by UUID. In production (applied via `npx supabase db
+    # push`) these rows were created by the seed file before migration
+    # 00001 was ever applied, so every UPSERT here is a no-op. In CI
+    # (`supabase db reset`) the seed file runs AFTER all migrations
+    # complete — so without this preamble the migration hits FK
+    # violations when inserting new OSM ports with city_id pointing at
+    # a curated city that hasn't been seeded yet.
+    # ------------------------------------------------------------------
+    up.append("-- ============================================================")
+    up.append("-- Pre-step: ensure legacy regions / curated cities / curated ports")
+    up.append("-- exist before the rest of the migration runs. Needed so")
+    up.append("-- `supabase db reset` (CI) succeeds — prod is a no-op because")
+    up.append("-- the seed has already populated these rows.")
+    up.append("-- ============================================================")
+    up.append("")
+    for r in ORIGINAL_REGIONS:
+        up.append(
+            f"insert into public.regions (id, name, sort_order) values "
+            f"({sql_quote(r['id'])}, {sql_quote(r['name'])}, {r['sort_order']}) "
+            f"on conflict (id) do nothing;"
+        )
+    up.append("")
+    for c in ORIGINAL_CITIES:
+        up.append(
+            f"insert into public.cities (id, region_id, name, sort_order) values "
+            f"({sql_quote(c['id'])}, {sql_quote(c['region_id'])}, "
+            f"{sql_quote(c['name'])}, {c['sort_order']}) "
+            f"on conflict (id) do nothing;"
+        )
+    up.append("")
+    for p in ORIGINAL_PORTS:
+        up.append(
+            f"insert into public.ports (id, city_id, name, sort_order) values "
+            f"({sql_quote(p['id'])}, {sql_quote(p['city_id'])}, "
+            f"{sql_quote(p['name'])}, {p['sort_order']}) "
+            f"on conflict (id) do nothing;"
+        )
+    up.append("")
+
     up.append("-- ============================================================")
     up.append("-- Step 0: Rename the 7 legacy region rows so their country-canonical")
     up.append("-- names (Bahamas, UAE, Turkey, etc.) don't collide with the new")
