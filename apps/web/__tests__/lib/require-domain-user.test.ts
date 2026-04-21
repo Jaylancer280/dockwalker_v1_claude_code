@@ -248,4 +248,126 @@ describe('requireDomainUser', () => {
     // getUser() WAS called (fallback path)
     expect(mockGetUser).toHaveBeenCalled();
   });
+
+  // --- Blocked enforcement ---
+
+  it('returns 403 suspended via middleware header fast path', async () => {
+    mockHeaders.set('x-user-id', 'u1');
+    mockHeaders.set('x-person-id', 'p1');
+    mockHeaders.set('x-current-hat', 'crew');
+    mockHeaders.set('x-identity-type', 'crew');
+    mockHeaders.set('x-blocked', 'true');
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const body = await result.response.json();
+      expect(result.response.status).toBe(403);
+      expect(body.error).toBe('Account suspended. Contact support.');
+    }
+    expect(mockGetUser).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 suspended via JWT claims path', async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'u1',
+          app_metadata: {
+            person_id: 'u1',
+            current_hat: 'crew',
+            identity_type: 'crew',
+            onboarded: true,
+            blocked: true,
+          },
+        },
+      },
+    });
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(403);
+    }
+    expect(mockFrom).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 suspended via DB fallback path', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFrom.mockReturnValueOnce(
+      chainBuilder({
+        id: 'u1',
+        identity_type: 'crew',
+        current_hat: 'crew',
+        is_admin: false,
+        deactivated_at: null,
+        blocked_at: '2026-04-21T00:00:00Z',
+      }),
+    );
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(403);
+      const body = await result.response.json();
+      expect(body.error).toBe('Account suspended. Contact support.');
+    }
+  });
+
+  it('allowBlocked admits blocked user via header fast path', async () => {
+    mockHeaders.set('x-user-id', 'u1');
+    mockHeaders.set('x-person-id', 'p1');
+    mockHeaders.set('x-current-hat', 'crew');
+    mockHeaders.set('x-identity-type', 'crew');
+    mockHeaders.set('x-blocked', 'true');
+
+    const result = await requireDomainUser({ allowBlocked: true });
+    expect(result.ok).toBe(true);
+  });
+
+  it('allowBlocked admits blocked user via JWT claims path', async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'u1',
+          app_metadata: {
+            person_id: 'u1',
+            current_hat: 'crew',
+            identity_type: 'crew',
+            onboarded: true,
+            blocked: true,
+          },
+        },
+      },
+    });
+
+    const result = await requireDomainUser({ allowBlocked: true });
+    expect(result.ok).toBe(true);
+  });
+
+  it('allowBlocked still rejects deactivated users', async () => {
+    mockGetUser.mockResolvedValue({
+      data: {
+        user: {
+          id: 'u1',
+          app_metadata: {
+            person_id: 'u1',
+            current_hat: 'crew',
+            identity_type: 'crew',
+            onboarded: true,
+            deactivated: true,
+            blocked: true,
+          },
+        },
+      },
+    });
+
+    const result = await requireDomainUser({ allowBlocked: true });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const body = await result.response.json();
+      expect(result.response.status).toBe(403);
+      expect(body.error).toBe('Account deactivated');
+    }
+  });
 });

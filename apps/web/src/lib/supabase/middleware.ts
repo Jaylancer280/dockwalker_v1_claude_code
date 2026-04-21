@@ -38,18 +38,27 @@ export async function updateSession(request: NextRequest) {
       requestHeaders.delete('x-person-id');
       requestHeaders.delete('x-current-hat');
       requestHeaders.delete('x-identity-type');
+      requestHeaders.delete('x-blocked');
 
       // Set verified identity headers
       requestHeaders.set('x-user-id', user.id);
 
       // Try JWT claims for person identity (zero DB queries)
       const meta = user.app_metadata as
-        | { person_id?: string; current_hat?: string; identity_type?: string }
+        | {
+            person_id?: string;
+            current_hat?: string;
+            identity_type?: string;
+            blocked?: boolean;
+          }
         | undefined;
       if (meta?.person_id && meta?.current_hat && meta?.identity_type) {
         requestHeaders.set('x-person-id', meta.person_id);
         requestHeaders.set('x-current-hat', meta.current_hat);
         requestHeaders.set('x-identity-type', meta.identity_type);
+        if (meta.blocked === true) {
+          requestHeaders.set('x-blocked', 'true');
+        }
       }
 
       // Create new response with the modified request headers

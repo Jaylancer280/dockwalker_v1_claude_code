@@ -14,15 +14,37 @@ export interface DomainUser {
 
 type GuardResult = { ok: true; value: DomainUser } | { ok: false; response: NextResponse };
 
-export async function requireDomainUser(): Promise<GuardResult> {
+export interface RequireDomainUserOptions {
+  /**
+   * Allow blocked users through this guard. Default false. Support-facing
+   * routes set this to true so suspended users can still contact support.
+   * Deactivated users are always rejected regardless of this flag.
+   */
+  allowBlocked?: boolean;
+}
+
+function blockedResponse(): { ok: false; response: NextResponse } {
+  return {
+    ok: false,
+    response: NextResponse.json({ error: 'Account suspended. Contact support.' }, { status: 403 }),
+  };
+}
+
+export async function requireDomainUser(options?: RequireDomainUserOptions): Promise<GuardResult> {
+  const allowBlocked = options?.allowBlocked === true;
+
   // Fast path: middleware already validated the user and passed identity via headers
   const reqHeaders = await headers();
   const headerUserId = reqHeaders.get('x-user-id');
   const headerPersonId = reqHeaders.get('x-person-id');
   const headerCurrentHat = reqHeaders.get('x-current-hat');
   const headerIdentityType = reqHeaders.get('x-identity-type');
+  const headerBlocked = reqHeaders.get('x-blocked');
 
   if (headerUserId && headerPersonId && headerCurrentHat && headerIdentityType) {
+    if (!allowBlocked && headerBlocked === 'true') {
+      return blockedResponse();
+    }
     // Middleware already called getUser() — skip the duplicate auth check
     const supabase = await createClient();
     const serviceClient = await createServiceClient();
@@ -64,6 +86,7 @@ export async function requireDomainUser(): Promise<GuardResult> {
         identity_type?: string;
         onboarded?: boolean;
         deactivated?: boolean;
+        blocked?: boolean;
       }
     | undefined;
 
@@ -81,6 +104,10 @@ export async function requireDomainUser(): Promise<GuardResult> {
         ok: false,
         response: NextResponse.json({ error: 'Account deactivated' }, { status: 403 }),
       };
+    }
+
+    if (!allowBlocked && appMeta!.blocked) {
+      return blockedResponse();
     }
 
     if (!appMeta!.onboarded) {
@@ -119,7 +146,7 @@ export async function requireDomainUser(): Promise<GuardResult> {
   // Fallback: DB queries (pre-hook sessions or claims missing)
   const { data: personRow } = await supabase
     .from('persons')
-    .select('id, identity_type, current_hat, is_admin, deactivated_at')
+    .select('id, identity_type, current_hat, is_admin, deactivated_at, blocked_at')
     .eq('id', user.id)
     .single();
 
@@ -138,6 +165,10 @@ export async function requireDomainUser(): Promise<GuardResult> {
       ok: false,
       response: NextResponse.json({ error: 'Account deactivated' }, { status: 403 }),
     };
+  }
+
+  if (!allowBlocked && personRow.blocked_at != null) {
+    return blockedResponse();
   }
 
   const { data: profile } = await supabase
@@ -159,8 +190,10 @@ export async function requireDomainUser(): Promise<GuardResult> {
   const serviceClient = await createServiceClient();
 
   const person = {
-    ...personRow,
+    id: personRow.id,
+    identity_type: personRow.identity_type,
     current_hat: personRow.current_hat as RoleContext,
+    is_admin: personRow.is_admin,
   };
 
   return {
