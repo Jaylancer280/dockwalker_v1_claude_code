@@ -8,6 +8,7 @@ import {
   hasPushTokens,
 } from './loaders';
 import { sendEmail } from '../email/send';
+import { canSendEmail } from '../email/cooldown';
 import {
   applicationAcceptedEmail,
   applicationReceivedEmail,
@@ -24,6 +25,11 @@ import {
  * - MESSAGE.SENT (non-system)
  * - PERMANENT.SELECTED, PERMANENT.SHORTLISTED, PERMANENT.PLACEMENT_CONFIRMED
  * - Engagement starts tomorrow (handled by cron, not here)
+ *
+ * Cooldowns (see `src/lib/email/cooldown.ts`):
+ * - MESSAGE.SENT     — 15 min per (recipient × engagement)
+ * - DAYWORK.APPLIED  — 60 min per (poster × daywork)
+ * - all events       — 20 emails / 24h per recipient (safety cap)
  */
 export async function sendEmailForEvent(
   sc: SupabaseClient,
@@ -55,9 +61,10 @@ export async function sendEmailForEvent(
   const email = await getRecipientEmail(sc, ctx.recipientPersonId);
   if (!email) return;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
 
   if (eventType === 'DAYWORK.ACCEPTED') {
+    if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const dayworkId = payload.daywork_id as string;
     const jobNumber = await getJobNumber(sc, dayworkId);
@@ -76,6 +83,7 @@ export async function sendEmailForEvent(
     });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'PERMANENT.SELECTED') {
+    if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const postingId = payload.permanent_posting_id as string;
     const info = await getPermanentPostingInfo(sc, postingId);
@@ -89,23 +97,26 @@ export async function sendEmailForEvent(
     });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'DAYWORK.APPLIED') {
+    const dayworkId = payload.daywork_id as string;
+    if (!(await canSendEmail(ctx.recipientPersonId, 'applied', dayworkId))) return;
     const employerName = await getDisplayName(sc, ctx.recipientPersonId);
     const crewName = await getDisplayName(sc, payload.crew_person_id as string);
-    const dayworkId = payload.daywork_id as string;
     const jobNumber = await getJobNumber(sc, dayworkId);
     const deepLink = `${siteUrl}/daywork/${dayworkId}/review`;
     const tpl = applicationReceivedEmail({ employerName, crewName, jobTitle: jobNumber, deepLink });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'MESSAGE.SENT') {
     if (payload.is_system) return;
+    const engagementId = payload.engagement_id as string;
+    if (!(await canSendEmail(ctx.recipientPersonId, 'message', engagementId))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const senderName = await getDisplayName(sc, payload.sender_person_id as string);
     const preview = typeof payload.content === 'string' ? payload.content.slice(0, 100) : '';
-    const engagementId = payload.engagement_id as string;
     const deepLink = `${siteUrl}/messages/${engagementId}`;
     const tpl = newMessageEmail({ recipientName, senderName, preview, deepLink });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'PERMANENT.SHORTLISTED') {
+    if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const postingId = payload.permanent_posting_id as string;
     const info = await getPermanentPostingInfo(sc, postingId);
@@ -117,6 +128,7 @@ export async function sendEmailForEvent(
     });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'PERMANENT.PLACEMENT_CONFIRMED') {
+    if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const postingId = payload.permanent_posting_id as string;
     const info = await getPermanentPostingInfo(sc, postingId);

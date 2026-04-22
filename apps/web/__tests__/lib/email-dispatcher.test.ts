@@ -25,6 +25,13 @@ vi.mock('@/lib/email/send', () => ({
   sendEmail: (...args: unknown[]) => mockSendEmail(...args),
 }));
 
+// --- Mock cooldown (defaults to allow all — per-test override to simulate blocking) ---
+const mockCanSendEmail = vi.fn().mockResolvedValue(true);
+
+vi.mock('@/lib/email/cooldown', () => ({
+  canSendEmail: (...args: unknown[]) => mockCanSendEmail(...args),
+}));
+
 // --- Mock email templates ---
 vi.mock('@/lib/email/templates', () => ({
   applicationAcceptedEmail: () => ({ subject: 'You got the job!', html: '<p>Accepted</p>' }),
@@ -75,6 +82,7 @@ describe('sendEmailForEvent', () => {
       job_number: 'PM-00001',
     });
     mockHasPushTokens.mockResolvedValue(false);
+    mockCanSendEmail.mockResolvedValue(true);
   });
 
   it('ignores events that are not in the handled set', async () => {
@@ -181,6 +189,101 @@ describe('sendEmailForEvent', () => {
       sc,
       'DAYWORK.ACCEPTED',
       { daywork_id: 'dw1' },
+      defaultCtx,
+    );
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cooldown integration
+  // ---------------------------------------------------------------------------
+
+  it('MESSAGE.SENT passes engagement_id to canSendEmail as "message" cooldown', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+
+    await sendEmailForEvent(
+      sc,
+      'MESSAGE.SENT',
+      {
+        engagement_id: 'eng-42',
+        sender_person_id: 'sender-1',
+        content: 'Hey there, quick question',
+        is_system: false,
+      },
+      defaultCtx,
+    );
+
+    expect(mockCanSendEmail).toHaveBeenCalledWith('person-1', 'message', 'eng-42');
+    expect(mockSendEmail).toHaveBeenCalledOnce();
+  });
+
+  it('DAYWORK.APPLIED passes daywork_id to canSendEmail as "applied" cooldown', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+
+    await sendEmailForEvent(
+      sc,
+      'DAYWORK.APPLIED',
+      { daywork_id: 'dw-77', crew_person_id: 'crew-1' },
+      defaultCtx,
+    );
+
+    expect(mockCanSendEmail).toHaveBeenCalledWith('person-1', 'applied', 'dw-77');
+    expect(mockSendEmail).toHaveBeenCalledOnce();
+  });
+
+  it('once-per-flow events (DAYWORK.ACCEPTED, PERMANENT.*) pass "other" kind', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+      dayworks: { data: { start_date: '2026-04-01' }, error: null },
+    });
+
+    await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);
+    await sendEmailForEvent(
+      sc,
+      'PERMANENT.SELECTED',
+      { permanent_posting_id: 'pp1', engagement_id: 'eng1' },
+      defaultCtx,
+    );
+    await sendEmailForEvent(
+      sc,
+      'PERMANENT.SHORTLISTED',
+      { permanent_posting_id: 'pp1' },
+      defaultCtx,
+    );
+    await sendEmailForEvent(
+      sc,
+      'PERMANENT.PLACEMENT_CONFIRMED',
+      { permanent_posting_id: 'pp1' },
+      defaultCtx,
+    );
+
+    // All four events called canSendEmail with 'other'
+    const otherCalls = mockCanSendEmail.mock.calls.filter((c) => c[1] === 'other');
+    expect(otherCalls).toHaveLength(4);
+  });
+
+  it('skips sendEmail when canSendEmail returns false (cooldown tripped)', async () => {
+    mockCanSendEmail.mockResolvedValue(false);
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+      dayworks: { data: { start_date: '2026-04-01' }, error: null },
+    });
+
+    await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);
+    await sendEmailForEvent(
+      sc,
+      'MESSAGE.SENT',
+      {
+        engagement_id: 'eng1',
+        sender_person_id: 'sender-1',
+        content: 'Hey',
+        is_system: false,
+      },
       defaultCtx,
     );
 

@@ -1,5 +1,5 @@
 function wrap(content: string): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
@@ -92,7 +92,7 @@ export function engagementStartingEmail(params: {
   startDate: string;
   engagementId: string;
 }): { subject: string; html: string } {
-  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
   return {
     subject: 'Your engagement starts tomorrow',
     html: wrap(`
@@ -113,7 +113,7 @@ export function permanentShortlistedEmail(params: {
   roleName: string;
   jobNumber: string;
 }): { subject: string; html: string } {
-  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
   return {
     subject: `You've been shortlisted — ${params.roleName}`,
     html: wrap(`
@@ -133,7 +133,7 @@ export function permanentSelectedEmail(params: {
   jobNumber: string;
   engagementId: string;
 }): { subject: string; html: string } {
-  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
   return {
     subject: `You've been selected — ${params.roleName}`,
     html: wrap(`
@@ -152,7 +152,7 @@ export function permanentPlacementConfirmedEmail(params: {
   roleName: string;
   jobNumber: string;
 }): { subject: string; html: string } {
-  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://dockwalker.com';
+  const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
   return {
     subject: `Placement confirmed — ${params.roleName}`,
     html: wrap(`
