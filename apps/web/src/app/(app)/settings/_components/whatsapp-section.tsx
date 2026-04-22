@@ -204,7 +204,9 @@ export function WhatsAppSection({
           </>
         )}
 
-        {/* Not connected — idle */}
+        {/* Not connected — idle. WhatsApp delivery is still being built; the
+            connect flow is hidden behind a disabled "Coming soon" affordance
+            until the Meta Cloud API integration is live. */}
         {!status?.connected && step === 'idle' && (
           <div className="flex flex-col gap-3 p-4">
             <div className="flex items-center gap-3">
@@ -216,8 +218,8 @@ export function WhatsAppSection({
                 </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setStep('phone')} className="w-fit">
-              Connect WhatsApp
+            <Button variant="outline" size="sm" disabled className="w-fit">
+              Coming soon
             </Button>
           </div>
         )}
