@@ -5,68 +5,6 @@
 
 ## Current Task
 
-### Admin Phase 2 — Reporting system
-
-> Spec §2.2, §3.3, §5.2-5.3, §7.1. Reports are a CRUD workflow table (not event-sourced) because they are operational moderation data — the _actions_ taken on them (blocking, hiding) ARE event-sourced and already wired via Phase 1 routes.
-
-#### Chunk 1 — Schema + user-facing flow
-
-- [ ] Migration `00107_reports.sql` — `reports` table with all CHECK constraints from spec §3.3 (reason_category enum, reason_text ≤1000 chars, status enum, resolution enum, self-report prevention), indexes on `(status, reason_category)` and `reported_person_id`; RLS authenticated INSERT where reporter = auth.uid(), SELECT own; extend `admin_delete_person` to clean up reports (delete where reporter/reported, null out admin_person_id).
-- [ ] Rollback `00107_reports.down.sql` — drop table, restore prior `admin_delete_person` body.
-- [ ] `POST /api/reports` — body `{ reported_person_id, engagement_id?, reason_category, reason_text }`. Enforces: no self-report (DB does it too), max 5 open reports per reporter, existing rate limit.
-- [ ] `GET /api/reports` — list own submitted reports.
-- [ ] `ReportDialog` component with category select + reason textarea + submit; toast on success.
-- [ ] Wire "Report user" into chat kebab menu (pre-fills engagement_id + reported_person_id).
-- [ ] Wire "Report" link onto profile overlay (pre-fills reported_person_id only).
-- [ ] Tests: submit happy path, self-report rejection (API + DB), cap enforcement on 6th open, invalid category, reason too long.
-
-#### Chunk 2 — Admin queue + UI
-
-- [ ] `GET /api/admin/reports` — filterable by status + category; sort `safety_concern` first, then `created_at DESC`; paginated.
-- [ ] `GET /api/admin/reports/:id` — detail with reporter + reported context.
-- [ ] `PATCH /api/admin/reports/:id` — update `status`, `admin_notes`, `resolution`. Sets `admin_person_id` + `resolved_at` when resolution set.
-- [ ] Admin reports page `/admin/reports` — list with filters, inline expansion for detail + action form.
-- [ ] Reports section on admin user detail page — two sub-tables (filed against + filed by).
-- [ ] Tests: admin queue filters, category-priority sort, detail fetch, PATCH updates.
-- [ ] Update `BUILD_STATE.md`, `apps/web/README.md`, `supabase/README.md`, spec Progress Tracker → Phase 2 DONE.
-- [ ] `npx supabase db push`, commit, push, CI green.
-
-### Admin Phase 1 — Blocking + user moderation
-
-> Already shipped (Stage 218 and in-flight work): migration 00097 schema + projection handlers, `/api/admin/users/:id/block|unblock|restore|DELETE` routes, `cascadeBlock` helper, `/blocked` page, middleware admin/blocked guards, admin user detail UI (uncommitted). Remaining work breaks into 4 chunks — each must commit cleanly and pass CI before the next.
-
-#### Chunk 1 — API-layer blocked enforcement + commit the admin UI
-
-- [ ] Add `blocked_at` check to `apps/web/src/lib/auth/require-domain-user.ts` across all 3 paths (header fast path, JWT claims path, DB fallback) — return `403 'Account suspended. Contact support.'` when blocked.
-- [ ] Add optional `{ allowBlocked?: boolean }` parameter so support-facing routes can explicitly admit blocked users.
-- [ ] Middleware: set `x-blocked: true` header on API requests when `appMeta.blocked === true` so the header fast path can read it without a DB query.
-- [ ] Write tests: blocked user rejected (all three paths), blocked user admitted with `allowBlocked: true`, deactivated + allowBlocked still rejected.
-- [ ] Commit + push + wait for CI green.
-- [ ] Second commit: the already-working admin user detail page (`apps/web/src/app/(admin)/admin/users/[personId]/page.tsx`) now that the backend it consumes is stable. Commit + push.
-
-#### Chunk 2 — `user_notes` table + API + scrub extension
-
-- [ ] Migration `00106_user_notes.sql` — table with RLS (admin-only), FKs per §3.11, INDEX on person_id, extend `PERSON.DATA_SCRUBBED` to rewrite content of notes **about** the scrubbed user to `'[content scrubbed]'`.
-- [ ] Rollback `00106_user_notes.down.sql` — drop table, restore prior `PERSON.DATA_SCRUBBED` body verbatim.
-- [ ] `GET /api/admin/users/:personId/notes` — chronological list with admin display names.
-- [ ] `POST /api/admin/users/:personId/notes` — body `{ content }`, sets `admin_person_id = guard.value.person.id`.
-- [ ] `PATCH /api/admin/users/:personId/notes/:noteId` — author-only edit (check `admin_person_id`).
-- [ ] Tests: list, create, edit by author succeeds, edit by other admin rejected, content max-length enforced, scrub rewrites target's notes.
-- [ ] Admin UI: Notes section on user detail page (read, add, edit-own).
-- [ ] `npx supabase db push`, commit + push + CI green.
-
-#### Chunk 3 — Messages RLS tightening [SKIPPED]
-
-Spec §3.9 assumed a permissive `messages` INSERT RLS policy that needs tightening. In this codebase no such policy exists — all INSERTs flow through `apply_projection` (SECURITY DEFINER, RLS-bypassing). The API route at `apps/web/src/app/api/messages/[engagementId]/route.ts:85-87` already rejects when `engagement.status !== 'active'`. No migration needed.
-
-#### Chunk 4 — Admin force-cancel engagement + hide posting routes
-
-- [ ] `POST /api/admin/engagements/:id/cancel` — body `{ reason_category, reason_text }`, emits `ADMIN.ENGAGEMENT_CANCELLED` (handler already in 00097).
-- [ ] `POST /api/admin/postings/:id/hide` — body `{ posting_type, reason }`, emits `ADMIN.POSTING_HIDDEN` (handler already in 00097).
-- [ ] Tests: happy path, non-active engagement rejection, invalid reason rejection.
-- [ ] Update `tasks/admin-dashboard-spec.md` Progress Tracker — Phase 1 → DONE.
-- [ ] Commit + push + CI green.
-
 ### Imagery rollout — maritime feel + empty-state completeness
 
 > From Stage 214 session. Full audit of imagery opportunities across the app. Work item-by-item; confirm surface, copy, and photo choice with user before each commit. Assets: `apps/web/public/images/{empty-states,onboarding,departments,brand}/` plus stock in top-level `assets/images/`.

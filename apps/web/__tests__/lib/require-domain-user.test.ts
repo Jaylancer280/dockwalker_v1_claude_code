@@ -345,6 +345,31 @@ describe('requireDomainUser', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('returns 409 via DB fallback when current_hat is null (admin-scrubbed user)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    // Scrubbed user: person row exists with current_hat nulled, profile row
+    // still present but emptied.
+    mockFrom.mockReturnValueOnce(
+      chainBuilder({
+        id: 'u1',
+        identity_type: 'crew',
+        current_hat: null,
+        is_admin: false,
+        deactivated_at: null,
+        blocked_at: null,
+      }),
+    );
+    mockFrom.mockReturnValueOnce(chainBuilder({ person_id: 'u1' }));
+
+    const result = await requireDomainUser();
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(409);
+      const body = await result.response.json();
+      expect(body.error).toContain('Complete onboarding');
+    }
+  });
+
   it('allowBlocked still rejects deactivated users', async () => {
     mockGetUser.mockResolvedValue({
       data: {

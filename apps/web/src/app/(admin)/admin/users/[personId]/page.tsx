@@ -8,6 +8,7 @@ import { useSafeFetch } from '@/hooks/use-safe-fetch';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { AdminActionDialog } from '@/components/admin/admin-action-dialog';
 
 interface UserDetail {
   person: {
@@ -65,9 +66,14 @@ export default function AdminUserDetailPage() {
   const { personId } = useParams<{ personId: string }>();
   const router = useRouter();
   const { showSuccess, showError } = useToast();
-  const [blocking, setBlocking] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
+  const [showUnblockDialog, setShowUnblockDialog] = useState(false);
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [blocking, setBlocking] = useState(false);
+  const [unblocking, setUnblocking] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [blockReason, setBlockReason] = useState('');
   const [blockCategory, setBlockCategory] = useState('other');
   const [noteDraft, setNoteDraft] = useState('');
@@ -142,47 +148,61 @@ export default function AdminUserDetailPage() {
       body: JSON.stringify({ reason_category: blockCategory, reason_text: blockReason }),
     });
     setBlocking(false);
-    setShowBlockDialog(false);
     if (res.ok) {
+      setShowBlockDialog(false);
+      setBlockReason('');
       showSuccess('User blocked');
       mutate();
+      router.refresh();
     } else {
       showError('Failed to block user');
     }
   }
 
   async function handleUnblock() {
+    setUnblocking(true);
     const res = await safeFetch(`/api/admin/users/${personId}/unblock`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason_text: 'Admin unblock' }),
     });
+    setUnblocking(false);
     if (res.ok) {
+      setShowUnblockDialog(false);
       showSuccess('User unblocked');
       mutate();
+      router.refresh();
     } else {
       showError('Failed to unblock');
     }
   }
 
   async function handleRestore() {
+    setRestoring(true);
     const res = await safeFetch(`/api/admin/users/${personId}/restore`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason_text: 'Admin restore' }),
     });
+    setRestoring(false);
     if (res.ok) {
-      showSuccess('User restored — they can log in again and will need to re-enter profile data');
+      setShowRestoreDialog(false);
+      showSuccess(
+        'User restored. On next sign-in they will be routed through onboarding to refill their profile.',
+      );
       mutate();
+      router.refresh();
     } else {
       showError('Failed to restore user');
     }
   }
 
   async function handleDelete() {
+    setDeleting(true);
     const res = await safeFetch(`/api/admin/users/${personId}`, { method: 'DELETE' });
-    setShowDeleteDialog(false);
+    setDeleting(false);
     if (res.ok) {
+      setShowDeleteDialog(false);
       showSuccess('User deleted');
       router.push('/admin/users');
     } else {
@@ -219,12 +239,12 @@ export default function AdminUserDetailPage() {
         </div>
         <div className="flex gap-2">
           {(isBlocked || isDeactivated) && (
-            <Button variant="default" onClick={handleRestore}>
+            <Button variant="default" onClick={() => setShowRestoreDialog(true)}>
               Restore
             </Button>
           )}
           {isBlocked ? (
-            <Button variant="outline" onClick={handleUnblock}>
+            <Button variant="outline" onClick={() => setShowUnblockDialog(true)}>
               Unblock
             </Button>
           ) : (
@@ -246,63 +266,147 @@ export default function AdminUserDetailPage() {
         </div>
       </div>
 
-      {showBlockDialog && (
-        <div className="mb-6 rounded-lg border border-destructive p-4">
-          <h3 className="mb-2 font-semibold">Block User</h3>
-          <p className="mb-3 text-sm text-muted-foreground">
-            This will cancel all active engagements, postings, and applications.
-          </p>
+      <AdminActionDialog
+        open={showBlockDialog}
+        onOpenChange={(open) => {
+          setShowBlockDialog(open);
+          if (!open) setBlockReason('');
+        }}
+        title="Block this user?"
+        description={
+          <div className="flex flex-col gap-2">
+            <p>This immediately:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Signs the user out and prevents re-login until unblocked.</li>
+              <li>Cancels every active engagement they are part of.</li>
+              <li>Hides every posting they authored.</li>
+              <li>Expires their availability windows.</li>
+              <li>Clears their unread notifications.</li>
+            </ul>
+            <p>Profile data is preserved. This action can be reversed via Unblock or Restore.</p>
+          </div>
+        }
+        confirmLabel="Block user"
+        variant="destructive"
+        loading={blocking}
+        confirmDisabled={!blockReason.trim()}
+        onConfirm={handleBlock}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Reason category</span>
           <select
             value={blockCategory}
             onChange={(e) => setBlockCategory(e.target.value)}
-            className="mb-2 w-full rounded border p-2 text-sm"
+            className="rounded border p-2 text-sm"
           >
             <option value="harassment">Harassment</option>
             <option value="fraud">Fraud</option>
-            <option value="safety_concern">Safety Concern</option>
+            <option value="safety_concern">Safety concern</option>
             <option value="spam">Spam</option>
             <option value="impersonation">Impersonation</option>
             <option value="other">Other</option>
           </select>
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Internal reason</span>
           <textarea
-            placeholder="Reason for blocking..."
+            placeholder="Context for the moderation log..."
             value={blockReason}
             onChange={(e) => setBlockReason(e.target.value)}
-            className="mb-2 w-full rounded border p-2 text-sm"
+            className="rounded border p-2 text-sm"
             rows={3}
           />
-          <div className="flex gap-2">
-            <Button
-              variant="destructive"
-              onClick={handleBlock}
-              disabled={blocking || !blockReason.trim()}
-            >
-              {blocking ? 'Blocking...' : 'Confirm Block'}
-            </Button>
-            <Button variant="outline" onClick={() => setShowBlockDialog(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
+        </label>
+      </AdminActionDialog>
 
-      {showDeleteDialog && (
-        <div className="mb-6 rounded-lg border border-destructive p-4">
-          <h3 className="mb-2 font-semibold">Delete User</h3>
-          <p className="mb-3 text-sm text-muted-foreground">
-            This will remove PII, close the account, and ban login. Event history is retained for
-            audit. This cannot be undone from the UI.
-          </p>
-          <div className="flex gap-2">
-            <Button variant="destructive" onClick={handleDelete}>
-              Confirm Delete
-            </Button>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
-            </Button>
+      <AdminActionDialog
+        open={showUnblockDialog}
+        onOpenChange={setShowUnblockDialog}
+        title="Unblock this user?"
+        description={
+          <div className="flex flex-col gap-2">
+            <p>
+              Lifts the block flag only — the user can log in again immediately with their existing
+              credentials.
+            </p>
+            <p>
+              <strong>What Unblock does not do:</strong> cancelled engagements, hidden postings,
+              expired availability, and cleared notifications are <em>not</em> restored.
+            </p>
+            <p>
+              If this user was also Deleted (account deactivated and profile scrubbed), use{' '}
+              <strong>Restore</strong> instead — Unblock will leave them unable to log in.
+            </p>
           </div>
-        </div>
-      )}
+        }
+        confirmLabel="Unblock user"
+        variant="default"
+        loading={unblocking}
+        onConfirm={handleUnblock}
+      />
+
+      <AdminActionDialog
+        open={showRestoreDialog}
+        onOpenChange={setShowRestoreDialog}
+        title="Restore this account?"
+        description={
+          <div className="flex flex-col gap-2">
+            <p>
+              Reactivates the account by clearing both the block and deactivation flags and lifting
+              the login ban.
+            </p>
+            {isDeactivated && (
+              <p>
+                <strong>This account was previously Deleted.</strong> All profile data (role, certs,
+                experience, languages, location, avatar, bio, nationality, etc.) was wiped — Restore
+                cannot bring any of that back.
+              </p>
+            )}
+            <p>
+              On their next sign-in the user will be routed through onboarding to fill in a fresh
+              profile. Existing engagements, postings, and notifications remain cancelled/hidden.
+            </p>
+          </div>
+        }
+        confirmLabel="Restore account"
+        variant="default"
+        loading={restoring}
+        onConfirm={handleRestore}
+      />
+
+      <AdminActionDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete this user's profile?"
+        description={
+          <div className="flex flex-col gap-2">
+            <p>This is the strongest moderation action. It:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                <strong>Wipes every profile field</strong> — role, certifications, experience,
+                languages, location, avatar, bio, nationality, deck name, agency, visas, and so on.
+                Crew and shore experience entries are deleted.
+              </li>
+              <li>Cancels active engagements, hides postings, expires availability.</li>
+              <li>Deletes Docky chats, WhatsApp channels, placement cities, and admin notes.</li>
+              <li>Bans the login for ~100 years.</li>
+            </ul>
+            <p>
+              The event ledger is retained for audit. Display name becomes &quot;Deleted User&quot;;
+              the email address in auth stays reserved (the user cannot sign up again with that
+              email unless the auth record is cleared manually in Supabase).
+            </p>
+            <p>
+              Use <strong>Restore</strong> later to revive the account to an empty profile — the
+              user will then re-onboard from scratch.
+            </p>
+          </div>
+        }
+        confirmLabel="Delete profile"
+        variant="destructive"
+        loading={deleting}
+        onConfirm={handleDelete}
+      />
 
       <section className="mb-6">
         <h2 className="mb-2 text-lg font-semibold">Profile</h2>

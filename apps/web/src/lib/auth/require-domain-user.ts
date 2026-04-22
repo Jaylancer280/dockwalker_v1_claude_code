@@ -177,7 +177,9 @@ export async function requireDomainUser(options?: RequireDomainUserOptions): Pro
     .eq('person_id', user.id)
     .single();
 
-  if (!profile) {
+  // Profile row missing (brand new user) OR current_hat nulled by admin scrub
+  // → send back through onboarding before allowing domain actions.
+  if (!profile || !personRow.current_hat) {
     return {
       ok: false,
       response: NextResponse.json(

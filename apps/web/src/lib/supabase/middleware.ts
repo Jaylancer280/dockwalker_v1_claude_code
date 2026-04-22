@@ -198,7 +198,10 @@ export async function updateSession(request: NextRequest) {
       ]);
       currentHat = person?.current_hat ?? null;
       identityType = person?.identity_type ?? null;
-      onboarded = !!(person && profile);
+      // Treat null current_hat as "not onboarded" — admin-scrubbed users keep
+      // their profile row but have current_hat nulled, routing them back
+      // through onboarding.
+      onboarded = !!(person && profile && person.current_hat);
 
       // Deactivated users: sign out and redirect to login
       if (person?.deactivated_at) {
@@ -285,7 +288,7 @@ export async function updateSession(request: NextRequest) {
         .single();
 
       currentHat = person?.current_hat ?? null;
-      onboarded = !!(person && profile);
+      onboarded = !!(person && profile && person.current_hat);
     }
 
     if (onboarded) {

@@ -410,4 +410,51 @@ describe('POST /api/onboarding', () => {
     const body = await res.json();
     expect(body.error).toContain('Agency name');
   });
+
+  // ---------------------------------------------------------------------------
+  // Re-onboarding path (admin-scrubbed users returning to onboarding)
+  // ---------------------------------------------------------------------------
+
+  it('fires PERSON.HAT_CHANGED + PROFILE.UPDATED (not PROFILE.CREATED) when existing person has null current_hat', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    // Scrubbed user: persons row exists but current_hat is null
+    mockFromAuth.mockReturnValueOnce(makeChain({ id: 'u1', current_hat: null }));
+
+    const res = await POST(
+      makeRequest({
+        identityType: 'crew',
+        currentHat: 'crew',
+        profile: { displayName: 'Fresh Start', primaryRoleId: 'role-123' },
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    // onboard_person RPC must NOT be called on the re-onboarding path
+    expect(mockRpc).not.toHaveBeenCalled();
+
+    // appendEvents called once with the two re-onboarding events
+    expect(mockAppendEvents).toHaveBeenCalledTimes(1);
+    const batchEvents = mockAppendEvents.mock.calls[0][1];
+    expect(batchEvents).toHaveLength(2);
+    expect(batchEvents[0].eventType).toBe('PERSON.HAT_CHANGED');
+    expect(batchEvents[0].payload).toEqual({ current_hat: 'crew' });
+    expect(batchEvents[1].eventType).toBe('PROFILE.UPDATED');
+    expect(batchEvents[1].payload).toEqual(
+      expect.objectContaining({
+        display_name: 'Fresh Start',
+        primary_role_id: 'role-123',
+      }),
+    );
+  });
+
+  it('re-onboarding still returns 409 if current_hat is already set (normal already-onboarded case)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } });
+    mockFromAuth.mockReturnValueOnce(makeChain({ id: 'u1', current_hat: 'crew' }));
+
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(409);
+
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(mockAppendEvents).not.toHaveBeenCalled();
+  });
 });

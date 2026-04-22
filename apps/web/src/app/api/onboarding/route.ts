@@ -51,20 +51,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Agency name is required for agents' }, { status: 400 });
     }
 
-    // Check not already onboarded
+    // Check not already onboarded. Re-onboarding path: when an admin-scrubbed
+    // user signs back in, their `persons` row exists but `current_hat` has been
+    // nulled by the PERSON.DATA_SCRUBBED projection — they need to pick a hat
+    // and fill their profile again, but without a second `PERSON.CREATED` /
+    // `PROFILE.CREATED` (would conflict on the existing row).
     const { data: existingPerson } = await supabase
       .from('persons')
-      .select('id')
+      .select('id, current_hat')
       .eq('id', user.id)
       .single();
 
     let skipOnboardPerson = false;
+    let isReonboarding = false;
     if (existingPerson) {
-      // Allow retry if experiences were submitted but failed last time
-      if (!body.experiences?.length) {
+      if (existingPerson.current_hat === null) {
+        // Admin scrub cleared current_hat; user is re-onboarding.
+        isReonboarding = true;
+        skipOnboardPerson = true;
+      } else if (body.experiences?.length) {
+        // First-time onboarding succeeded but experience step failed last time;
+        // skip onboard_person, retry the experience batch.
+        skipOnboardPerson = true;
+      } else {
         return NextResponse.json({ error: 'Already onboarded' }, { status: 409 });
       }
-      skipOnboardPerson = true;
     }
 
     const body_experiences: unknown[] = body.experiences || [];
@@ -116,8 +127,32 @@ export async function POST(request: Request) {
         : {}),
     };
 
-    // Step 1: Create person + profile atomically (skip on retry)
-    if (!skipOnboardPerson) {
+    // Step 1: Create person + profile atomically.
+    // - First-time onboarding → `onboard_person` RPC (PERSON.CREATED + PROFILE.CREATED).
+    // - Re-onboarding after admin scrub → PERSON.HAT_CHANGED + PROFILE.UPDATED
+    //   so we don't insert over the existing (nulled) row.
+    // - Experience-retry path → skip entirely.
+    if (isReonboarding) {
+      const reonboardEvents: AppendEventParams<keyof EventPayloadMap>[] = [
+        {
+          eventType: 'PERSON.HAT_CHANGED',
+          aggregateId: user.id,
+          aggregateType: 'person',
+          roleContext: currentHat,
+          payload: { current_hat: currentHat },
+          personId: user.id,
+        },
+        {
+          eventType: 'PROFILE.UPDATED',
+          aggregateId: user.id,
+          aggregateType: 'person',
+          roleContext: currentHat,
+          payload: profilePayload,
+          personId: user.id,
+        },
+      ];
+      await appendEvents(serviceClient, reonboardEvents);
+    } else if (!skipOnboardPerson) {
       const { error } = await serviceClient.rpc('onboard_person', {
         p_identity_type: identityType,
         p_current_hat: currentHat,
