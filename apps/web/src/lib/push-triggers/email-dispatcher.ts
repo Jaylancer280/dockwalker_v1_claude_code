@@ -2,10 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NotifyContext } from './types';
 import {
   getDisplayName,
-  getJobNumber,
   getRecipientEmail,
-  getPermanentPostingInfo,
   hasPushTokens,
+  getDayworkContext,
+  getPermanentPostingContext,
+  getApplicantProfileSummary,
+  getEngagementRoleName,
+  getActiveEngagementIdByPermanentPosting,
 } from './loaders';
 import { sendEmail } from '../email/send';
 import { canSendEmail } from '../email/cooldown';
@@ -16,6 +19,8 @@ import {
   permanentSelectedEmail,
   permanentShortlistedEmail,
   permanentPlacementConfirmedEmail,
+  formatVesselName,
+  formatEmailDate,
 } from '../email/templates';
 
 /**
@@ -67,18 +72,16 @@ export async function sendEmailForEvent(
     if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const dayworkId = payload.daywork_id as string;
-    const jobNumber = await getJobNumber(sc, dayworkId);
-    const { data: dw } = await sc
-      .from('dayworks')
-      .select('start_date')
-      .eq('id', dayworkId)
-      .single();
+    const dwCtx = await getDayworkContext(sc, dayworkId);
+    if (!dwCtx) return;
     const engagementId = payload.engagement_id as string | undefined;
     const deepLink = engagementId ? `${siteUrl}/messages/${engagementId}` : siteUrl;
     const tpl = applicationAcceptedEmail({
       crewName: recipientName,
-      jobTitle: jobNumber,
-      startDate: dw?.start_date ?? 'soon',
+      roleName: dwCtx.roleName,
+      vesselLabel: formatVesselName(dwCtx.vesselName, dwCtx.vesselType),
+      jobNumber: dwCtx.jobNumber,
+      startDateFormatted: formatEmailDate(dwCtx.startDate),
       deepLink,
     });
     await sendEmail({ to: email, ...tpl });
@@ -86,13 +89,14 @@ export async function sendEmailForEvent(
     if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const postingId = payload.permanent_posting_id as string;
-    const info = await getPermanentPostingInfo(sc, postingId);
-    if (!info) return;
+    const ppCtx = await getPermanentPostingContext(sc, postingId);
+    if (!ppCtx) return;
     const engagementId = payload.engagement_id as string;
     const tpl = permanentSelectedEmail({
       recipientName,
-      roleName: info.role_name,
-      jobNumber: info.job_number,
+      roleName: ppCtx.roleName,
+      vesselLabel: formatVesselName(ppCtx.vesselName, ppCtx.vesselType),
+      jobNumber: ppCtx.jobNumber,
       engagementId,
     });
     await sendEmail({ to: email, ...tpl });
@@ -100,10 +104,20 @@ export async function sendEmailForEvent(
     const dayworkId = payload.daywork_id as string;
     if (!(await canSendEmail(ctx.recipientPersonId, 'applied', dayworkId))) return;
     const employerName = await getDisplayName(sc, ctx.recipientPersonId);
-    const crewName = await getDisplayName(sc, payload.crew_person_id as string);
-    const jobNumber = await getJobNumber(sc, dayworkId);
+    const dwCtx = await getDayworkContext(sc, dayworkId);
+    if (!dwCtx) return;
+    const applicantSummary = await getApplicantProfileSummary(sc, payload.crew_person_id as string);
     const deepLink = `${siteUrl}/daywork/${dayworkId}/review`;
-    const tpl = applicationReceivedEmail({ employerName, crewName, jobTitle: jobNumber, deepLink });
+    const tpl = applicationReceivedEmail({
+      employerName,
+      crewName: applicantSummary.displayName,
+      roleName: dwCtx.roleName,
+      vesselLabel: formatVesselName(dwCtx.vesselName, dwCtx.vesselType),
+      jobNumber: dwCtx.jobNumber,
+      experienceBracketLabel: applicantSummary.experienceBracketLabel,
+      cityLabel: applicantSummary.cityLabel,
+      deepLink,
+    });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'MESSAGE.SENT') {
     if (payload.is_system) return;
@@ -111,32 +125,39 @@ export async function sendEmailForEvent(
     if (!(await canSendEmail(ctx.recipientPersonId, 'message', engagementId))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const senderName = await getDisplayName(sc, payload.sender_person_id as string);
-    const preview = typeof payload.content === 'string' ? payload.content.slice(0, 100) : '';
+    const content = typeof payload.content === 'string' ? payload.content : '';
+    const preview = content.length > 100 ? content.slice(0, 100).trimEnd() + '…' : content;
+    const roleName = await getEngagementRoleName(sc, engagementId);
     const deepLink = `${siteUrl}/messages/${engagementId}`;
-    const tpl = newMessageEmail({ recipientName, senderName, preview, deepLink });
+    const tpl = newMessageEmail({ recipientName, senderName, roleName, preview, deepLink });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'PERMANENT.SHORTLISTED') {
     if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const postingId = payload.permanent_posting_id as string;
-    const info = await getPermanentPostingInfo(sc, postingId);
-    if (!info) return;
+    const ppCtx = await getPermanentPostingContext(sc, postingId);
+    if (!ppCtx) return;
     const tpl = permanentShortlistedEmail({
       recipientName,
-      roleName: info.role_name,
-      jobNumber: info.job_number,
+      roleName: ppCtx.roleName,
+      jobNumber: ppCtx.jobNumber,
     });
     await sendEmail({ to: email, ...tpl });
   } else if (eventType === 'PERMANENT.PLACEMENT_CONFIRMED') {
     if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
     const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
     const postingId = payload.permanent_posting_id as string;
-    const info = await getPermanentPostingInfo(sc, postingId);
-    if (!info) return;
+    const ppCtx = await getPermanentPostingContext(sc, postingId);
+    if (!ppCtx) return;
+    // Event payload does not carry engagement_id; resolve via the posting so
+    // the CTA links to the specific conversation rather than the messages list.
+    const engagementId = await getActiveEngagementIdByPermanentPosting(sc, postingId);
     const tpl = permanentPlacementConfirmedEmail({
       recipientName,
-      roleName: info.role_name,
-      jobNumber: info.job_number,
+      roleName: ppCtx.roleName,
+      vesselLabel: formatVesselName(ppCtx.vesselName, ppCtx.vesselType),
+      jobNumber: ppCtx.jobNumber,
+      engagementId,
     });
     await sendEmail({ to: email, ...tpl });
   }

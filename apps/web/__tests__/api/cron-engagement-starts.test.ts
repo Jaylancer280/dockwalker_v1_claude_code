@@ -36,6 +36,7 @@ vi.mock('@/lib/email/templates', () => ({
     subject: 'Your engagement starts tomorrow',
     html: '<p>test</p>',
   }),
+  formatEmailDate: vi.fn((iso: string) => iso),
 }));
 
 import { GET } from '@/app/api/cron/engagement-starts/route';

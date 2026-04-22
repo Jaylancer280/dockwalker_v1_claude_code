@@ -2,20 +2,42 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // --- Mock loaders ---
 const mockGetDisplayName = vi.fn().mockResolvedValue('Jane Doe');
-const mockGetJobNumber = vi.fn().mockResolvedValue('DW-00042');
 const mockGetRecipientEmail = vi.fn().mockResolvedValue('crew@example.com');
-const mockGetPermanentPostingInfo = vi.fn().mockResolvedValue({
-  role_name: 'Chief Engineer',
-  job_number: 'PM-00001',
-});
 const mockHasPushTokens = vi.fn().mockResolvedValue(false);
+const mockGetDayworkContext = vi.fn().mockResolvedValue({
+  roleName: 'Deckhand',
+  vesselName: 'Serenity',
+  vesselType: 'motor',
+  startDate: '2026-04-28',
+  jobNumber: 'DW-00042',
+});
+const mockGetPermanentPostingContext = vi.fn().mockResolvedValue({
+  roleName: 'Chief Engineer',
+  vesselName: 'Aurora',
+  vesselType: 'motor',
+  jobNumber: 'PM-00001',
+  employerPersonId: 'emp-1',
+});
+const mockGetApplicantProfileSummary = vi.fn().mockResolvedValue({
+  displayName: 'Alex Smith',
+  experienceBracketLabel: '5–15 years',
+  cityLabel: 'Antibes',
+});
+const mockGetEngagementRoleName = vi.fn().mockResolvedValue('Deckhand');
+const mockGetActiveEngagementIdByPermanentPosting = vi
+  .fn()
+  .mockResolvedValue('eng-confirmed');
 
 vi.mock('@/lib/push-triggers/loaders', () => ({
   getDisplayName: (...args: unknown[]) => mockGetDisplayName(...args),
-  getJobNumber: (...args: unknown[]) => mockGetJobNumber(...args),
   getRecipientEmail: (...args: unknown[]) => mockGetRecipientEmail(...args),
-  getPermanentPostingInfo: (...args: unknown[]) => mockGetPermanentPostingInfo(...args),
   hasPushTokens: (...args: unknown[]) => mockHasPushTokens(...args),
+  getDayworkContext: (...args: unknown[]) => mockGetDayworkContext(...args),
+  getPermanentPostingContext: (...args: unknown[]) => mockGetPermanentPostingContext(...args),
+  getApplicantProfileSummary: (...args: unknown[]) => mockGetApplicantProfileSummary(...args),
+  getEngagementRoleName: (...args: unknown[]) => mockGetEngagementRoleName(...args),
+  getActiveEngagementIdByPermanentPosting: (...args: unknown[]) =>
+    mockGetActiveEngagementIdByPermanentPosting(...args),
 }));
 
 // --- Mock sendEmail ---
@@ -32,18 +54,35 @@ vi.mock('@/lib/email/cooldown', () => ({
   canSendEmail: (...args: unknown[]) => mockCanSendEmail(...args),
 }));
 
-// --- Mock email templates ---
+// --- Mock email templates (real formatters so dispatcher logic is exercised) ---
 vi.mock('@/lib/email/templates', () => ({
-  applicationAcceptedEmail: () => ({ subject: 'You got the job!', html: '<p>Accepted</p>' }),
-  applicationReceivedEmail: () => ({ subject: 'New applicant', html: '<p>Applied</p>' }),
-  newMessageEmail: () => ({ subject: 'New message', html: '<p>Message</p>' }),
-  permanentSelectedEmail: () => ({ subject: 'You have been selected!', html: '<p>Selected</p>' }),
-  permanentShortlistedEmail: () => ({ subject: 'Shortlisted', html: '<p>Shortlisted</p>' }),
-  permanentPlacementConfirmedEmail: () => ({ subject: 'Placement confirmed', html: '<p>Confirmed</p>' }),
+  applicationAcceptedEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'You got the job!', html: '<p>Accepted</p>' }),
+  applicationReceivedEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'New applicant', html: '<p>Applied</p>' }),
+  newMessageEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'New message', html: '<p>Message</p>' }),
+  permanentSelectedEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'You have been selected!', html: '<p>Selected</p>' }),
+  permanentShortlistedEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'Shortlisted', html: '<p>Shortlisted</p>' }),
+  permanentPlacementConfirmedEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'Placement confirmed', html: '<p>Confirmed</p>' }),
+  formatVesselName: (name: string, type: string) =>
+    `${type === 'sail' ? 'S/Y' : 'M/Y'} ${name}`,
+  formatEmailDate: (iso: string) => iso,
 }));
 
 // --- Import after mocks ---
 const { sendEmailForEvent } = await import('@/lib/push-triggers/email-dispatcher');
+const { newMessageEmail, applicationReceivedEmail, permanentPlacementConfirmedEmail } =
+  await import('@/lib/email/templates');
 
 // --- Supabase mock builder ---
 function createMockSc(tableResponses: Record<string, { data: unknown; error: unknown }> = {}) {
@@ -75,13 +114,29 @@ describe('sendEmailForEvent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetDisplayName.mockResolvedValue('Jane Doe');
-    mockGetJobNumber.mockResolvedValue('DW-00042');
     mockGetRecipientEmail.mockResolvedValue('crew@example.com');
-    mockGetPermanentPostingInfo.mockResolvedValue({
-      role_name: 'Chief Engineer',
-      job_number: 'PM-00001',
-    });
     mockHasPushTokens.mockResolvedValue(false);
+    mockGetDayworkContext.mockResolvedValue({
+      roleName: 'Deckhand',
+      vesselName: 'Serenity',
+      vesselType: 'motor',
+      startDate: '2026-04-28',
+      jobNumber: 'DW-00042',
+    });
+    mockGetPermanentPostingContext.mockResolvedValue({
+      roleName: 'Chief Engineer',
+      vesselName: 'Aurora',
+      vesselType: 'motor',
+      jobNumber: 'PM-00001',
+      employerPersonId: 'emp-1',
+    });
+    mockGetApplicantProfileSummary.mockResolvedValue({
+      displayName: 'Alex Smith',
+      experienceBracketLabel: '5–15 years',
+      cityLabel: 'Antibes',
+    });
+    mockGetEngagementRoleName.mockResolvedValue('Deckhand');
+    mockGetActiveEngagementIdByPermanentPosting.mockResolvedValue('eng-confirmed');
     mockCanSendEmail.mockResolvedValue(true);
   });
 
@@ -96,7 +151,6 @@ describe('sendEmailForEvent', () => {
   it('DAYWORK.ACCEPTED sends email when user has no push tokens and email_enabled is true', async () => {
     const sc = createMockSc({
       user_preferences: { data: { email_enabled: true }, error: null },
-      dayworks: { data: { start_date: '2026-04-01' }, error: null },
     });
 
     await sendEmailForEvent(
@@ -119,12 +173,7 @@ describe('sendEmailForEvent', () => {
       user_preferences: { data: { email_enabled: true }, error: null },
     });
 
-    await sendEmailForEvent(
-      sc,
-      'DAYWORK.ACCEPTED',
-      { daywork_id: 'dw1' },
-      defaultCtx,
-    );
+    await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);
 
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
@@ -134,12 +183,18 @@ describe('sendEmailForEvent', () => {
       user_preferences: { data: { email_enabled: false }, error: null },
     });
 
-    await sendEmailForEvent(
-      sc,
-      'DAYWORK.ACCEPTED',
-      { daywork_id: 'dw1' },
-      defaultCtx,
-    );
+    await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  it('DAYWORK.ACCEPTED skips when daywork context not found', async () => {
+    mockGetDayworkContext.mockResolvedValue(null);
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+
+    await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);
 
     expect(mockSendEmail).not.toHaveBeenCalled();
   });
@@ -163,8 +218,8 @@ describe('sendEmailForEvent', () => {
     });
   });
 
-  it('PERMANENT.SELECTED skips when permanent posting info not found', async () => {
-    mockGetPermanentPostingInfo.mockResolvedValue(null);
+  it('PERMANENT.SELECTED skips when permanent posting context not found', async () => {
+    mockGetPermanentPostingContext.mockResolvedValue(null);
     const sc = createMockSc({
       user_preferences: { data: { email_enabled: true }, error: null },
     });
@@ -185,14 +240,108 @@ describe('sendEmailForEvent', () => {
       user_preferences: { data: { email_enabled: true }, error: null },
     });
 
+    await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);
+
+    expect(mockSendEmail).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Richer context — verifies dispatcher passes the right data to templates
+  // ---------------------------------------------------------------------------
+
+  it('DAYWORK.APPLIED surfaces applicant experience + city to the employer template', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+
     await sendEmailForEvent(
       sc,
-      'DAYWORK.ACCEPTED',
-      { daywork_id: 'dw1' },
+      'DAYWORK.APPLIED',
+      { daywork_id: 'dw-77', crew_person_id: 'crew-1' },
       defaultCtx,
     );
 
-    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockGetApplicantProfileSummary).toHaveBeenCalledWith(expect.anything(), 'crew-1');
+    expect(applicationReceivedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        crewName: 'Alex Smith',
+        roleName: 'Deckhand',
+        vesselLabel: 'M/Y Serenity',
+        jobNumber: 'DW-00042',
+        experienceBracketLabel: '5–15 years',
+        cityLabel: 'Antibes',
+      }),
+    );
+  });
+
+  it('MESSAGE.SENT truncates long content with ellipsis and passes role name', async () => {
+    mockGetEngagementRoleName.mockResolvedValue('Chief Stewardess');
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+
+    const longMessage = 'A'.repeat(200);
+    await sendEmailForEvent(
+      sc,
+      'MESSAGE.SENT',
+      {
+        engagement_id: 'eng-42',
+        sender_person_id: 'sender-1',
+        content: longMessage,
+        is_system: false,
+      },
+      defaultCtx,
+    );
+
+    expect(newMessageEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roleName: 'Chief Stewardess',
+        preview: 'A'.repeat(100) + '…',
+      }),
+    );
+  });
+
+  it('MESSAGE.SENT short content is not truncated and has no ellipsis', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+
+    await sendEmailForEvent(
+      sc,
+      'MESSAGE.SENT',
+      {
+        engagement_id: 'eng-42',
+        sender_person_id: 'sender-1',
+        content: 'See you at the dock',
+        is_system: false,
+      },
+      defaultCtx,
+    );
+
+    expect(newMessageEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ preview: 'See you at the dock' }),
+    );
+  });
+
+  it('PERMANENT.PLACEMENT_CONFIRMED resolves engagement_id from posting and passes to template', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+
+    await sendEmailForEvent(
+      sc,
+      'PERMANENT.PLACEMENT_CONFIRMED',
+      { permanent_posting_id: 'pp1' },
+      defaultCtx,
+    );
+
+    expect(mockGetActiveEngagementIdByPermanentPosting).toHaveBeenCalledWith(
+      expect.anything(),
+      'pp1',
+    );
+    expect(permanentPlacementConfirmedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ engagementId: 'eng-confirmed' }),
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -239,7 +388,6 @@ describe('sendEmailForEvent', () => {
   it('once-per-flow events (DAYWORK.ACCEPTED, PERMANENT.*) pass "other" kind', async () => {
     const sc = createMockSc({
       user_preferences: { data: { email_enabled: true }, error: null },
-      dayworks: { data: { start_date: '2026-04-01' }, error: null },
     });
 
     await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);
@@ -262,7 +410,6 @@ describe('sendEmailForEvent', () => {
       defaultCtx,
     );
 
-    // All four events called canSendEmail with 'other'
     const otherCalls = mockCanSendEmail.mock.calls.filter((c) => c[1] === 'other');
     expect(otherCalls).toHaveLength(4);
   });
@@ -271,7 +418,6 @@ describe('sendEmailForEvent', () => {
     mockCanSendEmail.mockResolvedValue(false);
     const sc = createMockSc({
       user_preferences: { data: { email_enabled: true }, error: null },
-      dayworks: { data: { start_date: '2026-04-01' }, error: null },
     });
 
     await sendEmailForEvent(sc, 'DAYWORK.ACCEPTED', { daywork_id: 'dw1' }, defaultCtx);

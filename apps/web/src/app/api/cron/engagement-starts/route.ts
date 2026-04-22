@@ -5,7 +5,7 @@ import { sendWhatsApp } from '@/lib/whatsapp';
 import { getRecipientEmail } from '@/lib/push-triggers';
 import { hasPushTokens } from '@/lib/push-triggers/loaders';
 import { sendEmail } from '@/lib/email/send';
-import { engagementStartingEmail } from '@/lib/email/templates';
+import { engagementStartingEmail, formatEmailDate } from '@/lib/email/templates';
 
 /**
  * GET /api/cron/engagement-starts
@@ -56,13 +56,16 @@ export async function GET(request: Request) {
       ]),
     );
 
-    // Batch-fetch role names for all dayworks
+    // Batch-fetch role names + vessel context for all dayworks
     const dayworkIds = [
       ...new Set(engagements.filter((e) => e.daywork_id).map((e) => e.daywork_id)),
     ];
     const { data: dayworks } =
       dayworkIds.length > 0
-        ? await serviceClient.from('dayworks').select('id, yacht_roles(name)').in('id', dayworkIds)
+        ? await serviceClient
+            .from('dayworks')
+            .select('id, yacht_roles(name), vessels(name, vessel_type)')
+            .in('id', dayworkIds)
         : { data: [] };
     const roleMap = new Map(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,18 +74,28 @@ export async function GET(request: Request) {
         (d.yacht_roles?.name ?? 'Daywork') as string,
       ]),
     );
+    const vesselLabelMap = new Map<string, string>(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (dayworks ?? []).map((d: any) => [
+        d.id as string,
+        d.vessels?.name
+          ? `${d.vessels.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} ${d.vessels.name}`
+          : '',
+      ]),
+    );
 
-    // Batch-fetch role names for permanent postings
+    // Batch-fetch role names + vessel context for permanent postings
     const permanentIds = [
       ...new Set(
         engagements.filter((e) => e.permanent_posting_id).map((e) => e.permanent_posting_id),
       ),
     ];
     let permanentRoleMap = new Map<string, string>();
+    const permanentVesselLabelMap = new Map<string, string>();
     if (permanentIds.length > 0) {
       const { data: permanentPostings } = await serviceClient
         .from('permanent_postings')
-        .select('id, yacht_roles(name)')
+        .select('id, yacht_roles(name), vessels(name, vessel_type)')
         .in('id', permanentIds);
       permanentRoleMap = new Map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,6 +104,15 @@ export async function GET(request: Request) {
           (p.yacht_roles?.name ?? 'Permanent role') as string,
         ]),
       );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const p of (permanentPostings ?? []) as any[]) {
+        if (p.vessels?.name) {
+          permanentVesselLabelMap.set(
+            p.id as string,
+            `${p.vessels.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} ${p.vessels.name}`,
+          );
+        }
+      }
     }
 
     // Batch-query WhatsApp channels for all involved persons
@@ -143,6 +165,9 @@ export async function GET(request: Request) {
         const roleName = eng.daywork_id
           ? (roleMap.get(eng.daywork_id) ?? 'Daywork')
           : (permanentRoleMap.get(eng.permanent_posting_id) ?? 'Permanent role');
+        const vesselLabel = eng.daywork_id
+          ? (vesselLabelMap.get(eng.daywork_id) ?? null)
+          : (permanentVesselLabelMap.get(eng.permanent_posting_id) ?? null);
 
         // In-app notification
         await serviceClient.from('notifications').insert({
@@ -191,7 +216,8 @@ export async function GET(request: Request) {
                 recipientName,
                 otherPartyName: otherName,
                 roleName,
-                startDate: eng.start_date,
+                vesselLabel: vesselLabel || null,
+                startDateFormatted: formatEmailDate(eng.start_date),
                 engagementId: eng.id,
               });
               sendEmail({ to: email, subject, html }).catch(() => {});
