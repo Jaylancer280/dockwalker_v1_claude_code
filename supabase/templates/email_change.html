@@ -1,29 +1,31 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:sans-serif;">
-  <div style="max-width:480px;margin:40px auto;background:#ffffff;border-radius:8px;overflow:hidden;">
-    <div style="background:#0f172a;padding:24px;text-align:center;">
-      <h1 style="color:#ffffff;font-size:20px;margin:0;">DockWalker</h1>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <span style="display:none !important;max-height:0;overflow:hidden;visibility:hidden;mso-hide:all;color:transparent;opacity:0;">Confirm the new email address on your DockWalker account.</span>
+  <div style="max-width:520px;margin:40px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+    <div style="background:#111a24;padding:20px 24px;">
+      <img src="{{ .SiteURL }}/images/brand/dw_logo_white.png" alt="DockWalker" width="140" style="display:block;border:0;outline:none;text-decoration:none;height:auto;max-width:140px;"/>
     </div>
-    <div style="padding:32px 24px;">
-      <p style="color:#1e293b;font-size:16px;margin:0 0 16px;">Confirm your new email</p>
-      <p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 24px;">
-        You requested to change the email address on your DockWalker account. Click the link below to confirm.
+    <div style="padding:32px 28px;color:#1e293b;">
+      <h2 style="color:#111a24;font-size:20px;font-weight:600;margin:0 0 16px;">Confirm your new email</h2>
+      <p style="color:#475569;font-size:15px;line-height:1.65;margin:0 0 14px;">
+        You requested to change the email address on your DockWalker account. Click below to confirm.
       </p>
-      <div style="text-align:center;margin:0 0 24px;">
-        <a href="{{ .ConfirmationURL }}"
-           style="display:inline-block;background:#0d9488;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:6px;font-size:14px;font-weight:600;">
-          Confirm new email
-        </a>
+      <div style="text-align:center;margin:28px 0 20px;">
+        <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#2d7de0;color:#ffffff;text-decoration:none;padding:13px 34px;border-radius:8px;font-size:15px;font-weight:600;">Confirm new email</a>
       </div>
-      <p style="color:#94a3b8;font-size:12px;line-height:1.5;margin:0;">
-        If the button doesn't work, copy and paste this link into your browser:<br>
-        <a href="{{ .ConfirmationURL }}" style="color:#0d9488;word-break:break-all;">{{ .ConfirmationURL }}</a>
+      <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0 0 4px;">
+        If the button doesn't work, copy this link into your browser:
       </p>
+      <p style="margin:0;"><a href="{{ .ConfirmationURL }}" style="color:#2d7de0;word-break:break-all;font-size:12px;">{{ .ConfirmationURL }}</a></p>
     </div>
-    <div style="padding:16px 24px;text-align:center;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;">
-      If you didn't request this change, please secure your account immediately.
+    <div style="padding:20px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px;line-height:1.6;">
+      DockWalker &middot; Superyacht hiring<br>
+      If you didn't request this change, please reset your password immediately and contact support.
     </div>
   </div>
 </body>
