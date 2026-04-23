@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextResponse } from 'next/server';
 import { GET as NotificationsGET } from '@/app/api/notifications/route';
 import { POST as ReadPOST } from '@/app/api/notifications/read/route';
+import { POST as ReadGroupPOST } from '@/app/api/notifications/read-group/route';
 import { GET as CountGET } from '@/app/api/notifications/count/route';
 import { POST as MessageReadPOST } from '@/app/api/messages/[engagementId]/read/route';
 
@@ -11,6 +12,7 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 }));
 
 const mockFromAuth = vi.fn();
+const mockRpcAuth = vi.fn();
 
 function guardOk() {
   return {
@@ -19,7 +21,7 @@ function guardOk() {
       user: { id: 'u1' },
       person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
       profile: { person_id: 'u1' },
-      supabase: { from: mockFromAuth },
+      supabase: { from: mockFromAuth, rpc: mockRpcAuth },
       serviceClient: { rpc: vi.fn() },
     },
   };
@@ -77,6 +79,51 @@ describe('GET /api/notifications', () => {
     const body = await res.json();
     expect(body.notifications).toHaveLength(1);
     expect(body.unread_count).toBe(1);
+  });
+});
+
+// =========================================================================
+// GET /api/notifications?grouped=true
+// =========================================================================
+describe('GET /api/notifications?grouped=true', () => {
+  it('calls grouped_notifications RPC and returns groups + unread count', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const groups = [
+      {
+        group_key: 'application_received:/daywork/d1/review',
+        type: 'application_received',
+        title: 'New applicant',
+        body: 'Someone applied',
+        deep_link: '/daywork/d1/review',
+        created_at: new Date().toISOString(),
+        read: false,
+        role_context: 'employer',
+        total_count: 3,
+        unread_count: 3,
+        latest_id: 'n3',
+      },
+    ];
+
+    mockRpcAuth.mockResolvedValue({ data: groups, error: null });
+
+    // unread count query (still runs on the notifications table)
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ count: 3 }),
+        }),
+      }),
+    });
+
+    const req = new Request('http://localhost/api/notifications?grouped=true');
+    const res = await NotificationsGET(req);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(mockRpcAuth).toHaveBeenCalledWith('grouped_notifications');
+    expect(body.groups).toHaveLength(1);
+    expect(body.groups[0].total_count).toBe(3);
+    expect(body.unread_count).toBe(3);
   });
 });
 
@@ -148,6 +195,76 @@ describe('POST /api/notifications/read', () => {
       body: JSON.stringify({}),
     });
     const res = await ReadPOST(req);
+    expect(res.status).toBe(400);
+  });
+});
+
+// =========================================================================
+// POST /api/notifications/read-group
+// =========================================================================
+describe('POST /api/notifications/read-group', () => {
+  it('marks all notifications with matching type + deep_link as read', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const eqDeepLink = vi.fn().mockResolvedValue({ error: null });
+    const eqRead = vi.fn().mockReturnValue({ eq: eqDeepLink });
+    const eqType = vi.fn().mockReturnValue({ eq: eqRead });
+    const eqPerson = vi.fn().mockReturnValue({ eq: eqType });
+    const update = vi.fn().mockReturnValue({ eq: eqPerson });
+    mockFromAuth.mockReturnValueOnce({ update });
+
+    const req = new Request('http://localhost/api/notifications/read-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'application_received', deep_link: '/daywork/d1/review' }),
+    });
+    const res = await ReadGroupPOST(req);
+    expect(res.status).toBe(200);
+    expect(update).toHaveBeenCalledWith({ read: true });
+    expect(eqDeepLink).toHaveBeenCalledWith('deep_link', '/daywork/d1/review');
+  });
+
+  it('handles deep_link=null via .is()', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const isDeepLink = vi.fn().mockResolvedValue({ error: null });
+    const eqRead = vi.fn().mockReturnValue({ is: isDeepLink });
+    const eqType = vi.fn().mockReturnValue({ eq: eqRead });
+    const eqPerson = vi.fn().mockReturnValue({ eq: eqType });
+    const update = vi.fn().mockReturnValue({ eq: eqPerson });
+    mockFromAuth.mockReturnValueOnce({ update });
+
+    const req = new Request('http://localhost/api/notifications/read-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'system_notice', deep_link: null }),
+    });
+    const res = await ReadGroupPOST(req);
+    expect(res.status).toBe(200);
+    expect(isDeepLink).toHaveBeenCalledWith('deep_link', null);
+  });
+
+  it('returns 400 when type is missing', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const req = new Request('http://localhost/api/notifications/read-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deep_link: '/x' }),
+    });
+    const res = await ReadGroupPOST(req);
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when deep_link field is omitted (safety — prevents cross-resource wipe)', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+
+    const req = new Request('http://localhost/api/notifications/read-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'application_received' }),
+    });
+    const res = await ReadGroupPOST(req);
     expect(res.status).toBe(400);
   });
 });

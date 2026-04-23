@@ -4,7 +4,13 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 /**
  * GET /api/notifications
  * List notifications for the current user.
- * Query params: ?unread_only=true
+ *
+ * Query params:
+ * - `unread_only=true` — filter to unread only (ungrouped path only)
+ * - `grouped=true`     — return the grouped RPC output instead of raw rows.
+ *                        Each group collapses notifications that share the
+ *                        same `(type, deep_link)` into one card with a
+ *                        total_count + unread_count for the UI badge.
  */
 export async function GET(request: Request) {
   const guard = await requireDomainUser();
@@ -13,6 +19,23 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const unreadOnly = searchParams.get('unread_only') === 'true';
+  const grouped = searchParams.get('grouped') === 'true';
+
+  if (grouped) {
+    const { data: groups, error: groupErr } = await supabase.rpc('grouped_notifications');
+    if (groupErr) {
+      return NextResponse.json({ error: groupErr.message }, { status: 500 });
+    }
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('person_id', user.id)
+      .eq('read', false);
+    return NextResponse.json({
+      groups: groups ?? [],
+      unread_count: count ?? 0,
+    });
+  }
 
   let query = supabase
     .from('notifications')

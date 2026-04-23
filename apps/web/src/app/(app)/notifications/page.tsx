@@ -24,14 +24,17 @@ import { safeFetch } from '@/lib/safe-fetch';
 import { useNotificationCounts } from '@/hooks/use-notification-counts';
 import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 
-interface Notification {
-  id: string;
+interface NotificationGroup {
+  group_key: string;
   type: string;
   title: string;
   body: string;
   deep_link: string | null;
-  read: boolean;
   created_at: string;
+  read: boolean;
+  total_count: number;
+  unread_count: number;
+  latest_id: string;
 }
 
 const typeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -65,7 +68,7 @@ function relativeTime(dateStr: string): string {
 export default function NotificationsPage() {
   const router = useRouter();
   const { refresh: refreshCounts } = useNotificationCounts();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [groups, setGroups] = useState<NotificationGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,9 +77,11 @@ export default function NotificationsPage() {
 
   const load = useCallback(async () => {
     try {
-      const result = await safeFetch<{ notifications?: Notification[] }>('/api/notifications');
+      const result = await safeFetch<{ groups?: NotificationGroup[] }>(
+        '/api/notifications?grouped=true',
+      );
       if (result.ok) {
-        setNotifications(result.data.notifications ?? []);
+        setGroups(result.data.groups ?? []);
         setError(null);
       } else {
         setError('Failed to load notifications. Please try again.');
@@ -96,25 +101,38 @@ export default function NotificationsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ all: true }),
     });
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setGroups((prev) => prev.map((g) => ({ ...g, read: true, unread_count: 0 })));
     refreshCounts();
   }
 
-  async function handleTap(notif: Notification) {
-    if (!notif.read) {
-      void safeFetch('/api/notifications/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notificationIds: [notif.id] }),
-      }).then(() => refreshCounts());
-      setNotifications((prev) => prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n)));
+  async function handleTap(group: NotificationGroup) {
+    if (group.unread_count > 0) {
+      if (group.total_count > 1) {
+        // Mark the whole group as read
+        void safeFetch('/api/notifications/read-group', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: group.type, deep_link: group.deep_link }),
+        }).then(() => refreshCounts());
+      } else {
+        void safeFetch('/api/notifications/read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notificationIds: [group.latest_id] }),
+        }).then(() => refreshCounts());
+      }
+      setGroups((prev) =>
+        prev.map((g) =>
+          g.group_key === group.group_key ? { ...g, read: true, unread_count: 0 } : g,
+        ),
+      );
     }
-    if (notif.deep_link) {
-      router.push(notif.deep_link);
+    if (group.deep_link) {
+      router.push(group.deep_link);
     }
   }
 
-  const hasUnread = notifications.some((n) => !n.read);
+  const hasUnread = groups.some((g) => g.unread_count > 0);
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
@@ -145,7 +163,7 @@ export default function NotificationsPage() {
 
         {loading && <LoadingSpinner size="md" />}
 
-        {!loading && notifications.length === 0 && (
+        {!loading && groups.length === 0 && (
           <EmptyState
             icon={Bell}
             title="No notifications yet"
@@ -153,31 +171,39 @@ export default function NotificationsPage() {
           />
         )}
 
-        {notifications.map((notif) => {
-          const Icon = typeIcons[notif.type] ?? Bell;
+        {groups.map((group) => {
+          const Icon = typeIcons[group.type] ?? Bell;
+          const isUnread = group.unread_count > 0;
+          const isGrouped = group.total_count > 1;
           return (
             <button
-              key={notif.id}
-              onClick={() => handleTap(notif)}
+              key={group.group_key}
+              onClick={() => handleTap(group)}
               className={`flex items-start gap-3 border-b border-border px-1 py-3 text-left transition-colors hover:bg-accent ${
-                !notif.read ? 'bg-accent/30' : ''
+                isUnread ? 'bg-accent/30' : ''
               }`}
             >
               <div className="mt-0.5 shrink-0">
                 <Icon
-                  className={`h-5 w-5 ${!notif.read ? 'text-[var(--accent)]' : 'text-muted-foreground'}`}
+                  className={`h-5 w-5 ${isUnread ? 'text-[var(--accent)]' : 'text-muted-foreground'}`}
                 />
               </div>
               <div className="flex-1">
-                <p className={`text-sm ${!notif.read ? 'font-semibold' : 'text-muted-foreground'}`}>
-                  {notif.title}
+                <p className={`text-sm ${isUnread ? 'font-semibold' : 'text-muted-foreground'}`}>
+                  {group.title}
+                  {isGrouped && (
+                    <span className="ml-2 rounded-full bg-[var(--accent-lo)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+                      {group.total_count}
+                    </span>
+                  )}
                 </p>
-                <p className="text-xs text-muted-foreground">{notif.body}</p>
+                <p className="text-xs text-muted-foreground">{group.body}</p>
                 <p className="mt-0.5 font-mono text-[11px] text-[var(--tertiary)]">
-                  {relativeTime(notif.created_at)}
+                  {relativeTime(group.created_at)}
+                  {isGrouped && group.total_count > 1 && <> · {group.total_count - 1} earlier</>}
                 </p>
               </div>
-              {!notif.read && (
+              {isUnread && (
                 <div className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[var(--accent)]" />
               )}
             </button>
