@@ -106,6 +106,7 @@ export function AppliedTab({
       {!loadingApps && applications.length === 0 && (
         <EmptyState
           icon={ClipboardList}
+          imageSrc="/images/empty-states/discover.jpg"
           title={appsError ? 'Something went wrong' : 'No pending applications'}
           description={appsError ?? 'Jobs you apply to will appear here.'}
           action={

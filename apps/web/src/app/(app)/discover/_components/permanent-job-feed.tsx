@@ -356,6 +356,7 @@ export function PermanentJobFeed({
       {!loading && postings.length === 0 && (
         <EmptyState
           icon={Briefcase}
+          imageSrc="/images/empty-states/discover.jpg"
           title="No permanent positions found"
           description="Try widening your filters."
         />

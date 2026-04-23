@@ -66,6 +66,7 @@ export function InvitationsTab({
       {!loadingInvitations && invitations.length === 0 && (
         <EmptyState
           icon={Mail}
+          imageSrc="/images/empty-states/messages.jpg"
           title="No pending invitations"
           description="When employers invite you to daywork, invitations will appear here."
           action={
