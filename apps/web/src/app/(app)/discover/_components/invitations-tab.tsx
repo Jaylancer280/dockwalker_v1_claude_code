@@ -2,6 +2,7 @@
 
 import { MapPin, Calendar, DollarSign, Check, X, Loader2, Mail, User } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { HeroStrip } from '@/components/hero-strip';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
@@ -58,40 +59,45 @@ export function InvitationsTab({
   onSwitchToBrowse,
 }: InvitationsTabProps) {
   return (
-    <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 py-4">
-      {loadingInvitations && <LoadingSpinner size="md" text="Loading invitations..." />}
+    <>
+      <HeroStrip src="/images/empty-states/discover.jpg" />
+      <div className="page-width flex w-full flex-1 flex-col gap-3 px-4 py-4">
+        {loadingInvitations && <LoadingSpinner size="md" text="Loading invitations..." />}
 
-      {invitationError && <p className="text-center text-sm text-destructive">{invitationError}</p>}
+        {invitationError && (
+          <p className="text-center text-sm text-destructive">{invitationError}</p>
+        )}
 
-      {!loadingInvitations && invitations.length === 0 && (
-        <EmptyState
-          icon={Mail}
-          imageSrc="/images/empty-states/messages.jpg"
-          title="No pending invitations"
-          description="When employers invite you to daywork, invitations will appear here."
-          action={
-            <Button variant="outline" size="sm" onClick={onSwitchToBrowse}>
-              Browse jobs
-            </Button>
-          }
-        />
-      )}
+        {!loadingInvitations && invitations.length === 0 && (
+          <EmptyState
+            icon={Mail}
+            imageSrc="/images/empty-states/messages.jpg"
+            title="No pending invitations"
+            description="When employers invite you to daywork, invitations will appear here."
+            action={
+              <Button variant="outline" size="sm" onClick={onSwitchToBrowse}>
+                Browse jobs
+              </Button>
+            }
+          />
+        )}
 
-      {!loadingInvitations && invitations.length > 0 && (
-        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
-          {invitations.map((inv) => (
-            <InvitationCard
-              key={inv.id}
-              invitation={inv}
-              responding={respondingId === inv.id}
-              onAccept={() => onAccept(inv)}
-              onDecline={() => onDecline(inv)}
-              onViewProfile={onViewProfile}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+        {!loadingInvitations && invitations.length > 0 && (
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:gap-4">
+            {invitations.map((inv) => (
+              <InvitationCard
+                key={inv.id}
+                invitation={inv}
+                responding={respondingId === inv.id}
+                onAccept={() => onAccept(inv)}
+                onDecline={() => onDecline(inv)}
+                onViewProfile={onViewProfile}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Briefcase } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
+import { HeroStrip } from '@/components/hero-strip';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -234,177 +235,182 @@ export function PermanentJobFeed({
   }
 
   return (
-    <div className="page-width flex w-full flex-1 flex-col gap-4 px-4 py-4">
-      {/* Filters */}
-      {showFilters && (
-        <Card>
-          <CardContent className="flex flex-col gap-3 pt-4">
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Role</label>
-              <Select value={filterRoleId} onValueChange={setFilterRoleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All roles</SelectItem>
-                  {roles.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Location</label>
-              <LocationPicker
-                mode="port-required"
-                value={filterPortId ? { portId: filterPortId } : null}
-                onValueChange={(v: LocationValue) => setFilterPortId(v.portId ?? '')}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Min salary expectation
-              </label>
-              <Input
-                type="number"
-                placeholder="e.g. 3000"
-                value={filterSalaryMin}
-                onChange={(e) => setFilterSalaryMin(e.target.value)}
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Live aboard</label>
-              <div className="flex gap-1">
-                {['any', 'true', 'false'].map((val) => (
-                  <button
-                    key={val}
-                    className={`rounded-full px-3 py-1 text-xs ${
-                      filterLiveAboard === val ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                    }`}
-                    onClick={() => setFilterLiveAboard(val)}
-                  >
-                    {val === 'any' ? 'Any' : val === 'true' ? 'Yes' : 'No'}
-                  </button>
-                ))}
+    <>
+      <HeroStrip src="/images/empty-states/discover.jpg" />
+      <div className="page-width flex w-full flex-1 flex-col gap-4 px-4 py-4">
+        {/* Filters */}
+        {showFilters && (
+          <Card>
+            <CardContent className="flex flex-col gap-3 pt-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Role</label>
+                <Select value={filterRoleId} onValueChange={setFilterRoleId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All roles" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    {roles.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Certification</label>
-              <Select value={filterCertId} onValueChange={setFilterCertId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Any" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any</SelectItem>
-                  <SelectItem value="none">No certs required</SelectItem>
-                  {certifications.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Location</label>
+                <LocationPicker
+                  mode="port-required"
+                  value={filterPortId ? { portId: filterPortId } : null}
+                  onValueChange={(v: LocationValue) => setFilterPortId(v.portId ?? '')}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Min salary expectation
+                </label>
+                <Input
+                  type="number"
+                  placeholder="e.g. 3000"
+                  value={filterSalaryMin}
+                  onChange={(e) => setFilterSalaryMin(e.target.value)}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Live aboard</label>
+                <div className="flex gap-1">
+                  {['any', 'true', 'false'].map((val) => (
+                    <button
+                      key={val}
+                      className={`rounded-full px-3 py-1 text-xs ${
+                        filterLiveAboard === val ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                      }`}
+                      onClick={() => setFilterLiveAboard(val)}
+                    >
+                      {val === 'any' ? 'Any' : val === 'true' ? 'Yes' : 'No'}
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
+                </div>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Experience level</label>
-              <Select value={filterExpBracketId} onValueChange={setFilterExpBracketId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Any" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any</SelectItem>
-                  {experienceBrackets.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Certification</label>
+                <Select value={filterCertId} onValueChange={setFilterCertId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    <SelectItem value="none">No certs required</SelectItem>
+                    {certifications.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Vessel size</label>
-              <Select value={filterSizeBandId} onValueChange={setFilterSizeBandId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Any" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Any</SelectItem>
-                  {sizeBands.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Experience level
+                </label>
+                <Select value={filterExpBracketId} onValueChange={setFilterExpBracketId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    {experienceBrackets.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-      {/* Loading */}
-      {loading && <LoadingSpinner size="lg" />}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Vessel size</label>
+                <Select value={filterSizeBandId} onValueChange={setFilterSizeBandId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Any" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any</SelectItem>
+                    {sizeBands.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Empty state */}
-      {!loading && postings.length === 0 && (
-        <EmptyState
-          icon={Briefcase}
-          imageSrc="/images/empty-states/discover.jpg"
-          title="No permanent positions found"
-          description="Try widening your filters."
-        />
-      )}
+        {/* Loading */}
+        {loading && <LoadingSpinner size="lg" />}
 
-      {/* Postings list */}
-      {!loading && postings.length > 0 && (
-        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:[&>:only-child]:col-span-2 lg:[&>:only-child]:justify-self-center lg:[&>:only-child]:w-[calc(50%-0.5rem)]">
-          {postings.map((posting, index) => (
-            <motion.div
-              key={posting.id}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
-            >
-              <PermanentJobCard
-                posting={posting}
-                onTap={() => setSelectedPosting(posting)}
-                onApply={handleApply}
-                onPosterTap={(pid) => setProfilePersonId(pid)}
-                crewCertIds={crewCertIds}
-                crewLangs={crewLangs}
-                applying={applying}
-              />
-            </motion.div>
-          ))}
+        {/* Empty state */}
+        {!loading && postings.length === 0 && (
+          <EmptyState
+            icon={Briefcase}
+            imageSrc="/images/empty-states/discover.jpg"
+            title="No permanent positions found"
+            description="Try widening your filters."
+          />
+        )}
 
-          {/* Scroll sentinel */}
-          <div ref={sentinelRef} className="h-4" />
+        {/* Postings list */}
+        {!loading && postings.length > 0 && (
+          <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:[&>:only-child]:col-span-2 lg:[&>:only-child]:justify-self-center lg:[&>:only-child]:w-[calc(50%-0.5rem)]">
+            {postings.map((posting, index) => (
+              <motion.div
+                key={posting.id}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
+              >
+                <PermanentJobCard
+                  posting={posting}
+                  onTap={() => setSelectedPosting(posting)}
+                  onApply={handleApply}
+                  onPosterTap={(pid) => setProfilePersonId(pid)}
+                  crewCertIds={crewCertIds}
+                  crewLangs={crewLangs}
+                  applying={applying}
+                />
+              </motion.div>
+            ))}
 
-          {loadingMore && <LoadingSpinner size="md" />}
+            {/* Scroll sentinel */}
+            <div ref={sentinelRef} className="h-4" />
 
-          {!hasMore && postings.length > 0 && (
-            <p className="py-4 text-center text-xs text-muted-foreground">
-              No more positions to show
-            </p>
-          )}
-        </div>
-      )}
+            {loadingMore && <LoadingSpinner size="md" />}
 
-      {/* Profile overlay */}
-      {profilePersonId && (
-        <ProfileOverlay
-          personId={profilePersonId}
-          isOpen={true}
-          onClose={() => setProfilePersonId(null)}
-        />
-      )}
-    </div>
+            {!hasMore && postings.length > 0 && (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                No more positions to show
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Profile overlay */}
+        {profilePersonId && (
+          <ProfileOverlay
+            personId={profilePersonId}
+            isOpen={true}
+            onClose={() => setProfilePersonId(null)}
+          />
+        )}
+      </div>
+    </>
   );
 }
