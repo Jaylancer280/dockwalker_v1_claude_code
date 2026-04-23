@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { LEGAL } from '@/lib/legal-placeholders';
 
 export default function BlockedPage() {
   return (
@@ -17,8 +18,8 @@ export default function BlockedPage() {
         </Link>
         <p className="mt-3 text-sm text-muted-foreground">
           Or email{' '}
-          <a href="mailto:support@dockwalker.com" className="underline">
-            support@dockwalker.com
+          <a href={`mailto:${LEGAL.supportEmail}`} className="underline">
+            {LEGAL.supportEmail}
           </a>
         </p>
       </div>
