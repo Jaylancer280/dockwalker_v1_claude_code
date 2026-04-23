@@ -83,18 +83,66 @@
 
 ## BLOCKED — user action required
 
+### Vercel env var split — staging vs production
+
+> Two Vercel projects exist: `dockwalker-staging` (preview URL only) and the
+> repo-named project (intended to host `www.dockwalker.io`). Current state
+> per user: staging has live-grade keys for most services (Anthropic,
+> OpenAI, etc.). Launch-safe split focuses only on what MUST differ.
+
+**Confirm which project is which**
+
+- [ ] Identify which Vercel project has `www.dockwalker.io` attached as a custom domain — that's production. Screenshot its Settings → Domains.
+- [ ] Confirm the other project is `dockwalker-staging.vercel.app` only (no custom domain).
+
+**Per-project env var plan**
+
+Variables that MUST differ between staging and prod:
+
+| Variable                            | Staging value                           | Production value                                     |
+| ----------------------------------- | --------------------------------------- | ---------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`              | `https://dockwalker-staging.vercel.app` | `https://www.dockwalker.io`                          |
+| `NEXT_PUBLIC_APP_URL`               | `https://dockwalker-staging.vercel.app` | `https://www.dockwalker.io`                          |
+| `STRIPE_SECRET_KEY`                 | `sk_test_…`                             | `sk_live_…`                                          |
+| `STRIPE_WEBHOOK_SECRET`             | from the test-mode webhook in Stripe    | from the live-mode webhook                           |
+| `STRIPE_PRICE_CREW_PRO`             | test price ID                           | live price ID                                        |
+| `STRIPE_PRICE_EMPLOYER_PRO`         | test price ID                           | live price ID                                        |
+| `UPSTASH_REDIS_REST_URL` + `_TOKEN` | staging Redis DB                        | separate prod Redis DB (free tier lets you create 2) |
+
+Variables to COPY IDENTICALLY to both (paste same value into each project):
+
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DOCKY_MODEL`, `DOCKY_CORPUS_READY`
+- `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (when set up)
+- `NEXT_PUBLIC_SENTRY_DSN` (single DSN; `VERCEL_ENV` tags events per environment)
+- `CRON_SECRET` (same string or different — doesn't matter; each project's Vercel Cron UI references the matching secret)
+
+**Still "Needs Attention" across both projects — fill in order of criticality**
+
+- [ ] `SUPABASE_SERVICE_ROLE_KEY` (both projects) — every server-side write path depends on this. Copy from Supabase Dashboard → Project Settings → API → `service_role secret`.
+- [ ] `CRON_SECRET` (both projects) — any random string; Vercel Cron sends it as Bearer token. Generate once.
+- [ ] `UPSTASH_REDIS_REST_URL` + `_TOKEN` (both projects, DIFFERENT DBs) — sign up at upstash.com, create 2 databases (`dockwalker-prod`, `dockwalker-staging`), paste each project's URL + token into the matching Vercel project.
+- [ ] `ANTHROPIC_API_KEY` + `OPENAI_API_KEY` (both projects, same value) — enables Docky.
+- [ ] `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` — **different per project per the split table above.** Make sure live keys go on prod, test keys on staging. Mixed modes = `No such price` errors.
+- [ ] `RESEND_API_KEY` + `RESEND_FROM_EMAIL` (both projects, same value) — pending Resend DNS verification.
+
+**Non-env-var production setup**
+
+- [ ] Attach `www.dockwalker.io` (and `dockwalker.io` apex → 301 to www) to the PROD Vercel project only. Remove any custom domain from the staging project.
+- [ ] Create a **live-mode** Stripe webhook pointed at `https://www.dockwalker.io/api/webhooks/stripe` with the 3 events (`checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`).
+- [ ] Verify Resend sending domain `dockwalker.io` — SPF + DKIM (3 CNAME records) + DMARC (1 TXT) at DNS host. Resend dashboard walks you through.
+- [ ] Configure Vercel Cron on the PROD project only (not staging — staging shouldn't send real reminder emails). Three jobs: `engagement-starts` daily 07:00 UTC, `availability-expiry` daily 08:00 UTC, `document-cleanup` every 6h.
+
+**Known constraint (not launch-blocking)**
+
+- Single Supabase project serves both environments. Staging writes to the same DB as production, so destructive migration tests or seed resets would affect real users. Acceptable for launch given the user volume; revisit with a separate staging Supabase project once there are paying customers.
+
 ### Legal pages go-live (Stage 214)
 
-`/privacy` and `/terms` pages are built and live but rendering placeholders. Before public launch:
+`/privacy` and `/terms` pages render with provisional values wired in Fix 222h. Before public launch:
 
-- [ ] Lawyer review of `/privacy` and `/terms` (source drafts: `tasks/privacy-policy-spec.md` + `tasks/founder-drafts.md` §1)
-- [ ] Fill `apps/web/src/lib/legal-placeholders.ts`:
-  - `companyName` — confirm legal entity (currently "Nautalink Technologies, Inc." — provisional)
-  - `registeredAddress` — registered office address
-  - `jurisdiction` — governing law, e.g. "England and Wales"
-  - `supportEmail` — confirm inbox (currently `support@dockwalker.io`)
-  - `dpoEmail` — confirm DPO inbox (currently `privacy@dockwalker.io`)
-  - `supabaseRegion` — primary DB region, e.g. "EU (Frankfurt)"
+- [ ] Lawyer review of `/privacy` and `/terms` wording (source drafts: `tasks/privacy-policy-spec.md` + `tasks/founder-drafts.md` §1) — placeholder VALUES are correct; the POLICY TEXT still needs legal review.
+- [x] Fill `apps/web/src/lib/legal-placeholders.ts` — Delaware incorporation details wired: Nautalink Technologies Inc., Stable mailing address, Delaware jurisdiction, admin@nautalink.io for support + DPO, EU (Frankfurt) Supabase region. Commit `3073380`.
 - [ ] Decide: cookie consent banner needed for target jurisdictions? (Functional cookies only — likely not required under GDPR, but check local law)
 
 ### Stripe setup
