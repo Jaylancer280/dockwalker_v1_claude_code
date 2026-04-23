@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
 import type { DistanceUnit, CurrencyCode } from '@dockwalker/shared';
+import type { UserIdentity } from '@supabase/supabase-js';
 import { AccountSection } from './_components/account-section';
 import { NotificationsSection, type NotificationPrefs } from './_components/notifications-section';
 import { WhatsAppSection } from './_components/whatsapp-section';
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   // User state
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
+  const [identities, setIdentities] = useState<UserIdentity[]>([]);
 
   // Notification preferences (server-side)
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({
@@ -52,6 +54,7 @@ export default function SettingsPage() {
     } = await supabase.auth.getUser();
     if (user) {
       setEmail(user.email ?? '');
+      setIdentities(user.identities ?? []);
     }
     setLoading(false);
   }, [supabase.auth]);
@@ -113,7 +116,7 @@ export default function SettingsPage() {
       </header>
 
       <div className="page-width flex w-full flex-col gap-6 px-4 py-6">
-        <AccountSection email={email} />
+        <AccountSection email={email} identities={identities} />
 
         <NotificationsSection
           notifPrefs={notifPrefs}

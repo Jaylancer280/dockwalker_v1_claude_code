@@ -10,6 +10,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AuthAmbientBackground } from '@/components/auth-ambient-background';
+import { GoogleAuthButton } from '@/components/google-auth-button';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -126,7 +127,15 @@ export default function SignUpPage() {
             <CardTitle className="text-base">Create an account</CardTitle>
             <CardDescription>Start finding or posting daywork</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
+            <GoogleAuthButton next="/onboarding" />
+
+            <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <span className="h-px flex-1 bg-[var(--border)]" />
+              <span>or sign up with email</span>
+              <span className="h-px flex-1 bg-[var(--border)]" />
+            </div>
+
             <form onSubmit={handleSignUp} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email">Email</Label>

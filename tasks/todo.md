@@ -5,7 +5,46 @@
 
 ## Current Task
 
-_(none — imagery rollout shipped in Fix 222e + profile-orphan closed in e3ce167.)_
+### Google Sign-In — robust launch-quality integration
+
+> User-facing goal: crew + employers can sign up or sign in with one tap via
+> Google, land in the same onboarding flow, and the rest of the app (password
+> reset, change password, settings) behaves correctly for users who have
+> only the Google identity. Prefills `display_name` from Google metadata on
+> first onboarding (NOT `deck_name` — that's a per-vessel nickname, user-set).
+
+#### Chunk 1 — Code wiring
+
+- [x] Create `apps/web/src/components/google-auth-button.tsx` — shared "Continue with Google" button with inline Google logo SVG + brand-compliant styling. Calls `supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: '${origin}/auth/callback?next=/onboarding' } })`.
+- [x] Create `apps/web/src/lib/auth/has-password-identity.ts` — client-side helper `hasPasswordIdentity(user)` that returns true if the auth.users row has an `email`/`password` identity (as opposed to `google`-only). Used to gate password-related UI.
+- [x] Wire `GoogleAuthButton` into `apps/web/src/app/auth/login/page.tsx` — "or" divider + button, visually consistent with email/password card.
+- [x] Wire `GoogleAuthButton` into `apps/web/src/app/auth/signup/page.tsx`. (OAuth signups never hit the "Check your email" success state — `signInWithOAuth` navigates the browser away before it would render.)
+- [x] Prefill `displayName` in `apps/web/src/app/onboarding/page.tsx` profile step from `user.user_metadata.full_name` / `user.user_metadata.name` when the field is empty on mount. `deck_name` NOT prefilled.
+- [x] Update `apps/web/src/app/auth/forgot-password/page.tsx` — inline note + `GoogleAuthButton` above the reset form.
+- [x] Update change-password section in `AccountSection` — hide the password form + show guidance linking to Google Account Security when `hasPasswordIdentity(user) === false`.
+- [x] Update `apps/web/src/app/privacy/page.tsx` third-party table with a Google (OAuth) row.
+
+#### Chunk 2 — Tests + docs
+
+- [x] `google-auth-button.test.tsx` — renders + fires `signInWithOAuth` with correct provider + redirect on click (6 cases).
+- [x] `has-password-identity.test.ts` — returns true for email, false for google-only, true for linked email+google (5 cases).
+- [x] `apps/web/README.md` — OAuth section added under Architectural Notes.
+
+#### Chunk 3 — User-side setup (NOT code — blocked on user)
+
+- [ ] **Google Cloud Console**: create an OAuth 2.0 Client ID (Web application). Authorized redirect URI: `https://<your-supabase-project>.supabase.co/auth/v1/callback` — exact URL shown in Supabase Dashboard → Auth → Providers → Google → "Redirect URL". Save client ID + client secret.
+- [ ] **Supabase Dashboard → Auth → Providers → Google**: paste client ID + client secret, toggle Enable.
+- [ ] **Supabase Dashboard → Auth → Settings → "Enable manual linking" / "Link identities"**: enable so a user who signs up with email first and later uses Google (or vice versa) merges into one user rather than creating duplicates. Also confirm the email domain auto-confirmation setting matches your policy (Google-provided emails are verified at the provider).
+- [ ] **Both Vercel projects** — no new env vars needed; OAuth config lives entirely in Supabase. But verify `NEXT_PUBLIC_SITE_URL` is correct on the prod project (used by `signInWithOAuth` to construct the absolute callback URL).
+
+#### Chunk 4 — Verify end-to-end
+
+- [ ] After Supabase provider is enabled in staging: full flow test — Sign up with Google → complete onboarding → sign out → Sign in with Google → lands on /discover.
+- [ ] Verify forgot-password for an OAuth-only user gracefully directs them to the Google button (no confusing error).
+- [ ] Verify settings change-password is hidden for OAuth-only user.
+- [ ] Same on production after provider is enabled there.
+
+### Imagery rollout — DONE
 
 ---
 
@@ -76,6 +115,33 @@ Variables to COPY IDENTICALLY to both (paste same value into each project):
 **Known constraint (not launch-blocking)**
 
 - Single Supabase project serves both environments. Staging writes to the same DB as production, so destructive migration tests or seed resets would affect real users. Acceptable for launch given the user volume; revisit with a separate staging Supabase project once there are paying customers.
+
+### Google Sign-In — provider enable + verify
+
+> Code is shipped. Buttons are live on `/auth/login`, `/auth/signup`,
+> `/auth/forgot-password`. Until the provider is enabled in Supabase they'll
+> return "Provider not enabled". Do this once — config lives entirely in
+> Supabase, so the single Supabase project covers both Vercel environments.
+
+**Google Cloud Console**
+
+- [ ] Open [console.cloud.google.com](https://console.cloud.google.com) → APIs & Services → Credentials → Create credentials → OAuth 2.0 Client ID → Application type: **Web application**. Name it `DockWalker`.
+- [ ] Under "Authorized redirect URIs" add the exact URL shown in Supabase Dashboard → Authentication → Providers → Google → "Callback URL (for OAuth)" — this is `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`. Copy from the Supabase UI; don't hand-type.
+- [ ] Save. Copy the **Client ID** and **Client secret**.
+- [ ] (Optional but recommended) OAuth consent screen → set app name `DockWalker`, support email `admin@nautalink.io`, developer email `admin@nautalink.io`, app logo (DockWalker icon), authorised domains: `dockwalker.io` + `supabase.co`. Submit for verification if you want the "unverified app" warning to go away on launch.
+
+**Supabase Dashboard**
+
+- [ ] Authentication → Providers → Google → toggle **Enabled** → paste Client ID + Client secret → Save.
+- [ ] Authentication → Settings → **"Allow manual linking"** (a.k.a. "Link identities") → Enable. This merges `email+password` and `google` into the same `auth.users` row when the email matches — without it, a user who signed up by email and later tries Google (or vice versa) gets a duplicate account.
+- [ ] Sanity check: Authentication → Settings → Site URL is `https://www.dockwalker.io` (production) — the OAuth redirect will append `?next=/onboarding` to this.
+
+**Verify end-to-end (do after Vercel prod deploy carries the new code)**
+
+- [ ] Staging: Sign up with Google → completes onboarding (display name prefilled from Google) → sign out → Sign in with Google → lands on `/discover`.
+- [ ] Forgot-password page shows "Signed up with Google?" guidance + Google button above the reset form.
+- [ ] Settings → Account → Password section hides the form for an OAuth-only user and shows the "manage your password at Google" link.
+- [ ] Production: repeat the sign-up/sign-in flow once `www.dockwalker.io` is live.
 
 ### Legal pages go-live (Stage 214)
 

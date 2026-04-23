@@ -3,18 +3,22 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, CreditCard, LogOut, Check } from 'lucide-react';
+import type { UserIdentity } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { createClient } from '@/lib/supabase/client';
+import { hasPasswordIdentity } from '@/lib/auth/has-password-identity';
 
 export interface AccountSectionProps {
   email: string;
+  identities?: UserIdentity[];
 }
 
-export function AccountSection({ email }: AccountSectionProps) {
+export function AccountSection({ email, identities }: AccountSectionProps) {
+  const canChangePassword = hasPasswordIdentity({ identities });
   const router = useRouter();
   const supabase = createClient();
 
@@ -166,21 +170,39 @@ export function AccountSection({ email }: AccountSectionProps) {
         <Separator />
 
         {/* Change password */}
-        <div className="flex items-center justify-between px-4 py-3">
-          <p className="text-sm font-medium">Password</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setShowPasswordForm(!showPasswordForm);
-              setShowEmailForm(false);
-            }}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        {canChangePassword ? (
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-sm font-medium">Password</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setShowPasswordForm(!showPasswordForm);
+                setShowEmailForm(false);
+              }}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="px-4 py-3">
+            <p className="text-sm font-medium">Password</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Your account uses Google Sign-In. Manage your password at{' '}
+              <a
+                href="https://myaccount.google.com/security"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="underline hover:text-foreground"
+              >
+                Google Account Security
+              </a>
+              .
+            </p>
+          </div>
+        )}
 
-        {showPasswordForm && (
+        {canChangePassword && showPasswordForm && (
           <div className="border-t border-border px-4 py-3">
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">

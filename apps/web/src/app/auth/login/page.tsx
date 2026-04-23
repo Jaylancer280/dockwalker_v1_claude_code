@@ -10,6 +10,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { AuthAmbientBackground } from '@/components/auth-ambient-background';
+import { GoogleAuthButton } from '@/components/google-auth-button';
 
 export default function LoginPage() {
   return (
@@ -59,6 +60,14 @@ function LoginContent() {
                   and password.
                 </p>
               )}
+
+              <GoogleAuthButton next="/onboarding" />
+
+              <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <span className="h-px flex-1 bg-[var(--border)]" />
+                <span>or sign in with email</span>
+                <span className="h-px flex-1 bg-[var(--border)]" />
+              </div>
 
               {/* Native form POST — server handles auth and redirects with
                   session cookies in the same HTTP response. No JavaScript

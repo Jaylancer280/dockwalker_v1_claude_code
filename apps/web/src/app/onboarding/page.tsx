@@ -131,14 +131,23 @@ export default function OnboardingPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchEmail() {
+    async function fetchUser() {
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (user?.email) setUserEmail(user.email);
+      // Prefill display name from OAuth provider metadata (e.g. Google).
+      // Only `display_name` is seeded — `deck_name` is a per-vessel nickname
+      // and other professional fields are never provided by OAuth.
+      const meta = user?.user_metadata as Record<string, unknown> | undefined;
+      const fullName =
+        (meta?.full_name as string | undefined) ?? (meta?.name as string | undefined) ?? '';
+      if (fullName.trim()) {
+        setDisplayName((prev) => (prev ? prev : fullName.trim()));
+      }
     }
-    fetchEmail();
+    fetchUser();
   }, []);
 
   // Lookup data

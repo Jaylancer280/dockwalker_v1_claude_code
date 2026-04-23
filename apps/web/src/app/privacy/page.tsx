@@ -298,6 +298,11 @@ export default function PrivacyPage() {
                   basis="All application data"
                 />
                 <Row
+                  data="Google (OAuth)"
+                  purpose="Sign in with Google (optional)"
+                  basis="Email, display name, profile picture URL (only if you choose to sign in with Google)"
+                />
+                <Row
                   data="Vercel"
                   purpose="Web hosting, serverless functions"
                   basis="HTTP request logs"

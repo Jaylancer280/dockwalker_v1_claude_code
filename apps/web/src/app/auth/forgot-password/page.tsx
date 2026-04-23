@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { AuthAmbientBackground } from '@/components/auth-ambient-background';
+import { GoogleAuthButton } from '@/components/google-auth-button';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -75,32 +76,46 @@ export default function ForgotPasswordPage() {
                 </Link>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="crew@example.com"
-                    data-testid="email-input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
+              <div className="flex flex-col gap-4">
+                <p className="rounded-md border border-[var(--border)] bg-[var(--muted)]/40 px-3 py-2 text-xs text-muted-foreground">
+                  Signed up with Google? Use the button below instead — you don&apos;t have a
+                  password to reset.
+                </p>
+                <GoogleAuthButton next="/discover" label="Sign in with Google" />
+
+                <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <span className="h-px flex-1 bg-[var(--border)]" />
+                  <span>or reset your password</span>
+                  <span className="h-px flex-1 bg-[var(--border)]" />
                 </div>
-                {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" disabled={loading} className="w-full">
-                  {loading ? 'Sending...' : 'Send reset link'}
-                </Button>
-                <div className="text-center">
-                  <Link
-                    href="/auth/login"
-                    className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-                  >
-                    Back to sign in
-                  </Link>
-                </div>
-              </form>
+
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="crew@example.com"
+                      data-testid="email-input"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
+                  <Button type="submit" disabled={loading} className="w-full">
+                    {loading ? 'Sending...' : 'Send reset link'}
+                  </Button>
+                  <div className="text-center">
+                    <Link
+                      href="/auth/login"
+                      className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+                    >
+                      Back to sign in
+                    </Link>
+                  </div>
+                </form>
+              </div>
             )}
           </CardContent>
         </Card>
