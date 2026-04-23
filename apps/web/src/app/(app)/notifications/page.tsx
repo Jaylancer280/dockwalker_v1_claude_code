@@ -22,6 +22,7 @@ import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useNotificationCounts } from '@/hooks/use-notification-counts';
+import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 
 interface Notification {
   id: string;
@@ -67,6 +68,9 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Restore scroll position after the list hydrates
+  useScrollRestoration(!loading);
 
   const load = useCallback(async () => {
     try {

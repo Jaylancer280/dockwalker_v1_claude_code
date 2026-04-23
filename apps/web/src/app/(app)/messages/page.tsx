@@ -14,6 +14,7 @@ import { NotificationBell } from '@/components/notification-bell';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { HeroStrip } from '@/components/hero-strip';
 import { useSafeFetch } from '@/hooks/use-safe-fetch';
+import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { createClient } from '@/lib/supabase/client';
 
 interface Conversation {
@@ -50,6 +51,9 @@ export default function MessagesPage() {
   } = useSafeFetch<{ conversations?: Conversation[] }>('/api/messages');
   const conversations = data?.conversations ?? [];
   const error = fetchError ? 'Failed to load messages. Please try again.' : null;
+
+  // Restore scroll position after list content has loaded
+  useScrollRestoration(!loading);
   const [tab, setTab] = useState<TabView>(() => {
     if (typeof window === 'undefined') return 'active';
     const stored = sessionStorage.getItem('dockwalker:messages-tab');
