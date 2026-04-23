@@ -6,6 +6,7 @@ import { Settings, Pencil, X, Check, Ship, Briefcase, Eye } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { AvatarUpload } from '@/components/avatar-upload';
+import { EmptyState } from '@/components/empty-state';
 import { NotificationBell } from '@/components/notification-bell';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -677,6 +678,27 @@ export default function ProfilePage() {
         {profile.identity_type === 'crew' && !editing && (
           <div className="lg:flex lg:gap-6">
             <div className="flex flex-1 flex-col gap-4">
+              {/*
+                Fresh-crew empty state — shown when no maritime experience, no
+                shore experience, and no bio have been added yet. Gives a
+                brand-new signup a warm first impression of the profile page
+                instead of a wall of empty section headers. Disappears as
+                soon as any of the three is populated.
+              */}
+              {experiences.length === 0 &&
+                shoreExperiences.length === 0 &&
+                !profile.bio?.trim() && (
+                  <EmptyState
+                    imageSrc="/images/empty-states/profile.jpg"
+                    title="Tell your story"
+                    description="Add an experience, a bit about yourself, or your shore-side background — employers use this to get to know you."
+                    action={
+                      <Button size="sm" onClick={() => router.push('/profile/add-experience')}>
+                        Add first experience
+                      </Button>
+                    }
+                  />
+                )}
               <div className="flex flex-col gap-2">
                 <ProfileSummarySection
                   profile={profile}
