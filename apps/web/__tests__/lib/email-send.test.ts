@@ -31,6 +31,7 @@ describe('sendEmail', () => {
   it('calls Resend SDK with correct params when key is set', async () => {
     process.env.RESEND_API_KEY = 're_test_key';
     process.env.RESEND_FROM_EMAIL = 'DW <noreply@dw.com>';
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://www.dockwalker.io';
     const { sendEmail } = await import('@/lib/email/send');
     await sendEmail({ to: 'crew@example.com', subject: 'Accepted', html: '<p>Great</p>' });
     expect(mockSend).toHaveBeenCalledWith({
@@ -38,9 +39,23 @@ describe('sendEmail', () => {
       to: 'crew@example.com',
       subject: 'Accepted',
       html: '<p>Great</p>',
+      headers: {
+        'List-Unsubscribe': '<https://www.dockwalker.io/settings>',
+      },
     });
     delete process.env.RESEND_API_KEY;
     delete process.env.RESEND_FROM_EMAIL;
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+  });
+
+  it('uses the www.dockwalker.io fallback for List-Unsubscribe when NEXT_PUBLIC_SITE_URL is unset', async () => {
+    process.env.RESEND_API_KEY = 're_test_key';
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+    const { sendEmail } = await import('@/lib/email/send');
+    await sendEmail({ to: 'a@b.com', subject: 'Test', html: '<p>Hi</p>' });
+    const call = mockSend.mock.calls[0][0];
+    expect(call.headers['List-Unsubscribe']).toBe('<https://www.dockwalker.io/settings>');
+    delete process.env.RESEND_API_KEY;
   });
 
   it('captures exception to Sentry and rethrows when Resend fails', async () => {

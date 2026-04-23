@@ -31,8 +31,19 @@ export async function sendEmail(params: {
   const client = getClient();
   if (!client) return;
   try {
+    // Gmail / Yahoo / Outlook all recognise the RFC 2369 List-Unsubscribe
+    // header and surface an Unsubscribe link next to the sender name in the
+    // inbox. Pointing at /settings is the minimum-viable option — the user
+    // has to log in to actually flip email_enabled=false. A future
+    // enhancement can add a signed-token one-click endpoint + the
+    // `List-Unsubscribe-Post: List-Unsubscribe=One-Click` header required
+    // by Gmail's bulk-sender policy (>5k emails/day).
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
     await client.emails.send({
       from: process.env.RESEND_FROM_EMAIL ?? 'DockWalker <noreply@dockwalker.io>',
+      headers: {
+        'List-Unsubscribe': `<${siteUrl}/settings>`,
+      },
       ...params,
     });
   } catch (err) {
