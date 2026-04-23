@@ -182,11 +182,45 @@ export default function AdminCanonicalPage() {
   const isVessels = activeTab === 'vessels';
   const canonicalTable = isVessels ? null : activeTab;
 
-  const { data, isLoading, mutate } = useSafeFetch<{ rows: Row[] }>(
-    canonicalTable ? `/api/admin/canonical/${canonicalTable}` : null,
-  );
+  // Ports (~6k rows) + cities (~3.4k rows) are paginated + searchable.
+  // Other canonical tables (yacht_roles, certifications, regions, brackets,
+  // size bands) are small and load all rows at once.
+  const isLargeTable = canonicalTable === 'ports' || canonicalTable === 'cities';
+  const [canonicalPage, setCanonicalPage] = useState(1);
+  const [canonicalSearch, setCanonicalSearch] = useState('');
+
+  // Pagination + search reset lives in the tab-switch click handler below;
+  // avoids the set-state-in-effect lint rule.
+
+  const canonicalFetchUrl = (() => {
+    if (!canonicalTable) return null;
+    if (!isLargeTable) {
+      // Small tables: no pagination; include ?q= if user searched
+      const params = new URLSearchParams();
+      if (canonicalSearch.trim()) params.set('q', canonicalSearch.trim());
+      const qs = params.toString();
+      return `/api/admin/canonical/${canonicalTable}${qs ? `?${qs}` : ''}`;
+    }
+    // Large tables: always paginate
+    const params = new URLSearchParams({
+      page: String(canonicalPage),
+      pageSize: '50',
+    });
+    if (canonicalSearch.trim()) params.set('q', canonicalSearch.trim());
+    return `/api/admin/canonical/${canonicalTable}?${params.toString()}`;
+  })();
+
+  const { data, isLoading, mutate } = useSafeFetch<{
+    rows: Row[];
+    total?: number;
+    page?: number;
+    pageSize?: number;
+    totalPages?: number;
+  }>(canonicalFetchUrl);
 
   const rows = data?.rows ?? [];
+  const canonicalTotal = data?.total ?? rows.length;
+  const canonicalTotalPages = data?.totalPages ?? 1;
 
   async function handleAdd() {
     if (!newLabel.trim() || !canonicalTable) return;
@@ -297,6 +331,8 @@ export default function AdminCanonicalPage() {
               setActiveTab(t.key);
               setEditId(null);
               setNewLabel('');
+              setCanonicalPage(1);
+              setCanonicalSearch('');
             }}
             className={`rounded border px-3 py-1 text-sm ${activeTab === t.key ? 'bg-primary text-primary-foreground' : ''}`}
           >
@@ -415,6 +451,20 @@ export default function AdminCanonicalPage() {
               />
             </div>
           )}
+          <div className="mb-3 flex items-center gap-3">
+            <Input
+              placeholder={isLargeTable ? `Search ${activeTab}...` : `Filter ${activeTab}...`}
+              value={canonicalSearch}
+              onChange={(e) => {
+                setCanonicalSearch(e.target.value);
+                setCanonicalPage(1);
+              }}
+              className="max-w-sm"
+            />
+            <span className="text-xs text-muted-foreground">
+              {canonicalTotal} {canonicalTotal === 1 ? 'row' : 'rows'}
+            </span>
+          </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -612,6 +662,29 @@ export default function AdminCanonicalPage() {
               ))}
             </tbody>
           </table>
+          {isLargeTable && canonicalTotalPages > 1 && (
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCanonicalPage((p) => Math.max(1, p - 1))}
+                disabled={canonicalPage <= 1}
+                className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="px-2 py-1 text-sm text-muted-foreground">
+                Page {canonicalPage} of {canonicalTotalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCanonicalPage((p) => Math.min(canonicalTotalPages, p + 1))}
+                disabled={canonicalPage >= canonicalTotalPages}
+                className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>

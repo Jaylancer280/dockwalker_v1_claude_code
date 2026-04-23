@@ -48,7 +48,7 @@ describe('Admin canonical API', () => {
     expect(body.error).toContain('Invalid table');
   });
 
-  it('GET returns all rows for valid table', async () => {
+  it('GET returns all rows for valid table (legacy unpaginated path)', async () => {
     mockRequireAdmin.mockResolvedValue(adminOk());
     mockServiceFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
@@ -62,6 +62,66 @@ describe('Admin canonical API', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rows).toHaveLength(1);
+    // Legacy response shape — no pagination metadata
+    expect(body.total).toBeUndefined();
+    expect(body.page).toBeUndefined();
+  });
+
+  it('GET paginates when ?page= is present and returns pagination metadata', async () => {
+    mockRequireAdmin.mockResolvedValue(adminOk());
+    // Paginated path uses: .from(t).select(..., { count: 'exact' }).order(c).range(a,b)
+    const rangeMock = vi.fn().mockResolvedValue({
+      data: [{ id: 'p1', name: 'Antibes' }],
+      count: 101,
+      error: null,
+    });
+    mockServiceFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue({ range: rangeMock }),
+      }),
+    });
+    const res = await GET(
+      new Request('http://localhost/api/admin/canonical/ports?page=2&pageSize=50'),
+      makeParams('ports'),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.rows).toHaveLength(1);
+    expect(body.total).toBe(101);
+    expect(body.page).toBe(2);
+    expect(body.pageSize).toBe(50);
+    expect(body.totalPages).toBe(3);
+    // Range offset for page 2 with pageSize 50 → 50..99
+    expect(rangeMock).toHaveBeenCalledWith(50, 99);
+  });
+
+  it('GET caps pageSize at 500 to prevent runaway queries', async () => {
+    mockRequireAdmin.mockResolvedValue(adminOk());
+    const rangeMock = vi.fn().mockResolvedValue({ data: [], count: 0, error: null });
+    mockServiceFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue({ range: rangeMock }),
+      }),
+    });
+    await GET(
+      new Request('http://localhost/api/admin/canonical/ports?page=1&pageSize=99999'),
+      makeParams('ports'),
+    );
+    // pageSize=500 means range(0, 499)
+    expect(rangeMock).toHaveBeenCalledWith(0, 499);
+  });
+
+  it('GET uses `label` sort column for experience_brackets and vessel_size_bands', async () => {
+    mockRequireAdmin.mockResolvedValue(adminOk());
+    const orderMock = vi.fn().mockResolvedValue({
+      data: [{ id: 'b1', label: '0–2 years' }],
+      error: null,
+    });
+    mockServiceFrom.mockReturnValue({
+      select: vi.fn().mockReturnValue({ order: orderMock }),
+    });
+    await GET(new Request('http://localhost'), makeParams('experience_brackets'));
+    expect(orderMock).toHaveBeenCalledWith('label');
   });
 
   it('POST creates record and returns 201', async () => {

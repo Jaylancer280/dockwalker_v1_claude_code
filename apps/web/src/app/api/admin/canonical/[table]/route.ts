@@ -20,10 +20,33 @@ function isAllowedTable(table: string): table is AllowedTable {
 }
 
 /**
- * GET /api/admin/canonical/:table
- * Returns all rows from the specified canonical table.
+ * Canonical tables sort + search on different columns depending on shape:
+ * experience_brackets and vessel_size_bands use `label`; everything else uses
+ * `name`.
  */
-export async function GET(_request: Request, { params }: { params: Promise<{ table: string }> }) {
+function sortColumnFor(table: AllowedTable): 'name' | 'label' {
+  return table === 'experience_brackets' || table === 'vessel_size_bands' ? 'label' : 'name';
+}
+
+const MAX_PAGE_SIZE = 500;
+
+/**
+ * GET /api/admin/canonical/:table
+ *
+ * Returns rows from the specified canonical table.
+ *
+ * Query params (optional):
+ * - `page`     — 1-indexed page number. When absent, pagination is disabled
+ *                and the route returns every row in the table (legacy
+ *                behaviour for small lookup tables like yacht_roles).
+ * - `pageSize` — rows per page (default 50, capped at 500). Ignored unless
+ *                `page` is also present.
+ * - `q`        — case-insensitive substring match on the sort column
+ *                (`name` or `label`). Works with or without pagination.
+ *
+ * Ports (~6k rows) and cities (~3.4k rows) should always use pagination.
+ */
+export async function GET(request: Request, { params }: { params: Promise<{ table: string }> }) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
   const { serviceClient } = guard.value;
@@ -37,12 +60,39 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tab
   }
 
   try {
-    const { data, error } = await serviceClient.from(table).select('*').order('name');
+    const url = new URL(request.url);
+    const rawPage = url.searchParams.get('page');
+    const rawPageSize = url.searchParams.get('pageSize');
+    const q = url.searchParams.get('q')?.trim() ?? '';
+    const paginated = rawPage !== null;
+    const page = paginated ? Math.max(1, parseInt(rawPage, 10) || 1) : 1;
+    const pageSize = paginated
+      ? Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(rawPageSize ?? '50', 10) || 50))
+      : 0;
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const sortCol = sortColumnFor(table);
+
+    if (paginated) {
+      let query = serviceClient.from(table).select('*', { count: 'exact' }).order(sortCol);
+      if (q) query = query.ilike(sortCol, `%${q}%`);
+      const offset = (page - 1) * pageSize;
+      const { data, count, error } = await query.range(offset, offset + pageSize - 1);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      const total = count ?? 0;
+      return NextResponse.json({
+        rows: data ?? [],
+        total,
+        page,
+        pageSize,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      });
     }
 
+    // Legacy unpaginated path
+    let query = serviceClient.from(table).select('*').order(sortCol);
+    if (q) query = query.ilike(sortCol, `%${q}%`);
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ rows: data ?? [] });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch canonical data';
