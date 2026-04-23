@@ -524,14 +524,14 @@ export default function ChatPage() {
   const isPermanent = context?.type === 'permanent';
   const permPostingId = context?.permanent_postings?.id ?? null;
 
-  // Voice call
+  // Voice call — entry point gated behind a "Coming soon" button in ChatHeader
+  // (Fix 222d). Hook stays so CallBar keeps rendering inert state if we ever
+  // hand-trigger a call; no UI can currently invoke startCall().
   const voiceCall = useVoiceCall({
     engagementId: engagementId ?? '',
     personId: userId ?? '',
     remoteName: context?.other_name ?? '',
   });
-  const voiceCallEnabled =
-    isPermanent && context?.status === 'active' && voiceCall.callState === 'idle';
 
   // Post system message when call ends
   useEffect(() => {
@@ -601,8 +601,6 @@ export default function ChatPage() {
           onCancelPosting={setCancelPostingId}
           onCrewWithdraw={() => setShowCrewWithdraw(true)}
           onWorkStarted={handleWorkStarted}
-          onStartVoiceCall={voiceCall.startCall}
-          voiceCallEnabled={voiceCallEnabled}
         />
 
         <MessageList

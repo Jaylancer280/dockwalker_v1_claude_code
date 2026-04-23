@@ -110,18 +110,15 @@
 - [ ] Swap Twilio dispatcher for Meta Graph API calls
 - [ ] Submit templates for Meta approval
 
-### Voice calling — browser testing (manual)
-
-- [ ] Chrome desktop + Android
-- [ ] Firefox
-- [ ] Safari macOS + iOS
-- [ ] Glare resolution, network drop, background tab, multi-tab, offline user, busy signal, hangup during navigation
-
 ---
 
 ## Backlog
 
 > Active backlog. Pick items into Queue when ready.
+
+### Deferred post-launch
+
+- **Voice calling — replace Twilio + browser QA before unmute.** Phone button in chat header is gated behind a "Coming soon" toast (Fix 222d); `IncomingCallListener` unmounted from the app layout. `use-voice-call.ts`, `voice-call-context.tsx`, `call-bar.tsx`, `incoming-call-listener.tsx`, `turn-credentials` route, `call-ended` route all retained as dead code. When unmuting: (1) decide on managed RTC provider — LiveKit Cloud is the preferred replacement over Twilio TURN+Supabase-Realtime-signaling (SFU routing, call history, recording capability); (2) swap the hand-rolled `RTCPeerConnection` stack in `use-voice-call.ts` for the provider's SDK; (3) restore phone button's real `onClick` wiring to `voiceCall.startCall` + gate on `isPermanent && status === 'active'`; (4) re-mount `IncomingCallListener` in `(app)/layout.tsx`; (5) run browser QA matrix (Chrome/Firefox/Safari × desktop+mobile, glare resolution, network drops, backgrounded tab, multi-tab, offline user). Audit-trail gap: currently only `MESSAGE.SENT` records a call; add `CALL.STARTED`/`CALL.ENDED` events in the ledger at the same time.
 
 ### Business logic / server-side
 

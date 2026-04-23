@@ -14,6 +14,7 @@ import {
   Flag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import type { EngagementContext } from './types';
 
 interface ChatHeaderProps {
@@ -43,8 +44,6 @@ interface ChatHeaderProps {
   onCancelPosting: (postingId: string) => void;
   onCrewWithdraw: () => void;
   onWorkStarted: (action: 'initiate' | 'confirm') => void;
-  onStartVoiceCall?: () => void;
-  voiceCallEnabled?: boolean;
 }
 
 export function ChatHeader({
@@ -74,10 +73,9 @@ export function ChatHeader({
   onCancelPosting,
   onCrewWithdraw,
   onWorkStarted,
-  onStartVoiceCall,
-  voiceCallEnabled,
 }: ChatHeaderProps) {
   const permPostingId = context?.permanent_postings?.id ?? null;
+  const { showSuccess } = useToast();
 
   return (
     <header className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
@@ -90,16 +88,23 @@ export function ChatHeader({
             {context?.other_name ?? 'Chat'}
           </h1>
         </div>
-        {voiceCallEnabled && onStartVoiceCall && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onStartVoiceCall}
-            aria-label="Start voice call"
-          >
-            <Phone className="h-4 w-4" />
-          </Button>
-        )}
+        {/* Voice calls deferred post-launch. Button always visible but inert
+            so users see the feature is planned; aria-disabled keeps the click
+            firing so mobile taps still surface the "coming soon" toast
+            (native disabled buttons swallow pointer events). When voice ships
+            via a managed RTC provider, swap the onClick for the real handler
+            and restore the voiceCallEnabled gate. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => showSuccess('Voice calls — coming soon')}
+          aria-disabled="true"
+          aria-label="Voice calls — coming soon"
+          title="Voice calls — coming soon"
+          className="opacity-60"
+        >
+          <Phone className="h-4 w-4" />
+        </Button>
         {context && context.status === 'active' && !showCancelForm && !showCrewCancelForm && (
           <div ref={menuRef} className="relative shrink-0 lg:hidden">
             <Button variant="ghost" size="sm" onClick={() => setShowActionMenu(!showActionMenu)}>
