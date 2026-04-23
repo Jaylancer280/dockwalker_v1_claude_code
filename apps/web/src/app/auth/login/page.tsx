@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { AuthAmbientBackground } from '@/components/auth-ambient-background';
 
 export default function LoginPage() {
   return (
@@ -26,6 +27,7 @@ function LoginContent() {
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_75%)] px-4 py-10">
+      <AuthAmbientBackground />
       <div className="flex w-full max-w-sm flex-col items-center gap-5">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">
           DockWalker · Superyacht hiring

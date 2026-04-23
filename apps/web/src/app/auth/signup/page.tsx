@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AuthAmbientBackground } from '@/components/auth-ambient-background';
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('');
@@ -73,6 +74,7 @@ export default function SignUpPage() {
   if (success) {
     return (
       <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
+        <AuthAmbientBackground />
         <div className="flex w-full max-w-sm flex-col items-center gap-6">
           <Image
             src="/images/brand/dw_app_icon_cropped.png"
@@ -106,6 +108,7 @@ export default function SignUpPage() {
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
+      <AuthAmbientBackground />
       <div className="flex w-full max-w-sm flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-2">
           <Image

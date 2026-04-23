@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AuthAmbientBackground } from '@/components/auth-ambient-background';
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -100,6 +101,7 @@ export default function ResetPasswordPage() {
   if (hasSession === null) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-background md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
+        <AuthAmbientBackground />
         <p className="text-sm text-muted-foreground">Loading...</p>
       </main>
     );
@@ -109,6 +111,7 @@ export default function ResetPasswordPage() {
   if (!hasSession) {
     return (
       <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
+        <AuthAmbientBackground />
         <div className="flex w-full max-w-sm flex-col items-center gap-6">
           <div className="flex flex-col items-center gap-2">
             <Image
@@ -141,6 +144,7 @@ export default function ResetPasswordPage() {
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
+      <AuthAmbientBackground />
       <div className="flex w-full max-w-sm flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-2">
           <Image
