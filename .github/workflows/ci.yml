@@ -93,6 +93,9 @@ jobs:
       - name: Verify NDA vessel RLS privacy
         run: bash tests/run_verify_nda_rls.sh
 
+      - name: Verify Locations V1 schema
+        run: bash tests/run_verify_locations_schema.sh
+
       - name: Stop Supabase
         if: always()
         run: supabase stop
