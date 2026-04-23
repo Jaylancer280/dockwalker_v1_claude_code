@@ -12,7 +12,6 @@ import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import { Avatar } from '@/components/avatar';
 import { NotificationBell } from '@/components/notification-bell';
 import { EpauletteBadge } from '@/components/epaulette-badge';
-import { HeroStrip } from '@/components/hero-strip';
 import { useSafeFetch } from '@/hooks/use-safe-fetch';
 import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { createClient } from '@/lib/supabase/client';
@@ -115,7 +114,6 @@ export default function MessagesPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <HeroStrip src="/images/empty-states/messages.jpg" />
       <header className="sticky top-0 z-10 bg-[var(--surface)]">
         <div className="page-width flex items-center justify-between px-4 pt-3 pb-2">
           <h1 className="text-[24px] font-bold tracking-[-0.5px]">Messages</h1>

@@ -16,14 +16,18 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   if (imageSrc) {
+    // Card is max-w-md so the image never exceeds the source file's native
+    // resolution (~400-600px wide for the current empty-states/*.jpg set) and
+    // therefore never stretch-blurs. To go wider without pixelation, replace
+    // the source JPEGs with 1600px+ exports.
     return (
-      <div className="overflow-hidden rounded-[14px] border border-dashed border-[var(--border)] text-center">
+      <div className="mx-auto w-full max-w-md overflow-hidden rounded-[14px] border border-dashed border-[var(--border)] text-center">
         <Image
           src={imageSrc}
           alt=""
-          width={400}
+          width={448}
           height={224}
-          sizes="(min-width: 768px) 400px, 100vw"
+          sizes="(min-width: 640px) 448px, 100vw"
           className="h-[180px] w-full object-cover dark:saturate-[0.85] dark:brightness-[0.7]"
         />
         <div className="px-6 py-6">

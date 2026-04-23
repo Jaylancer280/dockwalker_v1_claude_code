@@ -4,7 +4,6 @@ import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, ShieldAlert, Pencil } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { HeroStrip } from '@/components/hero-strip';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -108,7 +107,6 @@ function VesselsContent() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <HeroStrip src="/images/onboarding/vessel-helm.jpg" />
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="page-width flex items-center justify-between">
           <h1 className="text-[24px] font-bold tracking-[-0.5px]">Your Vessels</h1>

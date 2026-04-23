@@ -17,7 +17,6 @@ import {
   ClipboardCheck,
 } from 'lucide-react';
 import { EmptyState } from '@/components/empty-state';
-import { HeroStrip } from '@/components/hero-strip';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -136,7 +135,6 @@ export default function NotificationsPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <HeroStrip src="/images/empty-states/messages.jpg" />
       <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="page-width flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => router.back()}>
