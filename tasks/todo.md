@@ -5,76 +5,16 @@
 
 ## Current Task
 
-### Imagery rollout — maritime feel + empty-state completeness
-
-> From Stage 214 session. Full audit of imagery opportunities across the app. Work item-by-item; confirm surface, copy, and photo choice with user before each commit. Assets: `apps/web/public/images/{empty-states,onboarding,departments,brand}/` plus stock in top-level `assets/images/`.
-
-**Already wired — do not touch unless copy changes**
-
-- `discover.jpg` → `daywork-browse.tsx` "No jobs found" empty state
-- `docky.jpg` → `docky/page.tsx` pre-first-message state (direct `<Image>`, bypasses `EmptyState`)
-- `messages.jpg` → `messages/page.tsx` Active tab "No active messages" empty state
-- `vessels.jpg` → `vessels/page.tsx` "No vessels yet" empty state
-- `departments/*.jpg` → job card backgrounds (Stage 174)
-- Onboarding welcome (`hero-lounge`), hat selection (`crew-rope` + `vessel-helm-chair` inline)
-
-#### A. Empty-state wire-ups
-
-- [ ] **Profile orphan — `profile.jpg` has no home.** Decide spot with user, then wire in: (a) `profile/view/[personId]/page.tsx` for deactivated / data-scrubbed users, (b) own-profile view when Experience + Shore Experience + About are all empty, or (c) a new "profile not found" state.
-- [ ] **Applied tab** → swap icon for `/images/empty-states/discover.jpg`. File: `apps/web/src/app/(app)/discover/_components/applied-tab.tsx` ~line 107. `imageSrc` supersedes the `ClipboardList` icon automatically.
-- [ ] **Permanent job feed** → swap icon for `/images/empty-states/discover.jpg`. File: `apps/web/src/app/(app)/discover/_components/permanent-job-feed.tsx` ~line 357.
-- [ ] **Invitations tab** → swap icon for `/images/empty-states/messages.jpg` (mood match — waiting for contact). File: `apps/web/src/app/(app)/discover/_components/invitations-tab.tsx` ~line 67. Skip if `messages.jpg` feels off-brief.
-
-#### B. Ambient / hero / side imagery (desktop-only, reuses existing assets)
-
-- [ ] **Auth ambient background** — low-opacity overlay of `hero-bow` or `crew-rope` behind the centered card on all four auth pages. Files: `auth/login/page.tsx`, `auth/signup/page.tsx`, `auth/forgot-password/page.tsx`, `auth/reset-password/page.tsx`. Replace (or layer under) the current radial gradient. Use single photo across all four for consistency; darken overlay so form contrast is preserved. Mobile: no change — keep current solid/radial treatment.
-- [ ] **Landing hero side illustration** — 180–240px `hero-bow` or `vessel-helm` inserted into the right side of the md+ flex-row in `apps/web/src/app/page.tsx`. First verify what's currently there — earlier exploration reported a 2x crew/vessel image row in "how it works"; audit whether the hero zone itself has dead space before adding.
-- [ ] **Messages list hero strip** — 60px `messages.jpg` (reuse existing empty-state asset) above the page header on md+. File: `apps/web/src/app/(app)/messages/page.tsx`. Pairs visually with the already-wired empty state when list is populated.
-- [ ] **Permanent feed + Invitations tab hero strip** — 60px `discover.jpg` above the tab section on md+. Files: `discover/_components/permanent-job-feed.tsx`, `discover/_components/invitations-tab.tsx`. Currently text-only headers with desktop whitespace.
-- [ ] **Profile desktop side illustration** — `crew-rope` or `vessel-helm-chair` beside the QuickStats sidebar on lg+. File: `apps/web/src/app/(app)/profile/page.tsx`. Medium density risk — sketch placement and review with user before committing.
-
-#### C. Optional lower-priority spots (flagged for later)
-
-- [ ] **404 page** ambient background — sparse centred page is a good ambient-overlay candidate. File: `apps/web/src/app/not-found.tsx`.
-- [ ] **Billing page** — subtle ambient behind the tier cards on md+. File: `apps/web/src/app/(app)/billing/page.tsx`.
-- [ ] **Vessels page** hero strip — 60px `vessel-helm` above the vessel list on md+. File: `apps/web/src/app/(app)/vessels/page.tsx`.
-- [ ] **Notifications page** hero strip — 60px, desktop-only. File: `apps/web/src/app/(app)/notifications/page.tsx`.
-
-#### D. Consistency / refactor note
-
-- [ ] `docky/page.tsx` uses a hand-rolled `<Image>` because `EmptyState` doesn't support the usage pill + suggestion chips. Only worth extending `EmptyState` if we add more bespoke empty states later.
-
-#### Explicit do-not-touch (information-dense surfaces)
-
-- Chat page (`messages/[engagementId]`)
-- All forms: daywork post, permanent post, profile edit, settings, vessel form, experience form
-- Legal pages `/privacy`, `/terms`
-- Filter panels
-- Job cards within scrollable lists
-- Permanent job detail modal / overlay
-- Notifications list rows
-- Daywork mine (active / in-progress / completed / templates sections — employer workflow, icon conveys state faster)
-- Market feed (agent) — functional tool
-- Messages History tab empty state — terminal state, icon is fine
-
-#### Verification per item
-
-- [ ] Reload affected page in dev; confirm image renders (not 404, no layout shift)
-- [ ] Confirm copy still fits in the 400×180 image block (for empty states) or doesn't collide with content (for hero strips)
-- [ ] Check both mobile and desktop breakpoints — desktop-only additions must not render on `<md`
-- [ ] Run `npm run test` + `turbo run type-check lint` before commit
+_(none — imagery rollout shipped in Fix 222e + profile-orphan closed in e3ce167.)_
 
 ---
 
 ## Queue
 
-### Locations V1 — post-implementation follow-ups
+### Locations V1 — remaining follow-ups
 
-> Gaps flagged in the Stage 217 audit and recorded in `tasks/marina-locations-prompt.md` § "Post-implementation audit". Prioritized for effort.
+> Original Stage 217 audit list; C1-C3 shipped this session (3e45a3c / 6623a93 / 89d0d4c). Remaining items:
 
-- [ ] `CHECK (country_code ~ '^[A-Z]{2}$')` constraint on `regions.country_code` — 1-line migration, prevents admin typos
-- [ ] Paginate `/admin/canonical/ports` and `/cities` — returns ~6K / ~3.4K rows currently, ~30-min change
-- [ ] Migration-replay integration test covering the location schema — catches regressions on the new RPCs + columns
 - [ ] Live-picker UI sanity pass — spot-check 20 random non-curated ports via fuzzy search; confirm city/country context renders
 - [ ] Move `TOWN_ALIASES` + `COUNTRY_CODE_FIXES` from `scripts/marina-extraction/3c_normalize.py` into a versioned JSON config under `supabase/seed/` — reduces drift when extending curated hubs
 - [ ] Document admin workflow for merging OSM district near-duplicates (e.g. if users report "Muğla" marinas in multiple towns)
