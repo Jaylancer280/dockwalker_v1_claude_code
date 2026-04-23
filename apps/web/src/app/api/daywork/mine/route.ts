@@ -51,11 +51,29 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Batch-count pending applicants per posting (applied / viewed / shortlisted)
+    // so the My Jobs cards can show a "N awaiting review" badge on the Review
+    // applicants button without per-posting round-trips.
+    const dayworkIds = (dayworks ?? []).map((dw) => dw.id as string);
+    const applicantCountByDaywork = new Map<string, number>();
+    if (dayworkIds.length > 0) {
+      const { data: apps } = await supabase
+        .from('applications')
+        .select('daywork_id')
+        .in('daywork_id', dayworkIds)
+        .in('status', ['applied', 'viewed', 'shortlisted']);
+      for (const a of apps ?? []) {
+        const dwId = a.daywork_id as string;
+        applicantCountByDaywork.set(dwId, (applicantCountByDaywork.get(dwId) ?? 0) + 1);
+      }
+    }
+
     // Add computed is_overdue flag for active postings past end_date
     const todayStr = new Date().toISOString().slice(0, 10);
     const enriched = (dayworks ?? []).map((dw) => ({
       ...dw,
       is_overdue: dw.status === 'active' && dw.end_date < todayStr,
+      applicant_count: applicantCountByDaywork.get(dw.id as string) ?? 0,
     }));
 
     return NextResponse.json({ dayworks: enriched });

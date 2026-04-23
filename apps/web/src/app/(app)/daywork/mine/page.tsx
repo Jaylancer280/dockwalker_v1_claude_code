@@ -379,6 +379,14 @@ export default function MyPostingsPage() {
                       <Button variant="default" size="sm">
                         <Users className="mr-1 h-3.5 w-3.5" />
                         Review applicants
+                        {(posting.applicant_count ?? 0) > 0 && (
+                          <Badge
+                            variant="secondary"
+                            className="ml-1.5 h-5 min-w-[20px] px-1.5 text-[11px]"
+                          >
+                            {posting.applicant_count}
+                          </Badge>
+                        )}
                       </Button>
                     </Link>
                     {posting.positions_available > 1 && (

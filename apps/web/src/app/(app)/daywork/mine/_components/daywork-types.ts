@@ -14,6 +14,8 @@ export interface DayworkPosting {
   permanent_opportunity: boolean;
   status: string;
   created_at: string;
+  /** Pending applicants (applied / viewed / shortlisted) awaiting review. */
+  applicant_count?: number;
   yacht_roles: { name: string } | null;
   ports: { name: string; cities: { name: string; regions: { name: string } } } | null;
   vessels: { name: string; nda_flag: boolean; vessel_size_bands: { label: string } | null } | null;
