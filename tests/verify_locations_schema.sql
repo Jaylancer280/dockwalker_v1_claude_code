@@ -110,9 +110,9 @@ do $$
 declare
   v_missing text;
 begin
-  select string_agg(extname, ', ') into v_missing
-  from unnest(array['pg_trgm', 'unaccent']) as extname
-  where not exists (select 1 from pg_extension pe where pe.extname = unnest.extname);
+  select string_agg(wanted, ', ') into v_missing
+  from unnest(array['pg_trgm', 'unaccent']) as t(wanted)
+  where not exists (select 1 from pg_extension where extname = wanted);
   if v_missing is not null then
     raise exception 'TEST 6 FAILED: extensions missing: %', v_missing;
   end if;
