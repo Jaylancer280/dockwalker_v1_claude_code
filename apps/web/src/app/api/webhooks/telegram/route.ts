@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createServiceClient } from '@/lib/supabase/server';
-import { encryptPhone, decryptPhone, bufferFromBytea } from '@/lib/crypto';
+import { encryptForStorage, decryptPhone, bufferFromBytea } from '@/lib/crypto';
 import {
   sendTelegramMessage,
   verifyTelegramWebhookSecret,
@@ -105,7 +105,9 @@ async function handleStartCommand(chatId: string, text: string) {
   // Consume the token + attach the chat_id to the person's notification channels
   // in a best-effort sequence. If the channel upsert fails we do NOT mark the
   // token consumed — user can retry.
-  const encrypted = encryptPhone(chatId);
+  // Write as a base64 string so PostgREST stores deterministic bytes — passing
+  // a raw Buffer let the wire format drift and broke decryption on read.
+  const encrypted = encryptForStorage(chatId);
 
   const { error: channelError } = await service.from('notification_channels').upsert(
     {

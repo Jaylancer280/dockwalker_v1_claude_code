@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
-import { encryptPhone } from '@/lib/crypto';
+import { encryptForStorage } from '@/lib/crypto';
 
 const PHONE_RE = /^\+[1-9]\d{6,14}$/;
 
@@ -40,8 +40,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Encrypt phone number
-    const encrypted = encryptPhone(phoneNumber);
+    // Encrypt phone number. Base64 string for deterministic bytea write.
+    const encrypted = encryptForStorage(phoneNumber);
 
     // Generate 6-digit OTP
     const code = String(Math.floor(100000 + Math.random() * 900000));

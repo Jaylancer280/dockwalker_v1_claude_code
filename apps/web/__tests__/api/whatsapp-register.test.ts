@@ -8,6 +8,7 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
 
 vi.mock('@/lib/crypto', () => ({
   encryptPhone: vi.fn().mockReturnValue(Buffer.from('encrypted')),
+  encryptForStorage: vi.fn().mockReturnValue('ZW5jcnlwdGVk'),
 }));
 
 const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 201 });

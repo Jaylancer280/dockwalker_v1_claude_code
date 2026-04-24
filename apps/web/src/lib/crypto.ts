@@ -48,8 +48,12 @@ function getKey(): Buffer {
 }
 
 /**
- * Encrypt a phone number string to a Buffer.
+ * Encrypt a string and return a Buffer.
  * Format: [12-byte IV][ciphertext][16-byte auth tag]
+ *
+ * For Supabase bytea writes, prefer `encryptForStorage()` — it returns a
+ * base64 string with a consistent wire format that survives round-tripping
+ * through PostgREST regardless of bytea_output setting.
  */
 export function encryptPhone(plaintext: string): Buffer {
   const key = getKey();
@@ -58,6 +62,16 @@ export function encryptPhone(plaintext: string): Buffer {
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([iv, encrypted, tag]);
+}
+
+/**
+ * Encrypt and return a base64 string suitable for writing to a Supabase bytea
+ * column. Use this instead of passing a raw Buffer to `.upsert()`, which
+ * leaves wire-format behaviour up to the Supabase JS serializer and has
+ * bitten us in production.
+ */
+export function encryptForStorage(plaintext: string): string {
+  return encryptPhone(plaintext).toString('base64');
 }
 
 /**
