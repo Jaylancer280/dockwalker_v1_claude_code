@@ -19,6 +19,12 @@ vi.mock('@/lib/push-triggers/whatsapp-dispatcher', () => ({
   sendWhatsAppForEvent: vi.fn().mockResolvedValue(false),
 }));
 
+// Mock Telegram dispatcher — no Telegram connected by default
+vi.mock('@/lib/push-triggers/telegram-dispatcher', () => ({
+  getTelegramChatId: vi.fn().mockResolvedValue(null),
+  sendTelegramForEvent: vi.fn().mockResolvedValue(false),
+}));
+
 // Mock the Supabase client returned by the service client
 const mockFromImpl = vi.fn();
 const mockRpc = vi.fn();

@@ -8,6 +8,7 @@ const BOOLEAN_FIELDS = [
   'push_messages',
   'push_reminders',
   'whatsapp_enabled',
+  'telegram_enabled',
 ] as const;
 
 /**
@@ -25,7 +26,7 @@ export async function GET() {
       .from('user_preferences')
       .upsert({ person_id: user.id }, { onConflict: 'person_id', ignoreDuplicates: true })
       .select(
-        'email_enabled, push_jobs, push_applications, push_messages, push_reminders, whatsapp_enabled',
+        'email_enabled, push_jobs, push_applications, push_messages, push_reminders, whatsapp_enabled, telegram_enabled',
       )
       .single();
 
@@ -70,7 +71,7 @@ export async function PATCH(request: Request) {
       .from('user_preferences')
       .upsert({ person_id: user.id, ...updates }, { onConflict: 'person_id' })
       .select(
-        'email_enabled, push_jobs, push_applications, push_messages, push_reminders, whatsapp_enabled',
+        'email_enabled, push_jobs, push_applications, push_messages, push_reminders, whatsapp_enabled, telegram_enabled',
       )
       .single();
 

@@ -222,7 +222,7 @@
 
 ## Current Schema Version
 
-v110 — `grouped_notifications()` RPC for collapsed notification UI (110 migrations applied)
+v111 — Telegram notification channels (widen `notification_channels.channel_type` CHECK to accept `telegram`, add `user_preferences.telegram_enabled`, new `telegram_link_tokens` table for the OAuth-like bot handshake) (111 migrations applied)
 
 ## Migrations Applied
 
@@ -337,6 +337,8 @@ v110 — `grouped_notifications()` RPC for collapsed notification UI (110 migrat
 |`00107_reports.sql`| Admin Phase 2 —`reports`CRUD table with CHECK constraints (reason_category enum, reason_text ≤1000, status enum, resolution enum, self-report prevention), indexes on`(status, reason_category)`and`reported_person_id`. RLS: authenticated INSERT where reporter_person_id = auth.uid(), SELECT own; admin reads via service client. Extends `admin_delete_person` to delete reports where target is reporter/reported and null out admin_person_id. |
 |`00108_admin_delete_full_wipe.sql`| Expand `PERSON.DATA_SCRUBBED`projection to null all ~22 profile PII fields +`persons.current_hat`+ delete`crew_experiences`+`shore_experiences`rows (previously just 4 profile fields). Update`custom_access_token_hook`so`onboarded=true`requires both the profile row AND`persons.current_hat is not null`. Restored users land on null profile + null hat, routing them through onboarding on next sign-in. |
 |`00109_regions_country_code_check.sql`| `CHECK (country_code ~ '^[A-Z]{2}$')`on`regions`. NULL values still permitted (three-valued logic); populated rows must match ISO-3166 alpha-2 format. Stops admin canonical CRUD typos from breaking flag-emoji / country-filter downstream code. |
+|`00110_grouped_notifications.sql`| `grouped_notifications()`RPC partitions a user's notifications by`(type, coalesce(deep_link, ''))`, returning per-group `total_count`, `unread_count`, `latest_id`, and the most-recent title/body/deep_link/created_at. SECURITY INVOKER with explicit `person_id = auth.uid()` filter. Powers the collapsed notifications UI. |
+|`00111_telegram_notification_channels.sql`| Widen `notification_channels.channel_type`CHECK from`'whatsapp'`only to`in ('whatsapp', 'telegram')`. Add `user_preferences.telegram_enabled boolean default false`. New `telegram_link_tokens` table (id, person_id, token, expires_at, consumed_at) for the bot account-linking handshake — owner can SELECT own tokens, writes via service role only. |
 
 ## Deferred Decisions
 

@@ -4,6 +4,7 @@ import { resolveNotification } from './event-router';
 import { mapEventToNotificationType, resolveDeepLink } from './notification-mapper';
 import { sendEmailForEvent } from './email-dispatcher';
 import { getWhatsAppChannel, sendWhatsAppForEvent } from './whatsapp-dispatcher';
+import { getTelegramChatId, sendTelegramForEvent } from './telegram-dispatcher';
 
 export { getRecipientEmail } from './loaders';
 export { broadcastQueue } from './broadcast';
@@ -44,10 +45,14 @@ function getPushPreferenceKey(
 /** 5-minute cooldown cache for WhatsApp per-conversation dedup (same as email) */
 const whatsappCooldowns = new Map<string, number>();
 
+/** 5-minute cooldown cache for Telegram per-conversation dedup */
+const telegramCooldowns = new Map<string, number>();
+
 /**
  * Fire-and-forget notification after a domain event.
- * Dispatch priority: WhatsApp → push → email (no duplicates when WhatsApp succeeds).
- * In-app notification always fires regardless of channel.
+ * Dispatch priority: Telegram → WhatsApp → push → email. Whichever external
+ * channel delivers first suppresses the rest, so the user gets one
+ * notification per event per channel preference. In-app always fires.
  * Never throws — delivery failures must not break API responses.
  */
 export function notifyOnEvent(
@@ -93,7 +98,43 @@ export function notifyOnEvent(
           }
         }
 
-        // 3. Try WhatsApp first (if connected + enabled + category allowed)
+        // 3a. Try Telegram first (if connected + enabled + category allowed)
+        let telegramSent = false;
+        if (categoryAllowed) {
+          const tgChatId = await getTelegramChatId(serviceClient, ctx.recipientPersonId);
+          if (tgChatId) {
+            if (eventType === 'MESSAGE.SENT') {
+              const eid = (payload.engagement_id as string) ?? '';
+              const cooldownKey = `tg:${ctx.recipientPersonId}:${eid}`;
+              const lastSent = telegramCooldowns.get(cooldownKey) ?? 0;
+              if (Date.now() - lastSent >= 5 * 60 * 1000) {
+                telegramSent = await sendTelegramForEvent(
+                  serviceClient,
+                  eventType,
+                  payload,
+                  ctx,
+                  tgChatId,
+                );
+                if (telegramSent) {
+                  telegramCooldowns.set(cooldownKey, Date.now());
+                }
+              }
+            } else {
+              telegramSent = await sendTelegramForEvent(
+                serviceClient,
+                eventType,
+                payload,
+                ctx,
+                tgChatId,
+              );
+            }
+          }
+        }
+
+        // If Telegram delivered, skip other external channels.
+        if (telegramSent) continue;
+
+        // 3b. Try WhatsApp (if connected + enabled + category allowed)
         let whatsAppSent = false;
         if (categoryAllowed) {
           const phoneEncrypted = await getWhatsAppChannel(serviceClient, ctx.recipientPersonId);

@@ -2,6 +2,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PushNotification } from '../push-delivery';
 import { sendPushToUser } from '../push-delivery';
 import { sendWhatsApp } from '../whatsapp';
+import { sendTelegramMessage } from '../telegram';
+import { decryptPhone } from '../crypto';
 import { getJobNumber } from './loaders';
 import { currencySymbol } from '@dockwalker/shared';
 
@@ -120,6 +122,33 @@ export async function fireBroadcast(
     };
   }
 
+  // Batch-query Telegram channels for all recipients
+  const { data: tgChannels } = await sc
+    .from('notification_channels')
+    .select('person_id, channel_value_encrypted')
+    .in('person_id', recipientIds)
+    .eq('channel_type', 'telegram')
+    .eq('verified', true);
+
+  const { data: tgPrefs } = await sc
+    .from('user_preferences')
+    .select('person_id, telegram_enabled')
+    .in('person_id', recipientIds)
+    .eq('telegram_enabled', true);
+
+  const tgEnabledSet = new Set((tgPrefs ?? []).map((p) => p.person_id as string));
+  const tgChatIdMap = new Map<string, string>();
+  for (const ch of tgChannels ?? []) {
+    if (tgEnabledSet.has(ch.person_id as string)) {
+      try {
+        const chatId = decryptPhone(Buffer.from(ch.channel_value_encrypted));
+        tgChatIdMap.set(ch.person_id as string, chatId);
+      } catch {
+        // Skip — decryption failed (key mismatch)
+      }
+    }
+  }
+
   // Batch-query WhatsApp channels for all recipients
   const { data: waChannels } = await sc
     .from('notification_channels')
@@ -173,7 +202,55 @@ export async function fireBroadcast(
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
 
+  // Telegram message body — single posting gets rich detail, collapsed gets a summary
+  let tgText: string | null = null;
+  if (tgChatIdMap.size > 0) {
+    if (dayworkIds.length === 1) {
+      const { data: dw } = await sc
+        .from('dayworks')
+        .select('day_rate, currency, start_date, end_date, yacht_roles:role_id(name)')
+        .eq('id', dayworkIds[0])
+        .single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = dw as any;
+      const { data: city } = await sc.from('cities').select('name').eq('id', cityId).single();
+      const roleName = d?.yacht_roles?.name ?? 'daywork';
+      const sym = d?.currency ? currencySymbol(d.currency) : '€';
+      const startDate = d?.start_date
+        ? new Date(d.start_date + 'T00:00:00').toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+          })
+        : 'TBC';
+      const endDate = d?.end_date
+        ? new Date(d.end_date + 'T00:00:00').toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+          })
+        : 'TBC';
+      const jobNumber = await getJobNumber(sc, dayworkIds[0]);
+      tgText =
+        `⚓ <b>New daywork — ${roleName}</b>\n` +
+        `${city?.name ?? 'your area'} · ${startDate} – ${endDate}\n` +
+        `${sym}${d?.day_rate ?? '—'}/day · Ref: ${jobNumber}\n\n` +
+        `<a href="${siteUrl}/discover">Browse in DockWalker</a>`;
+    } else {
+      const { data: city } = await sc.from('cities').select('name').eq('id', cityId).single();
+      tgText =
+        `⚓ <b>${dayworkIds.length} new daywork postings</b>\n` +
+        `${city?.name ?? 'your area'}\n\n` +
+        `<a href="${siteUrl}/discover">Browse in DockWalker</a>`;
+    }
+  }
+
   for (const recipientId of recipientIds) {
+    const tgChatId = tgChatIdMap.get(recipientId);
+    if (tgChatId && tgText) {
+      // Telegram takes priority — skip WA and push for this recipient
+      sendTelegramMessage(tgChatId, tgText).catch(() => {});
+      continue;
+    }
+
     const waPhone = waChannelMap.get(recipientId);
     if (waPhone && waVariables) {
       // Send WhatsApp — don't send push for this recipient

@@ -11,6 +11,12 @@ vi.mock('@/lib/push-triggers/whatsapp-dispatcher', () => ({
   sendWhatsAppForEvent: vi.fn().mockResolvedValue(false),
 }));
 
+// Mock Telegram dispatcher — no Telegram connected by default
+vi.mock('@/lib/push-triggers/telegram-dispatcher', () => ({
+  getTelegramChatId: vi.fn().mockResolvedValue(null),
+  sendTelegramForEvent: vi.fn().mockResolvedValue(false),
+}));
+
 // Mock email dispatcher
 vi.mock('@/lib/push-triggers/email-dispatcher', () => ({
   sendEmailForEvent: vi.fn().mockResolvedValue(undefined),

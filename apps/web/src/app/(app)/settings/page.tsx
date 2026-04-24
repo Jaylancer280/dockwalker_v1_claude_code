@@ -10,6 +10,7 @@ import type { DistanceUnit, CurrencyCode } from '@dockwalker/shared';
 import type { UserIdentity } from '@supabase/supabase-js';
 import { AccountSection } from './_components/account-section';
 import { NotificationsSection, type NotificationPrefs } from './_components/notifications-section';
+import { TelegramSection } from './_components/telegram-section';
 import { WhatsAppSection } from './_components/whatsapp-section';
 import { AppearanceSection } from './_components/appearance-section';
 import { DangerZoneSection } from './_components/danger-zone-section';
@@ -31,6 +32,7 @@ export default function SettingsPage() {
     push_messages: true,
     push_reminders: true,
     whatsapp_enabled: false,
+    telegram_enabled: false,
   });
   const [notifLoaded, setNotifLoaded] = useState(false);
 
@@ -122,6 +124,12 @@ export default function SettingsPage() {
           notifPrefs={notifPrefs}
           notifLoaded={notifLoaded}
           onToggle={handleNotifToggle}
+        />
+
+        <TelegramSection
+          telegramEnabled={notifPrefs.telegram_enabled}
+          notifLoaded={notifLoaded}
+          onToggleEnabled={() => handleNotifToggle('telegram_enabled')}
         />
 
         <WhatsAppSection

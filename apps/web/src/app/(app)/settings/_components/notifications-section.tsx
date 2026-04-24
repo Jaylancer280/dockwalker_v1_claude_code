@@ -9,6 +9,7 @@ export interface NotificationPrefs {
   push_messages: boolean;
   push_reminders: boolean;
   whatsapp_enabled: boolean;
+  telegram_enabled: boolean;
 }
 
 export interface NotificationsSectionProps {
