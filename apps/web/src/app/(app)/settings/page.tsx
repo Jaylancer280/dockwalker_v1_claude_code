@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { safeFetch } from '@/lib/safe-fetch';
+import { useToast } from '@/hooks/use-toast';
 import type { DistanceUnit, CurrencyCode } from '@dockwalker/shared';
 import type { UserIdentity } from '@supabase/supabase-js';
 import { AccountSection } from './_components/account-section';
@@ -15,9 +16,20 @@ import { WhatsAppSection } from './_components/whatsapp-section';
 import { AppearanceSection } from './_components/appearance-section';
 import { DangerZoneSection } from './_components/danger-zone-section';
 
+const TOGGLE_LABELS: Partial<Record<keyof NotificationPrefs, string>> = {
+  email_enabled: 'Email notifications',
+  push_jobs: 'Job notifications',
+  push_applications: 'Application notifications',
+  push_messages: 'Message notifications',
+  push_reminders: 'Reminders',
+  telegram_enabled: 'Send via Telegram',
+  whatsapp_enabled: 'Send via WhatsApp',
+};
+
 export default function SettingsPage() {
   const router = useRouter();
   const supabase = createClient();
+  const { showSuccess, showError } = useToast();
 
   // User state
   const [loading, setLoading] = useState(true);
@@ -101,12 +113,15 @@ export default function SettingsPage() {
       if (!res.ok) {
         // Revert optimistic update so the UI reflects reality
         setNotifPrefs((prev) => ({ ...prev, [field]: prevValue }));
+        showError(`Couldn't save — ${res.error}`);
         return;
       }
       // Replace local state with server truth — covers cases where the server
       // upsert set additional columns (e.g. webhook set telegram_enabled=true
       // after page load and we're syncing back up).
       if (res.data.preferences) setNotifPrefs(res.data.preferences);
+      const label = TOGGLE_LABELS[field] ?? field;
+      showSuccess(`${label} ${newValue ? 'on' : 'off'}`);
     })();
   }
 
