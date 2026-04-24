@@ -89,14 +89,31 @@ export default function SettingsPage() {
   }
 
   function handleNotifToggle(field: keyof NotificationPrefs) {
-    const newValue = !notifPrefs[field];
+    const prevValue = notifPrefs[field];
+    const newValue = !prevValue;
     setNotifPrefs((prev) => ({ ...prev, [field]: newValue }));
-    safeFetch('/api/preferences', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: newValue }),
-    });
+    void (async () => {
+      const res = await safeFetch<{ preferences: NotificationPrefs }>('/api/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: newValue }),
+      });
+      if (!res.ok) {
+        // Revert optimistic update so the UI reflects reality
+        setNotifPrefs((prev) => ({ ...prev, [field]: prevValue }));
+        return;
+      }
+      // Replace local state with server truth — covers cases where the server
+      // upsert set additional columns (e.g. webhook set telegram_enabled=true
+      // after page load and we're syncing back up).
+      if (res.data.preferences) setNotifPrefs(res.data.preferences);
+    })();
   }
+
+  const refreshNotifPrefs = useCallback(async () => {
+    const res = await safeFetch<{ preferences: NotificationPrefs }>('/api/preferences');
+    if (res.ok && res.data.preferences) setNotifPrefs(res.data.preferences);
+  }, []);
 
   if (loading) {
     return (
@@ -130,6 +147,7 @@ export default function SettingsPage() {
           telegramEnabled={notifPrefs.telegram_enabled}
           notifLoaded={notifLoaded}
           onToggleEnabled={() => handleNotifToggle('telegram_enabled')}
+          onConnected={refreshNotifPrefs}
         />
 
         <WhatsAppSection

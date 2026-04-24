@@ -21,6 +21,7 @@ interface TelegramSectionProps {
   telegramEnabled: boolean;
   notifLoaded: boolean;
   onToggleEnabled: () => void;
+  onConnected?: () => void | Promise<void>;
 }
 
 const POLL_INTERVAL_MS = 3000;
@@ -30,6 +31,7 @@ export function TelegramSection({
   telegramEnabled,
   notifLoaded,
   onToggleEnabled,
+  onConnected,
 }: TelegramSectionProps) {
   const { showSuccess, showError } = useToast();
   const [status, setStatus] = useState<TelegramStatus | null>(null);
@@ -79,10 +81,14 @@ export function TelegramSection({
         setLinkPending(null);
         showSuccess('Telegram connected');
         stopPolling();
+        // Tell the parent to refetch preferences — the webhook set
+        // telegram_enabled=true server-side while we were polling, but the
+        // parent's cached value is still false from initial page load.
+        await onConnected?.();
       }
     }, POLL_INTERVAL_MS);
     return stopPolling;
-  }, [linkPending, stopPolling, showSuccess]);
+  }, [linkPending, stopPolling, showSuccess, onConnected]);
 
   async function handleConnect() {
     setSubmitting(true);

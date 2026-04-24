@@ -7,8 +7,12 @@ import { createServiceClient } from '@/lib/supabase/server';
 // cookieEncoding is 'base64url' (the default for createServerClient).
 const BASE64_PREFIX = 'base64-';
 
+// Covers both self-deactivation (user clicked Delete in Settings — data intact,
+// password reset restores) and admin-removal (data scrubbed, password reset will
+// NOT work, user must contact support). A single honest message so neither
+// audience is misdirected.
 const DEACTIVATED_MESSAGE =
-  'This account has been deactivated. You can restore it within 30 days by resetting your password.';
+  'This account is no longer active. If you deactivated it yourself, you can restore it within 30 days by resetting your password. If your account was removed by DockWalker, please contact support@dockwalker.io.';
 
 export async function POST(request: Request) {
   const formData = await request.formData();
