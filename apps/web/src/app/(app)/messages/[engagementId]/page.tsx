@@ -547,12 +547,17 @@ export default function ChatPage() {
   const closedIsRatable =
     context?.status === 'closed' &&
     (context.outcome === 'withdrew' || context.outcome === 'not_successful');
+  // Admin-cancelled engagements aren't rateable — the counterparty may have
+  // been deleted. Skip rating so the chat footer shows "ended" instead of a
+  // dangling "Rate this experience" button.
+  const isAdminCancelled = context?.status === 'cancelled' && context.cancelled_by === 'admin';
   const canRate =
-    (context?.status === 'completed' &&
+    !isAdminCancelled &&
+    ((context?.status === 'completed' &&
       context.has_rated === false &&
       ((isCrew && context.crew_completion_status !== null) || isEmployer === true)) ||
-    (context?.status === 'cancelled' && context.has_rated === false) ||
-    (closedIsRatable && context?.has_rated === false);
+      (context?.status === 'cancelled' && context.has_rated === false) ||
+      (closedIsRatable && context?.has_rated === false));
 
   const cancelLabel =
     context?.work_started_status === 'confirmed' ? 'Terminate job early' : 'Cancel engagement';

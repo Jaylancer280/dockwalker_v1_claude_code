@@ -31,7 +31,7 @@ export async function GET() {
         .select(
           `
         id, crew_person_id, employer_person_id, daywork_id, permanent_posting_id, start_date, end_date, status,
-        crew_completion_status,
+        crew_completion_status, cancelled_by,
         dayworks(yacht_roles(name), ports(name)),
         permanent_postings(yacht_roles(name), ports(name)),
         profiles!active_engagements_employer_person_id_profiles_fkey(display_name, avatar_url)
@@ -50,7 +50,7 @@ export async function GET() {
         .select(
           `
         id, crew_person_id, employer_person_id, daywork_id, permanent_posting_id, start_date, end_date, status,
-        crew_completion_status,
+        crew_completion_status, cancelled_by,
         dayworks(yacht_roles(name), ports(name)),
         permanent_postings(yacht_roles(name), ports(name)),
         profiles!active_engagements_crew_person_id_profiles_fkey(display_name, avatar_url)

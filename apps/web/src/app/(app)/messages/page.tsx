@@ -23,6 +23,7 @@ interface Conversation {
   start_date: string;
   end_date: string | null;
   status: string;
+  cancelled_by?: string | null;
   type?: 'daywork' | 'permanent';
   has_rated: boolean;
   role: 'crew' | 'employer';
@@ -88,18 +89,25 @@ export default function MessagesPage() {
     sessionStorage.setItem('dockwalker:messages-tab', tab);
   }, [tab]);
 
+  // Admin-cancelled engagements skip rating — the counterparty may have been
+  // deleted, so there's nobody to rate and the row can't leave "needs rating"
+  // purgatory. Treat them as terminal → History regardless of has_rated.
+  const isAdminCancelled = (c: Conversation) =>
+    c.status === 'cancelled' && c.cancelled_by === 'admin';
+
   // Active: active engagements + completed/cancelled that still need rating
   const active = conversations.filter(
     (c) =>
       c.status === 'active' ||
       (c.status === 'completed' && !c.has_rated) ||
-      (c.status === 'cancelled' && !c.has_rated),
+      (c.status === 'cancelled' && !c.has_rated && !isAdminCancelled(c)),
   );
-  // History: completed-and-rated + cancelled-and-rated + closed (permanent terminal) — read-only
+  // History: completed-and-rated + cancelled-and-rated + admin-cancelled +
+  // closed (permanent terminal) — read-only
   const history = conversations.filter(
     (c) =>
       (c.status === 'completed' && c.has_rated) ||
-      (c.status === 'cancelled' && c.has_rated) ||
+      (c.status === 'cancelled' && (c.has_rated || isAdminCancelled(c))) ||
       c.status === 'closed',
   );
 
@@ -201,15 +209,18 @@ export default function MessagesPage() {
                     </span>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {((conv.status === 'completed' && !conv.has_rated) ||
-                        (conv.status === 'cancelled' && !conv.has_rated)) && (
+                        (conv.status === 'cancelled' &&
+                          !conv.has_rated &&
+                          !isAdminCancelled(conv))) && (
                         <Badge variant="status-filling" className="flex items-center gap-1">
                           <ClipboardCheck className="h-3 w-3" />
                           Action needed
                         </Badge>
                       )}
-                      {conv.status === 'cancelled' && conv.has_rated && (
-                        <Badge variant="status-cancelled">Cancelled</Badge>
-                      )}
+                      {conv.status === 'cancelled' &&
+                        (conv.has_rated || isAdminCancelled(conv)) && (
+                          <Badge variant="status-cancelled">Cancelled</Badge>
+                        )}
                       {conv.status === 'closed' && <Badge variant="status-cancelled">Closed</Badge>}
                       <span className="font-mono text-[11px] text-[var(--tertiary)]">
                         {conv.last_message
