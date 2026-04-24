@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NotifyContext } from './types';
-import { decryptPhone } from '../crypto';
+import { decryptPhone, bufferFromBytea } from '../crypto';
+import * as Sentry from '@sentry/nextjs';
 import { sendTelegramMessage } from '../telegram';
 import { getJobNumber, getDisplayName, getPermanentPostingInfo } from './loaders';
 import { currencySymbol } from '@dockwalker/shared';
@@ -350,27 +351,57 @@ export async function getTelegramChatId(
   sc: SupabaseClient,
   recipientPersonId: string,
 ): Promise<string | null> {
-  const { data: channel } = await sc
+  const { data: channel, error: channelError } = await sc
     .from('notification_channels')
     .select('channel_value_encrypted, verified')
     .eq('person_id', recipientPersonId)
     .eq('channel_type', 'telegram')
     .eq('verified', true)
-    .single();
+    .maybeSingle();
 
+  if (channelError) {
+    Sentry.captureException(new Error(`Telegram channel lookup failed: ${channelError.message}`), {
+      extra: { recipientPersonId },
+    });
+    return null;
+  }
   if (!channel) return null;
 
-  const { data: prefs } = await sc
+  const { data: prefs, error: prefsError } = await sc
     .from('user_preferences')
     .select('telegram_enabled')
     .eq('person_id', recipientPersonId)
-    .single();
+    .maybeSingle();
 
+  if (prefsError) {
+    Sentry.captureException(new Error(`Telegram preference lookup failed: ${prefsError.message}`), {
+      extra: { recipientPersonId },
+    });
+    return null;
+  }
   if (prefs && prefs.telegram_enabled === false) return null;
 
   try {
-    return decryptPhone(Buffer.from(channel.channel_value_encrypted));
-  } catch {
+    const chatId = decryptPhone(bufferFromBytea(channel.channel_value_encrypted));
+    if (!chatId) {
+      Sentry.captureMessage('Telegram chat_id decoded to empty string', {
+        extra: { recipientPersonId },
+      });
+      return null;
+    }
+    return chatId;
+  } catch (err) {
+    Sentry.captureException(err, {
+      extra: {
+        context: 'getTelegramChatId decrypt',
+        recipientPersonId,
+        ciphertextType: typeof channel.channel_value_encrypted,
+        ciphertextSample:
+          typeof channel.channel_value_encrypted === 'string'
+            ? String(channel.channel_value_encrypted).slice(0, 20)
+            : '(non-string)',
+      },
+    });
     return null;
   }
 }
@@ -386,6 +417,17 @@ export async function sendTelegramForEvent(
   chatId: string,
 ): Promise<boolean> {
   const body = await resolveBody(sc, eventType, payload, ctx);
-  if (!body) return false;
-  return sendTelegramMessage(chatId, body.text);
+  if (!body) {
+    Sentry.captureMessage(`Telegram: no template body for event ${eventType}`, {
+      extra: { eventType, recipientPersonId: ctx.recipientPersonId },
+    });
+    return false;
+  }
+  const sent = await sendTelegramMessage(chatId, body.text);
+  if (!sent) {
+    Sentry.captureMessage(`Telegram send returned false for ${eventType}`, {
+      extra: { eventType, recipientPersonId: ctx.recipientPersonId },
+    });
+  }
+  return sent;
 }

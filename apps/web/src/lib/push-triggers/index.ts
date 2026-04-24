@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import * as Sentry from '@sentry/nextjs';
 import { sendPushToUser } from '../push-delivery';
 import { resolveNotification } from './event-router';
 import { mapEventToNotificationType, resolveDeepLink } from './notification-mapper';
@@ -102,6 +103,17 @@ export function notifyOnEvent(
         let telegramSent = false;
         if (categoryAllowed) {
           const tgChatId = await getTelegramChatId(serviceClient, ctx.recipientPersonId);
+          Sentry.addBreadcrumb({
+            category: 'notify',
+            level: 'info',
+            message: 'telegram lookup',
+            data: {
+              eventType,
+              recipientPersonId: ctx.recipientPersonId,
+              categoryAllowed,
+              telegramChannelFound: !!tgChatId,
+            },
+          });
           if (tgChatId) {
             if (eventType === 'MESSAGE.SENT') {
               const eid = (payload.engagement_id as string) ?? '';
@@ -182,7 +194,9 @@ export function notifyOnEvent(
         sendEmailForEvent(serviceClient, eventType, payload, ctx).catch(() => {});
       }
     })
-    .catch(() => {
-      // swallow — resolution errors are non-fatal
+    .catch((err) => {
+      Sentry.captureException(err, {
+        extra: { context: 'notifyOnEvent dispatch', eventType, payload },
+      });
     });
 }

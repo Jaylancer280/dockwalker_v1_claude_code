@@ -3,7 +3,7 @@ import type { PushNotification } from '../push-delivery';
 import { sendPushToUser } from '../push-delivery';
 import { sendWhatsApp } from '../whatsapp';
 import { sendTelegramMessage } from '../telegram';
-import { decryptPhone } from '../crypto';
+import { decryptPhone, bufferFromBytea } from '../crypto';
 import { getJobNumber } from './loaders';
 import { currencySymbol } from '@dockwalker/shared';
 
@@ -141,7 +141,7 @@ export async function fireBroadcast(
   for (const ch of tgChannels ?? []) {
     if (tgEnabledSet.has(ch.person_id as string)) {
       try {
-        const chatId = decryptPhone(Buffer.from(ch.channel_value_encrypted));
+        const chatId = decryptPhone(bufferFromBytea(ch.channel_value_encrypted));
         tgChatIdMap.set(ch.person_id as string, chatId);
       } catch {
         // Skip — decryption failed (key mismatch)

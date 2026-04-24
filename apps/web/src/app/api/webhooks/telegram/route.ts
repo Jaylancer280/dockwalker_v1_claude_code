@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { createServiceClient } from '@/lib/supabase/server';
-import { encryptPhone, decryptPhone } from '@/lib/crypto';
+import { encryptPhone, decryptPhone, bufferFromBytea } from '@/lib/crypto';
 import {
   sendTelegramMessage,
   verifyTelegramWebhookSecret,
@@ -156,7 +156,7 @@ async function handleStopCommand(chatId: string) {
 
   const match = (channels ?? []).find((row) => {
     try {
-      return decryptPhone(Buffer.from(row.channel_value_encrypted)) === chatId;
+      return decryptPhone(bufferFromBytea(row.channel_value_encrypted)) === chatId;
     } catch {
       return false;
     }

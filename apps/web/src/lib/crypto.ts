@@ -1,5 +1,36 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
+/**
+ * Convert whatever Supabase handed back for a bytea column into a Node Buffer.
+ * PostgREST serialises bytea differently depending on version and transport:
+ *   - Hex string with `\x` prefix (legacy): "\x41424344"
+ *   - Hex string without prefix: "41424344"
+ *   - Base64 string
+ *   - Native Buffer (direct pg insertion)
+ *   - Uint8Array (rare)
+ * Always returns a Buffer. Falls back to utf-8 decoding if nothing else parses.
+ */
+export function bufferFromBytea(value: unknown): Buffer {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) return Buffer.from(value);
+  if (typeof value === 'string') {
+    if (value.startsWith('\\x')) {
+      return Buffer.from(value.slice(2), 'hex');
+    }
+    // Detect hex (even length, all hex chars)
+    if (value.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(value)) {
+      return Buffer.from(value, 'hex');
+    }
+    // Detect base64 (length divisible by 4, only base64 alphabet)
+    if (value.length % 4 === 0 && /^[A-Za-z0-9+/]+=*$/.test(value)) {
+      return Buffer.from(value, 'base64');
+    }
+    return Buffer.from(value, 'utf8');
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return Buffer.from(value as any);
+}
+
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
 const TAG_LENGTH = 16;

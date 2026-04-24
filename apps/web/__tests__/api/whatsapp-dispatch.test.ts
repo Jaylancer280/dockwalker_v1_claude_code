@@ -26,6 +26,10 @@ vi.mock('@/lib/push-triggers/whatsapp-dispatcher', () => ({
   getWhatsAppChannel: (...args: unknown[]) => mockGetWhatsAppChannel(...args),
   sendWhatsAppForEvent: (...args: unknown[]) => mockSendWhatsAppForEvent(...args),
 }));
+vi.mock('@/lib/push-triggers/telegram-dispatcher', () => ({
+  getTelegramChatId: vi.fn().mockResolvedValue(null),
+  sendTelegramForEvent: vi.fn().mockResolvedValue(false),
+}));
 
 const mockServiceFrom = vi.fn();
 const mockServiceClient = {
