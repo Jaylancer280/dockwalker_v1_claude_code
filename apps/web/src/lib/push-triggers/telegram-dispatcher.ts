@@ -3,7 +3,12 @@ import type { NotifyContext } from './types';
 import { decryptPhone, bufferFromBytea } from '../crypto';
 import * as Sentry from '@sentry/nextjs';
 import { sendTelegramMessage } from '../telegram';
-import { getJobNumber, getDisplayName, getPermanentPostingInfo } from './loaders';
+import {
+  getJobNumber,
+  getDisplayName,
+  getPermanentPostingInfo,
+  getApplicantProfileSummary,
+} from './loaders';
 import { currencySymbol } from '@dockwalker/shared';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
@@ -19,6 +24,23 @@ function escapeHtml(s: string): string {
 
 function cta(url: string, label = 'Open in DockWalker'): string {
   return `\n\n<a href="${url}">${label}</a>`;
+}
+
+function previewText(s: string, max = 180): string {
+  const collapsed = s.replace(/\s+/g, ' ').trim();
+  if (collapsed.length <= max) return collapsed;
+  return collapsed.slice(0, max - 1).trimEnd() + '…';
+}
+
+function vesselLabel(type: string | null | undefined, name: string): string {
+  const prefix = type === 'sail' ? 'S/Y ' : type === 'motor' ? 'M/Y ' : '';
+  return `${prefix}${name}`;
+}
+
+function formatDateRange(start?: string, end?: string): string {
+  if (start && end) return `${formatDate(start)} – ${formatDate(end)}`;
+  if (start) return formatDate(start);
+  return 'dates TBC';
 }
 
 interface TelegramBody {
@@ -42,23 +64,53 @@ async function resolveBody(
   switch (eventType) {
     case 'DAYWORK.APPLIED': {
       if (!dayworkId) return null;
-      const jobNumber = await getJobNumber(sc, dayworkId);
-      const { data: dw } = await sc
-        .from('dayworks')
-        .select('yacht_roles:role_id(name)')
-        .eq('id', dayworkId)
-        .single();
+      const crewId = payload.crew_person_id as string | undefined;
+      const [jobNumber, dwResult, applicantCountResult, applicantSummary] = await Promise.all([
+        getJobNumber(sc, dayworkId),
+        sc
+          .from('dayworks')
+          .select(
+            'start_date, end_date, working_days, day_rate, currency, yacht_roles:role_id(name), vessels:vessel_id(name, vessel_type, nda_flag), ports:location_port_id(name)',
+          )
+          .eq('id', dayworkId)
+          .single(),
+        sc
+          .from('applications')
+          .select('id', { count: 'exact', head: true })
+          .eq('daywork_id', dayworkId),
+        crewId ? getApplicantProfileSummary(sc, crewId) : Promise.resolve(null),
+      ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const roleName = (dw as any)?.yacht_roles?.name ?? 'a role';
-      const { count } = await sc
-        .from('applications')
-        .select('id', { count: 'exact', head: true })
-        .eq('daywork_id', dayworkId);
-      const applicants = count ?? 0;
+      const d = dwResult.data as any;
+      const roleName = d?.yacht_roles?.name ?? 'a role';
+      const vesselName = d?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(d?.vessels?.vessel_type, d?.vessels?.name ?? 'Vessel');
+      const portName = d?.ports?.name ?? 'Port TBC';
+      const dates = formatDateRange(d?.start_date, d?.end_date);
+      const days = d?.working_days ?? '?';
+      const rate = d?.day_rate
+        ? `${currencySymbol(d.currency ?? 'EUR')}${d.day_rate}/day`
+        : 'rate TBC';
+      const applicants = applicantCountResult.count ?? 0;
+      const applicantLine = applicantSummary
+        ? `<b>${escapeHtml(applicantSummary.displayName)}</b>` +
+          (applicantSummary.experienceBracketLabel
+            ? ` · ${escapeHtml(applicantSummary.experienceBracketLabel)}`
+            : '') +
+          (applicantSummary.cityLabel ? ` · ${escapeHtml(applicantSummary.cityLabel)}` : '')
+        : '<b>A crew member</b>';
       return {
         text:
-          `📥 <b>New applicant — ${escapeHtml(roleName)}</b>\n` +
-          `${escapeHtml(jobNumber)} · ${applicants} applicant${applicants === 1 ? '' : 's'}` +
+          `📥 <b>New daywork applicant</b>\n\n` +
+          `${applicantLine}\n` +
+          `applied for <b>${escapeHtml(roleName)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}\n` +
+          `📅 ${dates} · ${days} day${days === 1 ? '' : 's'}\n` +
+          `💶 ${escapeHtml(rate)}\n\n` +
+          `${applicants} total applicant${applicants === 1 ? '' : 's'}\n` +
+          `Ref: ${escapeHtml(jobNumber)}` +
           cta(`${SITE_URL}/daywork/${dayworkId}/review`, 'Review applicants'),
       };
     }
@@ -69,26 +121,32 @@ async function resolveBody(
       const { data: dw } = await sc
         .from('dayworks')
         .select(
-          'start_date, end_date, day_rate, currency, yacht_roles:role_id(name), vessels:vessel_id(name, nda_flag), ports:location_port_id(name)',
+          'start_date, end_date, working_days, day_rate, currency, meals, yacht_roles:role_id(name), vessels:vessel_id(name, vessel_type, nda_flag), ports:location_port_id(name)',
         )
         .eq('id', dayworkId)
         .single();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const d = dw as any;
       const roleName = d?.yacht_roles?.name ?? 'a role';
-      const vesselName = d?.vessels?.nda_flag ? 'NDA Vessel' : (d?.vessels?.name ?? 'a vessel');
-      const portName = d?.ports?.name ?? 'port TBC';
-      const dates =
-        d?.start_date && d?.end_date
-          ? `${formatDate(d.start_date)} – ${formatDate(d.end_date)}`
-          : 'dates TBC';
-      const rate = d?.day_rate ? `${currencySymbol(d.currency ?? 'EUR')}${d.day_rate}/day` : '';
+      const vesselName = d?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(d?.vessels?.vessel_type, d?.vessels?.name ?? 'Vessel');
+      const portName = d?.ports?.name ?? 'Port TBC';
+      const dates = formatDateRange(d?.start_date, d?.end_date);
+      const days = d?.working_days;
+      const rate = d?.day_rate
+        ? `${currencySymbol(d.currency ?? 'EUR')}${d.day_rate}/day`
+        : 'rate TBC';
+      const mealsList: string[] = Array.isArray(d?.meals) ? d.meals : [];
       return {
         text:
-          `🎉 <b>You're in — ${escapeHtml(roleName)}</b>\n` +
-          `${escapeHtml(vesselName)} · ${escapeHtml(portName)}\n` +
-          `${dates}${rate ? ` · ${escapeHtml(rate)}` : ''}\n` +
-          `Ref: ${escapeHtml(jobNumber)}` +
+          `🎉 <b>You're in — ${escapeHtml(roleName)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}\n` +
+          `📅 ${dates}${days ? ` · ${days} day${days === 1 ? '' : 's'}` : ''}\n` +
+          `💶 ${escapeHtml(rate)}\n` +
+          (mealsList.length ? `🍽 ${escapeHtml(mealsList.join(', '))}\n` : '') +
+          `\nRef: ${escapeHtml(jobNumber)}` +
           cta(`${SITE_URL}/messages/${engagementId ?? ''}`, 'Open chat'),
       };
     }
@@ -116,17 +174,29 @@ async function resolveBody(
       const jobNumber = await getJobNumber(sc, dayworkId);
       const { data: dw } = await sc
         .from('dayworks')
-        .select('yacht_roles:role_id(name), ports:location_port_id(name)')
+        .select(
+          'start_date, end_date, day_rate, currency, yacht_roles:role_id(name), vessels:vessel_id(name, vessel_type, nda_flag), ports:location_port_id(name)',
+        )
         .eq('id', dayworkId)
         .single();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const d = dw as any;
+      const roleName = d?.yacht_roles?.name ?? 'a role';
+      const vesselName = d?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(d?.vessels?.vessel_type, d?.vessels?.name ?? 'Vessel');
+      const portName = d?.ports?.name ?? 'Port TBC';
+      const dates = formatDateRange(d?.start_date, d?.end_date);
+      const rate = d?.day_rate ? `${currencySymbol(d.currency ?? 'EUR')}${d.day_rate}/day` : '';
       return {
         text:
-          `⭐ <b>You've been shortlisted</b>\n` +
-          `${escapeHtml(d?.yacht_roles?.name ?? 'a role')} · ${escapeHtml(d?.ports?.name ?? 'a port')}\n` +
-          `Ref: ${escapeHtml(jobNumber)}` +
-          cta(`${SITE_URL}/discover`),
+          `⭐ <b>You've been shortlisted — ${escapeHtml(roleName)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}\n` +
+          `📅 ${dates}` +
+          (rate ? `\n💶 ${escapeHtml(rate)}` : '') +
+          `\n\nRef: ${escapeHtml(jobNumber)}` +
+          cta(`${SITE_URL}/discover`, 'View posting'),
       };
     }
 
@@ -136,37 +206,53 @@ async function resolveBody(
       const { data: dw } = await sc
         .from('dayworks')
         .select(
-          'start_date, end_date, day_rate, currency, yacht_roles:role_id(name), vessels:vessel_id(name, nda_flag), ports:location_port_id(name)',
+          'start_date, end_date, working_days, day_rate, currency, meals, notes, yacht_roles:role_id(name), vessels:vessel_id(name, vessel_type, nda_flag), ports:location_port_id(name)',
         )
         .eq('id', dayworkId)
         .single();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const d = dw as any;
-      const vesselName = d?.vessels?.nda_flag ? 'NDA Vessel' : (d?.vessels?.name ?? 'a vessel');
+      const roleName = d?.yacht_roles?.name ?? 'a role';
+      const vesselName = d?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(d?.vessels?.vessel_type, d?.vessels?.name ?? 'Vessel');
+      const portName = d?.ports?.name ?? 'Port TBC';
+      const dates = formatDateRange(d?.start_date, d?.end_date);
+      const days = d?.working_days;
       const rate = d?.day_rate
         ? `${currencySymbol(d.currency ?? 'EUR')}${d.day_rate}/day`
         : 'rate TBC';
-      const dates =
-        d?.start_date && d?.end_date
-          ? `${formatDate(d.start_date)} – ${formatDate(d.end_date)}`
-          : 'dates TBC';
+      const mealsList: string[] = Array.isArray(d?.meals) ? d.meals : [];
+      const notes = typeof d?.notes === 'string' && d.notes.trim() ? previewText(d.notes, 140) : '';
       return {
         text:
-          `📨 <b>Daywork invitation</b>\n` +
-          `${escapeHtml(d?.yacht_roles?.name ?? 'a role')} · ${escapeHtml(vesselName)}\n` +
-          `${escapeHtml(d?.ports?.name ?? 'a port')} · ${dates} · ${escapeHtml(rate)}\n` +
-          `Ref: ${escapeHtml(jobNumber)}` +
+          `📨 <b>Daywork invitation — ${escapeHtml(roleName)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}\n` +
+          `📅 ${dates}${days ? ` · ${days} day${days === 1 ? '' : 's'}` : ''}\n` +
+          `💶 ${escapeHtml(rate)}\n` +
+          (mealsList.length ? `🍽 ${escapeHtml(mealsList.join(', '))}\n` : '') +
+          (notes ? `\n<i>"${escapeHtml(notes)}"</i>\n` : '') +
+          `\nRef: ${escapeHtml(jobNumber)}` +
           cta(`${SITE_URL}/discover`, 'Respond'),
       };
     }
 
     case 'DAYWORK.INVITATION_ACCEPTED': {
       if (!dayworkId) return null;
-      const jobNumber = await getJobNumber(sc, dayworkId);
+      const crewId = payload.crew_person_id as string | undefined;
+      const [jobNumber, dwResult, crewName] = await Promise.all([
+        getJobNumber(sc, dayworkId),
+        sc.from('dayworks').select('yacht_roles:role_id(name)').eq('id', dayworkId).single(),
+        crewId ? getDisplayName(sc, crewId) : Promise.resolve(null),
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const roleName = (dwResult.data as any)?.yacht_roles?.name ?? 'a role';
       return {
         text:
-          `✅ <b>Invitation accepted</b>\n` +
-          `Your crew member accepted — ${escapeHtml(jobNumber)}` +
+          `✅ <b>Invitation accepted</b>\n\n` +
+          `${crewName ? `<b>${escapeHtml(crewName)}</b>` : 'Your crew member'} accepted your invitation for <b>${escapeHtml(roleName)}</b>.\n` +
+          `Ref: ${escapeHtml(jobNumber)}` +
           cta(`${SITE_URL}/messages/${engagementId ?? ''}`, 'Open chat'),
       };
     }
@@ -184,39 +270,123 @@ async function resolveBody(
 
     case 'PERMANENT.APPLIED': {
       if (!postingId) return null;
-      const info = await getPermanentPostingInfo(sc, postingId);
+      const crewId = payload.crew_person_id as string;
+      const [info, ppResult, applicantSummary] = await Promise.all([
+        getPermanentPostingInfo(sc, postingId),
+        sc
+          .from('permanent_postings')
+          .select(
+            'salary_min, salary_max, salary_currency, salary_period, live_aboard, start_date, vessels:vessel_id(name, vessel_type, nda_flag), ports:port_id(name)',
+          )
+          .eq('id', postingId)
+          .single(),
+        getApplicantProfileSummary(sc, crewId),
+      ]);
       if (!info) return null;
-      const crewName = await getDisplayName(sc, payload.crew_person_id as string);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pp = ppResult.data as any;
+      const vesselName = pp?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(pp?.vessels?.vessel_type, pp?.vessels?.name ?? 'Vessel');
+      const portName = pp?.ports?.name ?? 'Port TBC';
+      const sym = currencySymbol(pp?.salary_currency ?? 'EUR');
+      const salary =
+        pp?.salary_min && pp?.salary_max
+          ? `${sym}${pp.salary_min}–${sym}${pp.salary_max}/${pp.salary_period ?? 'month'}`
+          : 'Salary TBC';
+      const messageText = typeof payload.message === 'string' ? payload.message.trim() : '';
+      const messageLine = messageText
+        ? `\n<i>"${escapeHtml(previewText(messageText, 160))}"</i>\n`
+        : '';
+      const applicantLine =
+        `<b>${escapeHtml(applicantSummary.displayName)}</b>` +
+        (applicantSummary.experienceBracketLabel
+          ? ` · ${escapeHtml(applicantSummary.experienceBracketLabel)}`
+          : '') +
+        (applicantSummary.cityLabel ? ` · ${escapeHtml(applicantSummary.cityLabel)}` : '');
       return {
         text:
-          `📥 <b>New permanent applicant</b>\n` +
-          `${escapeHtml(crewName)} applied for ${escapeHtml(info.role_name)}\n` +
-          `Ref: ${escapeHtml(info.job_number)}` +
-          cta(`${SITE_URL}/permanent/${postingId}/review`, 'Review'),
+          `📥 <b>New permanent applicant</b>\n\n` +
+          `${applicantLine}\n` +
+          `applied for <b>${escapeHtml(info.role_name)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}\n` +
+          `💶 ${escapeHtml(salary)}\n` +
+          `🏠 ${pp?.live_aboard ? 'Live aboard' : 'Shore-based'}\n` +
+          messageLine +
+          `\nRef: ${escapeHtml(info.job_number)}` +
+          cta(`${SITE_URL}/permanent/${postingId}/review`, 'Review applicants'),
       };
     }
 
     case 'PERMANENT.SHORTLISTED': {
       if (!postingId) return null;
-      const info = await getPermanentPostingInfo(sc, postingId);
+      const [info, ppResult] = await Promise.all([
+        getPermanentPostingInfo(sc, postingId),
+        sc
+          .from('permanent_postings')
+          .select(
+            'salary_min, salary_max, salary_currency, salary_period, vessels:vessel_id(name, vessel_type, nda_flag), ports:port_id(name)',
+          )
+          .eq('id', postingId)
+          .single(),
+      ]);
       if (!info) return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pp = ppResult.data as any;
+      const vesselName = pp?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(pp?.vessels?.vessel_type, pp?.vessels?.name ?? 'Vessel');
+      const portName = pp?.ports?.name ?? 'Port TBC';
+      const sym = currencySymbol(pp?.salary_currency ?? 'EUR');
+      const salary =
+        pp?.salary_min && pp?.salary_max
+          ? `${sym}${pp.salary_min}–${sym}${pp.salary_max}/${pp.salary_period ?? 'month'}`
+          : null;
       return {
         text:
-          `⭐ <b>Shortlisted for a permanent role</b>\n` +
-          `${escapeHtml(info.role_name)} · ${escapeHtml(info.job_number)}` +
-          cta(`${SITE_URL}/discover`),
+          `⭐ <b>Shortlisted — ${escapeHtml(info.role_name)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}` +
+          (salary ? `\n💶 ${escapeHtml(salary)}` : '') +
+          `\n\nRef: ${escapeHtml(info.job_number)}` +
+          cta(`${SITE_URL}/discover`, 'View posting'),
       };
     }
 
     case 'PERMANENT.SELECTED': {
       if (!postingId) return null;
-      const info = await getPermanentPostingInfo(sc, postingId);
+      const [info, ppResult] = await Promise.all([
+        getPermanentPostingInfo(sc, postingId),
+        sc
+          .from('permanent_postings')
+          .select(
+            'salary_min, salary_max, salary_currency, salary_period, live_aboard, vessels:vessel_id(name, vessel_type, nda_flag), ports:port_id(name)',
+          )
+          .eq('id', postingId)
+          .single(),
+      ]);
       if (!info) return null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pp = ppResult.data as any;
+      const vesselName = pp?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(pp?.vessels?.vessel_type, pp?.vessels?.name ?? 'Vessel');
+      const portName = pp?.ports?.name ?? 'Port TBC';
+      const sym = currencySymbol(pp?.salary_currency ?? 'EUR');
+      const salary =
+        pp?.salary_min && pp?.salary_max
+          ? `${sym}${pp.salary_min}–${sym}${pp.salary_max}/${pp.salary_period ?? 'month'}`
+          : null;
       return {
         text:
-          `🎉 <b>Selected — ${escapeHtml(info.role_name)}</b>\n` +
-          `Ref: ${escapeHtml(info.job_number)}\n` +
-          `Message the employer to finalise details.` +
+          `🎉 <b>You've been selected — ${escapeHtml(info.role_name)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}` +
+          (salary ? `\n💶 ${escapeHtml(salary)}` : '') +
+          `\n🏠 ${pp?.live_aboard ? 'Live aboard' : 'Shore-based'}\n\n` +
+          `Message the employer to finalise details.\n` +
+          `Ref: ${escapeHtml(info.job_number)}` +
           cta(`${SITE_URL}/messages/${engagementId ?? ''}`, 'Open chat'),
       };
     }
@@ -268,11 +438,16 @@ async function resolveBody(
     case 'MESSAGE.SENT': {
       const eid = engagementId ?? (payload.engagement_id as string);
       if (!eid) return null;
-      const { data: eng } = await sc
-        .from('active_engagements')
-        .select('daywork_id, permanent_posting_id')
-        .eq('id', eid)
-        .single();
+      const senderId = payload.sender_person_id as string | undefined;
+      const [engResult, senderName] = await Promise.all([
+        sc
+          .from('active_engagements')
+          .select('daywork_id, permanent_posting_id')
+          .eq('id', eid)
+          .single(),
+        senderId ? getDisplayName(sc, senderId) : Promise.resolve('Someone'),
+      ]);
+      const eng = engResult.data;
       if (!eng) return null;
       let roleName = 'a role';
       let jobNumber = 'a job';
@@ -293,20 +468,22 @@ async function resolveBody(
         }
       }
       if (payload.message_type === 'documents') {
-        const uploaderName = await getDisplayName(sc, payload.sender_person_id as string);
         const docCount = Number(payload.document_count ?? 1);
         return {
           text:
-            `📎 <b>${escapeHtml(uploaderName)} shared ${docCount} document${docCount === 1 ? '' : 's'}</b>\n` +
+            `📎 <b>${escapeHtml(senderName)} shared ${docCount} document${docCount === 1 ? '' : 's'}</b>\n` +
             `${escapeHtml(roleName)} · ${escapeHtml(jobNumber)}` +
             cta(`${SITE_URL}/messages/${eid}`, 'Open chat'),
         };
       }
+      const messageContent =
+        typeof payload.content === 'string' ? previewText(payload.content, 220) : '';
       return {
         text:
-          `💬 <b>New message</b>\n` +
-          `${escapeHtml(roleName)} · ${escapeHtml(jobNumber)}` +
-          cta(`${SITE_URL}/messages/${eid}`, 'Open chat'),
+          `💬 <b>${escapeHtml(senderName)}</b> · ${escapeHtml(roleName)}\n` +
+          (messageContent ? `<i>"${escapeHtml(messageContent)}"</i>\n` : '') +
+          `Ref: ${escapeHtml(jobNumber)}` +
+          cta(`${SITE_URL}/messages/${eid}`, 'Reply'),
       };
     }
 
