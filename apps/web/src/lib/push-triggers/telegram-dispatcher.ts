@@ -391,17 +391,34 @@ export async function getTelegramChatId(
     }
     return chatId;
   } catch (err) {
+    // Self-heal: this row's ciphertext can never decrypt (wrong wire format
+    // from an older deploy, or a key rotation). Nuke the channel row + pref
+    // so the user sees "Not connected" on their next visit instead of the
+    // system silently trying forever.
     Sentry.captureException(err, {
       extra: {
-        context: 'getTelegramChatId decrypt',
+        context: 'getTelegramChatId decrypt — auto-healing row',
         recipientPersonId,
         ciphertextType: typeof channel.channel_value_encrypted,
         ciphertextSample:
           typeof channel.channel_value_encrypted === 'string'
-            ? String(channel.channel_value_encrypted).slice(0, 20)
+            ? String(channel.channel_value_encrypted).slice(0, 30)
             : '(non-string)',
       },
     });
+    try {
+      await sc
+        .from('notification_channels')
+        .delete()
+        .eq('person_id', recipientPersonId)
+        .eq('channel_type', 'telegram');
+      await sc
+        .from('user_preferences')
+        .update({ telegram_enabled: false })
+        .eq('person_id', recipientPersonId);
+    } catch {
+      // best-effort; don't mask the original decrypt error
+    }
     return null;
   }
 }

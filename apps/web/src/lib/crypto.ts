@@ -65,13 +65,17 @@ export function encryptPhone(plaintext: string): Buffer {
 }
 
 /**
- * Encrypt and return a base64 string suitable for writing to a Supabase bytea
- * column. Use this instead of passing a raw Buffer to `.upsert()`, which
- * leaves wire-format behaviour up to the Supabase JS serializer and has
- * bitten us in production.
+ * Encrypt and return a PostgreSQL hex literal (`\x...`) suitable for writing
+ * to a Supabase bytea column. PostgREST ships the string verbatim to Postgres,
+ * which parses `\x` as native hex bytea input — unambiguous round trip.
+ *
+ * Do NOT pass a raw Buffer or a base64 string to a bytea column: the Supabase
+ * JS serializer's behaviour is inconsistent and base64 without a type hint is
+ * interpreted as `escape`-format bytea, which stores the ASCII of the literal
+ * string rather than the decoded bytes. Both failed in production.
  */
 export function encryptForStorage(plaintext: string): string {
-  return encryptPhone(plaintext).toString('base64');
+  return '\\x' + encryptPhone(plaintext).toString('hex');
 }
 
 /**
