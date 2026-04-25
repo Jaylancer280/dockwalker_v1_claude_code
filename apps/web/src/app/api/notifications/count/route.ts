@@ -17,14 +17,17 @@ export async function GET() {
     const { user, person, supabase } = guard.value;
     const currentHat = person.current_hat;
 
-    // Agent branch — single context, no alt hat
+    // Agent branch — single context, no alt hat. Agents post as the
+    // employer side, so several handlers create notifications with
+    // role_context='employer' even when the recipient is an agent. Counting
+    // all unread regardless of role_context is correct for agents — they
+    // have one hat with no alt, so there's nothing to scope away.
     if (person.identity_type === 'agent') {
       const { count: notifCount } = await supabase
         .from('notifications')
         .select('id', { count: 'exact', head: true })
         .eq('person_id', user.id)
-        .eq('read', false)
-        .eq('role_context', 'agent');
+        .eq('read', false);
 
       // Agents are always employer_person_id on engagements
       const { data: engagements } = await supabase

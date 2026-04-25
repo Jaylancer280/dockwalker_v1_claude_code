@@ -292,7 +292,9 @@ async function resolveBody(
       const sym = currencySymbol(pp?.salary_currency ?? 'EUR');
       const salary =
         pp?.salary_min && pp?.salary_max
-          ? `${sym}${pp.salary_min}–${sym}${pp.salary_max}/${pp.salary_period ?? 'month'}`
+          ? pp.salary_min === pp.salary_max
+            ? `${sym}${pp.salary_min}/${pp.salary_period ?? 'month'}`
+            : `${sym}${pp.salary_min}–${sym}${pp.salary_max}/${pp.salary_period ?? 'month'}`
           : 'Salary TBC';
       const messageText = typeof payload.message === 'string' ? payload.message.trim() : '';
       const messageLine = messageText
