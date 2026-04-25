@@ -7,6 +7,7 @@ import { SendHorizontal, LifeBuoy, ChevronDown, Lock, RotateCcw, Loader2 } from 
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { uuid } from '@/lib/uuid';
 import { Button } from '@/components/ui/button';
+import { AutoGrowTextarea } from '@/components/ui/auto-grow-textarea';
 import {
   Dialog,
   DialogContent,
@@ -526,15 +527,15 @@ export default function DockyPage() {
       {/* Input */}
       <div className="sticky bottom-[calc(var(--nav-height)+env(safe-area-inset-bottom))] border-t border-border bg-[var(--surface)] px-4 py-3 md:bottom-0">
         <div className="flex items-center gap-2">
-          <input
-            type="text"
+          <AutoGrowTextarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={limitReached ? 'Upgrade to continue...' : 'Ask Docky...'}
             maxLength={500}
             disabled={sending || limitReached}
-            className="flex-1 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
+            className="flex-1 resize-none rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-2.5 text-sm leading-5 outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
+            maxRows={6}
           />
           <button
             onClick={() => sendMessage(input)}

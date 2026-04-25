@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Send, Paperclip, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AutoGrowTextarea } from '@/components/ui/auto-grow-textarea';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import type { EngagementContext } from './types';
@@ -202,10 +203,15 @@ export function ChatFooter({
               </Button>
             </>
           )}
-          <input
-            type="text"
+          <AutoGrowTextarea
             value={input}
             onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             placeholder={
               context?.status === 'completed' ||
               context?.status === 'cancelled' ||
@@ -213,13 +219,14 @@ export function ChatFooter({
                 ? 'This engagement has ended'
                 : 'Type a message...'
             }
-            className="flex-1 rounded-full border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
+            className="flex-1 resize-none rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-2 text-sm leading-5 outline-none focus:ring-1 focus:ring-[var(--accent)] disabled:opacity-50"
             disabled={
               sending ||
               context?.status === 'completed' ||
               context?.status === 'cancelled' ||
               context?.status === 'closed'
             }
+            maxRows={6}
           />
           <Button
             type="submit"
