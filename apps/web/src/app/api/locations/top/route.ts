@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireAuthSession } from '@/lib/auth/require-auth-session';
 
 export interface TopLocationResult {
   id: string;
@@ -23,7 +23,7 @@ const MAX_LIMIT = 200;
  * Used as the LocationPicker's empty-state list.
  */
 export async function GET(request: Request) {
-  const guard = await requireDomainUser();
+  const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
   const { supabase } = guard.value;
 

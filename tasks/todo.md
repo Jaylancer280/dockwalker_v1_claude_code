@@ -5,7 +5,27 @@
 
 ## Current Task
 
-(none)
+### Fix 232 — Location picker OSM fallback + seed gap fill
+
+3 users reported failed searches: "Valetta" (Valletta MT — absent from seed), "Cape Town" (in seed but live returned no match — needs verification), "Tortola" (BVI island — only Road Town is seeded), "Port antico" (Porto Antico Genova — port-level name not seeded). Mission says "no free text," but the picker already attributes "© OpenStreetMap contributors" — wiring a live OSM Nominatim fallback restores the spirit (canonical-only) while solving the long tail (auto-canonicalize on selection).
+
+Plan:
+
+- [ ] Verify Cape Town is actually present in live DB (one query) — rules out a schema-applied-but-data-missing scenario.
+- [ ] Migration `00113_locations_osm_fallback_v1.sql` — adds `source` ('curated'|'osm'), `latitude`, `longitude`, `osm_place_id` columns to `cities`; `source` to `ports`; backfills existing rows to `'curated'`; targeted gap-fill INSERTs for the obvious misses (Valletta MT, Tortola/BVI alias, plus ~10 other yacht hub cities crew commonly name). Rollback drops the columns + the gap-fill rows.
+- [ ] Apply via `npx supabase db push` to live (per memory note — no local Docker).
+- [ ] New route `apps/web/src/app/api/locations/search-external/route.ts` — auth-required, GET `?q=`, calls Nominatim `https://nominatim.openstreetmap.org/search?q=<>&format=json&addressdetails=1&limit=8`, sets a custom `User-Agent: dockwalker.io/1.0 (gareth@nautalink.io)` per Nominatim policy, filters to `place_type ∈ {city,town,village,harbour,port,marina}`, returns normalized `{ name, country_code, latitude, longitude, osm_id, osm_type, place_type, display_name }[]`. 1 req/sec global rate-limit (in-memory token bucket — fine for single-region Vercel function). Errors swallowed to empty array — never block.
+- [ ] New route `apps/web/src/app/api/locations/canonicalize/route.ts` — auth-required, POST body `{ osm_id, osm_type, name, country_code, latitude, longitude, place_type }`. Service-role logic: (a) find or create region by `country_code` (look up country name from a small ISO-3166 map; sort_order = 999 for OSM-created); (b) upsert city — first try by `osm_place_id` exact match, else by `(region_id, lower(name))`, set `source='osm'`, `osm_place_id`, lat/lng. Returns `{ cityId }`. Idempotent on retry.
+- [ ] Update `apps/web/src/components/location-picker.tsx` — add `externalResults` state. When `searchResults` is non-null and `length === 0` (and query length ≥ 3 to skip noise), fire external search. Render under section header "Found in OpenStreetMap". On click, POST to canonicalize → call `onValueChange({ cityId })`.
+- [ ] Tests: external route (mock `fetch`, assert 200/empty/timeout); canonicalize route (region lookup, region creation, city upsert idempotency).
+- [ ] BUILD_STATE.md Fix 232 entry; schema version bump v112 → v113; migrations table append.
+- [ ] `apps/web/README.md` — document the two new endpoints.
+- [ ] `supabase/README.md` — note new schema columns.
+- [ ] Commit + push, watch CI.
+
+Done condition: any of "Valletta", "Tortola", "Porto Antico", "Cape Town" produces a clickable result (canonical or OSM); selecting an OSM result persists a `cityId` that survives reload.
+
+---
 
 ---
 

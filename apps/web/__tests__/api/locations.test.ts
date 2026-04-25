@@ -5,8 +5,8 @@ import { GET as topGET } from '@/app/api/locations/top/route';
 import { GET as byIdsGET } from '@/app/api/locations/by-ids/route';
 
 const mockRequireDomainUser = vi.fn();
-vi.mock('@/lib/auth/require-domain-user', () => ({
-  requireDomainUser: () => mockRequireDomainUser(),
+vi.mock('@/lib/auth/require-auth-session', () => ({
+  requireAuthSession: () => mockRequireDomainUser(),
 }));
 
 const mockRpc = vi.fn();
@@ -16,10 +16,7 @@ function guardOk() {
     ok: true,
     value: {
       user: { id: 'u1' },
-      person: { id: 'p1', identity_type: 'crew', current_hat: 'crew', is_admin: false },
-      profile: { person_id: 'p1' },
       supabase: { rpc: mockRpc },
-      serviceClient: { rpc: mockRpc },
     },
   };
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireAuthSession } from '@/lib/auth/require-auth-session';
 
 export interface LocationSearchResult {
   id: string;
@@ -21,7 +21,7 @@ export interface LocationSearchResult {
  * Returns up to 50 matches ordered by trigram similarity (best first).
  */
 export async function GET(request: Request) {
-  const guard = await requireDomainUser();
+  const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
   const { supabase } = guard.value;
 

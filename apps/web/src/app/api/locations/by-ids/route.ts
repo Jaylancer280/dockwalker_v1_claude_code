@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireAuthSession } from '@/lib/auth/require-auth-session';
 
 export interface LocationByIdResult {
   id: string;
@@ -33,7 +33,7 @@ function parseIds(raw: string | null): string[] {
  * Invalid UUIDs are silently filtered. Empty input returns an empty list.
  */
 export async function GET(request: Request) {
-  const guard = await requireDomainUser();
+  const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
   const { supabase } = guard.value;
 
