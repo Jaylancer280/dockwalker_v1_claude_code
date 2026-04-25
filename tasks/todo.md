@@ -13,7 +13,7 @@
 
 ### Locations V1 — remaining follow-ups
 
-> Original Stage 217 audit list; C1-C3 shipped this session (3e45a3c / 6623a93 / 89d0d4c). Remaining items:
+> Original Stage 217 audit list; C1-C3 shipped earlier. Remaining items:
 
 - [ ] Live-picker UI sanity pass — spot-check 20 random non-curated ports via fuzzy search; confirm city/country context renders
 - [ ] Move `TOWN_ALIASES` + `COUNTRY_CODE_FIXES` from `scripts/marina-extraction/3c_normalize.py` into a versioned JSON config under `supabase/seed/` — reduces drift when extending curated hubs
@@ -21,94 +21,82 @@
 
 ---
 
-## BLOCKED — user action required
+## BLOCKED — external/lawyer
 
-### Vercel env var split — staging vs production
+### Legal pages go-live
 
-> Two Vercel projects exist: `dockwalker-staging` (preview URL only) and the
-> repo-named project (intended to host `www.dockwalker.io`). Current state
-> per user: staging has live-grade keys for most services (Anthropic,
-> OpenAI, etc.). Launch-safe split focuses only on what MUST differ.
+`/privacy` and `/terms` pages render with placeholder values wired in `apps/web/src/lib/legal-placeholders.ts` (Delaware incorporation, Nautalink Technologies Inc., admin@nautalink.io support/DPO, EU Frankfurt Supabase region).
 
-**Confirm which project is which**
+- [ ] **Lawyer review of `/privacy` and `/terms` wording** (source drafts: `tasks/privacy-policy-spec.md` + `tasks/founder-drafts.md` §1) — placeholder VALUES are correct; the POLICY TEXT still needs legal review.
+- [ ] Decide: cookie consent banner needed for target jurisdictions? (Functional cookies only — likely not required under GDPR, but check local law)
 
-- [ ] Identify which Vercel project has `www.dockwalker.io` attached as a custom domain — that's production. Screenshot its Settings → Domains.
-- [ ] Confirm the other project is `dockwalker-staging.vercel.app` only (no custom domain).
+---
 
-**Per-project env var plan**
+## Pre-launch QA (do before opening to real users)
 
-Variables that MUST differ between staging and prod:
-
-| Variable                            | Staging value                           | Production value                                     |
-| ----------------------------------- | --------------------------------------- | ---------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`              | `https://dockwalker-staging.vercel.app` | `https://www.dockwalker.io`                          |
-| `NEXT_PUBLIC_APP_URL`               | `https://dockwalker-staging.vercel.app` | `https://www.dockwalker.io`                          |
-| `STRIPE_SECRET_KEY`                 | `sk_test_…`                             | `sk_live_…`                                          |
-| `STRIPE_WEBHOOK_SECRET`             | from the test-mode webhook in Stripe    | from the live-mode webhook                           |
-| `STRIPE_PRICE_CREW_PRO`             | test price ID                           | live price ID                                        |
-| `STRIPE_PRICE_EMPLOYER_PRO`         | test price ID                           | live price ID                                        |
-| `UPSTASH_REDIS_REST_URL` + `_TOKEN` | staging Redis DB                        | separate prod Redis DB (free tier lets you create 2) |
-
-Variables to COPY IDENTICALLY to both (paste same value into each project):
-
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DOCKY_MODEL`, `DOCKY_CORPUS_READY`
-- `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (when set up)
-- `NEXT_PUBLIC_SENTRY_DSN` (single DSN; `VERCEL_ENV` tags events per environment)
-- `CRON_SECRET` (same string or different — doesn't matter; each project's Vercel Cron UI references the matching secret)
-
-**Still "Needs Attention" across both projects — fill in order of criticality**
-
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` (both projects) — every server-side write path depends on this. Copy from Supabase Dashboard → Project Settings → API → `service_role secret`.
-- [ ] `CRON_SECRET` (both projects) — any random string; Vercel Cron sends it as Bearer token. Generate once.
-- [ ] `UPSTASH_REDIS_REST_URL` + `_TOKEN` (both projects, DIFFERENT DBs) — sign up at upstash.com, create 2 databases (`dockwalker-prod`, `dockwalker-staging`), paste each project's URL + token into the matching Vercel project.
-- [ ] `ANTHROPIC_API_KEY` + `OPENAI_API_KEY` (both projects, same value) — enables Docky.
-- [ ] `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` — **different per project per the split table above.** Make sure live keys go on prod, test keys on staging. Mixed modes = `No such price` errors.
-- [ ] `RESEND_API_KEY` + `RESEND_FROM_EMAIL` (both projects, same value) — pending Resend DNS verification.
-
-**Non-env-var production setup**
-
-- [ ] Attach `www.dockwalker.io` (and `dockwalker.io` apex → 301 to www) to the PROD Vercel project only. Remove any custom domain from the staging project.
-- [ ] Create a **live-mode** Stripe webhook pointed at `https://www.dockwalker.io/api/webhooks/stripe` with the 3 events (`checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`).
-- [ ] Verify Resend sending domain `dockwalker.io` — SPF + DKIM (3 CNAME records) + DMARC (1 TXT) at DNS host. Resend dashboard walks you through.
-- [ ] Configure Vercel Cron on the PROD project only (not staging — staging shouldn't send real reminder emails). Three jobs: `engagement-starts` daily 07:00 UTC, `availability-expiry` daily 08:00 UTC, `document-cleanup` every 6h.
-
-**Known constraint (not launch-blocking)**
-
-- Single Supabase project serves both environments. Staging writes to the same DB as production, so destructive migration tests or seed resets would affect real users. Acceptable for launch given the user volume; revisit with a separate staging Supabase project once there are paying customers.
-
-### Google Sign-In — pre-launch QA edge cases
+### Google Sign-In edge cases
 
 > Provider is live (OAuth client in Google Cloud under nautalink.io org,
 > Supabase provider enabled, identity linking on). Basic sign-up/sign-in
-> flow verified. The items below are edge-case verifications worth
-> doing once before public launch — none are launch-blocking.
+> verified end-to-end. The items below are edge-case verifications.
 
 - [ ] Sign up via Google in incognito → confirm display_name prefilled from Google profile on onboarding.
 - [ ] As an OAuth-only user (no email/password identity), visit `/auth/forgot-password` → confirm the "Signed up with Google?" inline note + Google button render above the reset form.
 - [ ] As an OAuth-only user, visit Settings → Account → confirm change-password section is hidden and replaced with "manage your password at Google" link.
 - [ ] As an existing email/password user, sign in with Google using the same email → confirm the two identities merge into one account (manual linking is on).
 
-### Legal pages go-live (Stage 214)
+### Stripe live mode QA
 
-`/privacy` and `/terms` pages render with provisional values wired in Fix 222h. Before public launch:
+- [ ] Customer Portal flow: subscribe → click "Manage subscription" in app → land in Stripe Customer Portal → cancel from there → confirm app flips to Free.
+- [ ] Failed payment recovery: use a card known to fail 3DS → confirm app shows graceful error, no orphaned subscription state.
+- [ ] Subscription update via Stripe dashboard (e.g. change plan) → confirm `customer.subscription.updated` webhook fires and app reflects new plan.
 
-- [ ] Lawyer review of `/privacy` and `/terms` wording (source drafts: `tasks/privacy-policy-spec.md` + `tasks/founder-drafts.md` §1) — placeholder VALUES are correct; the POLICY TEXT still needs legal review.
-- [x] Fill `apps/web/src/lib/legal-placeholders.ts` — Delaware incorporation details wired: Nautalink Technologies Inc., Stable mailing address, Delaware jurisdiction, admin@nautalink.io for support + DPO, EU (Frankfurt) Supabase region. Commit `3073380`.
-- [ ] Decide: cookie consent banner needed for target jurisdictions? (Functional cookies only — likely not required under GDPR, but check local law)
+---
 
-### Stripe setup
+## Deferred — intentional
 
-- [x] Test mode: products, prices, test webhook (`https://www.dockwalker.io/api/webhooks/stripe`), and test env vars all configured. Full checkout → webhook → DB upsert → Crew Pro entitlement unlock verified end-to-end against real Vercel deployment.
-- [ ] Live mode go-live: (1) toggle Stripe Workbench to live mode, (2) recreate Crew Pro + Employer Pro products + prices, (3) point the existing live webhook at `https://www.dockwalker.io/api/webhooks/stripe` (the live one was created against the apex and will 307), (4) swap `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_CREW_PRO`, `STRIPE_PRICE_EMPLOYER_PRO` in Vercel Production env vars for live values, (5) redeploy.
-- [ ] Set `NEXT_PUBLIC_APP_URL=https://www.dockwalker.io` in Vercel Production env vars (currently falls back to `http://localhost:3000` — checkout still works because the apex-to-www redirect absorbs the broken URL, but it's one extra hop and masks future bugs).
+### Custom Supabase auth domain ($10/mo)
 
-### WhatsApp setup
+> Cosmetic only — currently Google Sign-In account picker shows
+> `hwpcuehqawullzqbmcdv.supabase.co` instead of "DockWalker". Stripe
+> auth and other flows unaffected.
 
-- [ ] Get dedicated number (prepaid SIM or Google Voice for Workspace)
-- [ ] Register with Meta Cloud API directly (not Twilio)
-- [ ] Swap Twilio dispatcher for Meta Graph API calls
-- [ ] Submit templates for Meta approval
+- Setup path when ready: Supabase Project Settings → Custom Domains → add `auth.dockwalker.io` → CNAME at Namecheap → wait for SSL → update Google OAuth client's redirect URI to use the custom domain → update Auth URL Configuration in Supabase.
+
+### Vercel staging branch
+
+> Skipped today; collapse-to-one-project setup is correct for solo
+> pre-launch dev. Add when starting heavy feature work or when needed
+> as a stable preview URL for Stripe test webhooks.
+
+- Setup path: `git checkout -b staging && git push -u origin staging` → optional: attach `staging.dockwalker.io` as custom subdomain assigned to staging branch → split currently-Production+Preview env vars into Production-only (live) + Preview-only (test) entries (especially `STRIPE_*` keys to avoid feature branches hitting live mode).
+
+### Apex → www 301 redirect
+
+> Vercel currently 307s `dockwalker.io` → `www.dockwalker.io`.
+> Bit us on Stripe webhook delivery (twice — both occasions documented in
+> `tasks/lessons.md`). Browsers don't cache 307; making it 301 saves a
+> round-trip on cold visits and avoids the same landmine if any future
+> service pings the apex.
+
+### WhatsApp via Meta Cloud API
+
+> Telegram already covers crew/employer notification needs. WhatsApp
+> migration is a v2 feature, not launch-blocking.
+
+- Get dedicated number (prepaid SIM or Google Voice for Workspace)
+- Register with Meta Cloud API directly (not Twilio — see lessons file for why)
+- Swap Twilio dispatcher for Meta Graph API calls
+- Submit templates for Meta approval
+
+### Sensitive flag rotation on remaining "Needs Attention" vars
+
+> Vercel flagged several env vars (Anthropic, OpenAI, Upstash, Supabase
+> service role) as "should be Sensitive but isn't." Fix requires rotating
+> the secret at the source, then re-adding to Vercel marked Sensitive
+> (since Sensitive values can't be edited — only set on creation).
+
+> Low priority pre-launch (solo developer). Do when adding team members.
 
 ---
 
@@ -128,6 +116,7 @@ Variables to COPY IDENTICALLY to both (paste same value into each project):
 - **Weekly check-in cron** — periodic nudge for permanent postings with no employer activity.
 - **Deactivated user server-side sign-out** — force session invalidation on PERSON.DEACTIVATED.
 - **CSRF origin validation** — add origin check middleware for POST/PATCH/DELETE routes (defense-in-depth, mitigated by SameSite cookies).
+- **Stripe support runbook** — document refund-vs-cancel separation. Refund alone leaves subscription active until period end (correct Stripe design); for immediate revocation, refund + explicitly cancel subscription.
 
 ### Web-only UI
 
@@ -143,6 +132,9 @@ Variables to COPY IDENTICALLY to both (paste same value into each project):
 - **Admin identity type change** — deferred, medium-high effort, admin-only.
 - **Chat page server-rendering** — stream context/messages server-side instead of client-side spinners.
 - **Scroll position restoration** — restore scroll on back navigation from detail views.
+- **Chat textarea send-then-snap-back** — when textarea grows multi-line then shrinks on send, layout shifts visibly. iOS-keyboard-specific; needs visualViewport API or careful keyboard-state detection. Cosmetic, not blocking.
+- **Stripe success URL Apple Pay timeout** — observed during live testing: completing checkout via Apple Pay sometimes shows "session timed out" before redirect. Stripe-side issue or our success URL handler; investigate when seen by real users.
+- **Notification handler `roleContext` mismatch** — handlers like `handleDayworkApplied` hardcode `roleContext: 'employer'` even when recipient is an agent. Fix 228 patched the count endpoint to ignore the filter for agents; proper fix is to set `roleContext` per recipient identity at handler dispatch time.
 
 ### Testing
 
