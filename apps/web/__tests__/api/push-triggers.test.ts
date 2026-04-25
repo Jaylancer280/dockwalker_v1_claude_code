@@ -504,7 +504,11 @@ describe('DAYWORK.POSTED broadcast', () => {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 single: vi.fn().mockResolvedValue({
-                  data: overrides.daywork ?? { job_number: 1, role_id: 'role1' },
+                  data: overrides.daywork ?? {
+                    job_number: 1,
+                    role_id: 'role1',
+                    yacht_roles: { name: 'Deckhand' },
+                  },
                   error: null,
                 }),
               }),
@@ -635,5 +639,55 @@ describe('DAYWORK.POSTED broadcast', () => {
         body: expect.stringContaining('2 new daywork opportunities'),
       }),
     );
+  });
+
+  it('issues bounded number of DB queries per single-posting broadcast', async () => {
+    const sc = makeBroadcastSc();
+    const fromSpy = sc.from as ReturnType<typeof vi.fn>;
+
+    notifyOnEvent(sc, 'DAYWORK.POSTED', { id: 'dw1', location_port_id: 'port1', role_id: 'role1' }, 'emp1');
+    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    const tableHits = fromSpy.mock.calls.map((c) => c[0]);
+
+    // Each table queried at most once during the broadcast (excluding the
+    // port -> city resolution at enqueue time, which is a separate concern).
+    // Regression guard for Fix 222l — previously cities/dayworks were queried
+    // multiple times each for the same id within a single fireBroadcast call.
+    const broadcastTables = tableHits.filter((t) => t !== 'ports');
+    const counts = broadcastTables.reduce<Record<string, number>>((acc, t) => {
+      acc[t] = (acc[t] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    expect(counts.cities ?? 0).toBeLessThanOrEqual(1);
+    expect(counts.dayworks ?? 0).toBeLessThanOrEqual(1);
+    expect(counts.notification_channels ?? 0).toBeLessThanOrEqual(1);
+    expect(counts.user_preferences ?? 0).toBeLessThanOrEqual(1);
+  });
+
+  it('issues bounded number of DB queries per collapsed broadcast', async () => {
+    const sc = makeBroadcastSc();
+    const fromSpy = sc.from as ReturnType<typeof vi.fn>;
+
+    notifyOnEvent(sc, 'DAYWORK.POSTED', { id: 'dw1', location_port_id: 'port1', role_id: 'role1' }, 'emp1');
+    await vi.advanceTimersByTimeAsync(10);
+    notifyOnEvent(sc, 'DAYWORK.POSTED', { id: 'dw2', location_port_id: 'port1', role_id: 'role2' }, 'emp1');
+    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    const tableHits = fromSpy.mock.calls.map((c) => c[0]);
+    const broadcastTables = tableHits.filter((t) => t !== 'ports');
+    const counts = broadcastTables.reduce<Record<string, number>>((acc, t) => {
+      acc[t] = (acc[t] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    // Collapsed path skips dayworks lookup entirely
+    expect(counts.cities ?? 0).toBeLessThanOrEqual(1);
+    expect(counts.dayworks ?? 0).toBe(0);
+    expect(counts.notification_channels ?? 0).toBeLessThanOrEqual(1);
+    expect(counts.user_preferences ?? 0).toBeLessThanOrEqual(1);
   });
 });
