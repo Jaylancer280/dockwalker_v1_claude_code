@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// after() from next/server needs a request context not available in vitest.
+// Mock as a no-op — these tests cover request/response behaviour, not the
+// post-response persistence which is exercised by integration tests.
+vi.mock('next/server', async () => {
+  const actual = await vi.importActual<typeof import('next/server')>('next/server');
+  return {
+    ...actual,
+    after: () => {},
+  };
+});
+
 const mockRequireDomainUser = vi.fn();
 vi.mock('@/lib/auth/require-domain-user', () => ({
   requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),

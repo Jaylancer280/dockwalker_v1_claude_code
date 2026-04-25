@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { searchMcaDocs } from '@/lib/advisor/rag';
 import { streamDocky } from '@/lib/advisor/llm';
@@ -158,64 +158,72 @@ export async function POST(request: Request) {
 
     const { stream, completion } = streamResult;
 
-    // Save assistant message + interaction log after stream completes (background)
+    // Save assistant message + interaction log after stream completes.
+    // Wrapped in `after()` so the work survives Vercel serverless function
+    // termination — without it, the response stream closing can kill the
+    // in-flight INSERT, leaving the assistant message un-persisted (visible
+    // on the originating device but missing on every other device).
     const isFirstMessage = history.length === 0;
     const REFUSAL_MARKER = "I'm only able to help with maritime";
-    completion
-      .then(async (result) => {
-        const latencyMs = Date.now() - llmStartTime;
-        const sources = chunks.map((c) => ({
-          document: c.source_document,
-          section: c.section_title,
-          url: c.source_url,
-          relevance: c.similarity,
-        }));
-
-        await serviceClient.from('advisor_messages').insert({
-          conversation_id: threadId,
-          role: 'assistant',
-          content: result.text,
-          sources,
-          model_used: result.model,
-          input_tokens: result.inputTokens,
-          output_tokens: result.outputTokens,
-        });
-
-        const updateFields: Record<string, string> = {
-          updated_at: new Date().toISOString(),
-        };
-        if (isFirstMessage) {
-          updateFields.title = content.slice(0, 60);
-        }
-        await serviceClient.from('advisor_conversations').update(updateFields).eq('id', threadId);
-
-        // Increment usage AFTER successful response (not before LLM call)
-        await serviceClient.rpc('increment_advisor_usage', {
-          p_person_id: user.id,
-          p_month: currentMonth,
-          p_limit: usageLimit,
-        });
-
-        // Interaction log (fire-and-forget)
-        const wasRefused = result.text.includes(REFUSAL_MARKER);
-        await serviceClient.from('docky_interactions').insert({
-          person_id: user.id,
-          query: content,
-          response_summary: result.text.slice(0, 200),
-          chunks_used:
-            chunks.length > 0
-              ? chunks.map((c) => ({ doc: c.source_document, section: c.section_title }))
-              : null,
-          was_refused: wasRefused,
-          refusal_reason: wasRefused ? 'off_topic' : null,
-          input_tokens: result.inputTokens,
-          output_tokens: result.outputTokens,
-          latency_ms: latencyMs,
-        });
-      })
-      .catch(() => {
+    after(async () => {
+      let result;
+      try {
+        result = await completion;
+      } catch {
         // Stream error — do NOT save partial assistant message (per spec)
+        return;
+      }
+
+      const latencyMs = Date.now() - llmStartTime;
+      const sources = chunks.map((c) => ({
+        document: c.source_document,
+        section: c.section_title,
+        url: c.source_url,
+        relevance: c.similarity,
+      }));
+
+      await serviceClient.from('advisor_messages').insert({
+        conversation_id: threadId,
+        role: 'assistant',
+        content: result.text,
+        sources,
+        model_used: result.model,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
       });
+
+      const updateFields: Record<string, string> = {
+        updated_at: new Date().toISOString(),
+      };
+      if (isFirstMessage) {
+        updateFields.title = content.slice(0, 60);
+      }
+      await serviceClient.from('advisor_conversations').update(updateFields).eq('id', threadId);
+
+      // Increment usage AFTER successful response (not before LLM call)
+      await serviceClient.rpc('increment_advisor_usage', {
+        p_person_id: user.id,
+        p_month: currentMonth,
+        p_limit: usageLimit,
+      });
+
+      // Interaction log
+      const wasRefused = result.text.includes(REFUSAL_MARKER);
+      await serviceClient.from('docky_interactions').insert({
+        person_id: user.id,
+        query: content,
+        response_summary: result.text.slice(0, 200),
+        chunks_used:
+          chunks.length > 0
+            ? chunks.map((c) => ({ doc: c.source_document, section: c.section_title }))
+            : null,
+        was_refused: wasRefused,
+        refusal_reason: wasRefused ? 'off_topic' : null,
+        input_tokens: result.inputTokens,
+        output_tokens: result.outputTokens,
+        latency_ms: latencyMs,
+      });
+    });
 
     return new Response(stream, {
       headers: {

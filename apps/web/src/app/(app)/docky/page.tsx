@@ -329,7 +329,7 @@ export default function DockyPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <main className="flex min-h-svh flex-col">
+    <main className="flex h-svh flex-col pb-[calc(var(--nav-height)+env(safe-area-inset-bottom))] md:pb-0">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[var(--surface)] px-4 py-3">
         <div className="flex items-center gap-2">
@@ -398,7 +398,7 @@ export default function DockyPage() {
       )}
 
       {/* Messages area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         {!hasMessages && !sending && (
           <div className="flex flex-col items-center pt-12 text-center">
             <div className="mb-4 overflow-hidden rounded-[14px] border border-[var(--border)]">
@@ -525,7 +525,7 @@ export default function DockyPage() {
       </div>
 
       {/* Input */}
-      <div className="sticky bottom-[calc(var(--nav-height)+env(safe-area-inset-bottom))] border-t border-border bg-[var(--surface)] px-4 py-3 md:bottom-0">
+      <div className="shrink-0 border-t border-border bg-[var(--surface)] px-4 py-3">
         <div className="flex items-center gap-2">
           <AutoGrowTextarea
             value={input}
