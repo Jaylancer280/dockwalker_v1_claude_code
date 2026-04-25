@@ -396,12 +396,12 @@ export default function DiscoverPage() {
     setLoadingApps(false);
   }, []);
 
-  // Load applications when Applied tab is active (deferred until tab switch)
+  // Load applications + invitations on mount so tab counts show immediately
+  // (lazy-load was hiding counts until users clicked the tab — bad UX).
   useEffect(() => {
-    if (activeTab === 'applied') {
-      loadApplications();
-    }
-  }, [activeTab, loadApplications]);
+    loadApplications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleWithdraw(dayworkId: string) {
     setWithdrawingId(dayworkId);
@@ -440,12 +440,11 @@ export default function DiscoverPage() {
     setLoadingInvitations(false);
   }, []);
 
-  // Load invitations when Invitations tab is active (deferred until tab switch)
+  // Load invitations on mount for tab badge count (cheap query, daywork-only).
   useEffect(() => {
-    if (activeTab === 'invitations') {
-      loadInvitations();
-    }
-  }, [activeTab, loadInvitations]);
+    loadInvitations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleAcceptInvitation(inv: Invitation) {
     setRespondingId(inv.id);
@@ -542,27 +541,49 @@ export default function DiscoverPage() {
     );
   }
 
+  // Applications are filtered by the parent mode toggle so the Applied tab
+  // matches what's selected in the header (Daywork ↔ Permanent).
+  const filteredApplications = applications.filter((a) =>
+    browseMode === 'daywork' ? a.type === 'daywork' : a.type === 'permanent',
+  );
+
+  // Invitations is daywork-only by data model. Permanent has no invitation
+  // concept, so the tab is hidden on Permanent.
+  const subTabOptions =
+    browseMode === 'daywork'
+      ? [
+          { value: 'browse', label: 'Browse' },
+          { value: 'invitations', label: 'Invitations', count: invitations.length },
+          { value: 'applied', label: 'Applied', count: filteredApplications.length },
+        ]
+      : [
+          { value: 'browse', label: 'Browse' },
+          { value: 'applied', label: 'Applied', count: filteredApplications.length },
+        ];
+
   return (
     <main className="flex min-h-svh flex-col bg-background">
       <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--surface)]">
         <div className="page-width flex items-center justify-between px-4 pt-3 pb-2">
-          {activeTab === 'browse' ? (
-            <div className="min-w-0 flex-1">
-              <SegmentedToggle
-                options={[
-                  { value: 'daywork', label: 'Daywork' },
-                  { value: 'permanent', label: 'Permanent' },
-                ]}
-                value={browseMode}
-                onChange={(v) => {
-                  setBrowseMode(v as 'daywork' | 'permanent');
-                  localStorage.setItem('dw-browse-mode', v);
-                }}
-              />
-            </div>
-          ) : (
-            <span />
-          )}
+          <div className="min-w-0 flex-1">
+            <SegmentedToggle
+              options={[
+                { value: 'daywork', label: 'Daywork' },
+                { value: 'permanent', label: 'Permanent' },
+              ]}
+              value={browseMode}
+              onChange={(v) => {
+                const next = v as 'daywork' | 'permanent';
+                setBrowseMode(next);
+                localStorage.setItem('dw-browse-mode', v);
+                // Invitations tab is daywork-only — kick the user to Browse if
+                // they were on Invitations and switched to Permanent.
+                if (next === 'permanent' && activeTab === 'invitations') {
+                  setActiveTab('browse');
+                }
+              }}
+            />
+          </div>
           <div className="flex items-center gap-1.5">
             {activeTab === 'browse' && hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearActiveFilters}>
@@ -586,14 +607,10 @@ export default function DiscoverPage() {
             </span>
           </div>
         </div>
-        {/* Tabs */}
+        {/* Sub-tabs (Browse · Invitations · Applied for daywork; Browse · Applied for permanent) */}
         <div className="page-width border-t border-[var(--border)]">
           <UnderlineTabs
-            options={[
-              { value: 'browse', label: 'Browse' },
-              { value: 'invitations', label: 'Invitations', count: invitations.length },
-              { value: 'applied', label: 'Applied', count: applications.length },
-            ]}
+            options={subTabOptions}
             value={activeTab}
             onChange={(v) => setActiveTab(v as 'browse' | 'invitations' | 'applied')}
           />
@@ -619,7 +636,7 @@ export default function DiscoverPage() {
       {/* ───── Applied tab ───── */}
       {activeTab === 'applied' && (
         <AppliedTab
-          applications={applications}
+          applications={filteredApplications}
           loadingApps={loadingApps}
           withdrawingId={withdrawingId}
           onWithdraw={handleWithdraw}
