@@ -1,6 +1,28 @@
 import { NextResponse } from 'next/server';
-import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireAuthSession } from '@/lib/auth/require-auth-session';
 import { appendEvent } from '@dockwalker/db';
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+/**
+ * Look up the user's current hat — present only after onboarding has
+ * created the persons row. Pre-onboarding callers get null and skip the
+ * PROFILE.UPDATED event (the projection row doesn't exist yet; the
+ * avatar_url is rolled into the onboarding RPC's initial profile insert
+ * via the onboarding page's `avatarUrl` state).
+ */
+async function getCurrentHat(
+  serviceClient: SupabaseClient,
+  userId: string,
+): Promise<'crew' | 'employer' | 'agent' | null> {
+  const { data } = await serviceClient
+    .from('persons')
+    .select('current_hat')
+    .eq('id', userId)
+    .maybeSingle();
+  const hat = data?.current_hat as string | undefined;
+  if (hat === 'crew' || hat === 'employer' || hat === 'agent') return hat;
+  return null;
+}
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
@@ -34,14 +56,11 @@ function validateMagicBytes(bytes: Uint8Array, mimeType: string): boolean {
  * Upload a profile avatar. Accepts multipart form data with a single file.
  */
 export async function POST(request: Request) {
-  const guard = await requireDomainUser();
+  const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
-  const { user, person, supabase, serviceClient } = guard.value;
+  const { user, supabase, serviceClient } = guard.value;
 
-  if (!['crew', 'employer', 'agent'].includes(person.current_hat)) {
-    return NextResponse.json({ error: 'Invalid hat' }, { status: 403 });
-  }
-  const roleContext = person.current_hat as 'crew' | 'employer' | 'agent';
+  const roleContext = await getCurrentHat(serviceClient, user.id);
 
   try {
     const formData = await request.formData();
@@ -99,14 +118,16 @@ export async function POST(request: Request) {
     const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(storagePath);
     const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-    await appendEvent(serviceClient, {
-      eventType: 'PROFILE.UPDATED',
-      aggregateId: user.id,
-      aggregateType: 'person',
-      roleContext,
-      payload: { avatar_url: avatarUrl },
-      personId: user.id,
-    });
+    if (roleContext) {
+      await appendEvent(serviceClient, {
+        eventType: 'PROFILE.UPDATED',
+        aggregateId: user.id,
+        aggregateType: 'person',
+        roleContext,
+        payload: { avatar_url: avatarUrl },
+        personId: user.id,
+      });
+    }
 
     return NextResponse.json({ avatar_url: avatarUrl });
   } catch (err) {
@@ -120,14 +141,11 @@ export async function POST(request: Request) {
  * Remove the user's profile avatar.
  */
 export async function DELETE() {
-  const guard = await requireDomainUser();
+  const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
-  const { user, person, supabase, serviceClient } = guard.value;
+  const { user, supabase, serviceClient } = guard.value;
 
-  if (!['crew', 'employer', 'agent'].includes(person.current_hat)) {
-    return NextResponse.json({ error: 'Invalid hat' }, { status: 403 });
-  }
-  const roleContext = person.current_hat as 'crew' | 'employer' | 'agent';
+  const roleContext = await getCurrentHat(serviceClient, user.id);
 
   try {
     // Remove all avatar files for this user
@@ -138,14 +156,16 @@ export async function DELETE() {
       await supabase.storage.from('avatars').remove(paths);
     }
 
-    await appendEvent(serviceClient, {
-      eventType: 'PROFILE.UPDATED',
-      aggregateId: user.id,
-      aggregateType: 'person',
-      roleContext,
-      payload: { avatar_url: null },
-      personId: user.id,
-    });
+    if (roleContext) {
+      await appendEvent(serviceClient, {
+        eventType: 'PROFILE.UPDATED',
+        aggregateId: user.id,
+        aggregateType: 'person',
+        roleContext,
+        payload: { avatar_url: null },
+        personId: user.id,
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { requireAuthSession } from '@/lib/auth/require-auth-session';
 
 /**
  * GET /api/vessels/lookup?imo=1234567
@@ -7,9 +7,11 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
  * - 4-6 digits: partial prefix search, returns up to 5 results
  * - 7 digits: exact match, returns single vessel with found: true/false
  * Any authenticated user can look up vessels (for experience entry).
+ * Onboarding-friendly: pre-onboarding users hit this from the
+ * vessel-experience step.
  */
 export async function GET(request: Request) {
-  const guard = await requireDomainUser();
+  const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
   const { serviceClient } = guard.value;
 

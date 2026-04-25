@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import { GET } from '@/app/api/vessels/lookup/route';
 
 const mockRequireDomainUser = vi.fn();
-vi.mock('@/lib/auth/require-domain-user', () => ({
-  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+vi.mock('@/lib/auth/require-auth-session', () => ({
+  requireAuthSession: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
 
 const mockServiceFrom = vi.fn();
@@ -14,8 +14,6 @@ function guardOk(overrides: Record<string, unknown> = {}) {
     ok: true,
     value: {
       user: { id: 'u1' },
-      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
-      profile: { person_id: 'u1' },
       supabase: { from: vi.fn() },
       serviceClient: { from: mockServiceFrom },
       ...overrides,

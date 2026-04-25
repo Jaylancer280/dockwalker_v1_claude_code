@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import { POST, DELETE } from '@/app/api/profile/avatar/route';
 
 const mockRequireDomainUser = vi.fn();
-vi.mock('@/lib/auth/require-domain-user', () => ({
-  requireDomainUser: (...args: unknown[]) => mockRequireDomainUser(...args),
+vi.mock('@/lib/auth/require-auth-session', () => ({
+  requireAuthSession: (...args: unknown[]) => mockRequireDomainUser(...args),
 }));
 
 const mockAppendEvent = vi.fn().mockResolvedValue(undefined);
@@ -17,13 +17,25 @@ const mockStorageRemove = vi.fn();
 const mockStorageList = vi.fn();
 const mockStorageGetPublicUrl = vi.fn();
 
-function guardOk() {
+function makePersonsLookup(currentHat: string | null) {
+  return {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({
+            data: currentHat ? { current_hat: currentHat } : null,
+          }),
+        }),
+      }),
+    }),
+  };
+}
+
+function guardOk(currentHat: string | null = 'crew') {
   return {
     ok: true,
     value: {
       user: { id: 'u1' },
-      person: { id: 'u1', identity_type: 'crew', current_hat: 'crew' },
-      profile: { person_id: 'u1' },
       supabase: {
         storage: {
           from: () => ({
@@ -34,7 +46,7 @@ function guardOk() {
           }),
         },
       },
-      serviceClient: { rpc: vi.fn() },
+      serviceClient: makePersonsLookup(currentHat),
     },
   };
 }

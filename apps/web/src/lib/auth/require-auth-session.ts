@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface AuthSession {
   user: { id: string };
   supabase: SupabaseClient;
+  serviceClient: SupabaseClient;
 }
 
 type AuthSessionResult = { ok: true; value: AuthSession } | { ok: false; response: NextResponse };
@@ -26,9 +27,10 @@ export async function requireAuthSession(): Promise<AuthSessionResult> {
   const supabase = await createClient();
 
   if (headerUserId) {
+    const serviceClient = await createServiceClient();
     return {
       ok: true,
-      value: { user: { id: headerUserId }, supabase },
+      value: { user: { id: headerUserId }, supabase, serviceClient },
     };
   }
 
@@ -43,8 +45,9 @@ export async function requireAuthSession(): Promise<AuthSessionResult> {
     };
   }
 
+  const serviceClient = await createServiceClient();
   return {
     ok: true,
-    value: { user: { id: user.id }, supabase },
+    value: { user: { id: user.id }, supabase, serviceClient },
   };
 }
