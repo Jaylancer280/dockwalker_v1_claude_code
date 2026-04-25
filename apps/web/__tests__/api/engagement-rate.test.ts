@@ -15,8 +15,10 @@ function makeChain(data: unknown) {
     not: vi.fn(),
     eq: vi.fn().mockReturnValue({
       single: vi.fn().mockResolvedValue({ data }),
+      maybeSingle: vi.fn().mockResolvedValue({ data }),
     }),
     single: vi.fn().mockResolvedValue({ data }),
+    maybeSingle: vi.fn().mockResolvedValue({ data }),
   };
   inner.not.mockReturnValue(inner);
   return {

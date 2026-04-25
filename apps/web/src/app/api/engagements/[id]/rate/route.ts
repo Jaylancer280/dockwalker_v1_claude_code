@@ -71,7 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .select('id')
       .eq('engagement_id', engagementId)
       .eq('rater_person_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (existingRating) {
       return NextResponse.json(

@@ -78,7 +78,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .from('engagement_checklists')
       .select('engagement_id')
       .eq('engagement_id', engagementId)
-      .single();
+      .maybeSingle();
 
     const isUpdate = !!existing;
     const systemContent = isUpdate

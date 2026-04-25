@@ -26,11 +26,13 @@ function guardOk(overrides: Record<string, unknown> = {}) {
 function makeChain(data: unknown) {
   const eqFn: ReturnType<typeof vi.fn> = vi.fn().mockReturnValue({
     single: vi.fn().mockResolvedValue({ data }),
+    maybeSingle: vi.fn().mockResolvedValue({ data }),
   });
   // Support chaining multiple .eq() calls (e.g. .eq('a', 1).eq('b', 2).single())
   eqFn.mockReturnValue({
     eq: eqFn,
     single: vi.fn().mockResolvedValue({ data }),
+    maybeSingle: vi.fn().mockResolvedValue({ data }),
   });
   return {
     select: vi.fn().mockReturnValue({

@@ -53,7 +53,8 @@ export async function GET(request: Request) {
     const { data: staleCrew } = await serviceClient
       .from('availability_windows')
       .select('person_id, created_at, not_available, expires_at')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(20000);
 
     if (staleCrew) {
       const personMap = new Map<

@@ -33,12 +33,14 @@ function makeEngagementChain(data: unknown[]) {
   };
 }
 
-// Mock for messages query: .select().in().order() -> { data }
+// Mock for messages query: .select().in().order().limit() -> { data }
 function makeMessagesChain(data: unknown[]) {
   return {
     select: vi.fn().mockReturnValue({
       in: vi.fn().mockReturnValue({
-        order: vi.fn().mockResolvedValue({ data }),
+        order: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data }),
+        }),
       }),
     }),
   };

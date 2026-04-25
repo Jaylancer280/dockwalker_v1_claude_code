@@ -70,7 +70,7 @@ export async function GET(
           )
           .eq('engagement_id', engagementId)
           .eq('rater_person_id', user.id)
-          .single(),
+          .maybeSingle(),
         engagement.cancelled_by === 'crew'
           ? supabase.from('dayworks').select('status').eq('id', engagement.daywork_id).single()
           : Promise.resolve({ data: null }),
@@ -78,7 +78,7 @@ export async function GET(
           .from('engagement_checklists')
           .select('items, acknowledged_item_ids')
           .eq('engagement_id', engagementId)
-          .single(),
+          .maybeSingle(),
       ]);
 
     // If crew cancelled, employer has responded once daywork is no longer in_progress

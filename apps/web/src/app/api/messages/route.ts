@@ -85,6 +85,7 @@ export async function GET() {
             .select('engagement_id, content, created_at, sender_person_id')
             .in('engagement_id', engagementIds)
             .order('created_at', { ascending: false })
+            .limit(200)
         : Promise.resolve({ data: null }),
       engagementIds.length > 0
         ? supabase.rpc('get_unread_counts', { p_person_id: user.id })

@@ -70,11 +70,31 @@ export function NotificationCountsProvider({ children }: { children: ReactNode }
   }, []);
 
   useEffect(() => {
+    let lastRefreshAt = 0;
+    let pendingTimer: ReturnType<typeof setTimeout> | null = null;
+    const COOLDOWN_MS = 30_000;
+
     function handleVisibility() {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      const elapsed = now - lastRefreshAt;
+      if (elapsed >= COOLDOWN_MS) {
+        lastRefreshAt = now;
+        refresh();
+        return;
+      }
+      if (pendingTimer) return;
+      pendingTimer = setTimeout(() => {
+        pendingTimer = null;
+        lastRefreshAt = Date.now();
+        refresh();
+      }, COOLDOWN_MS - elapsed);
     }
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (pendingTimer) clearTimeout(pendingTimer);
+    };
   }, [refresh]);
 
   const value: NotificationCounts = { ...counts, refresh };
