@@ -329,7 +329,7 @@ export default function DockyPage() {
   const hasMessages = messages.length > 0;
 
   return (
-    <main className="flex h-svh flex-col pb-[calc(var(--nav-height)+env(safe-area-inset-bottom))] md:pb-0">
+    <main className="fixed inset-x-0 top-0 bottom-0 z-10 flex flex-col bg-background pb-[calc(var(--nav-height)+env(safe-area-inset-bottom))] md:static md:inset-auto md:bottom-auto md:z-auto md:h-dvh md:pb-0">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-[var(--surface)] px-4 py-3">
         <div className="flex items-center gap-2">
