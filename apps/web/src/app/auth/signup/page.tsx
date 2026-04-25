@@ -17,6 +17,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -40,6 +41,7 @@ export default function SignUpPage() {
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setAlreadyRegistered(false);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
@@ -54,7 +56,7 @@ export default function SignUpPage() {
     setLoading(true);
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -63,13 +65,70 @@ export default function SignUpPage() {
     });
 
     if (error) {
-      setError(error.message);
+      if (error.message.toLowerCase().includes('already registered')) {
+        setAlreadyRegistered(true);
+      } else {
+        setError(error.message);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Supabase obfuscates existing confirmed users by returning empty `identities` with no error.
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      setAlreadyRegistered(true);
       setLoading(false);
       return;
     }
 
     setSuccess(true);
     setLoading(false);
+  }
+
+  if (alreadyRegistered) {
+    return (
+      <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 md:bg-[radial-gradient(ellipse_at_center,var(--accent-lo)_0%,transparent_70%)]">
+        <AuthAmbientBackground />
+        <div className="flex w-full max-w-sm flex-col items-center gap-6">
+          <Image
+            src="/images/brand/dw_app_icon_cropped.png"
+            alt="DockWalker"
+            width={64}
+            height={64}
+            className="rounded-2xl"
+          />
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle className="text-base">Account already exists</CardTitle>
+              <CardDescription>
+                <strong>{email}</strong> is already registered. Sign in instead, or reset your
+                password if you&apos;ve forgotten it.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Button asChild className="w-full">
+                <Link href="/auth/login">Sign in</Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/auth/forgot-password">Reset password</Link>
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAlreadyRegistered(false);
+                  setEmail('');
+                  setPassword('');
+                  setConfirmPassword('');
+                }}
+                className="text-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+              >
+                Use a different email
+              </button>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
   }
 
   if (success) {

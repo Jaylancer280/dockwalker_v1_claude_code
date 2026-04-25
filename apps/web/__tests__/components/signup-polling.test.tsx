@@ -8,7 +8,10 @@ Object.defineProperty(window, 'location', {
 });
 
 const mockGetUser = vi.fn();
-const mockSignUp = vi.fn().mockResolvedValue({ error: null });
+const mockSignUp = vi.fn().mockResolvedValue({
+  data: { user: { id: 'u1', identities: [{ id: 'i1' }] }, session: null },
+  error: null,
+});
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
     auth: {
