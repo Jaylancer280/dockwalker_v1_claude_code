@@ -16,16 +16,16 @@ export function UnderlineTabs({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex border-b border-[var(--border)]">
+    <div className="flex overflow-x-auto border-b border-[var(--border)] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+          className={`min-w-fit flex-1 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
             value === opt.value
-              ? 'border-b-2 border-[var(--foreground)] text-[var(--foreground)]'
-              : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
+              ? 'border-[var(--primary)] text-[var(--primary)]'
+              : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
           }`}
         >
           {opt.label}

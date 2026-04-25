@@ -6,7 +6,7 @@ import { MapPin, Briefcase, Ship, Trash2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import {
   Dialog,
   DialogContent,
@@ -156,18 +156,12 @@ export function PermanentMineSection() {
   }
 
   return (
-    <div className="page-width w-full px-4 pb-20">
-      {/* Tabs */}
-      <Tabs value={tab} onValueChange={(v) => switchTab(v as typeof tab)}>
-        <TabsList className="w-full">
-          {tabs.map((t) => (
-            <TabsTrigger key={t.key} value={t.key} className="flex-1 text-xs">
-              {t.label}
-              {t.count > 0 && <span className="ml-1 text-[10px] opacity-60">({t.count})</span>}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+    <div className="page-width w-full px-4 pt-4 pb-20">
+      <UnderlineTabs
+        options={tabs.map((t) => ({ value: t.key, label: t.label, count: t.count }))}
+        value={tab}
+        onChange={(v) => switchTab(v as typeof tab)}
+      />
 
       {/* Templates tab */}
       {tab === 'templates' && (

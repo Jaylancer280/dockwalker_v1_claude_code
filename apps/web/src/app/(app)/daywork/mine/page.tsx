@@ -18,7 +18,7 @@ import { LocationPicker } from '@/components/location-picker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import {
   Select,
   SelectContent,
@@ -561,75 +561,50 @@ export default function MyPostingsPage() {
               </Card>
             )}
 
-            <Tabs
+            <UnderlineTabs
+              options={[
+                { value: 'active', label: 'Active', count: activePostings.length },
+                { value: 'in_progress', label: 'In Progress', count: inProgressPostings.length },
+                { value: 'completed', label: 'Done' },
+                { value: 'templates', label: 'Templates' },
+              ]}
               value={currentTab}
-              onValueChange={(value) => {
-                if (isMyJobsTab(value)) {
-                  setCurrentTab(value);
-                }
+              onChange={(value) => {
+                if (isMyJobsTab(value)) setCurrentTab(value);
               }}
-            >
-              <TabsList className="w-full">
-                <TabsTrigger value="active" className="flex-1">
-                  Active{activePostings.length > 0 ? ` (${activePostings.length})` : ''}
-                </TabsTrigger>
-                <TabsTrigger value="in_progress" className="flex-1">
-                  In Progress
-                  {inProgressPostings.length > 0 ? ` (${inProgressPostings.length})` : ''}
-                </TabsTrigger>
-                <TabsTrigger value="completed" className="flex-1">
-                  Done
-                </TabsTrigger>
-                <TabsTrigger value="templates" className="flex-1">
-                  Templates
-                </TabsTrigger>
-              </TabsList>
+            />
 
-              <TabsContent
-                value="active"
-                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
-              >
+            <div className="flex flex-col gap-3 pt-4 lg:grid lg:grid-cols-2 lg:gap-4">
+              {currentTab === 'active' && (
                 <DayworkActiveSection
                   loading={loading}
                   postings={activePostings}
                   renderPostingCard={renderPostingCard}
                 />
-              </TabsContent>
-
-              <TabsContent
-                value="in_progress"
-                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
-              >
+              )}
+              {currentTab === 'in_progress' && (
                 <DayworkInProgressSection
                   loading={loading}
                   postings={inProgressPostings}
                   renderPostingCard={renderPostingCard}
                 />
-              </TabsContent>
-
-              <TabsContent
-                value="completed"
-                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
-              >
+              )}
+              {currentTab === 'completed' && (
                 <DayworkCompletedSection
                   loading={loading}
                   postings={completedPostings}
                   renderPostingCard={renderPostingCard}
                 />
-              </TabsContent>
-
-              <TabsContent
-                value="templates"
-                className="flex flex-col gap-3 pt-2 lg:grid lg:grid-cols-2 lg:gap-4"
-              >
+              )}
+              {currentTab === 'templates' && (
                 <DayworkTemplatesSection
                   loading={loading}
                   templates={templates}
                   deletingTemplate={deletingTemplate}
                   onDeleteTemplate={setConfirmDeleteId}
                 />
-              </TabsContent>
-            </Tabs>
+              )}
+            </div>
           </div>
 
           <EditPositionsDialog

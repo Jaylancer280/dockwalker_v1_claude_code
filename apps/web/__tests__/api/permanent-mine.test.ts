@@ -44,7 +44,11 @@ describe('GET /api/permanent/mine', () => {
     expect((await GET()).status).toBe(401);
   });
 
-  it('returns 403 when hat is crew', async () => {
+  it('returns 200 with own postings regardless of hat (matches /api/daywork/mine pattern)', async () => {
+    // A user in crew hat can still view their own postings — they may have
+    // posted as employer previously and switched hats. Filtering by
+    // employer_person_id ensures they only see their own data. WRITE routes
+    // still gate on hat.
     mockRequireDomainUser.mockResolvedValue({
       ok: true,
       value: {
@@ -55,7 +59,11 @@ describe('GET /api/permanent/mine', () => {
         serviceClient: { from: mockFrom, rpc: vi.fn() },
       },
     });
-    expect((await GET()).status).toBe(403);
+    mockFrom.mockReturnValueOnce(makePostingsChain([]));
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.postings).toEqual([]);
   });
 
   it('returns empty array when no permanent postings', async () => {

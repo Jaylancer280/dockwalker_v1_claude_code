@@ -9,11 +9,10 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 export async function GET() {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
-  const { user, person, supabase, serviceClient } = guard.value;
+  const { user, supabase, serviceClient } = guard.value;
 
-  if (!['employer', 'agent'].includes(person.current_hat)) {
-    return NextResponse.json({ error: 'Only employers can view their postings' }, { status: 403 });
-  }
+  // No hat guard — users can view their own postings regardless of current hat
+  // (matches /api/daywork/mine behaviour). All WRITE routes gate on hat.
 
   try {
     const { data: postings, error } = await supabase
