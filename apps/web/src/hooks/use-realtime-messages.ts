@@ -11,6 +11,7 @@ interface RealtimeMessage {
   content: string;
   is_system: boolean;
   created_at: string;
+  message_type?: string | null;
 }
 
 export function useRealtimeMessages(

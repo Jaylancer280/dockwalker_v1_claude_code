@@ -137,6 +137,12 @@ export default function ChatPage() {
       if (prev.some((m) => m.id === newMsg.id)) return prev;
       return [...prev, newMsg as Message];
     });
+    // A documents-type message references rows in engagement_documents that
+    // aren't included in the Realtime payload. Refetch so the attachment
+    // card renders without the recipient needing to refresh the page.
+    if (newMsg.message_type === 'documents') {
+      void loadDocuments();
+    }
   });
 
   useEffect(() => {
