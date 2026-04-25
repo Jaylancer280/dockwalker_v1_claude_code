@@ -5,27 +5,67 @@
 
 ## Current Task
 
-### Fix 232 — Location picker OSM fallback + seed gap fill
+### Multi-nationality — full implementation (deferred from Fix 233 night)
 
-3 users reported failed searches: "Valetta" (Valletta MT — absent from seed), "Cape Town" (in seed but live returned no match — needs verification), "Tortola" (BVI island — only Road Town is seeded), "Port antico" (Porto Antico Genova — port-level name not seeded). Mission says "no free text," but the picker already attributes "© OpenStreetMap contributors" — wiring a live OSM Nominatim fallback restores the spirit (canonical-only) while solving the long tail (auto-canonicalize on selection).
+User feedback: "add more options for nationality. For people like me, who have British and South African passports... selecting multiple nationalities is nicer." Approach B chosen: array column on profiles, true multi-select.
 
-Plan:
+**Why deferred:** apply_projection is a 490-line function and CREATE OR REPLACE requires the full body. Doing surgical edits at the end of a long session is high-risk. Schema-only piece is safe to ship tonight; rest is for tomorrow's fresh session.
 
-- [ ] Verify Cape Town is actually present in live DB (one query) — rules out a schema-applied-but-data-missing scenario.
-- [ ] Migration `00113_locations_osm_fallback_v1.sql` — adds `source` ('curated'|'osm'), `latitude`, `longitude`, `osm_place_id` columns to `cities`; `source` to `ports`; backfills existing rows to `'curated'`; targeted gap-fill INSERTs for the obvious misses (Valletta MT, Tortola/BVI alias, plus ~10 other yacht hub cities crew commonly name). Rollback drops the columns + the gap-fill rows.
-- [ ] Apply via `npx supabase db push` to live (per memory note — no local Docker).
-- [ ] New route `apps/web/src/app/api/locations/search-external/route.ts` — auth-required, GET `?q=`, calls Nominatim `https://nominatim.openstreetmap.org/search?q=<>&format=json&addressdetails=1&limit=8`, sets a custom `User-Agent: dockwalker.io/1.0 (gareth@nautalink.io)` per Nominatim policy, filters to `place_type ∈ {city,town,village,harbour,port,marina}`, returns normalized `{ name, country_code, latitude, longitude, osm_id, osm_type, place_type, display_name }[]`. 1 req/sec global rate-limit (in-memory token bucket — fine for single-region Vercel function). Errors swallowed to empty array — never block.
-- [ ] New route `apps/web/src/app/api/locations/canonicalize/route.ts` — auth-required, POST body `{ osm_id, osm_type, name, country_code, latitude, longitude, place_type }`. Service-role logic: (a) find or create region by `country_code` (look up country name from a small ISO-3166 map; sort_order = 999 for OSM-created); (b) upsert city — first try by `osm_place_id` exact match, else by `(region_id, lower(name))`, set `source='osm'`, `osm_place_id`, lat/lng. Returns `{ cityId }`. Idempotent on retry.
-- [ ] Update `apps/web/src/components/location-picker.tsx` — add `externalResults` state. When `searchResults` is non-null and `length === 0` (and query length ≥ 3 to skip noise), fire external search. Render under section header "Found in OpenStreetMap". On click, POST to canonicalize → call `onValueChange({ cityId })`.
-- [ ] Tests: external route (mock `fetch`, assert 200/empty/timeout); canonicalize route (region lookup, region creation, city upsert idempotency).
-- [ ] BUILD_STATE.md Fix 232 entry; schema version bump v112 → v113; migrations table append.
-- [ ] `apps/web/README.md` — document the two new endpoints.
-- [ ] `supabase/README.md` — note new schema columns.
-- [ ] Commit + push, watch CI.
+#### Schema (tonight, low risk)
 
-Done condition: any of "Valletta", "Tortola", "Porto Antico", "Cape Town" produces a clickable result (canonical or OSM); selecting an OSM result persists a `cityId` that survives reload.
+- [ ] Migration `00114_multi_nationality_v1.sql`:
+  - `alter table public.profiles add column if not exists nationality_ids uuid[] not null default '{}'`
+  - Backfill: `update public.profiles set nationality_ids = array[nationality_id] where nationality_id is not null and array_length(nationality_ids, 1) is null`
+  - GIN index for future filters: `create index if not exists idx_profiles_nationality_ids on public.profiles using gin (nationality_ids)`
+  - Self-contained rollback drops the index + the column. **Do NOT drop nationality_id yet** — keep for backward compat until all reads migrate.
+- [ ] Apply via `npx supabase db push`.
+
+#### Projection (tomorrow)
+
+- [ ] Migration `00115_multi_nationality_projection.sql` — CREATE OR REPLACE `apply_projection` based on the latest 00108 body. Two PROFILE handlers change:
+  - **PROFILE.CREATED**: insert `nationality_ids` from `coalesce(jsonb_array_elements_text(p_payload->'nationality_ids'), array[(p_payload->>'nationality_id')::uuid])` — accept either array (new) or single legacy field, normalize to array. Also keep writing `nationality_id` = first element of the resolved array, so legacy reads still work during transition.
+  - **PROFILE.UPDATED**: same pattern — when payload has `nationality_ids`, replace; when payload has only legacy `nationality_id`, write `array[id]` to the array column AND the single column.
+  - Other handlers untouched.
+
+#### Event payload types (tomorrow)
+
+- [ ] `packages/types/src/events.ts` — add `nationality_ids?: string[]` to `PROFILE.CREATED` and `PROFILE.UPDATED` payloads. Keep `nationality_id?: string | null` field marked deprecated (still present for projections that haven't fully migrated).
+
+#### API routes (tomorrow)
+
+- [ ] `apps/web/src/app/api/onboarding/route.ts` — accept `profile.nationalityIds: string[]`, write to event payload as `nationality_ids`. Also continue to set `nationality_id = profile.nationalityIds[0]` for backward compat.
+- [ ] `apps/web/src/app/api/profile/route.ts` GET + PATCH — read/write the array.
+- [ ] All routes that read `nationalities:nationality_id(...)` PostgREST embed (`apps/web/src/app/api/daywork/[id]/available-crew/route.ts:176`, `apps/web/src/app/api/permanent/[id]/review/route.ts:50`, `apps/web/src/app/api/daywork/[id]/applicants/route.ts:57`) — replace embed with: SELECT `nationality_ids` from profiles, then a separate `from('nationalities').select('id, name, flag_emoji').in('id', allIds)` lookup, build a map, attach to each profile.
+
+#### UI (tomorrow)
+
+- [ ] `apps/web/src/components/searchable-nationality-select.tsx` — convert to multi-select. Either swap to a `HierarchicalPills`-style component, or extend the existing select to accept `value: string[]` and `onChange: (ids: string[]) => void`. Render selected items as removable chips above the search input.
+- [ ] `apps/web/src/app/(app)/profile/_components/profile-summary-section.tsx` — render multiple flag emojis next to the name when there are multiple nationalities (e.g. `🇿🇦🇬🇧`). The `Profile` interface field changes from `nationalities: { id, name, flag_emoji } | null` to either `nationalities: Array<...>` or stays single + computed in the page.
+- [ ] `apps/web/src/app/(app)/profile/page.tsx` — change `nationalityId: string | null` state to `nationalityIds: string[]`.
+- [ ] `apps/web/src/app/(app)/profile/_components/profile-edit-form.tsx` — same state change, multi-select component.
+- [ ] `apps/web/src/app/onboarding/_components/profile-step.tsx` — same state change.
+- [ ] (mobile deferred per `feedback_no_mobile.md`)
+
+#### Tests (tomorrow)
+
+- [ ] `__tests__/api/profile-view.test.ts` — mock `nationality_ids: []` (or array fixture).
+- [ ] `__tests__/api/permanent-review.test.ts` — mock crew profile array.
+- [ ] `__tests__/api/onboarding.test.ts` — assert `nationality_ids` in event payload.
+
+#### BUILD_STATE entry
+
+- [ ] Schema bump v113 → v114 (or v115 if both migrations ship together).
+- [ ] Fix 234 (Multi-nationality) entry covering all of the above.
+
+#### Done condition
+
+A user can pick British + South African in onboarding or profile edit, see both flags rendered next to their name, and have employers see both flags on their applicant card. Existing single-nationality profiles continue to work without manual intervention (backfilled).
 
 ---
+
+### Locations V2 — OSM fallback (post-launch nice-to-have)
+
+Live OSM Nominatim fallback for the long-tail city/port name not in the curated seed. Original urgency dropped after Fix 232 traced "no match" reports to the auth gate, not missing data. Schema columns (`source`, `latitude`, `longitude`, `osm_place_id`) and 11 gap-fill cities already shipped in migration 00113 — only the live API + UI fallback remains. Full plan in git history under the Fix 232 todo.
 
 ---
 
