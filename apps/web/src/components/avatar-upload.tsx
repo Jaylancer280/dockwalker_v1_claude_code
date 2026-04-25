@@ -1,11 +1,19 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { Camera, Loader2, X } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
-import { ImageCropper } from '@/components/image-cropper';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
+
+// Lazy-load ImageCropper — pulls react-easy-crop (~40KB) which is only needed
+// after the user picks a file. Keeps it out of /profile and /onboarding's
+// initial bundle.
+const ImageCropper = dynamic(
+  () => import('@/components/image-cropper').then((mod) => mod.ImageCropper),
+  { ssr: false },
+);
 
 interface AvatarUploadProps {
   currentUrl: string | null;
