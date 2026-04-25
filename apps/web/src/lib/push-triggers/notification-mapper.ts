@@ -23,6 +23,8 @@ export function mapEventToNotificationType(eventType: string): string | null {
     'PERMANENT.SELECTION_REVERTED': 'permanent_selection_reverted',
     'PERMANENT.CANCELLED_BY_EMPLOYER': 'permanent_posting_cancelled',
     'PERMANENT.ENGAGEMENT_CLOSED': 'permanent_conversation_closed',
+    'SUPPORT.THREAD_OPENED': 'support_opened',
+    'SUPPORT.MESSAGE_SENT': 'support_reply',
   };
   return map[eventType] ?? null;
 }
@@ -69,6 +71,9 @@ export function resolveDeepLink(
       return '/discover';
     case 'PERMANENT.ENGAGEMENT_CLOSED':
       return null;
+    case 'SUPPORT.THREAD_OPENED':
+    case 'SUPPORT.MESSAGE_SENT':
+      return payload.thread_id ? `/support/${payload.thread_id}` : null;
     default:
       return null;
   }

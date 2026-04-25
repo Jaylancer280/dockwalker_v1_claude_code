@@ -445,12 +445,14 @@ export interface EventPayloadMap {
     thread_id: string;
     person_id: string;
     subject?: string;
+    content_preview?: string;
     is_admin_initiated: boolean;
   };
   'SUPPORT.MESSAGE_SENT': {
     message_id: string;
     thread_id: string;
     sender_person_id: string;
+    content_preview?: string;
     is_platform: boolean;
   };
   'PERMANENT.POSTED': {

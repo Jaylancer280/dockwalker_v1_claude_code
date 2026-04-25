@@ -19,6 +19,7 @@ import {
   permanentSelectedEmail,
   permanentShortlistedEmail,
   permanentPlacementConfirmedEmail,
+  supportMessageEmail,
   formatVesselName,
   formatEmailDate,
 } from '../email/templates';
@@ -49,6 +50,8 @@ export async function sendEmailForEvent(
     'PERMANENT.SELECTED',
     'PERMANENT.SHORTLISTED',
     'PERMANENT.PLACEMENT_CONFIRMED',
+    'SUPPORT.THREAD_OPENED',
+    'SUPPORT.MESSAGE_SENT',
   ];
   if (!EMAIL_EVENT_TYPES.includes(eventType)) return;
 
@@ -158,6 +161,18 @@ export async function sendEmailForEvent(
       vesselLabel: formatVesselName(ppCtx.vesselName, ppCtx.vesselType),
       jobNumber: ppCtx.jobNumber,
       engagementId,
+    });
+    await sendEmail({ to: email, ...tpl });
+  } else if (eventType === 'SUPPORT.THREAD_OPENED' || eventType === 'SUPPORT.MESSAGE_SENT') {
+    if (!(await canSendEmail(ctx.recipientPersonId, 'other'))) return;
+    const recipientName = await getDisplayName(sc, ctx.recipientPersonId);
+    const threadId = payload.thread_id as string;
+    if (!threadId) return;
+    const tpl = supportMessageEmail({
+      recipientName,
+      preview: ctx.notification.body,
+      threadId,
+      isNewThread: eventType === 'SUPPORT.THREAD_OPENED',
     });
     await sendEmail({ to: email, ...tpl });
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvent } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 
 export async function POST(request: Request) {
   const guard = await requireAdmin();
@@ -46,28 +47,24 @@ export async function POST(request: Request) {
       content: content.trim(),
     });
 
+    const eventPayload = {
+      thread_id: thread.id,
+      person_id,
+      subject: subject?.trim() || 'Message from DockWalker',
+      content_preview: content.trim().slice(0, 200),
+      is_admin_initiated: true,
+    };
+
     await appendEvent(serviceClient, {
       eventType: 'SUPPORT.THREAD_OPENED',
       aggregateId: thread.id,
       aggregateType: 'support',
       roleContext: 'employer',
-      payload: {
-        thread_id: thread.id,
-        person_id,
-        subject: subject?.trim() || 'Message from DockWalker',
-        is_admin_initiated: true,
-      },
+      payload: eventPayload,
       personId: adminPerson.id,
     });
 
-    await serviceClient.from('notifications').insert({
-      person_id,
-      type: 'support_opened',
-      title: 'Message from DockWalker',
-      body: content.trim().slice(0, 100),
-      deep_link: `/support/${thread.id}`,
-      role_context: 'crew',
-    });
+    notifyOnEvent(serviceClient, 'SUPPORT.THREAD_OPENED', eventPayload, adminPerson.id);
 
     return NextResponse.json({ thread_id: thread.id }, { status: 201 });
   } catch (err) {

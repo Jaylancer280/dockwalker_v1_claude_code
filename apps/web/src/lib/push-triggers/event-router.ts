@@ -25,6 +25,7 @@ import {
   handlePermanentCancelled,
   handlePermanentEngagementClosed,
 } from './permanent-handlers';
+import { handleSupportThreadOpened, handleSupportMessageSent } from './support-handlers';
 import { enqueueBroadcast } from './broadcast';
 
 export async function resolveNotification(
@@ -94,6 +95,11 @@ export async function resolveNotification(
       return handlePermanentCancelled(sc, payload);
     case 'PERMANENT.ENGAGEMENT_CLOSED':
       return handlePermanentEngagementClosed(sc, payload, actorPersonId);
+
+    case 'SUPPORT.THREAD_OPENED':
+      return handleSupportThreadOpened(sc, payload);
+    case 'SUPPORT.MESSAGE_SENT':
+      return handleSupportMessageSent(sc, payload);
 
     default:
       return [];

@@ -516,6 +516,22 @@ async function resolveBody(
       };
     }
 
+    case 'SUPPORT.THREAD_OPENED':
+    case 'SUPPORT.MESSAGE_SENT': {
+      const threadId = payload.thread_id as string | undefined;
+      if (!threadId) return null;
+      const heading =
+        eventType === 'SUPPORT.THREAD_OPENED'
+          ? '💬 Message from DockWalker'
+          : '💬 New reply from DockWalker';
+      return {
+        text:
+          `<b>${heading}</b>\n` +
+          `${escapeHtml(previewText(ctx.notification.body, 180))}` +
+          cta(`${SITE_URL}/support/${threadId}`, 'Open thread'),
+      };
+    }
+
     default:
       return null;
   }

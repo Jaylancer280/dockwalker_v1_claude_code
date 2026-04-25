@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
+import { notifyAdminsOfSupport } from '@/lib/push-triggers/support-admin-notify';
 
 export async function GET() {
   const guard = await requireDomainUser();
@@ -76,9 +77,24 @@ export async function POST(request: Request) {
         thread_id: thread.id,
         person_id: person.id,
         subject: subject?.trim(),
+        content_preview: content.trim().slice(0, 200),
         is_admin_initiated: false,
       },
       personId: person.id,
+    });
+
+    // In-app notify all admins (no external channels per launch decision).
+    const { data: senderProfile } = await serviceClient
+      .from('profiles')
+      .select('display_name')
+      .eq('person_id', person.id)
+      .single();
+    void notifyAdminsOfSupport(serviceClient, {
+      threadId: thread.id,
+      isNewThread: true,
+      senderName: senderProfile?.display_name ?? 'A user',
+      contentPreview: content.trim(),
+      subject: subject?.trim() ?? null,
     });
 
     return NextResponse.json({ thread_id: thread.id }, { status: 201 });

@@ -252,3 +252,29 @@ export function permanentPlacementConfirmedEmail(params: {
     }),
   };
 }
+
+export function supportMessageEmail(params: {
+  recipientName: string;
+  preview: string;
+  threadId: string;
+  isNewThread: boolean;
+}): { subject: string; html: string } {
+  const ctaHref = `${siteUrl()}/support/${params.threadId}`;
+  const subject = params.isNewThread
+    ? 'Message from DockWalker support'
+    : 'New reply from DockWalker support';
+  return {
+    subject,
+    html: wrap({
+      previewText: params.preview || 'You have a new support message.',
+      content: `
+        <h2 style="color:#111a24;font-size:20px;font-weight:600;margin:0 0 16px;">Hi ${params.recipientName},</h2>
+        ${paragraph(params.isNewThread ? `DockWalker support has opened a thread with you:` : `DockWalker support sent you a reply:`)}
+        <div style="background:#f1f5f9;border-left:3px solid #2d7de0;border-radius:6px;padding:14px 18px;margin:0 0 20px;">
+          <p style="color:#475569;font-size:15px;margin:0;font-style:italic;line-height:1.55;">&ldquo;${params.preview}&rdquo;</p>
+        </div>
+        ${ctaButton(ctaHref, 'Open support thread')}
+      `,
+    }),
+  };
+}

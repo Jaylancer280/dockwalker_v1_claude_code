@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvent } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 
 export async function GET(
   _request: Request,
@@ -82,19 +83,24 @@ export async function POST(
       .update({ updated_at: new Date().toISOString() })
       .eq('id', threadId);
 
+    const eventPayload = {
+      message_id: msg?.id ?? '',
+      thread_id: threadId,
+      sender_person_id: adminPerson.id,
+      content_preview: content.trim().slice(0, 200),
+      is_platform: true,
+    };
+
     await appendEvent(serviceClient, {
       eventType: 'SUPPORT.MESSAGE_SENT',
       aggregateId: threadId,
       aggregateType: 'support',
       roleContext: 'employer',
-      payload: {
-        message_id: msg?.id ?? '',
-        thread_id: threadId,
-        sender_person_id: adminPerson.id,
-        is_platform: true,
-      },
+      payload: eventPayload,
       personId: adminPerson.id,
     });
+
+    notifyOnEvent(serviceClient, 'SUPPORT.MESSAGE_SENT', eventPayload, adminPerson.id);
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {
