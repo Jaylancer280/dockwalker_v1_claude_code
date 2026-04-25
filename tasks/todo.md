@@ -135,6 +135,7 @@
 - **Chat textarea send-then-snap-back** — when textarea grows multi-line then shrinks on send, layout shifts visibly. iOS-keyboard-specific; needs visualViewport API or careful keyboard-state detection. Cosmetic, not blocking.
 - **Stripe success URL Apple Pay timeout** — observed during live testing: completing checkout via Apple Pay sometimes shows "session timed out" before redirect. Stripe-side issue or our success URL handler; investigate when seen by real users.
 - **Notification handler `roleContext` mismatch** — handlers like `handleDayworkApplied` hardcode `roleContext: 'employer'` even when recipient is an agent. Fix 228 patched the count endpoint to ignore the filter for agents; proper fix is to set `roleContext` per recipient identity at handler dispatch time.
+- **Document attachment doesn't render via Realtime on recipient side** — when crew uploads a document in chat, the `MESSAGE.SENT` event arrives at the employer's open chat tab via Supabase Realtime, but only the "Shared 1 document(s)" text bubble renders. The attachment card (download link) doesn't appear until the page is refreshed. Cause: the Realtime listener in `apps/web/src/app/(app)/messages/[engagementId]/page.tsx` updates messages state but doesn't refetch the `engagement_documents` map. Fix: when a `MESSAGE.SENT` with `message_type === 'documents'` arrives via Realtime, call the existing documents fetcher to refresh the map. ~15-20 min.
 
 ### Testing
 
