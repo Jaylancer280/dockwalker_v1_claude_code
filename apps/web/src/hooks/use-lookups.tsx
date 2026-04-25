@@ -26,6 +26,8 @@ export interface ExperienceBracketLookup {
 export interface SizeBandLookup {
   id: string;
   label: string;
+  min_meters: number;
+  max_meters: number | null;
 }
 
 export interface NationalityLookup {
@@ -164,7 +166,10 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         .order('subcategory')
         .order('sort_order'),
       supabase.from('experience_brackets').select('id, label').order('min_months'),
-      supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
+      supabase
+        .from('vessel_size_bands')
+        .select('id, label, min_meters, max_meters')
+        .order('min_meters'),
       supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
       supabase
         .from('entry_rights')
@@ -216,7 +221,10 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         .order('subcategory')
         .order('sort_order'),
       supabase.from('experience_brackets').select('id, label').order('min_months'),
-      supabase.from('vessel_size_bands').select('id, label').order('min_meters'),
+      supabase
+        .from('vessel_size_bands')
+        .select('id, label, min_meters, max_meters')
+        .order('min_meters'),
       supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
       supabase
         .from('entry_rights')

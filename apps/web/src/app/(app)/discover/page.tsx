@@ -581,6 +581,10 @@ export default function DiscoverPage() {
                 if (next === 'permanent' && activeTab === 'invitations') {
                   setActiveTab('browse');
                 }
+                // Reset scroll: switching modes swaps the entire feed, and a
+                // shorter list (e.g. permanent with 1 posting) inherits the
+                // longer list's scroll offset, hiding the first card's title.
+                window.scrollTo({ top: 0, behavior: 'auto' });
               }}
             />
           </div>
@@ -612,7 +616,10 @@ export default function DiscoverPage() {
           <UnderlineTabs
             options={subTabOptions}
             value={activeTab}
-            onChange={(v) => setActiveTab(v as 'browse' | 'invitations' | 'applied')}
+            onChange={(v) => {
+              setActiveTab(v as 'browse' | 'invitations' | 'applied');
+              window.scrollTo({ top: 0, behavior: 'auto' });
+            }}
           />
         </div>
       </header>

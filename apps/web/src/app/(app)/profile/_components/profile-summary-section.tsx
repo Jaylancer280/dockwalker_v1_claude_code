@@ -50,8 +50,29 @@ interface ProfileSummarySectionProps {
   expandedSections: Record<string, boolean>;
   toggleSection: (key: string) => void;
   sizeBandNames: Record<string, string>;
+  sizeBandRanges?: Record<string, { min_meters: number; max_meters: number | null }>;
   onAddExperience: () => void;
   onEnterEdit: () => void;
+}
+
+/**
+ * Combined vessel-size exposure label, e.g. "30-90m". Spans the union of
+ * the user's selected size bands. Returns null when no exposure is set or
+ * the range data is missing (caller skips that segment).
+ */
+function vesselSizeRange(
+  exposureIds: string[] | null | undefined,
+  ranges: Record<string, { min_meters: number; max_meters: number | null }> | undefined,
+): string | null {
+  if (!exposureIds?.length || !ranges) return null;
+  const bands = exposureIds.map((id) => ranges[id]).filter(Boolean);
+  if (bands.length === 0) return null;
+  const min = Math.min(...bands.map((b) => b.min_meters));
+  const maxes = bands.map((b) => b.max_meters);
+  // Open-ended top tier (max_meters null) → "<min>m+"
+  if (maxes.some((m) => m === null)) return `${min}m+`;
+  const max = Math.max(...(maxes as number[]));
+  return min === max ? `${min}m` : `${min}-${max}m`;
 }
 
 export function ProfileSummarySection({
@@ -61,6 +82,7 @@ export function ProfileSummarySection({
   expandedSections,
   toggleSection,
   sizeBandNames,
+  sizeBandRanges,
   onAddExperience,
   onEnterEdit,
 }: ProfileSummarySectionProps) {
@@ -81,8 +103,9 @@ export function ProfileSummarySection({
                 !profile.location_cities && !profile.ports?.cities && 'location',
                 !profile.experience_brackets && experiences.length === 0 && 'experience',
               ].filter(Boolean);
+              const sizeRange = vesselSizeRange(profile.vessel_size_exposure_ids, sizeBandRanges);
               const summary = profile.yacht_roles?.name
-                ? `${profile.yacht_roles.name}${profile.experience_brackets?.label ? ` · ${profile.experience_brackets.label}` : ''}${experiences.length > 0 ? ` · ${computeTotalExperience(experiences)}` : ''}${(profile.location_cities?.name ?? profile.ports?.cities?.name) ? ` · ${profile.location_cities?.name ?? profile.ports?.cities?.name}` : ''}`
+                ? `${profile.yacht_roles.name}${experiences.length > 0 ? ` · ${computeTotalExperience(experiences)}` : ''}${sizeRange ? ` · ${sizeRange}` : ''}${(profile.location_cities?.name ?? profile.ports?.cities?.name) ? ` · ${profile.location_cities?.name ?? profile.ports?.cities?.name}` : ''}`
                 : null;
               return (
                 <p className="mt-0.5 text-sm text-muted-foreground">

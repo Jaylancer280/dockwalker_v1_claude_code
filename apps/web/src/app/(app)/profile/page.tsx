@@ -232,6 +232,13 @@ export default function ProfilePage() {
     for (const s of lookups.sizeBands) map[s.id] = s.label;
     return map;
   }, [lookups.sizeBands]);
+  const sizeBandRanges = useMemo(() => {
+    const map: Record<string, { min_meters: number; max_meters: number | null }> = {};
+    for (const s of lookups.sizeBands) {
+      map[s.id] = { min_meters: s.min_meters, max_meters: s.max_meters };
+    }
+    return map;
+  }, [lookups.sizeBands]);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -713,6 +720,7 @@ export default function ProfilePage() {
                   expandedSections={expandedSections}
                   toggleSection={toggleSection}
                   sizeBandNames={sizeBandNames}
+                  sizeBandRanges={sizeBandRanges}
                   onAddExperience={() => router.push('/profile/add-experience')}
                   onEnterEdit={enterEdit}
                 />
