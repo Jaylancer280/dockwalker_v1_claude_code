@@ -15,6 +15,7 @@ interface CanonicalizeBody {
 const VALID_OSM_TYPES = new Set(['node', 'way', 'relation']);
 const VALID_PLACE_TYPES = new Set(['city', 'town', 'village', 'harbour', 'port', 'marina']);
 const OSM_FALLBACK_SORT_ORDER = 999;
+const MAX_NAME_LENGTH = 200;
 
 function osmPlaceIdFor(osm_type: string, osm_id: number): string {
   // Single short letter prefix matches OSM's own URL convention (N/W/R).
@@ -33,12 +34,19 @@ function isValidBody(
   if (typeof b.osm_id !== 'number' || !Number.isFinite(b.osm_id)) return false;
   if (typeof b.osm_type !== 'string' || !VALID_OSM_TYPES.has(b.osm_type)) return false;
   if (typeof b.name !== 'string' || b.name.trim().length === 0) return false;
+  if (b.name.length > MAX_NAME_LENGTH) return false;
   if (typeof b.latitude !== 'number' || !Number.isFinite(b.latitude)) return false;
   if (typeof b.longitude !== 'number' || !Number.isFinite(b.longitude)) return false;
+  if (b.latitude < -90 || b.latitude > 90) return false;
+  if (b.longitude < -180 || b.longitude > 180) return false;
   if (typeof b.place_type !== 'string' || !VALID_PLACE_TYPES.has(b.place_type)) return false;
   if (b.country_code != null) {
     if (typeof b.country_code !== 'string') return false;
     if (!/^[A-Z]{2}$/.test(b.country_code)) return false;
+  }
+  if (b.country_name != null) {
+    if (typeof b.country_name !== 'string') return false;
+    if (b.country_name.length > MAX_NAME_LENGTH) return false;
   }
   return true;
 }

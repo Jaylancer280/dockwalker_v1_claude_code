@@ -203,6 +203,48 @@ describe('POST /api/locations/canonicalize', () => {
     expect(res.status).toBe(401);
   });
 
+  it('400 on a name longer than 200 chars (defence-in-depth cap)', async () => {
+    mockRequireAuthSession.mockResolvedValue(authOk());
+    const res = await canonicalizePOST(
+      makeRequest({
+        osm_id: 1,
+        osm_type: 'relation',
+        name: 'x'.repeat(201),
+        latitude: 0,
+        longitude: 0,
+        place_type: 'town',
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('400 on out-of-range latitude / longitude', async () => {
+    mockRequireAuthSession.mockResolvedValue(authOk());
+    const tooFarNorth = await canonicalizePOST(
+      makeRequest({
+        osm_id: 1,
+        osm_type: 'relation',
+        name: 'Polar Marina',
+        latitude: 95,
+        longitude: 0,
+        place_type: 'marina',
+      }),
+    );
+    expect(tooFarNorth.status).toBe(400);
+
+    const tooFarEast = await canonicalizePOST(
+      makeRequest({
+        osm_id: 1,
+        osm_type: 'relation',
+        name: 'East of nowhere',
+        latitude: 0,
+        longitude: 200,
+        place_type: 'marina',
+      }),
+    );
+    expect(tooFarEast.status).toBe(400);
+  });
+
   it('400 on invalid body shape', async () => {
     mockRequireAuthSession.mockResolvedValue(authOk());
     const res = await canonicalizePOST(
