@@ -5,90 +5,18 @@
 
 ## Current Task
 
-### Vessels V2 — multi-name/flag history + admin curation queue (post-launch)
-
-Same admin-review pattern as Locations V2 but for vessels. IMO is already locked in as the immutable anchor (CLAUDE.md core invariant) — this proposal adds the temporal layer that real-world yacht ownership churn requires (rename after sale, reflag after sanctions, etc.). Avoids legal exposure on Equasis/MarineTraffic scraping by using **manual admin enrichment** rather than automated import.
-
-#### Why this matters
-
-A crew member's experience on `MY Vessel X` from 2018-2020 (Cayman flag) under IMO 1010545 is historically correct even if that hull is now `MY Vessel Y` (Malta flag). The IMO is the anchor; names and flag states are time-variable.
-
-#### Schema
-
-- [ ] Migration `00120_vessel_history.sql` (renumbered — 00117/00118/00119 are Locations V2):
-  - New table `vessel_names` — `(id uuid PK, vessel_id FK, name text, effective_from date, effective_to date null, source text 'curated'|'user_submitted'|'pending', created_at)`. Append-only. Latest with `effective_to is null` is the current name; historical entries persist forever.
-  - New table `vessel_flag_states` — same shape: `(id, vessel_id, flag_state_id FK, effective_from, effective_to, source, created_at)`.
-  - Add columns to `vessels`: `gross_tonnage int null`, `beam_meters numeric(6,2) null`, `year_built int null`, `builder text null`, `flag_state_id uuid null FK` (current flag, denormalized), `source text 'curated'|'user_submitted'|'pending' default 'curated'`, `hidden_at timestamptz null`. The denormalized `vessels.name` and `vessels.flag_state_id` are kept as "current" — projection updates them when a new name/flag record with `effective_to=null` lands.
-  - GIN index on `vessel_names(name)` via pg_trgm for fuzzy search across historical names.
-
-#### Events (event-sourced per CLAUDE.md mission)
-
-- [ ] New event types in `packages/types/src/events.ts`:
-  - `VESSEL.RENAMED` — payload `{ vessel_id, name, effective_from, effective_to? }`. Closes the previous name record (sets `effective_to = effective_from - 1 day`) and inserts a new one. Updates `vessels.name`.
-  - `VESSEL.REFLAGGED` — payload `{ vessel_id, flag_state_id, effective_from, effective_to? }`. Same pattern for flag states.
-  - `VESSEL.METADATA_UPDATED` — payload `{ vessel_id, gross_tonnage?, beam_meters?, year_built?, builder? }`. Admin enrichment events. Single event for any combination of metadata fields (each optional, coalesce in projection).
-- [ ] Migration `00121_vessel_history_projection.sql` — extend `apply_projection` to handle the three new event types.
-
-#### Entry points (where users add a vessel)
-
-The pending-vessel flow fires from any of these, all routed through a shared "Add a vessel" component:
-
-- [ ] **Crew adding experience** — existing IMO lookup at `apps/web/src/app/(app)/profile/add-experience/...`. Already wired; just needs the manual fallback when IMO not found.
-- [ ] **Employer/Agent posting daywork** — `apps/web/src/app/(app)/daywork/post/...`.
-- [ ] **Employer/Agent posting permanent** — `apps/web/src/app/(app)/daywork/post/_components/permanent-post-form.tsx`.
-- [ ] **Standalone vessel manager (agents)** — new page `apps/web/src/app/(app)/vessels/page.tsx` or similar. Lets agents pre-curate vessel data outside any specific posting context. Important: agents managing multiple yachts may add vessels in bulk without immediate experience or posting attached.
-
-All four entry points reach the same `<AddVesselDialog>` component which calls a shared route.
-
-#### Manual add flow
-
-> Only fires AFTER IMO lookup returns no match. Don't surface a manual form when canonical hits exist.
-
-- [ ] New route `apps/web/src/app/api/vessels/request/route.ts` — auth-required POST. Body `{ imo_number, name, vessel_type, size_band_id, loa_meters, flag_state_id?, year_built?, builder?, gross_tonnage?, beam_meters? }`. Server-side: validates IMO is 7 digits and unique, inserts vessel with `source='pending'`, inserts initial `vessel_names` and `vessel_flag_states` (if provided) entries with `source='pending'`. Returns the new vessel id. Existing `/api/vessels/lookup` already handles IMO uniqueness — re-use that logic.
-- [ ] Manual form fields: **IMO Number** (required, 7 digits), **Vessel Name** (required), **Vessel Type** (motor/sail/etc, dropdown), **LOA** (meters), **Size Band** (auto-derived from LOA if possible), **Flag State** (optional, dropdown), **Year Built** (optional), **Builder** (optional). Last three fields are nice-to-have at submit; admin can fill in during review.
-
-#### Admin notification
-
-- [ ] In-app admin notification on `vessels.source='pending'` insert. Reuse `notifyAdminsOfSupport` pattern: lookup admins, insert notification rows of type `admin_vessel_pending`, deep_link `/admin/vessels/pending`. Title `'New vessel request'`, body `'<user> added <name> (IMO <imo>)'`.
-
-#### Admin queue
-
-- [ ] New page `apps/web/src/app/admin/vessels/pending/page.tsx`. Lists every vessel with `source='pending'`, ordered by `created_at desc`. Each row shows: submitting user, submitted on, IMO, current name, current flag, all metadata fields (editable inline). Three action buttons:
-  - **APPROVE** — _"Mark this vessel as canonical. Edit fields above (typos, capitalization) and add enrichment data (gross tonnage, beam, year built, builder, flag state) before clicking. The submitting user and all future users will see this vessel record. Use this when the IMO is real and the data has been verified (Equasis or similar)."_ → flips `source` to `'curated'` on vessels + vessel_names + vessel_flag_states. Same UUID retained.
-  - **MERGE** — _"This IMO already exists in the database. Pick the canonical match below. The submitter's experience entry / posting will be re-pointed to the canonical vessel. If the submitted name doesn't match the canonical's current name, it's added as a historical alias to vessel_names so future searches by either name resolve to the same hull. Use this when the same IMO has been added before under a different name."_ → opens IMO-keyed picker against canonical-only vessels. On select: emit `VESSEL.RENAMED` event if name differs (using submitter's experience date range as effective_from/to), repoint all FKs (`crew_experiences.vessel_id`, `dayworks.vessel_id`, `permanent_postings.vessel_id`, `daywork_templates.vessel_id`, `permanent_templates.vessel_id`), delete pending vessel row.
-  - **HIDE** — _"Keep this submission private to the user who created it. They'll still see it on their own profile / posting / experience, but it won't appear in anyone else's vessel search and won't accumulate as canonical data. Use for unverifiable submissions you don't want to approve OR merge — for example, if you can't find any record of the IMO on Equasis."_ → sets `vessels.hidden_at = now()`. Submitting user's experience/posting still resolves the FK normally; everyone else's search filters out hidden + pending.
-
-- [ ] Admin can also **add historical names/flags inline** during review — e.g., user submits "Black Pearl" but admin's Equasis check shows the hull is currently "Sea Wolf" with prior name "Black Pearl" 2015-2020. Admin enters both into `vessel_names` with appropriate effective dates. Single transaction.
-
-#### Display logic (UI work, deferrable)
-
-- [ ] Crew experience display picks name from `vessel_names` whose `[effective_from, effective_to)` overlaps the experience's `[start_date, end_date)`. Fall back to current `vessels.name` if no match. Same for flag.
-- [ ] IMO lookup endpoint extended to fuzzy-search across `vessel_names.name` (not just `vessels.name`), so typing "Sea Wolf" finds the hull even if it's currently "Black Pearl".
-- [ ] Optional polish: hover/tap text on historical names — `"Now MY Black Pearl"`.
-
-#### Tests
-
-- Migration smoke test: insert a vessel with multiple name records spanning different effective dates, verify display logic picks the right name for a given experience date range.
-- Admin queue: approve/merge/hide actions have integration coverage.
-- VESSEL.RENAMED / VESSEL.REFLAGGED event handling in projection.
-- Manual add flow from each of the four entry points.
-
-#### Done condition
-
-- A crew member adding experience on a hull whose IMO isn't in the DB gets the manual add form, fills it in, sees the vessel persist on their experience.
-- An agent managing a fleet can pre-add vessels via `/vessels` (or wherever the standalone manager lives) without any experience or posting attached.
-- Admin gets in-app notification, opens `/admin/vessels/pending`, enriches with Equasis data, approves.
-- Crew member's old experience on the same IMO under a different name still displays the historical name correctly because `vessel_names` covers the overlapping date range.
-
-#### Schema version
-
-Migration 00120 + 00121 — schema bumps from v119 → v121.
+> _empty — pick from Queue or Pre-launch QA._
 
 ---
 
 ## Queue
 
-> _empty — Stage 217 audit follow-ups all shipped in Fix 246._
+### Vessels V2 — Wave F follow-ups (display logic + RPC filter)
+
+Wave F's integrity-critical piece (lookup-route filter for pending + hidden) shipped in Fix 253. Two pieces remain — both display-only, neither leaks unapproved data, so deferred until a launch-blocking task surfaces.
+
+- [ ] **Update `get_vessel_public` and `get_vessels_public_batch` RPCs** to apply the same `source='pending' OR hidden_at IS NOT NULL` filter for non-owners. Without this, a hidden vessel still appears on chat summary cards / discover cards / mine cards downstream of acceptance. The lookup route is the front door (Fix 253 covered it); these RPCs are the side doors. Owner FK still resolves through the unfiltered path so submitters keep seeing their own pending vessel everywhere.
+- [ ] **Date-overlap historical name + flag display logic** — resolve which `vessel_names` / `vessel_flag_states` row was current during a given experience window. Current behavior: every display surface uses denormalized `vessels.name` / `vessels.flag_state_id` (which is "now"). Target: experience cards on a profile show the vessel's name AS OF the engagement dates, e.g., a 2018-2020 experience under IMO 1010545 displays "MY Sea Wolf" even if the hull was renamed "MY Black Pearl" in 2022. Hover text "(now MY Black Pearl)" disambiguates. Surfaces affected: profile experience cards, applicant-card experience preview, chat daywork summary if engagement is in the past, mine page in-progress / completed cards.
 
 ---
 

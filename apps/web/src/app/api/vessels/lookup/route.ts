@@ -13,7 +13,7 @@ import { requireAuthSession } from '@/lib/auth/require-auth-session';
 export async function GET(request: Request) {
   const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
-  const { serviceClient } = guard.value;
+  const { user, serviceClient } = guard.value;
 
   const { searchParams } = new URL(request.url);
   const imo = searchParams.get('imo');
@@ -30,20 +30,35 @@ export async function GET(request: Request) {
     );
   }
 
+  // Wave F filter: hide `source='pending'` and `hidden_at IS NOT NULL`
+  // rows from everyone EXCEPT the submitting owner. The submitter still
+  // needs to find their own pending vessel via this lookup (e.g. to
+  // attach it to a new posting before admin approval lands).
+  const PUBLIC_SOURCES = ['curated', 'user_submitted'] as const;
+
   // Partial search (4-6 digits): prefix match returning up to 5 results
   if (imoClean.length < 7) {
     const { data: vessels, error } = await serviceClient
       .from('vessels')
-      .select('id, name, vessel_type, loa_meters, imo_number')
+      .select('id, name, vessel_type, loa_meters, imo_number, source, hidden_at, owner_person_id')
       .ilike('imo_number', `${imoClean}%`)
-      .limit(5);
+      .limit(20);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const visible = (vessels ?? []).filter((v) => {
+      if (v.hidden_at && v.owner_person_id !== user.id) return false;
+      if (v.source === 'pending' && v.owner_person_id !== user.id) return false;
+      return (
+        PUBLIC_SOURCES.includes(v.source as 'curated' | 'user_submitted') ||
+        v.owner_person_id === user.id
+      );
+    });
+
     return NextResponse.json({
-      results: (vessels ?? []).map((v) => ({
+      results: visible.slice(0, 5).map((v) => ({
         id: v.id,
         name: v.name,
         vessel_type: v.vessel_type,
@@ -53,18 +68,36 @@ export async function GET(request: Request) {
     });
   }
 
-  // Exact search (7 digits): single vessel lookup
-  const { data: vessel, error } = await serviceClient
+  // Exact search (7 digits): single vessel lookup with the same Wave F
+  // filter — but if the only matching row is THIS user's own pending
+  // submission, return it so they can attach it to follow-on flows.
+  const { data: vessels, error } = await serviceClient
     .from('vessels')
-    // IMO intentionally excluded — caller already has it, prevents enumeration of NDA vessels
-    .select('id, name, vessel_type, size_band_id, loa_meters, vessel_size_bands(label)')
-    .eq('imo_number', imoClean)
-    .limit(1)
-    .maybeSingle();
+    .select(
+      'id, name, vessel_type, size_band_id, loa_meters, source, hidden_at, owner_person_id, vessel_size_bands(label)',
+    )
+    .eq('imo_number', imoClean);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+  const candidates = (vessels ?? []) as unknown as Array<{
+    id: string;
+    name: string;
+    vessel_type: string;
+    size_band_id: string | null;
+    loa_meters: number | null;
+    source: string;
+    hidden_at: string | null;
+    owner_person_id: string;
+    vessel_size_bands: { label: string } | null;
+  }>;
+  const vessel =
+    candidates.find(
+      (v) =>
+        !v.hidden_at &&
+        (v.source === 'curated' || v.source === 'user_submitted' || v.owner_person_id === user.id),
+    ) ?? null;
 
   if (!vessel) {
     return NextResponse.json({ found: false });
