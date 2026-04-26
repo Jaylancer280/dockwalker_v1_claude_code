@@ -17,9 +17,13 @@ interface Profile {
   agency_name: string | null;
   role_specialization_ids: string[];
   nationality_id: string | null;
+  nationality_ids?: string[];
   entry_right_ids: string[];
   languages: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
+  /** Multi-nationality batch lookup attached by /api/profile.
+   * Falls back to legacy single `nationalities` row when empty. */
+  nationalities_all?: { id: string; name: string; flag_emoji: string }[];
   deck_name: string | null;
   yacht_roles: { id: string; name: string; department: string } | null;
   desired_roles: { id: string; name: string } | null;
@@ -164,22 +168,41 @@ export function ProfileSummarySection({
               </div>
             </div>
           )}
-          {profile.nationalities ? (
-            <div>
-              <p className="text-xs text-muted-foreground">Nationality</p>
-              <div className="mt-1 flex items-center gap-2">
-                <span className="text-lg">{profile.nationalities.flag_emoji}</span>
-                <span className="text-sm">{profile.nationalities.name}</span>
+          {(() => {
+            // Multi-nationality: prefer nationalities_all (full array)
+            // when present; fall back to legacy single nationalities row.
+            const all =
+              profile.nationalities_all && profile.nationalities_all.length > 0
+                ? profile.nationalities_all
+                : profile.nationalities
+                  ? [profile.nationalities]
+                  : [];
+            if (all.length === 0) return null;
+            return (
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  {all.length > 1 ? 'Nationalities' : 'Nationality'}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {all.map((n) => (
+                    <span key={n.id} className="flex items-center gap-1">
+                      <span className="text-lg">{n.flag_emoji}</span>
+                      <span className="text-sm">{n.name}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            <button
-              onClick={onEnterEdit}
-              className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
-            >
-              Add your nationality — shown on your profile with your flag
-            </button>
-          )}
+            );
+          })()}
+          {!profile.nationalities &&
+            !(profile.nationalities_all && profile.nationalities_all.length > 0) && (
+              <button
+                onClick={onEnterEdit}
+                className="flex items-center gap-2 text-sm text-muted-foreground border-l-2 border-muted pl-3 py-1"
+              >
+                Add your nationality — shown on your profile with your flag
+              </button>
+            )}
           {profile.location_cities?.name || profile.ports?.cities?.name ? (
             <div>
               <p className="text-xs text-muted-foreground">Location</p>

@@ -77,7 +77,9 @@ describe('GET /api/profile', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.person).toEqual(personData);
-    expect(body.profile).toEqual(profileData);
+    // Multi-nationality (Fix 240): GET attaches `nationalities_all`
+    // (empty array when no nationality_ids set on the profile).
+    expect(body.profile).toEqual({ ...profileData, nationalities_all: [] });
   });
 });
 

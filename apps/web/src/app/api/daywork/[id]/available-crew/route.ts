@@ -170,6 +170,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         `
       person_id, display_name, avatar_url, primary_role_id, certification_ids, languages,
       experience_bracket_id, vessel_size_exposure_ids, bio, location_port_id,
+      nationality_id, nationality_ids,
       yacht_roles:primary_role_id(id, name, department),
       experience_brackets:experience_bracket_id(label),
       ports:location_port_id(name, cities(name, regions(name))),

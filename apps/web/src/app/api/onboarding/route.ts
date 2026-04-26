@@ -112,7 +112,16 @@ export async function POST(request: Request) {
       available_to_start: profile.availableToStart || null,
       onboarding_version: profile.onboardingVersion ?? 1,
       ...(profile.avatarUrl ? { avatar_url: profile.avatarUrl } : {}),
-      nationality_id: profile.nationalityId || null,
+      // Multi-nationality: prefer nationalityIds (array). Legacy
+      // single nationalityId still accepted; the projection wraps it
+      // into a one-element array. Whichever path the client uses, the
+      // projection writes BOTH columns (nationality_id = first
+      // element, nationality_ids = full array).
+      ...(Array.isArray(profile.nationalityIds) && profile.nationalityIds.length > 0
+        ? { nationality_ids: profile.nationalityIds }
+        : profile.nationalityId
+          ? { nationality_id: profile.nationalityId }
+          : {}),
       entry_right_ids: profile.entryRightIds || [],
       // Optional crew fields (149c)
       deck_name: profile.deckName || null,

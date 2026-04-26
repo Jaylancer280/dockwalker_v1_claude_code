@@ -41,8 +41,8 @@ interface ProfileEditFormProps {
   setLocationCityId: (v: string) => void;
   certificationIds: string[];
   setCertificationIds: (v: string[]) => void;
-  nationalityId: string;
-  setNationalityId: (v: string) => void;
+  nationalityIds: string[];
+  setNationalityIds: (v: string[]) => void;
   entryRightIds: string[];
   setEntryRightIds: (v: string[]) => void;
   profileLanguages: string[];
@@ -83,8 +83,8 @@ export function ProfileEditForm({
   setLocationCityId,
   certificationIds,
   setCertificationIds,
-  nationalityId,
-  setNationalityId,
+  nationalityIds,
+  setNationalityIds,
   entryRightIds,
   setEntryRightIds,
   profileLanguages,
@@ -193,8 +193,8 @@ export function ProfileEditForm({
           <div className="flex flex-col gap-1.5">
             <Label>Nationality</Label>
             <SearchableNationalitySelect
-              value={nationalityId}
-              onChange={setNationalityId}
+              value={nationalityIds}
+              onChange={setNationalityIds}
               nationalities={nationalities}
             />
           </div>
@@ -284,8 +284,8 @@ export function ProfileEditForm({
             Nationality <span className="text-xs text-muted-foreground">(optional)</span>
           </Label>
           <SearchableNationalitySelect
-            value={nationalityId}
-            onChange={setNationalityId}
+            value={nationalityIds}
+            onChange={setNationalityIds}
             nationalities={nationalities}
             placeholder="Select nationality"
           />

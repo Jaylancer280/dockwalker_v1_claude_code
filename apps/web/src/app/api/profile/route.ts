@@ -20,7 +20,8 @@ export async function GET() {
         `
         person_id, display_name, identity_type, bio, avatar_url, deck_name,
         primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
-        vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, entry_right_ids,
+        vessel_size_exposure_ids, location_port_id, location_city_id,
+        nationality_id, nationality_ids, entry_right_ids,
         languages,
         permanent_availability, notice_period_days, currently_employed,
         smoker, visible_tattoos,
@@ -50,7 +51,27 @@ export async function GET() {
       placement_city_ids = (placements ?? []).map((p: { city_id: string }) => p.city_id);
     }
 
-    return NextResponse.json({ person, profile, placement_city_ids });
+    // Resolve the multi-nationality array into full rows (name + flag).
+    // The PostgREST single embed `nationalities(...)` above only covers
+    // the legacy `nationality_id`; for the new `nationality_ids` array
+    // we batch-lookup all referenced rows in one query and attach as
+    // `nationalities_all` so the client can render multiple flags.
+    const nationalityIds = ((profile as { nationality_ids?: string[] })?.nationality_ids ??
+      []) as string[];
+    let nationalities_all: { id: string; name: string; flag_emoji: string }[] = [];
+    if (nationalityIds.length > 0) {
+      const { data: natRows } = await supabase
+        .from('nationalities')
+        .select('id, name, flag_emoji')
+        .in('id', nationalityIds);
+      nationalities_all = (natRows as typeof nationalities_all) ?? [];
+    }
+
+    return NextResponse.json({
+      person,
+      profile: { ...profile, nationalities_all },
+      placement_city_ids,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
@@ -101,7 +122,20 @@ export async function PATCH(request: Request) {
       payload.role_specialization_ids = body.roleSpecializationIds;
     if (body.locationPortId !== undefined) payload.location_port_id = body.locationPortId;
     if (body.locationCityId !== undefined) payload.location_city_id = body.locationCityId;
-    if (body.nationalityId !== undefined) payload.nationality_id = body.nationalityId;
+    if (body.nationalityIds !== undefined) {
+      if (
+        !Array.isArray(body.nationalityIds) ||
+        !body.nationalityIds.every((id: unknown) => typeof id === 'string')
+      ) {
+        return NextResponse.json(
+          { error: 'nationalityIds must be a string array' },
+          { status: 400 },
+        );
+      }
+      payload.nationality_ids = body.nationalityIds;
+    } else if (body.nationalityId !== undefined) {
+      payload.nationality_id = body.nationalityId;
+    }
     if (body.entryRightIds !== undefined) payload.entry_right_ids = body.entryRightIds;
     if (body.languages !== undefined) {
       if (

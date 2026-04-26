@@ -41,6 +41,7 @@ interface Applicant {
   languages: string[];
   nationality_name: string | null;
   nationality_flag: string | null;
+  nationality_flags: string[];
   permanent_availability: string | null;
   notice_period_days: number | null;
   currently_employed: boolean;
@@ -315,7 +316,14 @@ export default function PermanentReviewPage() {
                         );
                         return sizeRange ? <span>· {sizeRange}</span> : null;
                       })()}
-                      {app.nationality_flag && <span>{app.nationality_flag}</span>}
+                      {(app.nationality_flags?.length > 0
+                        ? app.nationality_flags
+                        : app.nationality_flag
+                          ? [app.nationality_flag]
+                          : []
+                      ).map((flag, i) => (
+                        <span key={i}>{flag}</span>
+                      ))}
                       {app.languages.length > 0 && (
                         <span>
                           {app.languages.length} language{app.languages.length !== 1 ? 's' : ''}

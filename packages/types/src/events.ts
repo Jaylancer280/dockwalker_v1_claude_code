@@ -125,7 +125,10 @@ export interface EventPayloadMap {
     available_to_start?: string | null;
     onboarding_version?: number;
     avatar_url?: string | null;
+    /** @deprecated use `nationality_ids` (array). Single field kept for
+     * backward compat — projection writes both during the transition. */
     nationality_id?: string | null;
+    nationality_ids?: string[];
     entry_right_ids?: string[];
     desired_role_id?: string | null;
     deck_name?: string | null;
@@ -148,7 +151,9 @@ export interface EventPayloadMap {
     languages?: string[];
     available_to_start?: string | null;
     avatar_url?: string | null;
+    /** @deprecated use `nationality_ids` (array). */
     nationality_id?: string | null;
+    nationality_ids?: string[];
     entry_right_ids?: string[];
     permanent_availability?: string | null;
     notice_period_days?: number | null;

@@ -44,7 +44,8 @@ export async function GET(
         `
       person_id, display_name, identity_type, bio, avatar_url, deck_name,
       primary_role_id, desired_role_id, certification_ids, experience_bracket_id,
-      vessel_size_exposure_ids, location_port_id, location_city_id, nationality_id, entry_right_ids,
+      vessel_size_exposure_ids, location_port_id, location_city_id,
+      nationality_id, nationality_ids, entry_right_ids,
       languages, permanent_availability, notice_period_days,
       smoker, visible_tattoos,
       agency_name, role_specialization_ids,
@@ -63,15 +64,30 @@ export async function GET(
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    // Resolve multi-nationality batch lookup. The PostgREST single embed
+    // above only covers the legacy nationality_id; for the array we
+    // attach `nationalities_all` so the client renders multiple flags.
+    const nationalityIds = ((profile as { nationality_ids?: string[] }).nationality_ids ??
+      []) as string[];
+    let nationalitiesAll: { id: string; name: string; flag_emoji: string }[] = [];
+    if (nationalityIds.length > 0) {
+      const { data: natRows } = await supabase
+        .from('nationalities')
+        .select('id, name, flag_emoji')
+        .in('id', nationalityIds);
+      nationalitiesAll = (natRows as typeof nationalitiesAll) ?? [];
+    }
+    const profileWithNats = { ...profile, nationalities_all: nationalitiesAll };
+
     if (profile.identity_type === 'crew') {
-      return NextResponse.json(await buildCrewProfile(supabase, profile, personId));
+      return NextResponse.json(await buildCrewProfile(supabase, profileWithNats, personId));
     }
 
     if (profile.identity_type === 'agent') {
-      return NextResponse.json(await buildAgentProfile(supabase, profile, personId));
+      return NextResponse.json(await buildAgentProfile(supabase, profileWithNats, personId));
     }
 
-    return NextResponse.json(await buildEmployerProfile(supabase, profile, personId));
+    return NextResponse.json(await buildEmployerProfile(supabase, profileWithNats, personId));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

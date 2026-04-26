@@ -79,8 +79,8 @@ export interface ProfileStepProps {
   setSmoker: (v: boolean | null) => void;
   visibleTattoos: boolean | null;
   setVisibleTattoos: (v: boolean | null) => void;
-  nationalityId: string;
-  setNationalityId: (v: string) => void;
+  nationalityIds: string[];
+  setNationalityIds: (v: string[]) => void;
   entryRightIds: string[];
   setEntryRightIds: (v: string[]) => void;
 
@@ -170,8 +170,8 @@ export function ProfileStep(props: ProfileStepProps) {
     setSmoker,
     visibleTattoos,
     setVisibleTattoos,
-    nationalityId,
-    setNationalityId,
+    nationalityIds,
+    setNationalityIds,
     entryRightIds,
     setEntryRightIds,
     agencyName,
@@ -420,8 +420,8 @@ export function ProfileStep(props: ProfileStepProps) {
                   Nationality <span className="text-destructive">*</span>
                 </Label>
                 <SearchableNationalitySelect
-                  value={nationalityId}
-                  onChange={setNationalityId}
+                  value={nationalityIds}
+                  onChange={setNationalityIds}
                   nationalities={nationalities}
                 />
               </div>
@@ -550,8 +550,8 @@ export function ProfileStep(props: ProfileStepProps) {
                   Nationality <span className="text-xs text-muted-foreground">(optional)</span>
                 </Label>
                 <SearchableNationalitySelect
-                  value={nationalityId}
-                  onChange={setNationalityId}
+                  value={nationalityIds}
+                  onChange={setNationalityIds}
                   nationalities={nationalities}
                 />
               </div>
@@ -607,7 +607,7 @@ export function ProfileStep(props: ProfileStepProps) {
               setError('Display name is required');
               return;
             }
-            if (identityType === 'crew' && !nationalityId) {
+            if (identityType === 'crew' && nationalityIds.length === 0) {
               setError('Nationality is required');
               return;
             }

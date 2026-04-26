@@ -53,6 +53,7 @@ interface Profile {
   agency_name: string | null;
   role_specialization_ids: string[];
   nationality_id: string | null;
+  nationality_ids?: string[];
   entry_right_ids: string[];
   languages: string[];
   nationalities: { id: string; name: string; flag_emoji: string } | null;
@@ -176,7 +177,7 @@ export default function ProfilePage() {
   const [certificationIds, setCertificationIds] = useState<string[]>([]);
   const [agencyName, setAgencyName] = useState('');
   const [roleSpecializationIds, setRoleSpecializationIds] = useState<string[]>([]);
-  const [nationalityId, setNationalityId] = useState('');
+  const [nationalityIds, setNationalityIds] = useState<string[]>([]);
   const [entryRightIds, setEntryRightIds] = useState<string[]>([]);
   const [profileLanguages, setProfileLanguages] = useState<string[]>([]);
   const [deckName, setDeckName] = useState('');
@@ -257,8 +258,16 @@ export default function ProfilePage() {
         if (result.data.person) setPerson(result.data.person);
         if (result.data.profile) {
           setProfile(result.data.profile);
-          if (result.data.profile.nationality_id)
-            setNationalityId(result.data.profile.nationality_id);
+          // Prefer the new nationality_ids array; fall back to legacy
+          // single nationality_id during the migration window.
+          if (
+            Array.isArray(result.data.profile.nationality_ids) &&
+            result.data.profile.nationality_ids.length > 0
+          ) {
+            setNationalityIds(result.data.profile.nationality_ids);
+          } else if (result.data.profile.nationality_id) {
+            setNationalityIds([result.data.profile.nationality_id]);
+          }
           if (result.data.profile.entry_right_ids)
             setEntryRightIds(result.data.profile.entry_right_ids);
           setDesiredRoleId(result.data.profile.desired_role_id ?? '');
@@ -379,7 +388,13 @@ export default function ProfilePage() {
     // vessel_size_exposure_ids is auto-derived — not editable
     setAgencyName(profile.agency_name ?? '');
     setRoleSpecializationIds(profile.role_specialization_ids ?? []);
-    setNationalityId(profile.nationality_id ?? '');
+    setNationalityIds(
+      Array.isArray(profile.nationality_ids) && profile.nationality_ids.length > 0
+        ? profile.nationality_ids
+        : profile.nationality_id
+          ? [profile.nationality_id]
+          : [],
+    );
     setEntryRightIds(profile.entry_right_ids ?? []);
     setProfileLanguages(profile.languages ?? []);
     setDeckName(profile.deck_name ?? '');
@@ -403,7 +418,7 @@ export default function ProfilePage() {
       body.deckName = deckName || null;
       body.certificationIds = certificationIds;
       // vesselSizeExposureIds is auto-derived — not sent in PATCH
-      body.nationalityId = nationalityId || null;
+      body.nationalityIds = nationalityIds;
       body.entryRightIds = entryRightIds;
       body.languages = profileLanguages;
       body.smoker = smoker;
@@ -413,7 +428,7 @@ export default function ProfilePage() {
       body.roleSpecializationIds = roleSpecializationIds;
       body.bio = bio || null;
       body.deckName = deckName || null;
-      body.nationalityId = nationalityId || null;
+      body.nationalityIds = nationalityIds;
       body.entryRightIds = entryRightIds;
       body.languages = profileLanguages;
       body.placementCityIds = placementCityIds;
@@ -815,8 +830,8 @@ export default function ProfilePage() {
             setLocationCityId={setLocationCityId}
             certificationIds={certificationIds}
             setCertificationIds={setCertificationIds}
-            nationalityId={nationalityId}
-            setNationalityId={setNationalityId}
+            nationalityIds={nationalityIds}
+            setNationalityIds={setNationalityIds}
             entryRightIds={entryRightIds}
             setEntryRightIds={setEntryRightIds}
             profileLanguages={profileLanguages}

@@ -110,7 +110,7 @@ export default function OnboardingPage() {
   const [visibleTattoos, setVisibleTattoos] = useState<boolean | null>(null);
 
   // Nationality & entry rights
-  const [nationalityId, setNationalityId] = useState('');
+  const [nationalityIds, setNationalityIds] = useState<string[]>([]);
   const [entryRightIds, setEntryRightIds] = useState<string[]>([]);
 
   // Agent fields
@@ -275,7 +275,7 @@ export default function OnboardingPage() {
       if (identityType === 'crew') {
         profileData.primaryRoleId = primaryRoleId || undefined;
         profileData.certificationIds = certificationIds;
-        profileData.nationalityId = nationalityId || null;
+        profileData.nationalityIds = nationalityIds;
         profileData.entryRightIds = entryRightIds;
         profileData.deckName = deckName || undefined;
         profileData.desiredRoleId = desiredRoleId || undefined;
@@ -490,8 +490,8 @@ export default function OnboardingPage() {
           setSmoker={setSmoker}
           visibleTattoos={visibleTattoos}
           setVisibleTattoos={setVisibleTattoos}
-          nationalityId={nationalityId}
-          setNationalityId={setNationalityId}
+          nationalityIds={nationalityIds}
+          setNationalityIds={setNationalityIds}
           entryRightIds={entryRightIds}
           setEntryRightIds={setEntryRightIds}
           agencyName={agencyName}

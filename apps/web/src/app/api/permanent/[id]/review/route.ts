@@ -43,7 +43,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         profiles!applications_crew_person_id_profiles_fkey(
           display_name, bio, avatar_url,
           primary_role_id, certification_ids, languages, experience_bracket_id,
-          vessel_size_exposure_ids, nationality_id, entry_right_ids,
+          vessel_size_exposure_ids, nationality_id, nationality_ids, entry_right_ids,
           permanent_availability, notice_period_days, currently_employed,
           yacht_roles:primary_role_id(name, department),
           experience_brackets:experience_bracket_id(label),
@@ -78,9 +78,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       { start_date: string; end_date: string | null; is_current: boolean }[]
     > = {};
     const bundles: BundleMap = {};
+    const nationalityFlagMap = new Map<string, string>(); // id → flag_emoji
 
     if (crewIds.length > 0) {
-      const [shoreRes, expsRes, bundlesRes] = await Promise.all([
+      // Collect every nationality_id referenced by any applicant so we can
+      // resolve flags in a single batch lookup. Multi-nationality (Fix 240):
+      // candidate may hold multiple, all should render.
+      const allNatIds = new Set<string>();
+      for (const r of rows) {
+        const ids = (r.profiles?.nationality_ids as string[] | null | undefined) ?? [];
+        for (const id of ids) allNatIds.add(id);
+      }
+
+      const [shoreRes, expsRes, bundlesRes, natRes] = await Promise.all([
         serviceClient
           .from('shore_experiences')
           .select('person_id, shore_experience_categories(name)')
@@ -98,6 +108,12 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           : Promise.resolve({
               data: [] as { bundle_cert_id: string; component_cert_id: string }[],
             }),
+        allNatIds.size > 0
+          ? serviceClient
+              .from('nationalities')
+              .select('id, flag_emoji')
+              .in('id', Array.from(allNatIds))
+          : Promise.resolve({ data: [] as { id: string; flag_emoji: string }[] }),
       ]);
 
       for (const se of shoreRes.data ?? []) {
@@ -126,6 +142,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         | null) ?? []) {
         if (!bundles[row.bundle_cert_id]) bundles[row.bundle_cert_id] = [];
         bundles[row.bundle_cert_id].push(row.component_cert_id);
+      }
+
+      for (const n of (natRes.data as { id: string; flag_emoji: string }[] | null) ?? []) {
+        nationalityFlagMap.set(n.id, n.flag_emoji);
       }
     }
 
@@ -176,6 +196,17 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         languages: profile?.languages ?? [],
         nationality_name: profile?.nationalities?.name ?? null,
         nationality_flag: profile?.nationalities?.flag_emoji ?? null,
+        // Full ordered set of flags — multi-nationality. Falls back to
+        // single nationality_id flag if nationality_ids is empty.
+        nationality_flags: (() => {
+          const ids = (profile?.nationality_ids as string[] | null | undefined) ?? [];
+          if (ids.length > 0) {
+            return ids
+              .map((id) => nationalityFlagMap.get(id))
+              .filter((f): f is string => Boolean(f));
+          }
+          return profile?.nationalities?.flag_emoji ? [profile.nationalities.flag_emoji] : [];
+        })(),
         port_name: profile?.ports?.name ?? null,
         city_name: profile?.ports?.cities?.name ?? null,
         permanent_availability: profile?.permanent_availability ?? null,
