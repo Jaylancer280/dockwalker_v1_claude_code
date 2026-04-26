@@ -100,6 +100,7 @@ interface ExperienceEntry {
   description: string | null;
   created_at: string;
   updated_at: string;
+  historical_vessel_name: string | null;
   vessels: {
     id: string;
     imo_number: string;

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { resolveHistoricalVesselNames } from '@/lib/vessels/historical-names';
 import { appendEvent } from '@dockwalker/db';
 import { randomUUID } from 'crypto';
 
@@ -47,7 +48,30 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ experiences: experiences ?? [] });
+    const rows = (experiences ?? []) as unknown as Array<
+      {
+        vessel_id: string | null;
+        start_date: string;
+        vessels: { name: string } | null;
+      } & Record<string, unknown>
+    >;
+    const historicalMap = await resolveHistoricalVesselNames(
+      supabase,
+      rows
+        .filter((r) => r.vessel_id)
+        .map((r) => ({ vessel_id: r.vessel_id as string, start_date: r.start_date })),
+    );
+    const enriched = rows.map((r) => {
+      if (!r.vessel_id) return r;
+      const historical = historicalMap.get(`${r.vessel_id}|${r.start_date}`);
+      const current = r.vessels?.name ?? null;
+      return {
+        ...r,
+        historical_vessel_name: historical && historical !== current ? historical : null,
+      };
+    });
+
+    return NextResponse.json({ experiences: enriched });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

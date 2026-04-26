@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { resolveHistoricalVesselNames } from '@/lib/vessels/historical-names';
 
 /**
  * GET /api/profile/[personId]
@@ -223,7 +224,7 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     .from('crew_experiences')
     .select(
       `
-      id, start_date, end_date, is_current, vessel_operation,
+      id, vessel_id, start_date, end_date, is_current, vessel_operation,
       flag_state, contract_type, contract_details, description,
       vessels(name, vessel_type, loa_meters, vessel_size_bands(label)),
       yacht_roles(name)
@@ -231,6 +232,20 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     )
     .eq('person_id', personId)
     .order('start_date', { ascending: false });
+
+  const experienceRows = (experiences ?? []) as Array<
+    {
+      vessel_id: string | null;
+      start_date: string;
+      vessels: { name: string } | null;
+    } & Record<string, unknown>
+  >;
+  const historicalMap = await resolveHistoricalVesselNames(
+    supabase,
+    experienceRows
+      .filter((r) => r.vessel_id)
+      .map((r) => ({ vessel_id: r.vessel_id as string, start_date: r.start_date })),
+  );
 
   // Fetch shore-based experiences
   const { data: shoreExperiences } = await supabase
@@ -290,15 +305,20 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
     notice_period_days: profile.notice_period_days ?? null,
     smoker: profile.smoker ?? null,
     visible_tattoos: profile.visible_tattoos ?? null,
-    experiences: (experiences ?? []).map((exp: Record<string, unknown>) => {
+    experiences: experienceRows.map((exp) => {
       const vessel = exp.vessels as {
         name: string;
         vessel_type: string;
         loa_meters: number;
         vessel_size_bands: { label: string } | null;
       } | null;
+      const historical = exp.vessel_id
+        ? (historicalMap.get(`${exp.vessel_id}|${exp.start_date}`) ?? null)
+        : null;
+      const current = vessel?.name ?? null;
       return {
-        vessel_name: vessel?.name ?? null,
+        vessel_name: current,
+        historical_vessel_name: historical && historical !== current ? historical : null,
         vessel_type: vessel?.vessel_type ?? null,
         vessel_loa_meters: vessel?.loa_meters ?? null,
         vessel_size_band: vessel?.vessel_size_bands?.label ?? null,
@@ -392,7 +412,7 @@ async function buildAgentProfile(supabase: any, profile: any, personId: string) 
     .from('crew_experiences')
     .select(
       `
-      id, start_date, end_date, is_current, vessel_operation,
+      id, vessel_id, start_date, end_date, is_current, vessel_operation,
       flag_state, contract_type, contract_details, description,
       vessels(name, vessel_type, loa_meters, vessel_size_bands(label)),
       yacht_roles(name)
@@ -401,17 +421,36 @@ async function buildAgentProfile(supabase: any, profile: any, personId: string) 
     .eq('person_id', personId)
     .order('start_date', { ascending: false });
 
+  const experienceRows = (experiences ?? []) as Array<
+    {
+      vessel_id: string | null;
+      start_date: string;
+      vessels: { name: string } | null;
+    } & Record<string, unknown>
+  >;
+  const historicalMap = await resolveHistoricalVesselNames(
+    supabase,
+    experienceRows
+      .filter((r) => r.vessel_id)
+      .map((r) => ({ vessel_id: r.vessel_id as string, start_date: r.start_date })),
+  );
+
   return {
     ...employerData,
-    maritime_background: (experiences ?? []).map((exp: Record<string, unknown>) => {
+    maritime_background: experienceRows.map((exp) => {
       const vessel = exp.vessels as {
         name: string;
         vessel_type: string;
         loa_meters: number;
         vessel_size_bands: { label: string } | null;
       } | null;
+      const historical = exp.vessel_id
+        ? (historicalMap.get(`${exp.vessel_id}|${exp.start_date}`) ?? null)
+        : null;
+      const current = vessel?.name ?? null;
       return {
-        vessel_name: vessel?.name ?? null,
+        vessel_name: current,
+        historical_vessel_name: historical && historical !== current ? historical : null,
         vessel_type: vessel?.vessel_type ?? null,
         vessel_loa_meters: vessel?.loa_meters ?? null,
         vessel_size_band: vessel?.vessel_size_bands?.label ?? null,

@@ -11,12 +11,7 @@
 
 ## Queue
 
-### Vessels V2 — Wave F follow-ups (display logic + RPC filter)
-
-Wave F's integrity-critical piece (lookup-route filter for pending + hidden) shipped in Fix 253. Two pieces remain — both display-only, neither leaks unapproved data, so deferred until a launch-blocking task surfaces.
-
-- [ ] **Update `get_vessel_public` and `get_vessels_public_batch` RPCs** to apply the same `source='pending' OR hidden_at IS NOT NULL` filter for non-owners. Without this, a hidden vessel still appears on chat summary cards / discover cards / mine cards downstream of acceptance. The lookup route is the front door (Fix 253 covered it); these RPCs are the side doors. Owner FK still resolves through the unfiltered path so submitters keep seeing their own pending vessel everywhere.
-- [ ] **Date-overlap historical name + flag display logic** — resolve which `vessel_names` / `vessel_flag_states` row was current during a given experience window. Current behavior: every display surface uses denormalized `vessels.name` / `vessels.flag_state_id` (which is "now"). Target: experience cards on a profile show the vessel's name AS OF the engagement dates, e.g., a 2018-2020 experience under IMO 1010545 displays "MY Sea Wolf" even if the hull was renamed "MY Black Pearl" in 2022. Hover text "(now MY Black Pearl)" disambiguates. Surfaces affected: profile experience cards, applicant-card experience preview, chat daywork summary if engagement is in the past, mine page in-progress / completed cards.
+> _empty — Vessels V2 fully shipped, including both Wave F follow-ups (Fix 254 + Fix 255)._
 
 ---
 

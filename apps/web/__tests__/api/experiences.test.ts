@@ -106,12 +106,89 @@ describe('GET /api/experiences', () => {
         }),
       }),
     });
+    // resolveHistoricalVesselNames issues a follow-up query against
+    // vessel_names — return empty so the enrichment is a no-op.
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+      }),
+    });
 
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.experiences).toHaveLength(1);
     expect(body.experiences[0].id).toBe('exp1');
+    expect(body.experiences[0].historical_vessel_name).toBeNull();
+  });
+
+  it('surfaces a historical name when vessel was renamed after the experience', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    const experiences = [
+      {
+        id: 'exp1',
+        vessel_id: 'v1',
+        role_id: 'r1',
+        start_date: '2019-06-01',
+        end_date: '2020-06-01',
+        is_current: false,
+        vessel_operation: 'charter',
+        flag_state: 'GBR',
+        contract_type: 'rotational',
+        contract_details: null,
+        description: null,
+        created_at: '2019-06-01',
+        updated_at: '2019-06-01',
+        vessels: {
+          id: 'v1',
+          imo_number: '1234567',
+          name: 'Black Pearl',
+          vessel_type: 'motor',
+          size_band_id: 'sb1',
+          loa_meters: 45,
+          vessel_size_bands: { label: '40-50m' },
+        },
+        yacht_roles: { id: 'r1', name: 'Deckhand', department: 'deck' },
+      },
+    ];
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({ data: experiences, error: null }),
+        }),
+      }),
+    });
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
+            data: [
+              {
+                vessel_id: 'v1',
+                name: 'Black Pearl',
+                effective_from: '2021-01-01',
+                effective_to: null,
+              },
+              {
+                vessel_id: 'v1',
+                name: 'Sea Wolf',
+                effective_from: '2018-01-01',
+                effective_to: '2020-12-31',
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    });
+
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.experiences[0].historical_vessel_name).toBe('Sea Wolf');
+    expect(body.experiences[0].vessels.name).toBe('Black Pearl');
   });
 });
 

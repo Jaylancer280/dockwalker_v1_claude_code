@@ -13,6 +13,10 @@ import { ReportDialog } from '@/components/report-dialog';
 
 interface CrewExperience {
   vessel_name: string | null;
+  /** Set when vessel was renamed AFTER this experience — surfaces the
+   *  name the user knew it as. Null when current name was already in
+   *  effect during the experience window. */
+  historical_vessel_name: string | null;
   vessel_type: string | null;
   vessel_loa_meters: number | null;
   vessel_size_band: string | null;
@@ -77,6 +81,7 @@ interface EmployerProfile {
   active_posting_count: number;
   maritime_background?: {
     vessel_name: string | null;
+    historical_vessel_name: string | null;
     vessel_type: string | null;
     role: string | null;
     start_date: string;
@@ -383,8 +388,15 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
                 >
                   <Ship className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {prefix} {exp.vessel_name ?? 'Unknown vessel'}
+                    <p
+                      className="truncate text-sm font-medium"
+                      title={
+                        exp.historical_vessel_name && exp.vessel_name
+                          ? `Now ${prefix} ${exp.vessel_name}`
+                          : undefined
+                      }
+                    >
+                      {prefix} {exp.historical_vessel_name ?? exp.vessel_name ?? 'Unknown vessel'}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {exp.role ?? 'Unknown role'} · {dateRange}
@@ -550,7 +562,16 @@ function EmployerProfileView({ profile }: { profile: EmployerProfile }) {
           </p>
           {profile.maritime_background.map((entry, idx) => (
             <div key={idx} className="rounded-lg border border-border p-2.5">
-              <p className="text-sm font-medium">{entry.vessel_name ?? 'Vessel'}</p>
+              <p
+                className="text-sm font-medium"
+                title={
+                  entry.historical_vessel_name && entry.vessel_name
+                    ? `Now ${entry.vessel_name}`
+                    : undefined
+                }
+              >
+                {entry.historical_vessel_name ?? entry.vessel_name ?? 'Vessel'}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {entry.role ?? 'Role'} · {formatDateRange(entry.start_date, entry.end_date, false)}
               </p>
@@ -653,17 +674,27 @@ function AgentProfileView({ profile }: { profile: EmployerProfile }) {
             Maritime Background ({profile.maritime_background.length})
           </p>
           <div className="flex flex-col gap-1.5">
-            {profile.maritime_background.map((entry, idx) => (
-              <div key={idx} className="rounded-lg border border-border p-2.5">
-                <p className="text-sm font-medium">
-                  {entry.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} {entry.vessel_name ?? 'Vessel'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {entry.role ?? 'Role'} ·{' '}
-                  {formatDateRange(entry.start_date, entry.end_date, false)}
-                </p>
-              </div>
-            ))}
+            {profile.maritime_background.map((entry, idx) => {
+              const prefix = entry.vessel_type === 'sail' ? 'S/Y' : 'M/Y';
+              return (
+                <div key={idx} className="rounded-lg border border-border p-2.5">
+                  <p
+                    className="text-sm font-medium"
+                    title={
+                      entry.historical_vessel_name && entry.vessel_name
+                        ? `Now ${prefix} ${entry.vessel_name}`
+                        : undefined
+                    }
+                  >
+                    {prefix} {entry.historical_vessel_name ?? entry.vessel_name ?? 'Vessel'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {entry.role ?? 'Role'} ·{' '}
+                    {formatDateRange(entry.start_date, entry.end_date, false)}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

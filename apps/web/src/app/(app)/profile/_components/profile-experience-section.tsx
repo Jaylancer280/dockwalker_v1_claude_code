@@ -27,6 +27,10 @@ interface ExperienceEntry {
   description: string | null;
   created_at: string;
   updated_at: string;
+  /** Set when the vessel was renamed AFTER this experience ended — surfaces
+   *  the name the user knew it as. Null when the current name was already
+   *  in effect during the experience window. */
+  historical_vessel_name: string | null;
   vessels: {
     id: string;
     imo_number: string;
@@ -132,9 +136,16 @@ export function ProfileExperienceSection({
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">
+                        <p
+                          className="text-sm font-medium truncate"
+                          title={
+                            exp.historical_vessel_name && exp.vessels?.name
+                              ? `Now ${exp.vessels.vessel_type === 'sail' ? 'S/Y' : 'M/Y'} ${exp.vessels.name}`
+                              : undefined
+                          }
+                        >
                           {exp.vessels?.vessel_type === 'sail' ? 'S/Y' : 'M/Y'}{' '}
-                          {exp.vessels?.name ?? 'Unknown vessel'}
+                          {exp.historical_vessel_name ?? exp.vessels?.name ?? 'Unknown vessel'}
                         </p>
                         <Badge variant="outline" className="text-[10px] flex-shrink-0">
                           {exp.vessel_operation}
