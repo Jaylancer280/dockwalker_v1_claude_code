@@ -5,39 +5,28 @@
 
 ## Current Task
 
-### Multi-nationality — full implementation (deferred from Fix 233 night)
+### Multi-nationality — phase 2
 
-User feedback: "add more options for nationality. For people like me, who have British and South African passports... selecting multiple nationalities is nicer." Approach B chosen: array column on profiles, true multi-select.
+Phase 1 (`profiles.nationality_ids uuid[]` column + GIN index + backfill) shipped in migration 00114, schema v114. Legacy `nationality_id` column still in place; readers/writers haven't migrated yet. Phase 2 wires the full stack.
 
-**Why deferred:** apply_projection is a 490-line function and CREATE OR REPLACE requires the full body. Doing surgical edits at the end of a long session is high-risk. Schema-only piece is safe to ship tonight; rest is for tomorrow's fresh session.
-
-#### Schema (tonight, low risk)
-
-- [ ] Migration `00114_multi_nationality_v1.sql`:
-  - `alter table public.profiles add column if not exists nationality_ids uuid[] not null default '{}'`
-  - Backfill: `update public.profiles set nationality_ids = array[nationality_id] where nationality_id is not null and array_length(nationality_ids, 1) is null`
-  - GIN index for future filters: `create index if not exists idx_profiles_nationality_ids on public.profiles using gin (nationality_ids)`
-  - Self-contained rollback drops the index + the column. **Do NOT drop nationality_id yet** — keep for backward compat until all reads migrate.
-- [ ] Apply via `npx supabase db push`.
-
-#### Projection (tomorrow)
+#### Projection
 
 - [ ] Migration `00115_multi_nationality_projection.sql` — CREATE OR REPLACE `apply_projection` based on the latest 00108 body. Two PROFILE handlers change:
   - **PROFILE.CREATED**: insert `nationality_ids` from `coalesce(jsonb_array_elements_text(p_payload->'nationality_ids'), array[(p_payload->>'nationality_id')::uuid])` — accept either array (new) or single legacy field, normalize to array. Also keep writing `nationality_id` = first element of the resolved array, so legacy reads still work during transition.
   - **PROFILE.UPDATED**: same pattern — when payload has `nationality_ids`, replace; when payload has only legacy `nationality_id`, write `array[id]` to the array column AND the single column.
   - Other handlers untouched.
 
-#### Event payload types (tomorrow)
+#### Event payload types
 
 - [ ] `packages/types/src/events.ts` — add `nationality_ids?: string[]` to `PROFILE.CREATED` and `PROFILE.UPDATED` payloads. Keep `nationality_id?: string | null` field marked deprecated (still present for projections that haven't fully migrated).
 
-#### API routes (tomorrow)
+#### API routes
 
 - [ ] `apps/web/src/app/api/onboarding/route.ts` — accept `profile.nationalityIds: string[]`, write to event payload as `nationality_ids`. Also continue to set `nationality_id = profile.nationalityIds[0]` for backward compat.
 - [ ] `apps/web/src/app/api/profile/route.ts` GET + PATCH — read/write the array.
 - [ ] All routes that read `nationalities:nationality_id(...)` PostgREST embed (`apps/web/src/app/api/daywork/[id]/available-crew/route.ts:176`, `apps/web/src/app/api/permanent/[id]/review/route.ts:50`, `apps/web/src/app/api/daywork/[id]/applicants/route.ts:57`) — replace embed with: SELECT `nationality_ids` from profiles, then a separate `from('nationalities').select('id, name, flag_emoji').in('id', allIds)` lookup, build a map, attach to each profile.
 
-#### UI (tomorrow)
+#### UI
 
 - [ ] `apps/web/src/components/searchable-nationality-select.tsx` — convert to multi-select. Either swap to a `HierarchicalPills`-style component, or extend the existing select to accept `value: string[]` and `onChange: (ids: string[]) => void`. Render selected items as removable chips above the search input.
 - [ ] `apps/web/src/app/(app)/profile/_components/profile-summary-section.tsx` — render multiple flag emojis next to the name when there are multiple nationalities (e.g. `🇿🇦🇬🇧`). The `Profile` interface field changes from `nationalities: { id, name, flag_emoji } | null` to either `nationalities: Array<...>` or stays single + computed in the page.
@@ -46,7 +35,7 @@ User feedback: "add more options for nationality. For people like me, who have B
 - [ ] `apps/web/src/app/onboarding/_components/profile-step.tsx` — same state change.
 - [ ] (mobile deferred per `feedback_no_mobile.md`)
 
-#### Tests (tomorrow)
+#### Tests
 
 - [ ] `__tests__/api/profile-view.test.ts` — mock `nationality_ids: []` (or array fixture).
 - [ ] `__tests__/api/permanent-review.test.ts` — mock crew profile array.
@@ -54,8 +43,8 @@ User feedback: "add more options for nationality. For people like me, who have B
 
 #### BUILD_STATE entry
 
-- [ ] Schema bump v113 → v114 (or v115 if both migrations ship together).
-- [ ] Fix 234 (Multi-nationality) entry covering all of the above.
+- [ ] Schema bump v114 → v115 when 00115 lands.
+- [ ] Fix 234 (Multi-nationality phase 2) entry covering projection + types + API + UI.
 
 #### Done condition
 
@@ -63,9 +52,152 @@ A user can pick British + South African in onboarding or profile edit, see both 
 
 ---
 
-### Locations V2 — OSM fallback (post-launch nice-to-have)
+### Date + time pickers — visual upgrades
 
-Live OSM Nominatim fallback for the long-tail city/port name not in the curated seed. Original urgency dropped after Fix 232 traced "no match" reports to the auth gate, not missing data. Schema columns (`source`, `latitude`, `longitude`, `osm_place_id`) and 11 gap-fill cities already shipped in migration 00113 — only the live API + UI fallback remains. Full plan in git history under the Fix 232 todo.
+User feedback: text inputs for dates feel clunky vs visual; the existing calendar icon next to `dd/mm/yyyy` should open a real popup calendar. Time picker (currently `<input type="time">`) is broken on some browsers and hard to use — replace with a scroll-wheel/spinner pattern.
+
+#### Date picker (popup calendar)
+
+- [ ] Add `apps/web/src/components/ui/calendar.tsx` — wrap `react-day-picker` (or shadcn's Calendar) inside a `Popover` anchored to the existing calendar icon in `apps/web/src/components/ui/date-input.tsx`. Click icon → calendar opens. Click date → fills the text input AND closes popover.
+- [ ] Keep the manual `dd/mm/yyyy` text input intact — desktop power users who type fast prefer it. Calendar icon is the alternate path, not a replacement.
+- [ ] Position logic — the popover must NOT clip off-screen. Use `Popover` with `collisionPadding` and let Radix flip the placement automatically (top/bottom/left/right). Verify at small viewport (mobile) and near page edges.
+- [ ] All 11 existing `DateInput` callsites inherit the change — daywork post, permanent post, experience forms, onboarding, discover filters, postponement overlay, etc. Per BUILD_STATE Stage 196 history.
+- [ ] Keep the `min` / `max` / disabled-date logic that DateInput currently honors (e.g. permanent posting start dates can't be too far in the past). Calendar grays out invalid days.
+
+#### Time picker (scroll wheel / spinner)
+
+- [ ] Single callsite right now: `apps/web/src/app/(app)/messages/[engagementId]/_components/checklist-form-overlay.tsx:215` (`type="time"`).
+- [ ] Replace with a paired `<Select>` for hours (0-23 or 1-12 + AM/PM) and minutes (00, 15, 30, 45, or 5-min steps). iOS-style scroll-wheel UX — large tappable rows, snap-to-value, 60-fps smooth scroll.
+- [ ] Either build it (using a virtualised list library or pure CSS scroll-snap) or pull `react-mobile-picker` / similar. Vet license + bundle size before pulling.
+- [ ] Output format stays HH:mm string so the rest of the form/event logic doesn't change.
+
+#### Done condition
+
+Tapping any date field shows a calendar popover that doesn't clip off-screen. Tapping the time field on the checklist setter shows a smooth scroll-wheel.
+
+---
+
+### Vessels V2 — multi-name/flag history + admin curation queue (post-launch)
+
+Same admin-review pattern as Locations V2 but for vessels. IMO is already locked in as the immutable anchor (CLAUDE.md core invariant) — this proposal adds the temporal layer that real-world yacht ownership churn requires (rename after sale, reflag after sanctions, etc.). Avoids legal exposure on Equasis/MarineTraffic scraping by using **manual admin enrichment** rather than automated import.
+
+#### Why this matters
+
+A crew member's experience on `MY Vessel X` from 2018-2020 (Cayman flag) under IMO 1010545 is historically correct even if that hull is now `MY Vessel Y` (Malta flag). The IMO is the anchor; names and flag states are time-variable.
+
+#### Schema
+
+- [ ] Migration `00117_vessel_history.sql`:
+  - New table `vessel_names` — `(id uuid PK, vessel_id FK, name text, effective_from date, effective_to date null, source text 'curated'|'user_submitted'|'pending', created_at)`. Append-only. Latest with `effective_to is null` is the current name; historical entries persist forever.
+  - New table `vessel_flag_states` — same shape: `(id, vessel_id, flag_state_id FK, effective_from, effective_to, source, created_at)`.
+  - Add columns to `vessels`: `gross_tonnage int null`, `beam_meters numeric(6,2) null`, `year_built int null`, `builder text null`, `flag_state_id uuid null FK` (current flag, denormalized), `source text 'curated'|'user_submitted'|'pending' default 'curated'`, `hidden_at timestamptz null`. The denormalized `vessels.name` and `vessels.flag_state_id` are kept as "current" — projection updates them when a new name/flag record with `effective_to=null` lands.
+  - GIN index on `vessel_names(name)` via pg_trgm for fuzzy search across historical names.
+
+#### Events (event-sourced per CLAUDE.md mission)
+
+- [ ] New event types in `packages/types/src/events.ts`:
+  - `VESSEL.RENAMED` — payload `{ vessel_id, name, effective_from, effective_to? }`. Closes the previous name record (sets `effective_to = effective_from - 1 day`) and inserts a new one. Updates `vessels.name`.
+  - `VESSEL.REFLAGGED` — payload `{ vessel_id, flag_state_id, effective_from, effective_to? }`. Same pattern for flag states.
+  - `VESSEL.METADATA_UPDATED` — payload `{ vessel_id, gross_tonnage?, beam_meters?, year_built?, builder? }`. Admin enrichment events. Single event for any combination of metadata fields (each optional, coalesce in projection).
+- [ ] Migration `00118_vessel_history_projection.sql` — extend `apply_projection` to handle the three new event types.
+
+#### Entry points (where users add a vessel)
+
+The pending-vessel flow fires from any of these, all routed through a shared "Add a vessel" component:
+
+- [ ] **Crew adding experience** — existing IMO lookup at `apps/web/src/app/(app)/profile/add-experience/...`. Already wired; just needs the manual fallback when IMO not found.
+- [ ] **Employer/Agent posting daywork** — `apps/web/src/app/(app)/daywork/post/...`.
+- [ ] **Employer/Agent posting permanent** — `apps/web/src/app/(app)/daywork/post/_components/permanent-post-form.tsx`.
+- [ ] **Standalone vessel manager (agents)** — new page `apps/web/src/app/(app)/vessels/page.tsx` or similar. Lets agents pre-curate vessel data outside any specific posting context. Important: agents managing multiple yachts may add vessels in bulk without immediate experience or posting attached.
+
+All four entry points reach the same `<AddVesselDialog>` component which calls a shared route.
+
+#### Manual add flow
+
+> Only fires AFTER IMO lookup returns no match. Don't surface a manual form when canonical hits exist.
+
+- [ ] New route `apps/web/src/app/api/vessels/request/route.ts` — auth-required POST. Body `{ imo_number, name, vessel_type, size_band_id, loa_meters, flag_state_id?, year_built?, builder?, gross_tonnage?, beam_meters? }`. Server-side: validates IMO is 7 digits and unique, inserts vessel with `source='pending'`, inserts initial `vessel_names` and `vessel_flag_states` (if provided) entries with `source='pending'`. Returns the new vessel id. Existing `/api/vessels/lookup` already handles IMO uniqueness — re-use that logic.
+- [ ] Manual form fields: **IMO Number** (required, 7 digits), **Vessel Name** (required), **Vessel Type** (motor/sail/etc, dropdown), **LOA** (meters), **Size Band** (auto-derived from LOA if possible), **Flag State** (optional, dropdown), **Year Built** (optional), **Builder** (optional). Last three fields are nice-to-have at submit; admin can fill in during review.
+
+#### Admin notification
+
+- [ ] In-app admin notification on `vessels.source='pending'` insert. Reuse `notifyAdminsOfSupport` pattern: lookup admins, insert notification rows of type `admin_vessel_pending`, deep_link `/admin/vessels/pending`. Title `'New vessel request'`, body `'<user> added <name> (IMO <imo>)'`.
+
+#### Admin queue
+
+- [ ] New page `apps/web/src/app/admin/vessels/pending/page.tsx`. Lists every vessel with `source='pending'`, ordered by `created_at desc`. Each row shows: submitting user, submitted on, IMO, current name, current flag, all metadata fields (editable inline). Three action buttons:
+  - **APPROVE** — _"Mark this vessel as canonical. Edit fields above (typos, capitalization) and add enrichment data (gross tonnage, beam, year built, builder, flag state) before clicking. The submitting user and all future users will see this vessel record. Use this when the IMO is real and the data has been verified (Equasis or similar)."_ → flips `source` to `'curated'` on vessels + vessel_names + vessel_flag_states. Same UUID retained.
+  - **MERGE** — _"This IMO already exists in the database. Pick the canonical match below. The submitter's experience entry / posting will be re-pointed to the canonical vessel. If the submitted name doesn't match the canonical's current name, it's added as a historical alias to vessel_names so future searches by either name resolve to the same hull. Use this when the same IMO has been added before under a different name."_ → opens IMO-keyed picker against canonical-only vessels. On select: emit `VESSEL.RENAMED` event if name differs (using submitter's experience date range as effective_from/to), repoint all FKs (`crew_experiences.vessel_id`, `dayworks.vessel_id`, `permanent_postings.vessel_id`, `daywork_templates.vessel_id`, `permanent_templates.vessel_id`), delete pending vessel row.
+  - **HIDE** — _"Keep this submission private to the user who created it. They'll still see it on their own profile / posting / experience, but it won't appear in anyone else's vessel search and won't accumulate as canonical data. Use for unverifiable submissions you don't want to approve OR merge — for example, if you can't find any record of the IMO on Equasis."_ → sets `vessels.hidden_at = now()`. Submitting user's experience/posting still resolves the FK normally; everyone else's search filters out hidden + pending.
+
+- [ ] Admin can also **add historical names/flags inline** during review — e.g., user submits "Black Pearl" but admin's Equasis check shows the hull is currently "Sea Wolf" with prior name "Black Pearl" 2015-2020. Admin enters both into `vessel_names` with appropriate effective dates. Single transaction.
+
+#### Display logic (UI work, deferrable)
+
+- [ ] Crew experience display picks name from `vessel_names` whose `[effective_from, effective_to)` overlaps the experience's `[start_date, end_date)`. Fall back to current `vessels.name` if no match. Same for flag.
+- [ ] IMO lookup endpoint extended to fuzzy-search across `vessel_names.name` (not just `vessels.name`), so typing "Sea Wolf" finds the hull even if it's currently "Black Pearl".
+- [ ] Optional polish: hover/tap text on historical names — `"Now MY Black Pearl"`.
+
+#### Tests
+
+- Migration smoke test: insert a vessel with multiple name records spanning different effective dates, verify display logic picks the right name for a given experience date range.
+- Admin queue: approve/merge/hide actions have integration coverage.
+- VESSEL.RENAMED / VESSEL.REFLAGGED event handling in projection.
+- Manual add flow from each of the four entry points.
+
+#### Done condition
+
+- A crew member adding experience on a hull whose IMO isn't in the DB gets the manual add form, fills it in, sees the vessel persist on their experience.
+- An agent managing a fleet can pre-add vessels via `/vessels` (or wherever the standalone manager lives) without any experience or posting attached.
+- Admin gets in-app notification, opens `/admin/vessels/pending`, enriches with Equasis data, approves.
+- Crew member's old experience on the same IMO under a different name still displays the historical name correctly because `vessel_names` covers the overlapping date range.
+
+#### Schema version
+
+Migration 00117 + 00118 — schema bumps depend on whether multi-nationality phase 2 ships first (would be 00115/00116) or after.
+
+---
+
+### Locations V2 — OSM fallback + manual request + admin curation queue
+
+Schema (migration 00113) already in place: `source` ('curated' | 'osm'), `latitude`, `longitude`, `osm_place_id` on cities; `source` on ports. Need to extend `source` CHECK to include `'pending'`. Three layers of fallback for "user can't find their location":
+
+#### Layer 1 — OSM Nominatim live fallback (~3-4 hr)
+
+- [ ] New route `apps/web/src/app/api/locations/search-external/route.ts` — auth-required (use `requireAuthSession`, not `requireDomainUser`), GET `?q=`, calls `https://nominatim.openstreetmap.org/search?q=<>&format=json&addressdetails=1&limit=8`. Custom `User-Agent: dockwalker.io/1.0 (gareth@nautalink.io)` per Nominatim usage policy. Filters results to `place_type ∈ {city, town, village, harbour, port, marina}`. Returns normalized `{ name, country_code, latitude, longitude, osm_id, osm_type, place_type, display_name }[]`. 1 req/sec global rate-limit (in-memory token bucket). Errors swallowed to empty array — never block the user.
+- [ ] New route `apps/web/src/app/api/locations/canonicalize/route.ts` — auth-required POST. Body `{ osm_id, osm_type, name, country_code, latitude, longitude, place_type }`. Service-role logic: (a) find or create region by `country_code` (small ISO-3166 lookup table, sort_order = 999 for OSM-created); (b) upsert city — first try by `osm_place_id` exact match, else by `(region_id, lower(name))` — set `source='osm'`, `osm_place_id`, lat/lng. Returns `{ cityId }`. Idempotent on retry.
+- [ ] Update `apps/web/src/components/location-picker.tsx` — when canonical `searchResults?.length === 0` and query length ≥ 3, fire external search. Render a section header `"Found in OpenStreetMap"` above results. On click → POST canonicalize → `onValueChange({ cityId })`.
+
+#### Layer 2 — Manual "Request this location" form (~2 hr)
+
+> Only fires AFTER both canonical AND OSM Nominatim return zero. Cheap path for the long tail of obscure marinas not in either dataset.
+
+- [x] Migration `00117_locations_pending_v1.sql` — extends `cities.source` and `ports.source` CHECKs to include `'pending'`; adds `hidden_at timestamptz null` to both tables (consolidated from Layer 3's HIDE-action prep into the Wave A schema migration so all schema lands in one shot). Applied to live Supabase. Schema v116 → v117.
+- [ ] Update the picker: after OSM also returns nothing, show a `Can't find it? Add it manually` button. Opens a modal with four fields: **Country** (autocomplete from existing regions), **City**, **Port/Marina** (optional — leave blank if just a city), and an optional **Notes** field (e.g. "private marina near X"). Submit POSTs to a new route.
+- [ ] New route `apps/web/src/app/api/locations/request/route.ts` — auth-required POST. Inserts: region (if country_code not present yet, create with sort_order 999), city (with `source='pending'`), port (if provided, `source='pending'`). Returns `{ cityId, portId? }`. Picker treats this exactly like a canonical selection — user's profile/posting FK points at the new row.
+- [ ] **The submitting user sees their typed text on their profile** because the FK points to a real (pending) row. **Other users' searches don't return pending rows** — the search RPC already filters by source via the `% needle` pattern; we just add `where source != 'pending'` to make it explicit.
+
+#### Layer 3 — Admin notification + curation queue (~2 hr)
+
+- [ ] In-app admin notification on new pending row. Reuse the existing `notifications` table — when `/api/locations/request` runs, look up admins (`is_admin=true, deactivated_at is null, blocked_at is null`) and insert a notification per admin: `type='admin_location_pending'`, `title='New location request'`, `body='<user> added <name> in <country>'`, `deep_link='/admin/locations/pending'`. Pattern mirrors `notifyAdminsOfSupport` from Fix 231.
+- [ ] New page `apps/web/src/app/admin/locations/pending/page.tsx` — lists every row across regions/cities/ports with `source='pending'`, ordered by `created_at desc`. Each row shows: submitted by, submitted on, the parent chain (region → city → port), action buttons.
+- [ ] Three action buttons per row, each with a **clear, unambiguous tooltip and confirmation copy** so admin never wonders what's about to happen:
+  - **APPROVE** — _"Mark this location as canonical. Edit fields above (typos, capitalization) before clicking. The submitting user and all future users will see this exact spelling. Use this when the location is real and unique."_ → updates row(s) in place, flips `source` to `'curated'`. Same UUID retained — submitting user's FK still resolves.
+  - **MERGE** — _"This is a duplicate of an existing location. Pick the canonical match below. The submitting user's profile/posting will be re-pointed to that match, and this duplicate row will be deleted. Use this when an admin or curated entry already covers it."_ → opens a search picker against canonical-only rows, on selection: UPDATE every FK referencing the pending row's id to point at the canonical id (profiles, dayworks, permanent_postings, crew_experiences, vessels), then DELETE the pending row.
+  - **HIDE** — _"Keep this submission private to the user who created it. They'll still see it on their own profile, but it won't appear in anyone else's searches and won't be canonical. Use this for unverifiable submissions you don't want to approve OR merge."_ → no-op on the row (it stays `source='pending'`), but mark `hidden_at = now()` (new column on cities/ports). The pending queue filters out hidden rows. Search RPC already excludes `source='pending'`.
+
+- [ ] FK ripple list for MERGE — confirm no FK is missed: `profiles.location_city_id`, `profiles.location_port_id`, `dayworks.location_city_id`, `dayworks.location_port_id`, `permanent_postings.city_id`, `permanent_postings.port_id`, `crew_experiences.location_port_id`, `vessels.home_port_id` (verify in schema). Wrap UPDATE+DELETE in a transaction.
+- [ ] Tests: external route mocks Nominatim; canonicalize route covers region creation + city upsert idempotency; request route covers region/city/port insert chain; admin queue page renders pending rows; approve/merge/hide actions have integration tests.
+
+#### Done condition
+
+- A user typing "Port Azure" sees: canonical hits → OSM hits → "Add it manually" button. They fill the form, hit submit, see "Port Azure" persist on their profile within 2 seconds.
+- Admin gets in-app notification, opens `/admin/locations/pending`, sees the entry with full context, can approve/merge/hide with zero ambiguity about which button does what.
+- After approve, the user refreshes and sees the corrected canonical name. After merge, the user sees the existing canonical name. After hide, the user keeps seeing their submitted text but no one else's search includes it.
+
+#### Schema changes summary
+
+- Migration 00117 shipped: extends `cities.source` and `ports.source` CHECKs to include `'pending'`; adds `hidden_at timestamptz null` to both. Schema v116 → v117.
 
 ---
 
