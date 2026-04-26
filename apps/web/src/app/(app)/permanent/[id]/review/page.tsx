@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLookups } from '@/hooks/use-lookups';
+import { vesselSizeRange } from '@dockwalker/shared';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Loader2, User, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -63,30 +64,6 @@ function availabilityLabel(a: Applicant) {
   if (a.permanent_availability === 'after_notice')
     return { text: `${a.notice_period_days ?? '?'} day notice`, color: 'text-[var(--warning)]' };
   return { text: 'Not specified', color: 'text-muted-foreground' };
-}
-
-/**
- * Compute combined vessel-size range label from a candidate's exposure
- * IDs against a band-id → meters map. Mirrors the behaviour in
- * profile-summary-section: open-ended top tier renders "<min>m+",
- * single band collapses to "<n>m". Returns null when no exposure or
- * no usable range can be computed.
- */
-function vesselSizeRange(
-  exposureIds: string[] | null | undefined,
-  ranges: Record<string, { min_meters: number; max_meters: number | null }>,
-): string | null {
-  if (!exposureIds?.length) return null;
-  const bands = exposureIds.map((id) => ranges[id]).filter(Boolean);
-  const mins = bands.map((b) => b.min_meters).filter((m): m is number => typeof m === 'number');
-  if (mins.length === 0) return null;
-  const min = Math.min(...mins);
-  const maxes = bands.map((b) => b.max_meters);
-  if (maxes.some((m) => m === null)) return `${min}m+`;
-  const valid = maxes.filter((m): m is number => typeof m === 'number');
-  if (valid.length === 0) return null;
-  const max = Math.max(...valid);
-  return min === max ? `${min}m` : `${min}-${max}m`;
 }
 
 function daysAgo(dateStr: string) {

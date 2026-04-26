@@ -43,3 +43,5 @@ export {
   meetsRequirements,
   expandCertForFilter,
 } from './cert-matching';
+
+export { type SizeBandRange, vesselSizeRange } from './vessel-size';
