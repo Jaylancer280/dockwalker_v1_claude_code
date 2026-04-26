@@ -118,18 +118,45 @@ async function checkRelationshipContext(
 
   if (invContext && invContext.length > 0) return true;
 
-  // 4. Permanent application context
-  const { data: permAppContext } = await client
+  // 4. Permanent application context — split into two explicit steps
+  //    to avoid PostgREST `or()` + embedded-table filter quirks that
+  //    silently miss matches in production. We fetch any permanent
+  //    application involving either party, then resolve the posting's
+  //    employer in JS and check the cross-pair match.
+  const { data: permApps } = await client
     .from('applications')
-    .select('id, permanent_postings!inner(employer_person_id)')
-    .or(
-      `and(crew_person_id.eq.${targetId},permanent_postings.employer_person_id.eq.${requesterId}),` +
-        `and(crew_person_id.eq.${requesterId},permanent_postings.employer_person_id.eq.${targetId})`,
-    )
+    .select('id, permanent_posting_id, crew_person_id, status')
+    .or(`crew_person_id.eq.${requesterId},crew_person_id.eq.${targetId}`)
     .not('status', 'eq', 'withdrawn')
-    .limit(1);
+    .not('permanent_posting_id', 'is', null);
 
-  if (permAppContext && permAppContext.length > 0) return true;
+  if (permApps && permApps.length > 0) {
+    const postingIds = permApps
+      .map((a: { permanent_posting_id: string | null }) => a.permanent_posting_id)
+      .filter((id: string | null): id is string => Boolean(id));
+    const { data: postings } = await client
+      .from('permanent_postings')
+      .select('id, employer_person_id')
+      .in('id', postingIds);
+
+    const postingMap = new Map<string, string>();
+    for (const p of (postings as { id: string; employer_person_id: string }[]) ?? []) {
+      postingMap.set(p.id, p.employer_person_id);
+    }
+
+    for (const app of permApps as {
+      crew_person_id: string;
+      permanent_posting_id: string | null;
+    }[]) {
+      if (!app.permanent_posting_id) continue;
+      const employer = postingMap.get(app.permanent_posting_id);
+      if (!employer) continue;
+      // target applied to requester's posting
+      if (app.crew_person_id === targetId && employer === requesterId) return true;
+      // requester applied to target's posting
+      if (app.crew_person_id === requesterId && employer === targetId) return true;
+    }
+  }
 
   // 5. Active poster context — target has an active daywork or permanent posting
   const { data: activeDaywork } = await client
