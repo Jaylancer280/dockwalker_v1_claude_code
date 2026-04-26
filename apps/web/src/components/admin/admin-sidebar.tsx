@@ -13,6 +13,7 @@ const NAV_ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/canonical', label: 'Canonical' },
   { href: '/admin/locations/pending', label: 'Pending locations' },
+  { href: '/admin/vessels/pending', label: 'Pending vessels' },
 ];
 
 export function AdminSidebar() {
