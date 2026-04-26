@@ -5,53 +5,6 @@
 
 ## Current Task
 
-### Multi-nationality — phase 2
-
-Phase 1 (`profiles.nationality_ids uuid[]` column + GIN index + backfill) shipped in migration 00114, schema v114. Legacy `nationality_id` column still in place; readers/writers haven't migrated yet. Phase 2 wires the full stack.
-
-#### Projection
-
-- [ ] Migration `00115_multi_nationality_projection.sql` — CREATE OR REPLACE `apply_projection` based on the latest 00108 body. Two PROFILE handlers change:
-  - **PROFILE.CREATED**: insert `nationality_ids` from `coalesce(jsonb_array_elements_text(p_payload->'nationality_ids'), array[(p_payload->>'nationality_id')::uuid])` — accept either array (new) or single legacy field, normalize to array. Also keep writing `nationality_id` = first element of the resolved array, so legacy reads still work during transition.
-  - **PROFILE.UPDATED**: same pattern — when payload has `nationality_ids`, replace; when payload has only legacy `nationality_id`, write `array[id]` to the array column AND the single column.
-  - Other handlers untouched.
-
-#### Event payload types
-
-- [ ] `packages/types/src/events.ts` — add `nationality_ids?: string[]` to `PROFILE.CREATED` and `PROFILE.UPDATED` payloads. Keep `nationality_id?: string | null` field marked deprecated (still present for projections that haven't fully migrated).
-
-#### API routes
-
-- [ ] `apps/web/src/app/api/onboarding/route.ts` — accept `profile.nationalityIds: string[]`, write to event payload as `nationality_ids`. Also continue to set `nationality_id = profile.nationalityIds[0]` for backward compat.
-- [ ] `apps/web/src/app/api/profile/route.ts` GET + PATCH — read/write the array.
-- [ ] All routes that read `nationalities:nationality_id(...)` PostgREST embed (`apps/web/src/app/api/daywork/[id]/available-crew/route.ts:176`, `apps/web/src/app/api/permanent/[id]/review/route.ts:50`, `apps/web/src/app/api/daywork/[id]/applicants/route.ts:57`) — replace embed with: SELECT `nationality_ids` from profiles, then a separate `from('nationalities').select('id, name, flag_emoji').in('id', allIds)` lookup, build a map, attach to each profile.
-
-#### UI
-
-- [ ] `apps/web/src/components/searchable-nationality-select.tsx` — convert to multi-select. Either swap to a `HierarchicalPills`-style component, or extend the existing select to accept `value: string[]` and `onChange: (ids: string[]) => void`. Render selected items as removable chips above the search input.
-- [ ] `apps/web/src/app/(app)/profile/_components/profile-summary-section.tsx` — render multiple flag emojis next to the name when there are multiple nationalities (e.g. `🇿🇦🇬🇧`). The `Profile` interface field changes from `nationalities: { id, name, flag_emoji } | null` to either `nationalities: Array<...>` or stays single + computed in the page.
-- [ ] `apps/web/src/app/(app)/profile/page.tsx` — change `nationalityId: string | null` state to `nationalityIds: string[]`.
-- [ ] `apps/web/src/app/(app)/profile/_components/profile-edit-form.tsx` — same state change, multi-select component.
-- [ ] `apps/web/src/app/onboarding/_components/profile-step.tsx` — same state change.
-- [ ] (mobile deferred per `feedback_no_mobile.md`)
-
-#### Tests
-
-- [ ] `__tests__/api/profile-view.test.ts` — mock `nationality_ids: []` (or array fixture).
-- [ ] `__tests__/api/permanent-review.test.ts` — mock crew profile array.
-- [ ] `__tests__/api/onboarding.test.ts` — assert `nationality_ids` in event payload.
-
-#### BUILD_STATE entry
-
-- [ ] Schema bump v114 → v115 when 00115 lands.
-- [ ] Fix 234 (Multi-nationality phase 2) entry covering projection + types + API + UI.
-
-#### Done condition
-
-A user can pick British + South African in onboarding or profile edit, see both flags rendered next to their name, and have employers see both flags on their applicant card. Existing single-nationality profiles continue to work without manual intervention (backfilled).
-
----
-
 ### Date + time pickers — visual upgrades
 
 User feedback: text inputs for dates feel clunky vs visual; the existing calendar icon next to `dd/mm/yyyy` should open a real popup calendar. Time picker (currently `<input type="time">`) is broken on some browsers and hard to use — replace with a scroll-wheel/spinner pattern.
@@ -155,51 +108,6 @@ All four entry points reach the same `<AddVesselDialog>` component which calls a
 #### Schema version
 
 Migration 00117 + 00118 — schema bumps depend on whether multi-nationality phase 2 ships first (would be 00115/00116) or after.
-
----
-
-### Locations V2 — OSM fallback + manual request + admin curation queue
-
-Schema (migration 00113) already in place: `source` ('curated' | 'osm'), `latitude`, `longitude`, `osm_place_id` on cities; `source` on ports. Need to extend `source` CHECK to include `'pending'`. Three layers of fallback for "user can't find their location":
-
-#### Layer 1 — OSM Nominatim live fallback (~3-4 hr)
-
-- [x] New route `apps/web/src/app/api/locations/search-external/route.ts` — shipped in Wave B (Fix 242).
-- [x] New route `apps/web/src/app/api/locations/canonicalize/route.ts` — shipped in Wave B (Fix 242).
-- [x] Updated `apps/web/src/components/location-picker.tsx` — OSM fallback wired (port-optional only) in Wave B.
-
-#### Layer 2 — Manual "Request this location" form (~2 hr)
-
-> Only fires AFTER both canonical AND OSM Nominatim return zero. Cheap path for the long tail of obscure marinas not in either dataset.
-
-- [x] Migration `00117_locations_pending_v1.sql` — Wave A. Schema v116 → v117.
-- [x] Migration `00118_locations_pending_search_filter.sql` — Wave C. Replaces `search_locations` and `top_locations` with versions that filter pending + hidden cities/ports. Schema v117 → v118.
-- [x] Picker manual fallback: `LocationRequestModal` opens when canonical AND OSM both come back empty (or in `port-required` mode after canonical empty). Shipped in Wave C (Fix 243).
-- [x] New route `apps/web/src/app/api/locations/request/route.ts` — shipped in Wave C (Fix 243).
-- [x] New route `apps/web/src/app/api/locations/regions/route.ts` — populates the modal's country picker. Shipped in Wave C (Fix 243).
-
-#### Layer 3 — Admin notification + curation queue (~2 hr)
-
-- [ ] In-app admin notification on new pending row. Reuse the existing `notifications` table — when `/api/locations/request` runs, look up admins (`is_admin=true, deactivated_at is null, blocked_at is null`) and insert a notification per admin: `type='admin_location_pending'`, `title='New location request'`, `body='<user> added <name> in <country>'`, `deep_link='/admin/locations/pending'`. Pattern mirrors `notifyAdminsOfSupport` from Fix 231.
-- [ ] New page `apps/web/src/app/admin/locations/pending/page.tsx` — lists every row across regions/cities/ports with `source='pending'`, ordered by `created_at desc`. Each row shows: submitted by, submitted on, the parent chain (region → city → port), action buttons.
-- [ ] Three action buttons per row, each with a **clear, unambiguous tooltip and confirmation copy** so admin never wonders what's about to happen:
-  - **APPROVE** — _"Mark this location as canonical. Edit fields above (typos, capitalization) before clicking. The submitting user and all future users will see this exact spelling. Use this when the location is real and unique."_ → updates row(s) in place, flips `source` to `'curated'`. Same UUID retained — submitting user's FK still resolves.
-  - **MERGE** — _"This is a duplicate of an existing location. Pick the canonical match below. The submitting user's profile/posting will be re-pointed to that match, and this duplicate row will be deleted. Use this when an admin or curated entry already covers it."_ → opens a search picker against canonical-only rows, on selection: UPDATE every FK referencing the pending row's id to point at the canonical id (profiles, dayworks, permanent_postings, crew_experiences, vessels), then DELETE the pending row.
-  - **HIDE** — _"Keep this submission private to the user who created it. They'll still see it on their own profile, but it won't appear in anyone else's searches and won't be canonical. Use this for unverifiable submissions you don't want to approve OR merge."_ → no-op on the row (it stays `source='pending'`), but mark `hidden_at = now()` (new column on cities/ports). The pending queue filters out hidden rows. Search RPC already excludes `source='pending'`.
-
-- [ ] FK ripple list for MERGE — confirm no FK is missed: `profiles.location_city_id`, `profiles.location_port_id`, `dayworks.location_city_id`, `dayworks.location_port_id`, `permanent_postings.city_id`, `permanent_postings.port_id`, `crew_experiences.location_port_id`, `vessels.home_port_id` (verify in schema). Wrap UPDATE+DELETE in a transaction.
-- [ ] Tests: external route mocks Nominatim; canonicalize route covers region creation + city upsert idempotency; request route covers region/city/port insert chain; admin queue page renders pending rows; approve/merge/hide actions have integration tests.
-
-#### Done condition
-
-- A user typing "Port Azure" sees: canonical hits → OSM hits → "Add it manually" button. They fill the form, hit submit, see "Port Azure" persist on their profile within 2 seconds.
-- Admin gets in-app notification, opens `/admin/locations/pending`, sees the entry with full context, can approve/merge/hide with zero ambiguity about which button does what.
-- After approve, the user refreshes and sees the corrected canonical name. After merge, the user sees the existing canonical name. After hide, the user keeps seeing their submitted text but no one else's search includes it.
-
-#### Schema changes summary
-
-- Migration 00117 shipped: extends `cities.source` and `ports.source` CHECKs to include `'pending'`; adds `hidden_at timestamptz null` to both. Schema v116 → v117.
-- Migration 00118 shipped: `search_locations` and `top_locations` exclude pending + hidden rows. Schema v117 → v118.
 
 ---
 

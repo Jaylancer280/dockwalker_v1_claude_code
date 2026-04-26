@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuthSession } from '@/lib/auth/require-auth-session';
+import { notifyAdminsOfLocationRequest } from '@/lib/push-triggers/location-admin-notify';
 
 interface RequestBody {
   country_code?: string;
@@ -40,7 +41,8 @@ function normaliseString(v: unknown): string | null {
 export async function POST(request: Request) {
   const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
-  const { serviceClient } = guard.value;
+  const { user, serviceClient } = guard.value;
+  const submitterId = user.id;
 
   let body: RequestBody;
   try {
@@ -143,6 +145,7 @@ export async function POST(request: Request) {
             name: cityName,
             source: 'pending',
             sort_order: PENDING_SORT_ORDER,
+            submitted_by: submitterId,
           })
           .select('id')
           .single();
@@ -181,6 +184,7 @@ export async function POST(request: Request) {
             name: portName,
             source: 'pending',
             sort_order: PENDING_SORT_ORDER,
+            submitted_by: submitterId,
           })
           .select('id')
           .single();
@@ -192,6 +196,25 @@ export async function POST(request: Request) {
         }
         portId = newPort.id;
       }
+    }
+
+    // Best-effort: look up the submitter's display name and fan out an
+    // admin notification. Failures here mustn't block the user response.
+    try {
+      const { data: profile } = await serviceClient
+        .from('profiles')
+        .select('display_name')
+        .eq('person_id', submitterId)
+        .maybeSingle();
+      const submitterName = (profile?.display_name as string | undefined) ?? 'A user';
+      await notifyAdminsOfLocationRequest(serviceClient, {
+        submitterName,
+        cityName,
+        portName,
+        countryName,
+      });
+    } catch {
+      // Swallow — notification fan-out is fire-and-forget.
     }
 
     return NextResponse.json(portId !== null ? { cityId, portId } : { cityId }, { status: 201 });

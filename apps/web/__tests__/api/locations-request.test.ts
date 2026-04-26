@@ -146,6 +146,7 @@ describe('POST /api/locations/request', () => {
       name: 'Hidden Bay',
       source: 'pending',
       sort_order: 999,
+      submitted_by: 'u1',
     });
   });
 

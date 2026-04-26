@@ -12,6 +12,7 @@ const NAV_ITEMS: { href: string; label: string; exact?: boolean }[] = [
   { href: '/admin/support', label: 'Support' },
   { href: '/admin/events', label: 'Events' },
   { href: '/admin/canonical', label: 'Canonical' },
+  { href: '/admin/locations/pending', label: 'Pending locations' },
 ];
 
 export function AdminSidebar() {
