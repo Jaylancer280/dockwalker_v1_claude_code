@@ -124,6 +124,7 @@ describe('GET /api/permanent/:id/review', () => {
     expect(data.applicants[0].shore_experience_categories).toEqual(['Hospitality', 'Fitness']);
     expect(data.applicants[0].cert_match).toBeNull();
     expect(data.applicants[0].total_experience_label).toBeNull();
+    expect(data.applicants[0].cert_extras).toBe(0);
   });
 
   it('includes shortlist_cap, shortlist_count, posting_status', async () => {

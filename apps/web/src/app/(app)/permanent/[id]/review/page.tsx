@@ -54,6 +54,7 @@ interface Applicant {
     total: number;
     missing_count: number;
   } | null;
+  cert_extras: number;
 }
 
 function availabilityLabel(a: Applicant) {
@@ -371,17 +372,27 @@ export default function PermanentReviewPage() {
 
                 {/* Cert match indicator — only when posting requires certs.
                     Bundle-aware (Fix 236): a candidate holding AEC 1+2
-                    counts as having AEC 1 and AEC 2 individually. */}
-                {app.cert_match && (
-                  <p
-                    className={`mb-1 text-xs font-medium ${
-                      app.cert_match.ok ? 'text-[var(--success)]' : 'text-[var(--warning)]'
-                    }`}
-                  >
-                    {app.cert_match.ok
-                      ? `✓ All ${app.cert_match.total} required certs`
-                      : `⚠ ${app.cert_match.matched}/${app.cert_match.total} certs · ${app.cert_match.missing_count} missing`}
-                  </p>
+                    counts as having AEC 1 and AEC 2 individually. The
+                    extras pill renders alongside whenever the candidate
+                    holds bonus certs not contributing to any requirement
+                    — even when requiredCerts is empty (cert_match null). */}
+                {(app.cert_match || app.cert_extras > 0) && (
+                  <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium">
+                    {app.cert_match && (
+                      <span
+                        className={
+                          app.cert_match.ok ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                        }
+                      >
+                        {app.cert_match.ok
+                          ? `✓ All ${app.cert_match.total} required certs`
+                          : `⚠ ${app.cert_match.matched}/${app.cert_match.total} certs · ${app.cert_match.missing_count} missing`}
+                      </span>
+                    )}
+                    {app.cert_extras > 0 && (
+                      <span className="text-[var(--primary)]">+ {app.cert_extras} additional</span>
+                    )}
+                  </div>
                 )}
 
                 {/* Shore experience categories */}

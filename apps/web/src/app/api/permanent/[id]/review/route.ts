@@ -129,6 +129,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+    const requiredSet = new Set(requiredCerts);
+
     const applicants = rows.map((app) => {
       const profile = app.profiles;
       const candidateCerts = (profile?.certification_ids as string[]) ?? [];
@@ -136,6 +138,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       const totalExperienceLabel = myExps.length > 0 ? computeTotalExperience(myExps) : null;
       const certMatch =
         requiredCerts.length > 0 ? meetsRequirements(candidateCerts, requiredCerts, bundles) : null;
+
+      // "Extras" — certs the candidate holds that aren't contributing to a
+      // required cert, directly or via bundle. Surfaces over-qualification
+      // on the card. Always computed (independent of cert_match) so a
+      // posting with zero required certs still shows a candidate's bonus.
+      let certExtras = 0;
+      if (candidateCerts.length > 0) {
+        const usedForRequired = new Set<string>();
+        for (const c of candidateCerts) {
+          if (requiredSet.has(c)) {
+            usedForRequired.add(c);
+            continue;
+          }
+          const components = bundles[c];
+          if (components && components.some((comp) => requiredSet.has(comp))) {
+            usedForRequired.add(c);
+          }
+        }
+        certExtras = candidateCerts.filter((c) => !usedForRequired.has(c)).length;
+      }
 
       return {
         id: app.id,
@@ -170,6 +192,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
               missing_count: certMatch.missing.length,
             }
           : null,
+        cert_extras: certExtras,
       };
     });
 
