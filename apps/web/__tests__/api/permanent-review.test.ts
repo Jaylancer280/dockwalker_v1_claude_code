@@ -60,11 +60,19 @@ describe('GET /api/permanent/:id/review', () => {
 
   it('returns applicants with correct response shape', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk('emp1'));
-    // Posting
+    // Posting (now includes required_certification_ids)
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'pp1', employer_person_id: 'emp1', status: 'active', shortlist_cap: 5 } }),
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'pp1',
+              employer_person_id: 'emp1',
+              status: 'active',
+              shortlist_cap: 5,
+              required_certification_ids: [],
+            },
+          }),
         }),
       }),
     });
@@ -82,7 +90,11 @@ describe('GET /api/permanent/:id/review', () => {
       error: null,
     });
     mockFromAuth.mockReturnValueOnce(appsChain);
-    // Shore experiences query
+    // Promise.all fires 3 queries when crewIds.length > 0:
+    //   (1) shore_experiences
+    //   (2) crew_experiences
+    //   (3) certification_components — only when posting requires certs
+    // Posting in this test has empty required_certs, so only 2 fire.
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         in: vi.fn().mockResolvedValue({
@@ -91,6 +103,11 @@ describe('GET /api/permanent/:id/review', () => {
             { person_id: 'c1', shore_experience_categories: { name: 'Fitness' } },
           ],
         }),
+      }),
+    });
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
       }),
     });
 
@@ -105,6 +122,8 @@ describe('GET /api/permanent/:id/review', () => {
     expect(data.applicants[0].display_name).toBe('Crew One');
     expect(data.applicants[0].permanent_availability).toBe('immediate');
     expect(data.applicants[0].shore_experience_categories).toEqual(['Hospitality', 'Fitness']);
+    expect(data.applicants[0].cert_match).toBeNull();
+    expect(data.applicants[0].total_experience_label).toBeNull();
   });
 
   it('includes shortlist_cap, shortlist_count, posting_status', async () => {
@@ -112,7 +131,15 @@ describe('GET /api/permanent/:id/review', () => {
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'pp1', employer_person_id: 'emp1', status: 'in_negotiation', shortlist_cap: 3 } }),
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'pp1',
+              employer_person_id: 'emp1',
+              status: 'in_negotiation',
+              shortlist_cap: 3,
+              required_certification_ids: [],
+            },
+          }),
         }),
       }),
     });
@@ -129,7 +156,12 @@ describe('GET /api/permanent/:id/review', () => {
       error: null,
     });
     mockFromAuth.mockReturnValueOnce(appsChain);
-    // Shore experiences query
+    // Promise.all → shore_experiences + crew_experiences (no certs needed)
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         in: vi.fn().mockResolvedValue({ data: [] }),

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLookups } from '@/hooks/use-lookups';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Loader2, User, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -42,7 +43,17 @@ interface Applicant {
   permanent_availability: string | null;
   notice_period_days: number | null;
   currently_employed: boolean;
+  port_name: string | null;
+  city_name: string | null;
+  vessel_size_exposure_ids: string[];
   shore_experience_categories: string[];
+  total_experience_label: string | null;
+  cert_match: {
+    ok: boolean;
+    matched: number;
+    total: number;
+    missing_count: number;
+  } | null;
 }
 
 function availabilityLabel(a: Applicant) {
@@ -51,6 +62,30 @@ function availabilityLabel(a: Applicant) {
   if (a.permanent_availability === 'after_notice')
     return { text: `${a.notice_period_days ?? '?'} day notice`, color: 'text-[var(--warning)]' };
   return { text: 'Not specified', color: 'text-muted-foreground' };
+}
+
+/**
+ * Compute combined vessel-size range label from a candidate's exposure
+ * IDs against a band-id → meters map. Mirrors the behaviour in
+ * profile-summary-section: open-ended top tier renders "<min>m+",
+ * single band collapses to "<n>m". Returns null when no exposure or
+ * no usable range can be computed.
+ */
+function vesselSizeRange(
+  exposureIds: string[] | null | undefined,
+  ranges: Record<string, { min_meters: number; max_meters: number | null }>,
+): string | null {
+  if (!exposureIds?.length) return null;
+  const bands = exposureIds.map((id) => ranges[id]).filter(Boolean);
+  const mins = bands.map((b) => b.min_meters).filter((m): m is number => typeof m === 'number');
+  if (mins.length === 0) return null;
+  const min = Math.min(...mins);
+  const maxes = bands.map((b) => b.max_meters);
+  if (maxes.some((m) => m === null)) return `${min}m+`;
+  const valid = maxes.filter((m): m is number => typeof m === 'number');
+  if (valid.length === 0) return null;
+  const max = Math.max(...valid);
+  return min === max ? `${min}m` : `${min}-${max}m`;
 }
 
 function daysAgo(dateStr: string) {
@@ -64,6 +99,14 @@ export default function PermanentReviewPage() {
   const { id: postingId } = useParams<{ id: string }>();
   const router = useRouter();
   const { showSuccess, showError } = useToast();
+  const lookups = useLookups();
+  const sizeBandRanges = useMemo(() => {
+    const map: Record<string, { min_meters: number; max_meters: number | null }> = {};
+    for (const s of lookups.sizeBands) {
+      map[s.id] = { min_meters: s.min_meters, max_meters: s.max_meters };
+    }
+    return map;
+  }, [lookups.sizeBands]);
 
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,7 +325,18 @@ export default function PermanentReviewPage() {
                       )}
                     </div>
                     <div className="mt-0.5 flex flex-wrap gap-1.5 text-[13px] text-[var(--muted-foreground)]">
-                      {app.experience_label && <span>{app.experience_label}</span>}
+                      {app.total_experience_label ? (
+                        <span>{app.total_experience_label} sea time</span>
+                      ) : (
+                        app.experience_label && <span>{app.experience_label}</span>
+                      )}
+                      {(() => {
+                        const sizeRange = vesselSizeRange(
+                          app.vessel_size_exposure_ids,
+                          sizeBandRanges,
+                        );
+                        return sizeRange ? <span>· {sizeRange}</span> : null;
+                      })()}
                       {app.nationality_flag && <span>{app.nationality_flag}</span>}
                       {app.languages.length > 0 && (
                         <span>
@@ -290,6 +344,11 @@ export default function PermanentReviewPage() {
                         </span>
                       )}
                     </div>
+                    {(app.port_name || app.city_name) && (
+                      <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">
+                        📍 {[app.port_name, app.city_name].filter(Boolean).join(', ')}
+                      </p>
+                    )}
                   </div>
                   <button
                     onClick={() => setProfileId(app.crew_person_id)}
@@ -310,6 +369,21 @@ export default function PermanentReviewPage() {
                   );
                 })()}
 
+                {/* Cert match indicator — only when posting requires certs.
+                    Bundle-aware (Fix 236): a candidate holding AEC 1+2
+                    counts as having AEC 1 and AEC 2 individually. */}
+                {app.cert_match && (
+                  <p
+                    className={`mb-1 text-xs font-medium ${
+                      app.cert_match.ok ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                    }`}
+                  >
+                    {app.cert_match.ok
+                      ? `✓ All ${app.cert_match.total} required certs`
+                      : `⚠ ${app.cert_match.matched}/${app.cert_match.total} certs · ${app.cert_match.missing_count} missing`}
+                  </p>
+                )}
+
                 {/* Shore experience categories */}
                 {app.shore_experience_categories?.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-1">
@@ -327,6 +401,15 @@ export default function PermanentReviewPage() {
                       </span>
                     )}
                   </div>
+                )}
+
+                {/* Bio preview */}
+                {app.bio && (
+                  <ExpandableText
+                    text={app.bio}
+                    maxLines={2}
+                    className="mb-2 text-xs text-[var(--foreground)]"
+                  />
                 )}
 
                 {/* Message */}
