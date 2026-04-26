@@ -40,7 +40,7 @@ A crew member's experience on `MY Vessel X` from 2018-2020 (Cayman flag) under I
 
 #### Schema
 
-- [ ] Migration `00117_vessel_history.sql`:
+- [ ] Migration `00120_vessel_history.sql` (renumbered — 00117/00118/00119 are Locations V2):
   - New table `vessel_names` — `(id uuid PK, vessel_id FK, name text, effective_from date, effective_to date null, source text 'curated'|'user_submitted'|'pending', created_at)`. Append-only. Latest with `effective_to is null` is the current name; historical entries persist forever.
   - New table `vessel_flag_states` — same shape: `(id, vessel_id, flag_state_id FK, effective_from, effective_to, source, created_at)`.
   - Add columns to `vessels`: `gross_tonnage int null`, `beam_meters numeric(6,2) null`, `year_built int null`, `builder text null`, `flag_state_id uuid null FK` (current flag, denormalized), `source text 'curated'|'user_submitted'|'pending' default 'curated'`, `hidden_at timestamptz null`. The denormalized `vessels.name` and `vessels.flag_state_id` are kept as "current" — projection updates them when a new name/flag record with `effective_to=null` lands.
@@ -52,7 +52,7 @@ A crew member's experience on `MY Vessel X` from 2018-2020 (Cayman flag) under I
   - `VESSEL.RENAMED` — payload `{ vessel_id, name, effective_from, effective_to? }`. Closes the previous name record (sets `effective_to = effective_from - 1 day`) and inserts a new one. Updates `vessels.name`.
   - `VESSEL.REFLAGGED` — payload `{ vessel_id, flag_state_id, effective_from, effective_to? }`. Same pattern for flag states.
   - `VESSEL.METADATA_UPDATED` — payload `{ vessel_id, gross_tonnage?, beam_meters?, year_built?, builder? }`. Admin enrichment events. Single event for any combination of metadata fields (each optional, coalesce in projection).
-- [ ] Migration `00118_vessel_history_projection.sql` — extend `apply_projection` to handle the three new event types.
+- [ ] Migration `00121_vessel_history_projection.sql` — extend `apply_projection` to handle the three new event types.
 
 #### Entry points (where users add a vessel)
 
@@ -107,7 +107,7 @@ All four entry points reach the same `<AddVesselDialog>` component which calls a
 
 #### Schema version
 
-Migration 00117 + 00118 — schema bumps depend on whether multi-nationality phase 2 ships first (would be 00115/00116) or after.
+Migration 00120 + 00121 — schema bumps from v119 → v121.
 
 ---
 
