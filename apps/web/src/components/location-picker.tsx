@@ -8,6 +8,7 @@ import { safeFetch } from '@/lib/safe-fetch';
 import type { LocationSearchResult } from '@/app/api/locations/search/route';
 import type { TopLocationResult } from '@/app/api/locations/top/route';
 import type { LocationByIdResult } from '@/app/api/locations/by-ids/route';
+import type { ExternalLocationResult } from '@/app/api/locations/search-external/route';
 
 /** Matches Tailwind's md breakpoint (768px). Initialises from
  * window.innerWidth so the first render matches the real device, avoiding
@@ -48,6 +49,7 @@ interface LabelCache {
 
 const DEBOUNCE_MS = 200;
 const TOP_LIMIT = 50;
+const EXTERNAL_MIN_QUERY = 3;
 
 /**
  * Searchable location picker backed by server-side fuzzy search.
@@ -72,6 +74,9 @@ export function LocationPicker({
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [topResults, setTopResults] = useState<TopLocationResult[] | null>(null);
   const [searchResults, setSearchResults] = useState<LocationSearchResult[] | null>(null);
+  const [externalResults, setExternalResults] = useState<ExternalLocationResult[] | null>(null);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [adoptingOsmKey, setAdoptingOsmKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -176,7 +181,10 @@ export function LocationPicker({
     let cancelled = false;
     if (!debouncedQuery) {
       const reset = setTimeout(() => {
-        if (!cancelled) setSearchResults(null);
+        if (!cancelled) {
+          setSearchResults(null);
+          setExternalResults(null);
+        }
       }, 0);
       return () => {
         cancelled = true;
@@ -226,6 +234,95 @@ export function LocationPicker({
       clearTimeout(startLoading);
     };
   }, [debouncedQuery]);
+
+  // OSM Nominatim live fallback. Fires only after canonical search has
+  // returned zero hits and the query is meaty enough (≥3 chars). The
+  // route handles its own rate-limit + error swallowing — we just render
+  // whatever it returns. Skipped in `port-required` mode because the
+  // canonicalize endpoint creates cities, not ports — Wave C's manual
+  // request flow is the right tool for new port submissions.
+  useEffect(() => {
+    let cancelled = false;
+    const stillWaitingOnCanonical = searchResults === null;
+    const shouldFire =
+      mode !== 'port-required' &&
+      !!debouncedQuery &&
+      debouncedQuery.length >= EXTERNAL_MIN_QUERY &&
+      !stillWaitingOnCanonical &&
+      searchResults!.length === 0;
+
+    if (stillWaitingOnCanonical) return;
+
+    if (!shouldFire) {
+      const reset = setTimeout(() => {
+        if (!cancelled) setExternalResults(null);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(reset);
+      };
+    }
+
+    const startLoading = setTimeout(() => {
+      if (!cancelled) setExternalLoading(true);
+    }, 0);
+    safeFetch<{ results: ExternalLocationResult[] }>(
+      `/api/locations/search-external?q=${encodeURIComponent(debouncedQuery)}`,
+    )
+      .then((res) => {
+        if (cancelled) return;
+        setExternalResults(res.ok ? res.data.results : []);
+      })
+      .finally(() => {
+        if (!cancelled) setExternalLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(startLoading);
+    };
+  }, [mode, debouncedQuery, searchResults]);
+
+  const adoptExternal = useCallback(
+    async (r: ExternalLocationResult) => {
+      const key = `${r.osm_type}:${r.osm_id}`;
+      setAdoptingOsmKey(key);
+      try {
+        const res = await safeFetch<{ cityId: string }>('/api/locations/canonicalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            osm_id: r.osm_id,
+            osm_type: r.osm_type,
+            name: r.name,
+            country_code: r.country_code,
+            country_name: r.country_name,
+            latitude: r.latitude,
+            longitude: r.longitude,
+            place_type: r.place_type,
+          }),
+        });
+        if (!res.ok) {
+          setAdoptingOsmKey(null);
+          return;
+        }
+        const cityId = res.data.cityId;
+        // Prime the label cache so the trigger renders without an extra
+        // round-trip through /api/locations/by-ids.
+        setLabels((prev) => {
+          const cities = new Map(prev.cities);
+          cities.set(cityId, { name: r.name, regionName: r.country_name ?? null });
+          return { ports: prev.ports, cities };
+        });
+        onValueChange({ cityId });
+        setOpen(false);
+        setQuery('');
+        setAdoptingOsmKey(null);
+      } catch {
+        setAdoptingOsmKey(null);
+      }
+    },
+    [onValueChange],
+  );
 
   const displayLabel = useMemo(() => {
     if (!value) return null;
@@ -295,11 +392,53 @@ export function LocationPicker({
         <p className="px-3 py-4 text-center text-xs text-muted-foreground">Searching…</p>
       )}
 
-      {!showLoading && isSearching && searchResults !== null && searchResults.length === 0 && (
-        <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-          No match — try the nearest city or port instead.
-        </p>
-      )}
+      {!showLoading &&
+        isSearching &&
+        searchResults !== null &&
+        searchResults.length === 0 &&
+        externalResults === null &&
+        !externalLoading && (
+          <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+            {mode === 'port-required'
+              ? 'No match — try the nearest port instead.'
+              : 'No match — try the nearest city or port instead.'}
+          </p>
+        )}
+
+      {!showLoading &&
+        isSearching &&
+        searchResults !== null &&
+        searchResults.length === 0 &&
+        externalLoading && (
+          <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+            Searching OpenStreetMap…
+          </p>
+        )}
+
+      {!showLoading &&
+        isSearching &&
+        searchResults !== null &&
+        searchResults.length === 0 &&
+        externalResults !== null &&
+        externalResults.length === 0 &&
+        !externalLoading && (
+          <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+            No match — try the nearest city or port instead.
+          </p>
+        )}
+
+      {!showLoading &&
+        isSearching &&
+        searchResults !== null &&
+        searchResults.length === 0 &&
+        externalResults !== null &&
+        externalResults.length > 0 && (
+          <ExternalResultsList
+            results={externalResults}
+            adoptingKey={adoptingOsmKey}
+            onAdopt={adoptExternal}
+          />
+        )}
 
       {!showLoading && isSearching && searchResults && searchResults.length > 0 && (
         <SearchResultsList
@@ -534,6 +673,48 @@ function TopResultsList({
               {tail && <span className="ml-1 text-xs text-muted-foreground">— {tail}</span>}
             </span>
             {isSelected && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+function ExternalResultsList({
+  results,
+  adoptingKey,
+  onAdopt,
+}: {
+  results: ExternalLocationResult[];
+  adoptingKey: string | null;
+  onAdopt: (r: ExternalLocationResult) => void;
+}) {
+  return (
+    <>
+      <p className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+        Found in OpenStreetMap
+      </p>
+      {results.map((r) => {
+        const key = `${r.osm_type}:${r.osm_id}`;
+        const adopting = adoptingKey === key;
+        const tail = r.country_name ?? r.country_code ?? null;
+        return (
+          <button
+            key={key}
+            type="button"
+            disabled={adoptingKey !== null}
+            onClick={() => onAdopt(r)}
+            className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50`}
+          >
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="flex-1 truncate">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {r.place_type}
+              </span>
+              <span className="mx-1">{r.name}</span>
+              {tail && <span className="text-xs text-muted-foreground">— {tail}</span>}
+            </span>
+            {adopting && <span className="ml-auto text-[10px] text-muted-foreground">Adding…</span>}
           </button>
         );
       })}

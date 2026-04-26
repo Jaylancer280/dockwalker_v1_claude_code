@@ -64,7 +64,7 @@ The current app expects the following RPCs to exist in `public`:
 - `get_vessel_public`
 - `get_vessels_public_batch` (batch version — used by discover, applications, invitations routes)
 - `increment_advisor_usage`
-- `search_locations` / `get_locations_by_ids` / `top_locations` (pg_trgm + unaccent fuzzy location search — used by `/api/locations/search`, `/api/locations/by-ids`, `/api/locations/top` and consumed by `LocationPicker` + `CitiesPicker`)
+- `search_locations` / `get_locations_by_ids` / `top_locations` (pg_trgm + unaccent fuzzy location search — used by `/api/locations/search`, `/api/locations/by-ids`, `/api/locations/top` and consumed by `LocationPicker` + `CitiesPicker`). The `LocationPicker` also falls back to `/api/locations/search-external` (live OSM Nominatim lookup, 1-req/sec rate-limited per function instance) and `/api/locations/canonicalize` (idempotent service-role upsert into `regions` + `cities` with `source='osm'`) when canonical search returns zero hits in `port-optional` mode.
 - `custom_access_token_hook` (Auth hook — injects person_id/current_hat/identity_type into JWT; enable in Dashboard → Auth → Hooks)
 
 If you see errors like:
