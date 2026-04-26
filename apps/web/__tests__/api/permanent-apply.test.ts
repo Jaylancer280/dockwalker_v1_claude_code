@@ -130,13 +130,17 @@ describe('POST /api/permanent/:id/apply', () => {
         }),
       }),
     });
-    // Crew profile — has c2 but not c1
+    // Crew profile — has c2 but not c1 (queried in parallel with bundles)
     mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({ data: { certification_ids: ['c2'] } }),
         }),
       }),
+    });
+    // certification_components — empty (no bundles defined in test)
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockResolvedValue({ data: [] }),
     });
     // Cert name resolution
     mockFromAuth.mockReturnValueOnce({
@@ -167,6 +171,9 @@ describe('POST /api/permanent/:id/apply', () => {
       }),
     });
     mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockResolvedValue({ data: [] }),
+    });
+    mockFromAuth.mockReturnValueOnce({
       select: vi.fn().mockReturnValue({
         in: vi.fn().mockResolvedValue({ data: [{ id: 'c1', name: 'STCW' }] }),
       }),
@@ -174,6 +181,55 @@ describe('POST /api/permanent/:id/apply', () => {
     await POST(makeRequest(), { params });
     expect(mockAppendEvent).toHaveBeenCalledTimes(1);
     expect(mockAppendEvent.mock.calls[0][1].eventType).toBe('PERMANENT.APPLICATION_BLOCKED');
+  });
+
+  it('cert hard-gate satisfied via bundle (AEC 1+2 covers AEC 1 + AEC 2)', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // Posting — requires AEC 1 (c1) and AEC 2 (c2) separately
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'pp1',
+              status: 'active',
+              required_certification_ids: ['c1', 'c2'],
+              employer_person_id: 'emp1',
+            },
+          }),
+        }),
+      }),
+    });
+    // Crew has only the bundle cert (b1 = AEC 1+2), not c1 or c2 directly
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: { certification_ids: ['b1'] } }),
+        }),
+      }),
+    });
+    // certification_components — b1 covers c1 and c2
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockResolvedValue({
+        data: [
+          { bundle_cert_id: 'b1', component_cert_id: 'c1' },
+          { bundle_cert_id: 'b1', component_cert_id: 'c2' },
+        ],
+      }),
+    });
+    // Duplicate check — no existing app
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+          }),
+        }),
+      }),
+    });
+    const res = await POST(makeRequest(), { params });
+    // Hard-gate should NOT 403 — bundle covers both components
+    expect(res.status).not.toBe(403);
   });
 
   it('happy path — creates application and returns success', async () => {

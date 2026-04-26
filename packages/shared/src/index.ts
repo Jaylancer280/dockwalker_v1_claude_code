@@ -35,3 +35,11 @@ export {
 } from './grouping';
 
 export { certCategoryLabel, certSubcategoryLabel } from './cert-labels';
+
+export {
+  type BundleMap,
+  type MatchResult,
+  expandCertCoverage,
+  meetsRequirements,
+  expandCertForFilter,
+} from './cert-matching';

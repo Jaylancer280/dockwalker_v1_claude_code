@@ -73,6 +73,7 @@ function makeDayworksChain(data: unknown[], hasExcludedIds = false) {
   filterProxy.lt = vi.fn().mockReturnValue(filterProxy);
   filterProxy.eq = vi.fn().mockReturnValue(filterProxy);
   filterProxy.contains = vi.fn().mockReturnValue(filterProxy);
+  filterProxy.overlaps = vi.fn().mockReturnValue(filterProxy);
   filterProxy.in = vi.fn().mockReturnValue(filterProxy);
   filterProxy.order = mockOrder;
 
@@ -246,16 +247,22 @@ describe('GET /api/daywork/discover', () => {
     expect(neqCall.not).toHaveBeenCalledWith('id', 'in', '(d2,d3)');
   });
 
-  it('filters by certificationId using contains on required_certification_ids', async () => {
+  it('filters by certificationId using overlaps with bundle expansion', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     const { chain, filterProxy } = makeDayworksChain([]);
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(chain);
+    // certification_components lookup — empty (cert is not a bundle)
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
 
     const res = await GET(makeRequest('?certificationId=cert-123'));
     expect(res.status).toBe(200);
-    expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-123']);
+    expect(filterProxy.overlaps).toHaveBeenCalledWith('required_certification_ids', ['cert-123']);
   });
 
   it('certificationId=none filters for jobs with no cert requirements', async () => {
@@ -268,7 +275,7 @@ describe('GET /api/daywork/discover', () => {
     const res = await GET(makeRequest('?certificationId=none'));
     expect(res.status).toBe(200);
     expect(filterProxy.eq).toHaveBeenCalledWith('required_certification_ids', '{}');
-    expect(filterProxy.contains).not.toHaveBeenCalled();
+    expect(filterProxy.overlaps).not.toHaveBeenCalled();
   });
 
   it('filters by experienceBracketId using eq on experience_bracket_id', async () => {
@@ -315,11 +322,16 @@ describe('GET /api/daywork/discover', () => {
     const { chain, filterProxy } = makeDayworksChain([]);
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(chain);
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
 
     const res = await GET(makeRequest('?roleId=r1&certificationId=cert-1&experienceBracketId=eb-1'));
     expect(res.status).toBe(200);
     // Role filter is applied via the initial .eq() chain, but cert and bracket go through filterProxy
-    expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);
+    expect(filterProxy.overlaps).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);
     expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-1');
   });
 
@@ -358,6 +370,10 @@ describe('GET /api/daywork/discover', () => {
     const { chain, filterProxy } = makeDayworksChain(dayworks);
     mockFromAuth.mockReturnValueOnce(makeAppsChain([]));
     mockFromAuth.mockReturnValueOnce(chain);
+    mockFromAuth.mockReturnValueOnce({
+      // certification_components lookup for filterCertificationId expansion
+      select: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ data: [] }) }),
+    });
     mockFromAuth.mockReturnValueOnce(makeVesselsChain(['v1'])); // size band pre-filter runs after dayworks from()
     mockRpc.mockResolvedValueOnce({
       data: [{ id: 'v1', imo_number: null, name: 'Test Vessel', vessel_type: 'motor', size_band_id: 'sb-1', size_band_label: '40-50m', nda_flag: false, owner_person_id: 'o1' }],
@@ -377,7 +393,7 @@ describe('GET /api/daywork/discover', () => {
     expect(filterProxy.eq).toHaveBeenCalledWith('location_port_id', 'p1');
     expect(filterProxy.gte).toHaveBeenCalledWith('start_date', '2026-04-01');
     expect(filterProxy.lte).toHaveBeenCalledWith('end_date', '2026-04-30');
-    expect(filterProxy.contains).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);
+    expect(filterProxy.overlaps).toHaveBeenCalledWith('required_certification_ids', ['cert-1']);
     expect(filterProxy.eq).toHaveBeenCalledWith('experience_bracket_id', 'eb-1');
     // sizeBandId pre-filtered at DB level via vessel_id IN query
     expect(body.dayworks[0].vessels.size_band_id).toBe('sb-1');

@@ -111,7 +111,18 @@ export async function GET(request: Request) {
       if (filterCertificationId === 'none') {
         query = query.eq('required_certification_ids', '{}');
       } else {
-        query = query.contains('required_certification_ids', [filterCertificationId]);
+        // Bundle-aware filter — see permanent/discover for rationale.
+        const { data: componentsRows } = await supabase
+          .from('certification_components')
+          .select('component_cert_id')
+          .eq('bundle_cert_id', filterCertificationId);
+        const expanded = [
+          filterCertificationId,
+          ...((componentsRows as { component_cert_id: string }[] | null) ?? []).map(
+            (r) => r.component_cert_id,
+          ),
+        ];
+        query = query.overlaps('required_certification_ids', expanded);
       }
     }
     if (filterExperienceBracketId) {

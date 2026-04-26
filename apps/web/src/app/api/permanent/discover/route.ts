@@ -98,7 +98,21 @@ export async function GET(request: Request) {
       if (filterCertificationId === 'none') {
         query = query.eq('required_certification_ids', '{}');
       } else {
-        query = query.contains('required_certification_ids', [filterCertificationId]);
+        // Bundle-aware filter: if the candidate filters by a bundle cert
+        // (e.g. AEC 1+2), include postings that require any of its
+        // components (AEC 1, AEC 2). For non-bundle certs the query stays
+        // a single-element overlap, equivalent to the previous .contains.
+        const { data: componentsRows } = await supabase
+          .from('certification_components')
+          .select('component_cert_id')
+          .eq('bundle_cert_id', filterCertificationId);
+        const expanded = [
+          filterCertificationId,
+          ...((componentsRows as { component_cert_id: string }[] | null) ?? []).map(
+            (r) => r.component_cert_id,
+          ),
+        ];
+        query = query.overlaps('required_certification_ids', expanded);
       }
     }
     if (filterExperienceBracketId) {

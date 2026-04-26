@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
 import { notifyOnEvent } from '@/lib/push-triggers';
+import { meetsRequirements, type BundleMap } from '@dockwalker/shared';
 import { randomUUID } from 'crypto';
 
 /**
@@ -50,17 +51,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Cannot apply to your own posting' }, { status: 400 });
     }
 
-    // Cert hard-gate
+    // Cert hard-gate (bundle-aware: a candidate holding AEC 1+2 satisfies
+    // separate AEC 1 and AEC 2 requirements; same for STCW 2010 → its
+    // five components).
     const requiredCerts = (posting.required_certification_ids as string[]) ?? [];
     if (requiredCerts.length > 0) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('certification_ids')
-        .eq('person_id', user.id)
-        .single();
+      const [{ data: profile }, { data: bundlesRows }] = await Promise.all([
+        supabase.from('profiles').select('certification_ids').eq('person_id', user.id).single(),
+        supabase.from('certification_components').select('bundle_cert_id, component_cert_id'),
+      ]);
 
-      const crewCerts = new Set((profile?.certification_ids as string[]) ?? []);
-      const missingIds = requiredCerts.filter((id) => !crewCerts.has(id));
+      const bundles: BundleMap = {};
+      for (const row of (bundlesRows as { bundle_cert_id: string; component_cert_id: string }[]) ??
+        []) {
+        if (!bundles[row.bundle_cert_id]) bundles[row.bundle_cert_id] = [];
+        bundles[row.bundle_cert_id].push(row.component_cert_id);
+      }
+
+      const crewCerts = (profile?.certification_ids as string[]) ?? [];
+      const matchResult = meetsRequirements(crewCerts, requiredCerts, bundles);
+      const missingIds = matchResult.missing;
 
       if (missingIds.length > 0) {
         // Resolve missing cert names
