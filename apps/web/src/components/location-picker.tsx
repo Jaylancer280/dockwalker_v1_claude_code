@@ -5,6 +5,7 @@ import { ChevronDown, Search, MapPin, Check, X } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { safeFetch } from '@/lib/safe-fetch';
+import { LocationRequestModal } from '@/components/location-request-modal';
 import type { LocationSearchResult } from '@/app/api/locations/search/route';
 import type { TopLocationResult } from '@/app/api/locations/top/route';
 import type { LocationByIdResult } from '@/app/api/locations/by-ids/route';
@@ -77,6 +78,7 @@ export function LocationPicker({
   const [externalResults, setExternalResults] = useState<ExternalLocationResult[] | null>(null);
   const [externalLoading, setExternalLoading] = useState(false);
   const [adoptingOsmKey, setAdoptingOsmKey] = useState<string | null>(null);
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -282,6 +284,39 @@ export function LocationPicker({
     };
   }, [mode, debouncedQuery, searchResults]);
 
+  const handleManualSubmit = useCallback(
+    (result: { cityId: string; portId?: string }, displayLabel: string) => {
+      const cityName = displayLabel.split(',')[0]?.trim() ?? displayLabel;
+      const regionName = displayLabel.split(',').slice(-1)[0]?.trim() ?? null;
+      // Prime the label cache so the trigger renders the user's typed
+      // text immediately — no /by-ids round-trip needed.
+      setLabels((prev) => {
+        const ports = new Map(prev.ports);
+        const cities = new Map(prev.cities);
+        cities.set(result.cityId, { name: cityName, regionName });
+        if (result.portId) {
+          // For port submissions the displayLabel starts with the port name.
+          const portName = displayLabel.split(' — ')[0]?.trim() ?? cityName;
+          ports.set(result.portId, {
+            name: portName,
+            cityName,
+            regionName,
+          });
+        }
+        return { ports, cities };
+      });
+      onValueChange(
+        result.portId
+          ? { cityId: result.cityId, portId: result.portId }
+          : { cityId: result.cityId },
+      );
+      setRequestModalOpen(false);
+      setOpen(false);
+      setQuery('');
+    },
+    [onValueChange],
+  );
+
   const adoptExternal = useCallback(
     async (r: ExternalLocationResult) => {
       const key = `${r.osm_type}:${r.osm_id}`;
@@ -396,19 +431,6 @@ export function LocationPicker({
         isSearching &&
         searchResults !== null &&
         searchResults.length === 0 &&
-        externalResults === null &&
-        !externalLoading && (
-          <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-            {mode === 'port-required'
-              ? 'No match — try the nearest port instead.'
-              : 'No match — try the nearest city or port instead.'}
-          </p>
-        )}
-
-      {!showLoading &&
-        isSearching &&
-        searchResults !== null &&
-        searchResults.length === 0 &&
         externalLoading && (
           <p className="px-3 py-4 text-center text-xs text-muted-foreground">
             Searching OpenStreetMap…
@@ -419,12 +441,9 @@ export function LocationPicker({
         isSearching &&
         searchResults !== null &&
         searchResults.length === 0 &&
-        externalResults !== null &&
-        externalResults.length === 0 &&
-        !externalLoading && (
-          <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-            No match — try the nearest city or port instead.
-          </p>
+        !externalLoading &&
+        (externalResults === null || externalResults.length === 0) && (
+          <NoMatchManualFallback mode={mode} onAddManually={() => setRequestModalOpen(true)} />
         )}
 
       {!showLoading &&
@@ -437,6 +456,7 @@ export function LocationPicker({
             results={externalResults}
             adoptingKey={adoptingOsmKey}
             onAdopt={adoptExternal}
+            onAddManually={() => setRequestModalOpen(true)}
           />
         )}
 
@@ -472,6 +492,16 @@ export function LocationPicker({
     </p>
   );
 
+  const requestModal = (
+    <LocationRequestModal
+      open={requestModalOpen}
+      mode={mode}
+      initialQuery={query}
+      onClose={() => setRequestModalOpen(false)}
+      onSubmitted={handleManualSubmit}
+    />
+  );
+
   if (isMobile) {
     return (
       <>
@@ -485,6 +515,7 @@ export function LocationPicker({
           resultsBody={resultsBody}
           footer={footer}
         />
+        {requestModal}
       </>
     );
   }
@@ -518,6 +549,7 @@ export function LocationPicker({
           <div className="shrink-0">{footer}</div>
         </div>
       </PopoverContent>
+      {requestModal}
     </Popover>
   );
 }
@@ -684,10 +716,12 @@ function ExternalResultsList({
   results,
   adoptingKey,
   onAdopt,
+  onAddManually,
 }: {
   results: ExternalLocationResult[];
   adoptingKey: string | null;
   onAdopt: (r: ExternalLocationResult) => void;
+  onAddManually: () => void;
 }) {
   return (
     <>
@@ -718,7 +752,40 @@ function ExternalResultsList({
           </button>
         );
       })}
+      <button
+        type="button"
+        onClick={onAddManually}
+        disabled={adoptingKey !== null}
+        className="mt-1 flex w-full items-center justify-center gap-2 rounded border-t border-dashed px-3 py-3 text-xs text-primary hover:bg-accent disabled:opacity-50"
+      >
+        Still can&apos;t find it? Add it manually
+      </button>
     </>
+  );
+}
+
+function NoMatchManualFallback({
+  mode,
+  onAddManually,
+}: {
+  mode: 'port-required' | 'port-optional';
+  onAddManually: () => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-3 px-3 py-5 text-center">
+      <p className="text-xs text-muted-foreground">
+        {mode === 'port-required'
+          ? 'No match — try a different spelling, or add the port manually.'
+          : 'No match in our list or OpenStreetMap. Add it manually so you can use it now.'}
+      </p>
+      <button
+        type="button"
+        onClick={onAddManually}
+        className="rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium hover:bg-accent"
+      >
+        Add it manually
+      </button>
+    </div>
   );
 }
 

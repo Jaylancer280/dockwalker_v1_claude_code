@@ -164,18 +164,19 @@ Schema (migration 00113) already in place: `source` ('curated' | 'osm'), `latitu
 
 #### Layer 1 — OSM Nominatim live fallback (~3-4 hr)
 
-- [ ] New route `apps/web/src/app/api/locations/search-external/route.ts` — auth-required (use `requireAuthSession`, not `requireDomainUser`), GET `?q=`, calls `https://nominatim.openstreetmap.org/search?q=<>&format=json&addressdetails=1&limit=8`. Custom `User-Agent: dockwalker.io/1.0 (gareth@nautalink.io)` per Nominatim usage policy. Filters results to `place_type ∈ {city, town, village, harbour, port, marina}`. Returns normalized `{ name, country_code, latitude, longitude, osm_id, osm_type, place_type, display_name }[]`. 1 req/sec global rate-limit (in-memory token bucket). Errors swallowed to empty array — never block the user.
-- [ ] New route `apps/web/src/app/api/locations/canonicalize/route.ts` — auth-required POST. Body `{ osm_id, osm_type, name, country_code, latitude, longitude, place_type }`. Service-role logic: (a) find or create region by `country_code` (small ISO-3166 lookup table, sort_order = 999 for OSM-created); (b) upsert city — first try by `osm_place_id` exact match, else by `(region_id, lower(name))` — set `source='osm'`, `osm_place_id`, lat/lng. Returns `{ cityId }`. Idempotent on retry.
-- [ ] Update `apps/web/src/components/location-picker.tsx` — when canonical `searchResults?.length === 0` and query length ≥ 3, fire external search. Render a section header `"Found in OpenStreetMap"` above results. On click → POST canonicalize → `onValueChange({ cityId })`.
+- [x] New route `apps/web/src/app/api/locations/search-external/route.ts` — shipped in Wave B (Fix 242).
+- [x] New route `apps/web/src/app/api/locations/canonicalize/route.ts` — shipped in Wave B (Fix 242).
+- [x] Updated `apps/web/src/components/location-picker.tsx` — OSM fallback wired (port-optional only) in Wave B.
 
 #### Layer 2 — Manual "Request this location" form (~2 hr)
 
 > Only fires AFTER both canonical AND OSM Nominatim return zero. Cheap path for the long tail of obscure marinas not in either dataset.
 
-- [x] Migration `00117_locations_pending_v1.sql` — extends `cities.source` and `ports.source` CHECKs to include `'pending'`; adds `hidden_at timestamptz null` to both tables (consolidated from Layer 3's HIDE-action prep into the Wave A schema migration so all schema lands in one shot). Applied to live Supabase. Schema v116 → v117.
-- [ ] Update the picker: after OSM also returns nothing, show a `Can't find it? Add it manually` button. Opens a modal with four fields: **Country** (autocomplete from existing regions), **City**, **Port/Marina** (optional — leave blank if just a city), and an optional **Notes** field (e.g. "private marina near X"). Submit POSTs to a new route.
-- [ ] New route `apps/web/src/app/api/locations/request/route.ts` — auth-required POST. Inserts: region (if country_code not present yet, create with sort_order 999), city (with `source='pending'`), port (if provided, `source='pending'`). Returns `{ cityId, portId? }`. Picker treats this exactly like a canonical selection — user's profile/posting FK points at the new row.
-- [ ] **The submitting user sees their typed text on their profile** because the FK points to a real (pending) row. **Other users' searches don't return pending rows** — the search RPC already filters by source via the `% needle` pattern; we just add `where source != 'pending'` to make it explicit.
+- [x] Migration `00117_locations_pending_v1.sql` — Wave A. Schema v116 → v117.
+- [x] Migration `00118_locations_pending_search_filter.sql` — Wave C. Replaces `search_locations` and `top_locations` with versions that filter pending + hidden cities/ports. Schema v117 → v118.
+- [x] Picker manual fallback: `LocationRequestModal` opens when canonical AND OSM both come back empty (or in `port-required` mode after canonical empty). Shipped in Wave C (Fix 243).
+- [x] New route `apps/web/src/app/api/locations/request/route.ts` — shipped in Wave C (Fix 243).
+- [x] New route `apps/web/src/app/api/locations/regions/route.ts` — populates the modal's country picker. Shipped in Wave C (Fix 243).
 
 #### Layer 3 — Admin notification + curation queue (~2 hr)
 
@@ -198,6 +199,7 @@ Schema (migration 00113) already in place: `source` ('curated' | 'osm'), `latitu
 #### Schema changes summary
 
 - Migration 00117 shipped: extends `cities.source` and `ports.source` CHECKs to include `'pending'`; adds `hidden_at timestamptz null` to both. Schema v116 → v117.
+- Migration 00118 shipped: `search_locations` and `top_locations` exclude pending + hidden rows. Schema v117 → v118.
 
 ---
 
