@@ -11,6 +11,7 @@ import { usePreferences } from '@/hooks/use-preferences';
 import { metersToFeet } from '@dockwalker/shared';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
+import { AddVesselDialog } from '@/components/add-vessel-dialog';
 import { VesselDetailsSection } from '../_components/vessel-details-section';
 import { ExperienceDetailsSection } from '../_components/experience-details-section';
 import { PrivateIntelligenceSection } from '../_components/private-intelligence-section';
@@ -46,6 +47,7 @@ export default function AddExperiencePage() {
   // IMO lookup
   const [imoNumber, setImoNumber] = useState('');
   const [useExisting, setUseExisting] = useState(false);
+  const [showAddVesselDialog, setShowAddVesselDialog] = useState(false);
   const [existingVesselId, setExistingVesselId] = useState('');
 
   // Vessel fields
@@ -216,6 +218,30 @@ export default function AddExperiencePage() {
             } else {
               setLoaMeters(v);
             }
+          }}
+          onAddManually={() => setShowAddVesselDialog(true)}
+        />
+
+        <AddVesselDialog
+          open={showAddVesselDialog}
+          initialImoNumber={imoNumber}
+          onClose={() => setShowAddVesselDialog(false)}
+          onSubmitted={(vessel) => {
+            // Adopt the new pending vessel into the experience form as
+            // if it was a canonical-search hit. The experience entry
+            // will FK to the pending row; admin curation in Wave E
+            // promotes / merges / hides without breaking this entry.
+            setShowAddVesselDialog(false);
+            setImoNumber(vessel.imoNumber);
+            setVesselName(vessel.name);
+            setVesselType(vessel.vesselType);
+            setLoaMeters(
+              lengthUnit === 'ft'
+                ? String(Math.round(metersToFeet(vessel.loaMeters)))
+                : String(vessel.loaMeters),
+            );
+            setExistingVesselId(vessel.id);
+            setUseExisting(true);
           }}
         />
 

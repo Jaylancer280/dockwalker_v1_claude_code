@@ -28,6 +28,10 @@ export interface ImoLookupSectionProps {
   setVesselType: (v: 'motor' | 'sail') => void;
   loaMeters: string;
   setLoaMeters: (v: string) => void;
+  /** When provided, renders an "Add it manually" button after a "not
+   *  found" IMO lookup so the parent can open `<AddVesselDialog>` and
+   *  POST `/api/vessels/request`. Wave D of Vessels V2. */
+  onAddManually?: () => void;
 }
 
 export function ImoLookupSection({
@@ -42,6 +46,7 @@ export function ImoLookupSection({
   setVesselType,
   loaMeters,
   setLoaMeters,
+  onAddManually,
 }: ImoLookupSectionProps) {
   const [lookingUpImo, setLookingUpImo] = useState(false);
   const [imoMessage, setImoMessage] = useState('');
@@ -172,6 +177,21 @@ export function ImoLookupSection({
         {imoMessage && !useExisting && (
           <p className="text-xs text-muted-foreground">{imoMessage}</p>
         )}
+        {/* Manual-add fallback — only surfaces when the lookup explicitly
+         *  came back empty. Wave D of Vessels V2: opens `AddVesselDialog`
+         *  in the parent, which POSTs `/api/vessels/request` to insert a
+         *  `source='pending'` row routed through the admin queue. */}
+        {onAddManually &&
+          !useExisting &&
+          (imoMessage.startsWith('Not found') || imoMessage.startsWith('No vessels found')) && (
+            <button
+              type="button"
+              onClick={onAddManually}
+              className="self-start rounded-md border border-dashed px-3 py-1.5 text-xs font-medium text-primary hover:bg-accent"
+            >
+              Add it manually
+            </button>
+          )}
         {/* Partial search results dropdown */}
         {imoSearchResults.length > 0 && (
           <div className="absolute top-full z-20 mt-1 w-full rounded-[14px] border border-[var(--border)] bg-[var(--card)]">

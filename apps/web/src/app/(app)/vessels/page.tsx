@@ -25,6 +25,7 @@ import { convertSizeBandLabel, metersToFeet } from '@dockwalker/shared';
 import { usePreferences } from '@/hooks/use-preferences';
 import { useToast } from '@/hooks/use-toast';
 import { ImoLookupSection } from '@/components/vessels/imo-lookup-section';
+import { AddVesselDialog } from '@/components/add-vessel-dialog';
 
 interface Vessel {
   id: string;
@@ -232,6 +233,7 @@ function CreateVesselForm({
   const [loading, setLoading] = useState(false);
   const [useExisting, setUseExisting] = useState(false);
   const [existingVesselId, setExistingVesselId] = useState('');
+  const [showAddVesselDialog, setShowAddVesselDialog] = useState(false);
 
   // When ImoLookupSection sets loaMeters (always in metres), convert to display unit
   function handleLoaFromLookup(metersStr: string) {
@@ -309,6 +311,17 @@ function CreateVesselForm({
         setVesselType={(v) => setVesselType(v)}
         loaMeters={loaInput}
         setLoaMeters={handleLoaFromLookup}
+        onAddManually={() => setShowAddVesselDialog(true)}
+      />
+
+      <AddVesselDialog
+        open={showAddVesselDialog}
+        initialImoNumber={imoNumber}
+        onClose={() => setShowAddVesselDialog(false)}
+        onSubmitted={() => {
+          setShowAddVesselDialog(false);
+          onCreated();
+        }}
       />
 
       {!useExisting && (
