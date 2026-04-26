@@ -16,6 +16,9 @@ export type EventType =
   // Vessel aggregate
   | 'VESSEL.CREATED'
   | 'VESSEL.UPDATED'
+  | 'VESSEL.RENAMED'
+  | 'VESSEL.REFLAGGED'
+  | 'VESSEL.METADATA_UPDATED'
   // Daywork aggregate
   | 'DAYWORK.POSTED'
   | 'DAYWORK.CANCELLED_BY_EMPLOYER'
@@ -173,6 +176,9 @@ export interface EventPayloadMap {
     size_band_id: string;
     loa_meters: number;
     nda_flag: boolean;
+    /** Provenance — defaults to 'curated' on legacy callsites; the
+     *  Wave C `/api/vessels/request` route sets `'pending'`. */
+    source?: 'curated' | 'user_submitted' | 'pending';
   };
   'VESSEL.UPDATED': {
     name?: string;
@@ -180,6 +186,28 @@ export interface EventPayloadMap {
     size_band_id?: string;
     loa_meters?: number;
     nda_flag?: boolean;
+  };
+  'VESSEL.RENAMED': {
+    name: string;
+    /** ISO date the new name takes effect. Defaults to today server-side. */
+    effective_from?: string;
+    /** ISO date the new name stops being current. Omit (or null) for an
+     *  open-ended "this is the current name" record. Set when an admin
+     *  is back-filling a historical alias. */
+    effective_to?: string | null;
+    source?: 'curated' | 'user_submitted' | 'pending';
+  };
+  'VESSEL.REFLAGGED': {
+    flag_state_id: string;
+    effective_from?: string;
+    effective_to?: string | null;
+    source?: 'curated' | 'user_submitted' | 'pending';
+  };
+  'VESSEL.METADATA_UPDATED': {
+    gross_tonnage?: number | null;
+    beam_meters?: number | null;
+    year_built?: number | null;
+    builder?: string | null;
   };
   'DAYWORK.POSTED': {
     id: string;
