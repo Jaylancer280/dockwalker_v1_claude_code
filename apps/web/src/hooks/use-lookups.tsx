@@ -71,7 +71,7 @@ const LookupsContext = createContext<LookupsData>(defaultLookups);
 
 // Bump cache version when the lookup shape changes so stale clients drop the
 // old payload cleanly. v3 renames visaTypes → entryRights (category-aware).
-const CACHE_KEY = 'dw-lookups-v3';
+const CACHE_KEY = 'dw-lookups-v4';
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CachedLookups {

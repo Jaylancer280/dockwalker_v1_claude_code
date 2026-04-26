@@ -66,12 +66,18 @@ function vesselSizeRange(
 ): string | null {
   if (!exposureIds?.length || !ranges) return null;
   const bands = exposureIds.map((id) => ranges[id]).filter(Boolean);
-  if (bands.length === 0) return null;
-  const min = Math.min(...bands.map((b) => b.min_meters));
+  // Defensive: skip rows with missing min_meters (e.g. from a stale cache
+  // populated before the SELECT was widened — without this guard, Math.min
+  // returns NaN and the summary renders "NaN-NaNm").
+  const mins = bands.map((b) => b.min_meters).filter((m): m is number => typeof m === 'number');
+  if (mins.length === 0) return null;
+  const min = Math.min(...mins);
   const maxes = bands.map((b) => b.max_meters);
   // Open-ended top tier (max_meters null) → "<min>m+"
   if (maxes.some((m) => m === null)) return `${min}m+`;
-  const max = Math.max(...(maxes as number[]));
+  const validMaxes = maxes.filter((m): m is number => typeof m === 'number');
+  if (validMaxes.length === 0) return null;
+  const max = Math.max(...validMaxes);
   return min === max ? `${min}m` : `${min}-${max}m`;
 }
 

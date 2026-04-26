@@ -52,13 +52,16 @@ export function HierarchicalPills({
     setExpandedGroup((prev) => (prev === groupId ? null : groupId));
   }
 
-  // Track which group contains the selected value (for highlighting)
-  const selectedGroupId = useMemo(() => {
-    if (mode !== 'single' || !value || typeof value !== 'string') return null;
+  // Track which groups contain the selected value (for highlighting). A
+  // single role can belong to multiple departments (e.g. Deck/Engineer
+  // appears under both Deck and Engineering); both pills should highlight.
+  const selectedGroupIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (mode !== 'single' || !value || typeof value !== 'string') return ids;
     for (const g of groups) {
-      if (g.items.some((item) => item.id === value)) return g.id;
+      if (g.items.some((item) => item.id === value)) ids.add(g.id);
     }
-    return null;
+    return ids;
   }, [groups, value, mode]);
 
   function handleItemClick(itemId: string) {
@@ -105,7 +108,8 @@ export function HierarchicalPills({
         {groups.map((group) => {
           const isExpanded = expandedGroup === group.id;
           const count = groupCounts.get(group.id);
-          const hasSelection = mode === 'single' ? selectedGroupId === group.id : (count ?? 0) > 0;
+          const hasSelection =
+            mode === 'single' ? selectedGroupIds.has(group.id) : (count ?? 0) > 0;
           return (
             <button
               key={group.id}
