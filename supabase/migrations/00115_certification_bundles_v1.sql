@@ -47,10 +47,19 @@ create policy "Anyone authenticated can read certification_components"
 -- Bundle:    e0000000-0000-0000-0000-000000000015 = "MCA Approved Engine Course (AEC 1 & 2) Certificate"
 -- Component: e0000000-0000-0000-0000-000000000321 = "MCA Approved Engine Course (AEC 1)"
 -- Component: e0000000-0000-0000-0000-000000000322 = "MCA Approved Engine Course (AEC 2)"
+--
+-- Existence-guarded inserts: skip the row if either cert is absent (e.g.
+-- on CI Database Checks, which runs migrations on a fresh DB without
+-- the canonical-data seeds). Live + staging both have the seed loaded,
+-- so the rows insert normally there.
 insert into public.certification_components (bundle_cert_id, component_cert_id)
-values
-  ('e0000000-0000-0000-0000-000000000015', 'e0000000-0000-0000-0000-000000000321'),
-  ('e0000000-0000-0000-0000-000000000015', 'e0000000-0000-0000-0000-000000000322')
+select b.id, c.id
+from public.certifications b, public.certifications c
+where b.id = 'e0000000-0000-0000-0000-000000000015'
+  and c.id in (
+    'e0000000-0000-0000-0000-000000000321',
+    'e0000000-0000-0000-0000-000000000322'
+  )
 on conflict (bundle_cert_id, component_cert_id) do nothing;
 
 -- STCW 95 / STCW 2010 bundle — covers five individual basic competencies.
@@ -62,10 +71,14 @@ on conflict (bundle_cert_id, component_cert_id) do nothing;
 --   106 = Personal Safety & Social Responsibilities (A-VI/1-4)
 --   110 = Proficiency in Medical First Aid (A-VI/4 1-3)
 insert into public.certification_components (bundle_cert_id, component_cert_id)
-values
-  ('e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000103'),
-  ('e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000104'),
-  ('e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000105'),
-  ('e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000106'),
-  ('e0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000110')
+select b.id, c.id
+from public.certifications b, public.certifications c
+where b.id = 'e0000000-0000-0000-0000-000000000001'
+  and c.id in (
+    'e0000000-0000-0000-0000-000000000103',
+    'e0000000-0000-0000-0000-000000000104',
+    'e0000000-0000-0000-0000-000000000105',
+    'e0000000-0000-0000-0000-000000000106',
+    'e0000000-0000-0000-0000-000000000110'
+  )
 on conflict (bundle_cert_id, component_cert_id) do nothing;
