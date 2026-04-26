@@ -34,7 +34,7 @@ echo "  All rollbacks applied successfully."
 echo ""
 
 echo "Step 2: Re-applying migrations via supabase db reset..."
-if ! supabase db reset > /dev/null 2>&1; then
+if ! supabase db reset 2>&1; then
   echo ""
   echo "ERROR: supabase db reset failed after rollbacks."
   echo "The forward -> reverse -> forward cycle is broken."
