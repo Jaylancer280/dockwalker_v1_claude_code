@@ -113,13 +113,7 @@ Migration 00120 + 00121 — schema bumps from v119 → v121.
 
 ## Queue
 
-### Locations V1 — remaining follow-ups
-
-> Original Stage 217 audit list; C1-C3 shipped earlier. Remaining items:
-
-- [ ] Live-picker UI sanity pass — spot-check 20 random non-curated ports via fuzzy search; confirm city/country context renders
-- [ ] Move `TOWN_ALIASES` + `COUNTRY_CODE_FIXES` from `scripts/marina-extraction/3c_normalize.py` into a versioned JSON config under `supabase/seed/` — reduces drift when extending curated hubs
-- [ ] Document admin workflow for merging OSM district near-duplicates (e.g. if users report "Muğla" marinas in multiple towns)
+> _empty — Stage 217 audit follow-ups all shipped in Fix 246._
 
 ---
 

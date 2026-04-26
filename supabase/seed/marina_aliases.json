@@ -1,0 +1,72 @@
+{
+  "$schema": "Marina extraction normalisation rules. Consumed by scripts/marina-extraction/3c_normalize.py and the admin OSM merge runbook.",
+  "$updated": "2026-04-26",
+  "country_code_fixes": [
+    {
+      "comment": "Nominatim sometimes returns NL for Sint Maarten (constituent of the Kingdom of the Netherlands). Force to the SX ISO code.",
+      "from_country_code": "NL",
+      "from_country_name_lower": "sint maarten",
+      "to_country_code": "SX",
+      "to_country_name": "Sint Maarten"
+    }
+  ],
+  "town_aliases": {
+    "FR": {
+      "juan-les-pins": "Antibes"
+    },
+    "ES": {
+      "palma de mallorca": "Palma"
+    },
+    "AE": {
+      "deira": "Dubai",
+      "jumeirah": "Dubai",
+      "al seef": "Dubai",
+      "al satwa": "Dubai",
+      "port rashid": "Dubai",
+      "umm hurair 2": "Dubai",
+      "al bateen": "Abu Dhabi",
+      "al bahyah": "Abu Dhabi",
+      "al hidayriyyat": "Abu Dhabi",
+      "yas island": "Abu Dhabi",
+      "mina zayed": "Abu Dhabi",
+      "al jazirah al hamra": "Ras Al Khaimah"
+    },
+    "SX": {
+      "philipsburg": "St. Maarten",
+      "simpson bay": "St. Maarten",
+      "cole bay": "St. Maarten"
+    },
+    "VI": {
+      "charlotte amalie": "St. Thomas (USVI)",
+      "frenchtown": "St. Thomas (USVI)"
+    },
+    "AG": {
+      "english harbour": "Antigua",
+      "falmouth": "Antigua",
+      "falmouth harbour": "Antigua",
+      "st. john's": "Antigua",
+      "st johns": "Antigua",
+      "jolly harbour": "Antigua",
+      "parish of saint paul": "Antigua",
+      "parish of saint john": "Antigua"
+    },
+    "BS": {
+      "new providence": "Nassau",
+      "new providence island": "Nassau"
+    },
+    "TR": {
+      "turgutreis": "Bodrum",
+      "yalıkavak": "Bodrum",
+      "yalikavak": "Bodrum",
+      "gümüşlük": "Bodrum",
+      "gumusluk": "Bodrum",
+      "göltürkbükü": "Bodrum",
+      "golturkbuku": "Bodrum",
+      "ortakent": "Bodrum",
+      "konacık": "Bodrum",
+      "konacik": "Bodrum",
+      "i̇stanbul": "Istanbul",
+      "İstanbul": "Istanbul"
+    }
+  }
+}
