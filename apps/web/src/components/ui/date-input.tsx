@@ -1,8 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { useRef, useCallback } from 'react';
-import { Calendar } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 interface DateInputProps {
@@ -45,10 +47,15 @@ function autoFormat(raw: string): string {
 }
 
 /**
- * Date input that always displays dd/mm/yyyy format.
- * Uses a visible text input for typing + a hidden native date input for the
- * browser's date picker. A calendar icon button triggers the native picker.
- * Value prop and onChange use ISO YYYY-MM-DD format.
+ * Date input with two complementary entry paths:
+ *
+ *  1. A visible dd/mm/yyyy text input — auto-formatted as the user types.
+ *     Power users can hit dates fast without touching a mouse.
+ *  2. A calendar icon that opens a `Popover`-anchored `<Calendar>`. Click a
+ *     day → the popover closes and the text input updates. Honours `min`
+ *     and `max` (out-of-range days are disabled in the grid).
+ *
+ * Value prop and `onChange` use ISO YYYY-MM-DD format throughout.
  */
 export function DateInput({
   value,
@@ -60,8 +67,8 @@ export function DateInput({
   disabled,
   required,
 }: DateInputProps) {
-  const hiddenRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = React.useState(() => isoToDisplay(value));
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Sync display when value prop changes externally
   React.useEffect(() => {
@@ -84,28 +91,14 @@ export function DateInput({
     [onChange],
   );
 
-  const handleNativeChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const iso = e.target.value;
-      if (iso) {
-        onChange(iso);
-        setDisplayValue(isoToDisplay(iso));
-      }
+  const handleCalendarSelect = useCallback(
+    (iso: string) => {
+      onChange(iso);
+      setDisplayValue(isoToDisplay(iso));
+      setCalendarOpen(false);
     },
     [onChange],
   );
-
-  const openPicker = useCallback(() => {
-    if (hiddenRef.current) {
-      try {
-        hiddenRef.current.showPicker();
-      } catch {
-        // showPicker() not supported — focus the native input as fallback
-        hiddenRef.current.focus();
-        hiddenRef.current.click();
-      }
-    }
-  }, []);
 
   const inputClasses = cn(
     'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 pr-9 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30',
@@ -114,43 +107,39 @@ export function DateInput({
   );
 
   return (
-    <div className="relative">
-      <input
-        type="text"
-        inputMode="numeric"
-        placeholder="dd/mm/yyyy"
-        value={displayValue}
-        onChange={handleTextChange}
-        onBlur={onBlur}
-        disabled={disabled}
-        required={required}
-        aria-required={required || undefined}
-        className={inputClasses}
-        maxLength={10}
-      />
-      {/* Calendar icon button — opens native date picker */}
-      <button
-        type="button"
-        onClick={openPicker}
-        disabled={disabled}
-        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
-        aria-label="Open date picker"
-      >
-        <Calendar className="h-4 w-4" />
-      </button>
-      {/* Hidden native date input for browser picker */}
-      <input
-        ref={hiddenRef}
-        type="date"
-        value={value}
-        onChange={handleNativeChange}
-        min={min}
-        max={max}
-        disabled={disabled}
-        className="pointer-events-none absolute inset-0 opacity-0"
-        tabIndex={-1}
-        aria-hidden
-      />
-    </div>
+    <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+      <PopoverAnchor asChild>
+        <div className="relative">
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="dd/mm/yyyy"
+            value={displayValue}
+            onChange={handleTextChange}
+            onBlur={onBlur}
+            disabled={disabled}
+            required={required}
+            aria-required={required || undefined}
+            className={inputClasses}
+            maxLength={10}
+          />
+          {/* Calendar icon button — opens the Popover-anchored Calendar */}
+          <button
+            type="button"
+            onClick={() => setCalendarOpen((o) => !o)}
+            disabled={disabled}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground disabled:opacity-50"
+            aria-label="Open date picker"
+            aria-expanded={calendarOpen}
+            aria-haspopup="dialog"
+          >
+            <CalendarIcon className="h-4 w-4" />
+          </button>
+        </div>
+      </PopoverAnchor>
+      <PopoverContent align="start" sideOffset={4} collisionPadding={8} className="w-auto p-0">
+        <Calendar value={value} onSelect={handleCalendarSelect} min={min} max={max} />
+      </PopoverContent>
+    </Popover>
   );
 }

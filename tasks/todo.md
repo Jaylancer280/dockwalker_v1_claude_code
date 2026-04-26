@@ -5,31 +5,6 @@
 
 ## Current Task
 
-### Date + time pickers — visual upgrades
-
-User feedback: text inputs for dates feel clunky vs visual; the existing calendar icon next to `dd/mm/yyyy` should open a real popup calendar. Time picker (currently `<input type="time">`) is broken on some browsers and hard to use — replace with a scroll-wheel/spinner pattern.
-
-#### Date picker (popup calendar)
-
-- [ ] Add `apps/web/src/components/ui/calendar.tsx` — wrap `react-day-picker` (or shadcn's Calendar) inside a `Popover` anchored to the existing calendar icon in `apps/web/src/components/ui/date-input.tsx`. Click icon → calendar opens. Click date → fills the text input AND closes popover.
-- [ ] Keep the manual `dd/mm/yyyy` text input intact — desktop power users who type fast prefer it. Calendar icon is the alternate path, not a replacement.
-- [ ] Position logic — the popover must NOT clip off-screen. Use `Popover` with `collisionPadding` and let Radix flip the placement automatically (top/bottom/left/right). Verify at small viewport (mobile) and near page edges.
-- [ ] All 11 existing `DateInput` callsites inherit the change — daywork post, permanent post, experience forms, onboarding, discover filters, postponement overlay, etc. Per BUILD_STATE Stage 196 history.
-- [ ] Keep the `min` / `max` / disabled-date logic that DateInput currently honors (e.g. permanent posting start dates can't be too far in the past). Calendar grays out invalid days.
-
-#### Time picker (scroll wheel / spinner)
-
-- [ ] Single callsite right now: `apps/web/src/app/(app)/messages/[engagementId]/_components/checklist-form-overlay.tsx:215` (`type="time"`).
-- [ ] Replace with a paired `<Select>` for hours (0-23 or 1-12 + AM/PM) and minutes (00, 15, 30, 45, or 5-min steps). iOS-style scroll-wheel UX — large tappable rows, snap-to-value, 60-fps smooth scroll.
-- [ ] Either build it (using a virtualised list library or pure CSS scroll-snap) or pull `react-mobile-picker` / similar. Vet license + bundle size before pulling.
-- [ ] Output format stays HH:mm string so the rest of the form/event logic doesn't change.
-
-#### Done condition
-
-Tapping any date field shows a calendar popover that doesn't clip off-screen. Tapping the time field on the checklist setter shows a smooth scroll-wheel.
-
----
-
 ### Vessels V2 — multi-name/flag history + admin curation queue (post-launch)
 
 Same admin-review pattern as Locations V2 but for vessels. IMO is already locked in as the immutable anchor (CLAUDE.md core invariant) — this proposal adds the temporal layer that real-world yacht ownership churn requires (rename after sale, reflag after sanctions, etc.). Avoids legal exposure on Equasis/MarineTraffic scraping by using **manual admin enrichment** rather than automated import.

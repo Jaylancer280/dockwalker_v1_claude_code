@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Loader2, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
+import { TimePicker } from '@/components/ui/time-picker';
 
 interface ChecklistItem {
   id: string;
@@ -211,12 +212,9 @@ export function ChecklistFormOverlay({
           <div className="flex flex-col gap-2">
             <label className="text-sm font-medium">
               Arrival time
-              <input
-                type="time"
-                value={form.arrival_time}
-                onChange={(e) => update('arrival_time', e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-[var(--accent)]"
-              />
+              <div className="mt-1">
+                <TimePicker value={form.arrival_time} onChange={(v) => update('arrival_time', v)} />
+              </div>
             </label>
             <label className="text-sm font-medium">
               Meeting point
