@@ -12,6 +12,7 @@ export interface HierarchicalPillsProps {
   mode: 'single' | 'multi';
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
 }
 
 export function HierarchicalPills({
@@ -21,6 +22,7 @@ export function HierarchicalPills({
   mode,
   placeholder,
   required,
+  disabled,
 }: HierarchicalPillsProps) {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(() => {
     // Auto-expand the group containing the current value
@@ -94,9 +96,10 @@ export function HierarchicalPills({
 
   return (
     <div
-      className="flex flex-col gap-2"
+      className={`flex flex-col gap-2 ${disabled ? 'opacity-60' : ''}`}
       role={mode === 'single' ? 'radiogroup' : 'group'}
       aria-required={required || undefined}
+      aria-disabled={disabled || undefined}
     >
       {/* Selected preview for single-select */}
       {mode === 'single' && selectedLabel && (
@@ -114,7 +117,10 @@ export function HierarchicalPills({
             <button
               key={group.id}
               type="button"
+              disabled={disabled}
               className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                disabled ? 'cursor-not-allowed' : ''
+              } ${
                 isExpanded || hasSelection
                   ? 'bg-[var(--accent)] text-white'
                   : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'
@@ -137,7 +143,10 @@ export function HierarchicalPills({
               <button
                 key={item.id}
                 type="button"
+                disabled={disabled}
                 className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                  disabled ? 'cursor-not-allowed' : ''
+                } ${
                   isActive
                     ? 'bg-[var(--accent)] text-white'
                     : 'bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] hover:bg-[var(--accent-lo)]'

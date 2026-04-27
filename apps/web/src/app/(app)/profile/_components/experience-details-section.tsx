@@ -48,6 +48,11 @@ export interface ExperienceDetailsSectionProps {
   setContractDetails: (v: string) => void;
   description: string;
   setDescription: (v: string) => void;
+  /** Disables role + start/end dates + currently-onboard when an active
+   *  reference exists on this experience. The server enforces the same
+   *  lock and rejects mutations to these fields with 409 — disabling
+   *  the inputs prevents users from drafting changes that can't save. */
+  snapshotLocked?: boolean;
 }
 
 export function ExperienceDetailsSection({
@@ -72,6 +77,7 @@ export function ExperienceDetailsSection({
   setContractDetails,
   description,
   setDescription,
+  snapshotLocked,
 }: ExperienceDetailsSectionProps) {
   return (
     <>
@@ -83,6 +89,7 @@ export function ExperienceDetailsSection({
           value={roleId}
           onValueChange={(v) => setRoleId(v as string)}
           mode="single"
+          disabled={snapshotLocked}
         />
       </div>
 
@@ -115,22 +122,23 @@ export function ExperienceDetailsSection({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label>Start date</Label>
-          <DateInput value={startDate} onChange={setStartDate} />
+          <DateInput value={startDate} onChange={setStartDate} disabled={snapshotLocked} />
         </div>
         <div className="flex flex-col gap-1.5">
           <Label>End date</Label>
           <DateInput
             value={endDate}
             onChange={setEndDate}
-            disabled={isCurrent}
+            disabled={isCurrent || snapshotLocked}
             min={startDate || undefined}
           />
         </div>
       </div>
       {!isAgent && (
-        <label className="flex items-center gap-2 text-sm">
+        <label className={`flex items-center gap-2 text-sm ${snapshotLocked ? 'opacity-60' : ''}`}>
           <Checkbox
             checked={isCurrent}
+            disabled={snapshotLocked}
             onCheckedChange={(checked) => {
               setIsCurrent(checked === true);
               if (checked) setEndDate('');

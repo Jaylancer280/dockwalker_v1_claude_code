@@ -236,6 +236,7 @@ export default function EditExperiencePage() {
           setContractDetails={setContractDetails}
           description={description}
           setDescription={setDescription}
+          snapshotLocked={referencesActiveCount > 0}
         />
 
         <PrivateIntelligenceSection
