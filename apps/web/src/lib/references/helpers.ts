@@ -93,10 +93,18 @@ export function maskEmail(email: string): string {
 
 /**
  * Idempotency key conventions per Phase 2 spec.
+ *
+ * `request` is salted by `newRefId` so each fresh submission produces a
+ * distinct key — the route's auto-supersede + cap pre-check combine to
+ * provide the dedup guarantee that the static-key version was meant to
+ * provide. A static `(experience, email)` key collides on legitimate
+ * resubmissions after revoke/decline, causing `append_event` to hit the
+ * unique-violation dedup path, return the original event id, and skip
+ * the projection — leaving the client with a fresh token that doesn't
+ * match any row.
  */
 export const refIdemKey = {
-  request: (experienceId: string, normalizedEmailOrName: string): string =>
-    `REFERENCE.REQUESTED:${experienceId}:${normalizedEmailOrName}`,
+  request: (newRefId: string): string => `REFERENCE.REQUESTED:${newRefId}`,
   resend: (oldReferenceId: string): string => `REFERENCE.REQUESTED:resend:${oldReferenceId}`,
   accept: (referenceId: string): string => `REFERENCE.ACCEPTED:${referenceId}`,
   contactAccept: (contactId: string): string => `REFERENCE.CONTACT_ACCEPTED:${contactId}`,

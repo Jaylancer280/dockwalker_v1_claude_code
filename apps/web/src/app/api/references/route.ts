@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
-import { appendEvent } from '@dockwalker/db';
+import { appendEvent, appendEvents } from '@dockwalker/db';
 import { resolveHistoricalVesselNames } from '@/lib/vessels/historical-names';
 import {
   checkVesselReferenceGate,
@@ -103,14 +103,39 @@ export async function POST(request: Request) {
       .maybeSingle();
     const requesterRoleAtTime = (roleRow?.name as string | undefined) ?? 'Crew';
 
-    // Per-experience cap pre-check.
+    // Auto-supersede: if there's already a pending invitation for this same
+    // referee on this same experience, revoke it atomically before creating
+    // the new one. Common workflow: user sends invite, notices a typo or
+    // wants to change vessel/role/email, resubmits — we treat the new
+    // submission as the canonical invitation and retire the previous one.
+    // Match by email (preferred) or by normalized name when no email was
+    // captured.
+    const newKey = normalizeEmailOrName(claimedRefereeEmail, claimedRefereeName);
+    const { data: existingPending } = await serviceClient
+      .from('references')
+      .select('id, claimed_referee_email, claimed_referee_name')
+      .eq('experience_id', experienceId)
+      .eq('requester_person_id', user.id)
+      .eq('status', 'pending');
+    const supersedeId =
+      (existingPending ?? []).find(
+        (row) =>
+          normalizeEmailOrName(
+            row.claimed_referee_email as string | null,
+            row.claimed_referee_name as string,
+          ) === newKey,
+      )?.id ?? null;
+
+    // Per-experience cap pre-check — exclude the row we're about to supersede.
     const plan = await getSubscriptionPlan(serviceClient, user.id);
     const cap = refsCapForPlan(plan);
-    const { count: activeCount } = await serviceClient
+    let capQuery = serviceClient
       .from('references')
       .select('id', { count: 'exact', head: true })
       .eq('experience_id', experienceId)
       .in('status', ['pending', 'accepted']);
+    if (supersedeId) capQuery = capQuery.neq('id', supersedeId);
+    const { count: activeCount } = await capQuery;
     if ((activeCount ?? 0) >= cap) {
       return NextResponse.json(
         {
@@ -138,33 +163,64 @@ export async function POST(request: Request) {
 
     const refId = randomUUID();
     const token = randomUUID();
-    const idempotencyKey = refIdemKey.request(
-      experienceId,
-      normalizeEmailOrName(claimedRefereeEmail, claimedRefereeName),
-    );
 
-    await appendEvent(serviceClient, {
-      eventType: 'REFERENCE.REQUESTED',
-      aggregateId: refId,
-      aggregateType: 'reference',
-      roleContext: 'crew',
-      payload: {
-        id: refId,
-        experience_id: experienceId,
-        vessel_id: experience.vessel_id as string,
-        requester_role_at_time: requesterRoleAtTime,
-        claimed_referee_role: claimedRefereeRole,
-        claimed_referee_name: claimedRefereeName,
-        claimed_referee_email: claimedRefereeEmail,
-        token,
-        snapshot_vessel_imo: (vessel as VesselGateRow).imo_number,
-        snapshot_vessel_name: snapshotVesselName,
-        snapshot_start_date: experience.start_date as string,
-        snapshot_end_date: (experience.end_date as string | null) ?? null,
-      },
-      personId: user.id,
-      idempotencyKey,
-    });
+    if (supersedeId) {
+      await appendEvents(serviceClient, [
+        {
+          eventType: 'REFERENCE.REVOKED_BY_REQUESTER',
+          aggregateId: supersedeId,
+          aggregateType: 'reference',
+          roleContext: 'crew',
+          payload: {},
+          personId: user.id,
+        },
+        {
+          eventType: 'REFERENCE.REQUESTED',
+          aggregateId: refId,
+          aggregateType: 'reference',
+          roleContext: 'crew',
+          payload: {
+            id: refId,
+            experience_id: experienceId,
+            vessel_id: experience.vessel_id as string,
+            requester_role_at_time: requesterRoleAtTime,
+            claimed_referee_role: claimedRefereeRole,
+            claimed_referee_name: claimedRefereeName,
+            claimed_referee_email: claimedRefereeEmail,
+            token,
+            snapshot_vessel_imo: (vessel as VesselGateRow).imo_number,
+            snapshot_vessel_name: snapshotVesselName,
+            snapshot_start_date: experience.start_date as string,
+            snapshot_end_date: (experience.end_date as string | null) ?? null,
+          },
+          personId: user.id,
+          idempotencyKey: refIdemKey.request(refId),
+        },
+      ]);
+    } else {
+      await appendEvent(serviceClient, {
+        eventType: 'REFERENCE.REQUESTED',
+        aggregateId: refId,
+        aggregateType: 'reference',
+        roleContext: 'crew',
+        payload: {
+          id: refId,
+          experience_id: experienceId,
+          vessel_id: experience.vessel_id as string,
+          requester_role_at_time: requesterRoleAtTime,
+          claimed_referee_role: claimedRefereeRole,
+          claimed_referee_name: claimedRefereeName,
+          claimed_referee_email: claimedRefereeEmail,
+          token,
+          snapshot_vessel_imo: (vessel as VesselGateRow).imo_number,
+          snapshot_vessel_name: snapshotVesselName,
+          snapshot_start_date: experience.start_date as string,
+          snapshot_end_date: (experience.end_date as string | null) ?? null,
+        },
+        personId: user.id,
+        idempotencyKey: refIdemKey.request(refId),
+      });
+    }
 
     // B-6: opportunistic in-app notification when claimed_referee_email
     // matches an existing DockWalker person. Email courier is NOT used —
@@ -182,6 +238,7 @@ export async function POST(request: Request) {
               reference_id: refId,
               recipient_person_id: matchedPersonId,
               snapshot_vessel_name: snapshotVesselName,
+              token,
             },
             user.id,
           );

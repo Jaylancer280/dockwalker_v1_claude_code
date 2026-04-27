@@ -72,6 +72,7 @@ function chainResolve(data: unknown, opts: ChainOpts = {}) {
   const handler = () => chain;
   chain.select = handler;
   chain.eq = handler;
+  chain.neq = handler;
   chain.gte = handler;
   chain.in = handler;
   chain.lt = handler;
@@ -227,6 +228,8 @@ describe('POST /api/references', () => {
     );
     // yacht_roles
     mockServiceFrom.mockReturnValueOnce(chainResolve({ name: 'Bosun' }));
+    // existing pending refs (auto-supersede pre-check) — none match
+    mockServiceFrom.mockReturnValueOnce(chainResolve([]));
     // subscriptions (Free)
     mockServiceFrom.mockReturnValueOnce(chainResolve(null));
     // existing references count — at cap (1 for Free)

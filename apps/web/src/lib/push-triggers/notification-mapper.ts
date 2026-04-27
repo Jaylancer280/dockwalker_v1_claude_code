@@ -79,6 +79,7 @@ export function resolveDeepLink(
     case 'SUPPORT.MESSAGE_SENT':
       return payload.thread_id ? `/support/${payload.thread_id}` : null;
     case 'REFERENCE.REQUESTED':
+      return payload.token ? `/ref/${payload.token}` : null;
     case 'REFERENCE.CONTACT_REQUESTED':
       return '/messages';
     case 'REFERENCE.ACCEPTED':
