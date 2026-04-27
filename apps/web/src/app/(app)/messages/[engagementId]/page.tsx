@@ -16,6 +16,7 @@ import { PostponementFormOverlay } from './_components/postponement-form-overlay
 import { RatingFormOverlay } from './_components/rating-form-overlay';
 import { ChecklistFormOverlay } from './_components/checklist-form-overlay';
 import { ChatHeader } from './_components/chat-header';
+import { ReferenceContactHeader } from './_components/reference-contact-header';
 import { MessageList } from './_components/message-list';
 import { ChatFooter } from './_components/chat-footer';
 import { ChatDialogs } from './_components/chat-dialogs';
@@ -585,34 +586,43 @@ export default function ChatPage() {
           onAccept={voiceCall.acceptCall}
           onDecline={voiceCall.declineCall}
         />
-        <ChatHeader
-          context={context}
-          isCrew={isCrew ?? false}
-          isEmployer={isEmployer ?? false}
-          isPermanent={isPermanent ?? false}
-          permPostingStatus={permPostingStatus}
-          cancelLabel={cancelLabel}
-          showActionMenu={showActionMenu}
-          setShowActionMenu={setShowActionMenu}
-          menuRef={menuRef}
-          showCancelForm={showCancelForm}
-          showCrewCancelForm={showCrewCancelForm}
-          completing={completing}
-          workStarting={workStarting}
-          onViewProfile={setViewProfileId}
-          onReportUser={() => setReportDialogOpen(true)}
-          onShowCancelForm={() => setShowCancelForm(true)}
-          onShowCrewCancelForm={() => setShowCrewCancelForm(true)}
-          onShowChecklistForm={() => setShowChecklistForm(true)}
-          onShowCompleteConfirm={() => setShowCompleteConfirm(true)}
-          onShowPostponementForm={() => setShowPostponementForm(true)}
-          onShowConfirmPlacement={() => setShowConfirmPlacement(true)}
-          onShowRevertSelection={() => setShowRevertSelection(true)}
-          onShowCloseConversation={() => setShowCloseConversation(true)}
-          onCancelPosting={setCancelPostingId}
-          onCrewWithdraw={() => setShowCrewWithdraw(true)}
-          onWorkStarted={handleWorkStarted}
-        />
+        {context?.reference_context ? (
+          <ReferenceContactHeader
+            engagementId={engagementId}
+            refContext={context.reference_context}
+            otherName={context.other_name ?? ''}
+            engagementStatus={context.status ?? 'active'}
+          />
+        ) : (
+          <ChatHeader
+            context={context}
+            isCrew={isCrew ?? false}
+            isEmployer={isEmployer ?? false}
+            isPermanent={isPermanent ?? false}
+            permPostingStatus={permPostingStatus}
+            cancelLabel={cancelLabel}
+            showActionMenu={showActionMenu}
+            setShowActionMenu={setShowActionMenu}
+            menuRef={menuRef}
+            showCancelForm={showCancelForm}
+            showCrewCancelForm={showCrewCancelForm}
+            completing={completing}
+            workStarting={workStarting}
+            onViewProfile={setViewProfileId}
+            onReportUser={() => setReportDialogOpen(true)}
+            onShowCancelForm={() => setShowCancelForm(true)}
+            onShowCrewCancelForm={() => setShowCrewCancelForm(true)}
+            onShowChecklistForm={() => setShowChecklistForm(true)}
+            onShowCompleteConfirm={() => setShowCompleteConfirm(true)}
+            onShowPostponementForm={() => setShowPostponementForm(true)}
+            onShowConfirmPlacement={() => setShowConfirmPlacement(true)}
+            onShowRevertSelection={() => setShowRevertSelection(true)}
+            onShowCloseConversation={() => setShowCloseConversation(true)}
+            onCancelPosting={setCancelPostingId}
+            onCrewWithdraw={() => setShowCrewWithdraw(true)}
+            onWorkStarted={handleWorkStarted}
+          />
+        )}
 
         <MessageList
           messages={messages}

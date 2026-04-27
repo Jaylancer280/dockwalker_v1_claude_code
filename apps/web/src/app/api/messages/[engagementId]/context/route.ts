@@ -20,7 +20,8 @@ export async function GET(
       .from('active_engagements')
       .select(
         `
-      id, daywork_id, permanent_posting_id, crew_person_id, employer_person_id, start_date, end_date, status, outcome, crew_completion_status,
+      id, daywork_id, permanent_posting_id, reference_contact_id,
+      crew_person_id, employer_person_id, start_date, end_date, status, outcome, crew_completion_status,
       cancelled_by, cancellation_reason_category, cancellation_reason_text,
       postponement_status, proposed_start_date, proposed_end_date, proposed_working_days,
       work_started_status, work_started_at,
@@ -85,10 +86,79 @@ export async function GET(
     const crewCancelResponded =
       engagement.cancelled_by === 'crew' && daywork?.status !== 'in_progress';
 
+    // Reference-contact engagement enrichment (Phase 4 — chat-layout switching).
+    // When `reference_contact_id` is set, the chat is tied to a reference
+    // consent flow rather than a daywork or permanent posting. Hydrate the
+    // underlying reference snapshot + status so the chat header can render
+    // <ReferenceContactHeader> instead of the daywork/permanent header AND
+    // surface the Fix A "reference withdrawn" banner if the underlying
+    // reference is no longer accepted.
+    let referenceContext: {
+      reference_contact_id: string;
+      reference_id: string;
+      reference_status: string;
+      revoke_reason: string | null;
+      requester_display_name: string | null;
+      snapshot_vessel_name: string;
+      snapshot_vessel_imo: string;
+      snapshot_start_date: string;
+      snapshot_end_date: string | null;
+      requester_role_at_time: string;
+      claimed_referee_role: string;
+      comment: string | null;
+    } | null = null;
+    if (engagement.reference_contact_id) {
+      const { data: contactRow } = await supabase
+        .from('reference_contacts')
+        .select(
+          `id, reference_id,
+           references!reference_contacts_reference_id_fkey(
+             status, revoke_reason, requester_person_id, snapshot_vessel_name,
+             snapshot_vessel_imo, snapshot_start_date, snapshot_end_date,
+             requester_role_at_time, claimed_referee_role, comment
+           )`,
+        )
+        .eq('id', engagement.reference_contact_id)
+        .maybeSingle();
+      if (contactRow) {
+        // PostgREST returns the embed as an array even with .single() on the
+        // join target, so we normalise to the first row.
+        const refsAny = (contactRow as { references: unknown }).references;
+        const refList = Array.isArray(refsAny) ? refsAny : refsAny ? [refsAny] : [];
+        const ref = refList[0] as Record<string, unknown> | null;
+        if (ref) {
+          const requesterPersonId = ref.requester_person_id as string;
+          const { data: requester } = await supabase
+            .from('profiles')
+            .select('display_name')
+            .eq('person_id', requesterPersonId)
+            .maybeSingle();
+          referenceContext = {
+            reference_contact_id: engagement.reference_contact_id as string,
+            reference_id: contactRow.reference_id as string,
+            reference_status: ref.status as string,
+            revoke_reason: (ref.revoke_reason as string | null) ?? null,
+            requester_display_name: (requester?.display_name as string | undefined) ?? null,
+            snapshot_vessel_name: ref.snapshot_vessel_name as string,
+            snapshot_vessel_imo: ref.snapshot_vessel_imo as string,
+            snapshot_start_date: ref.snapshot_start_date as string,
+            snapshot_end_date: (ref.snapshot_end_date as string | null) ?? null,
+            requester_role_at_time: ref.requester_role_at_time as string,
+            claimed_referee_role: ref.claimed_referee_role as string,
+            comment: (ref.comment as string | null) ?? null,
+          };
+        }
+      }
+    }
+
     return NextResponse.json({
       engagement: {
         ...engagement,
-        type: engagement.permanent_posting_id ? 'permanent' : 'daywork',
+        type: engagement.reference_contact_id
+          ? 'reference_contact'
+          : engagement.permanent_posting_id
+            ? 'permanent'
+            : 'daywork',
         other_name: otherProfile?.deck_name || otherProfile?.display_name || 'Unknown',
         has_rated: !!myRating,
         my_rating: myRating ?? null,
@@ -99,6 +169,7 @@ export async function GET(
               acknowledged_item_ids: (checklist.acknowledged_item_ids as string[]) ?? [],
             }
           : null,
+        reference_context: referenceContext,
       },
     });
   } catch (err) {

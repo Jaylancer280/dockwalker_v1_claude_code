@@ -1,17 +1,44 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, X, MapPin, Ship, ChevronDown, ChevronUp, Briefcase, Flag } from 'lucide-react';
+import {
+  Loader2,
+  X,
+  MapPin,
+  Ship,
+  ChevronDown,
+  ChevronUp,
+  Briefcase,
+  Flag,
+  Users,
+  MessageSquarePlus,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { languageLabel } from '@dockwalker/shared';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { ExpandableText } from '@/components/expandable-text';
 import { useBodyScrollLock } from '@/hooks/use-body-scroll-lock';
 import { safeFetch } from '@/lib/safe-fetch';
 import { ReportDialog } from '@/components/report-dialog';
+import { ContactReferenceDialog } from '@/components/references/contact-reference-dialog';
+
+interface ReferenceRow {
+  id: string;
+  referee_person_id: string;
+  claimed_referee_role: string;
+  claimed_referee_name: string;
+  comment: string | null;
+  consented_at: string;
+  referee_display_name: string | null;
+  referee_role_id: string | null;
+  referee_role_name: string | null;
+  referee_role_department: string | null;
+}
 
 interface CrewExperience {
+  id?: string;
   vessel_name: string | null;
   /** Set when vessel was renamed AFTER this experience — surfaces the
    *  name the user knew it as. Null when current name was already in
@@ -29,6 +56,7 @@ interface CrewExperience {
   contract_type: string | null;
   contract_details: string | null;
   description: string | null;
+  references?: ReferenceRow[];
 }
 
 interface ShoreExperienceEntry {
@@ -116,6 +144,26 @@ export function ProfileOverlay({
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
+  const [viewerHat, setViewerHat] = useState<'crew' | 'employer' | 'agent' | null>(null);
+  const [nestedRefereeId, setNestedRefereeId] = useState<string | null>(null);
+  const [contactDialogRef, setContactDialogRef] = useState<{
+    referenceId: string;
+    refereeName: string;
+  } | null>(null);
+  const canContactReferences = viewerHat === 'employer' || viewerHat === 'agent';
+  const handleSelectReferee = useCallback((personId: string) => {
+    setNestedRefereeId(personId);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    safeFetch<{ person?: { current_hat?: string } }>('/api/profile').then((r) => {
+      if (r.ok) {
+        const hat = r.data.person?.current_hat as 'crew' | 'employer' | 'agent' | undefined;
+        if (hat) setViewerHat(hat);
+      }
+    });
+  }, [isOpen]);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -180,7 +228,12 @@ export function ProfileOverlay({
             !error &&
             profile &&
             (profile.identity_type === 'crew' ? (
-              <CrewProfileView profile={profile as CrewProfile} />
+              <CrewProfileView
+                profile={profile as CrewProfile}
+                canContactReferences={canContactReferences}
+                handleSelectReferee={handleSelectReferee}
+                handleContactReference={(payload) => setContactDialogRef(payload)}
+              />
             ) : profile.identity_type === 'agent' ? (
               <AgentProfileView profile={profile as EmployerProfile} />
             ) : (
@@ -210,11 +263,111 @@ export function ProfileOverlay({
           reportedName={profile.display_name}
         />
       )}
+
+      {nestedRefereeId && (
+        <ProfileOverlay
+          personId={nestedRefereeId}
+          isOpen={true}
+          onClose={() => setNestedRefereeId(null)}
+        />
+      )}
+
+      {contactDialogRef && (
+        <ContactReferenceDialog
+          open={!!contactDialogRef}
+          onOpenChange={(o) => !o && setContactDialogRef(null)}
+          referenceId={contactDialogRef.referenceId}
+          refereeDisplayName={contactDialogRef.refereeName}
+        />
+      )}
     </div>
   );
 }
 
-function CrewProfileView({ profile }: { profile: CrewProfile }) {
+interface ReferenceRowListProps {
+  references: ReferenceRow[];
+  canContact: boolean;
+  onSelectReferee: (personId: string) => void;
+  onContactReference?: (ref: { referenceId: string; refereeName: string }) => void;
+}
+
+function ReferenceRowList({
+  references,
+  canContact,
+  onSelectReferee,
+  onContactReference,
+}: ReferenceRowListProps) {
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <p className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Users className="h-3 w-3" />
+        References ({references.length})
+      </p>
+      <ul className="space-y-2">
+        {references.map((ref) => {
+          const displayName = ref.referee_display_name ?? ref.claimed_referee_name;
+          const role = ref.referee_role_name ?? ref.claimed_referee_role;
+          return (
+            <li key={ref.id} className="rounded-lg border border-border bg-[var(--surface)] p-2">
+              <button
+                type="button"
+                onClick={() => onSelectReferee(ref.referee_person_id)}
+                className="flex w-full items-center gap-2 text-left"
+              >
+                {ref.referee_role_name && (
+                  <EpauletteBadge
+                    roleName={ref.referee_role_name}
+                    department={ref.referee_role_department ?? undefined}
+                    size="sm"
+                  />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{displayName}</p>
+                  <p className="text-xs text-muted-foreground">{role}</p>
+                </div>
+              </button>
+              {ref.comment && (
+                <ExpandableText
+                  text={`"${ref.comment}"`}
+                  maxLines={3}
+                  className="mt-2 text-sm italic text-muted-foreground"
+                />
+              )}
+              {canContact && onContactReference && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 h-7 gap-1 text-xs"
+                  onClick={() =>
+                    onContactReference({
+                      referenceId: ref.id,
+                      refereeName: displayName,
+                    })
+                  }
+                >
+                  <MessageSquarePlus className="h-3 w-3" />
+                  Contact reference
+                </Button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function CrewProfileView({
+  profile,
+  canContactReferences,
+  handleSelectReferee,
+  handleContactReference,
+}: {
+  profile: CrewProfile;
+  canContactReferences: boolean;
+  handleSelectReferee: (personId: string) => void;
+  handleContactReference: (payload: { referenceId: string; refereeName: string }) => void;
+}) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(0);
 
   return (
@@ -442,6 +595,14 @@ function CrewProfileView({ profile }: { profile: CrewProfile }) {
                     </div>
                     {exp.description && (
                       <p className="mt-2 text-sm text-muted-foreground">{exp.description}</p>
+                    )}
+                    {exp.references && exp.references.length > 0 && (
+                      <ReferenceRowList
+                        references={exp.references}
+                        canContact={canContactReferences}
+                        onSelectReferee={handleSelectReferee}
+                        onContactReference={handleContactReference}
+                      />
                     )}
                   </div>
                 )}

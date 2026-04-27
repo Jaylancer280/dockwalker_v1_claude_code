@@ -166,7 +166,165 @@ export async function GET() {
     });
 
     const unreadTotal = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
-    return NextResponse.json({ conversations, unread_total: unreadTotal });
+
+    // Phase 4 — references consent pseudo-threads. Pending invitations the
+    // caller is the referee on + pending reference-contact requests the
+    // caller is the referee on. Each appears in /messages above active
+    // conversations until accepted/declined.
+    interface ConsentPrompt {
+      kind: 'reference_invitation' | 'reference_contact';
+      id: string;
+      reference_id: string;
+      created_at: string;
+      requester_display_name: string | null;
+      employer_display_name: string | null;
+      snapshot_vessel_name: string;
+      snapshot_vessel_imo: string;
+      snapshot_start_date: string;
+      snapshot_end_date: string | null;
+      requester_role_at_time: string;
+      claimed_referee_role: string;
+      question: string | null;
+      pending_expires_at: string | null;
+    }
+    const consentPrompts: ConsentPrompt[] = [];
+
+    // (a) Reference invitations where caller is the auth'd referee.
+    const { data: pendingInvitations } = await supabase
+      .from('references')
+      .select(
+        `id, requester_person_id, snapshot_vessel_name, snapshot_vessel_imo,
+         snapshot_start_date, snapshot_end_date, requester_role_at_time,
+         claimed_referee_role, pending_expires_at, created_at,
+         requester:profiles!references_requester_person_id_fkey(display_name)`,
+      )
+      .eq('referee_person_id', user.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    for (const r of (pendingInvitations ?? []) as Array<{
+      id: string;
+      requester_person_id: string;
+      snapshot_vessel_name: string;
+      snapshot_vessel_imo: string;
+      snapshot_start_date: string;
+      snapshot_end_date: string | null;
+      requester_role_at_time: string;
+      claimed_referee_role: string;
+      pending_expires_at: string;
+      created_at: string;
+      requester: { display_name?: string | null } | null;
+    }>) {
+      consentPrompts.push({
+        kind: 'reference_invitation',
+        id: r.id,
+        reference_id: r.id,
+        created_at: r.created_at,
+        requester_display_name: r.requester?.display_name ?? null,
+        employer_display_name: null,
+        snapshot_vessel_name: r.snapshot_vessel_name,
+        snapshot_vessel_imo: r.snapshot_vessel_imo,
+        snapshot_start_date: r.snapshot_start_date,
+        snapshot_end_date: r.snapshot_end_date,
+        requester_role_at_time: r.requester_role_at_time,
+        claimed_referee_role: r.claimed_referee_role,
+        question: null,
+        pending_expires_at: r.pending_expires_at,
+      });
+    }
+
+    // (b) Pending reference-contact requests where the auth'd user is the
+    // referee on the underlying accepted reference. Two-step: first the refs,
+    // then the contacts whose reference_id is in that set.
+    const { data: myAcceptedRefs } = await supabase
+      .from('references')
+      .select(
+        `id, requester_person_id, snapshot_vessel_name, snapshot_vessel_imo,
+         snapshot_start_date, snapshot_end_date, requester_role_at_time,
+         claimed_referee_role,
+         requester:profiles!references_requester_person_id_fkey(display_name)`,
+      )
+      .eq('referee_person_id', user.id)
+      .eq('status', 'accepted');
+    const refMap = new Map<
+      string,
+      {
+        requester_display_name: string | null;
+        snapshot_vessel_name: string;
+        snapshot_vessel_imo: string;
+        snapshot_start_date: string;
+        snapshot_end_date: string | null;
+        requester_role_at_time: string;
+        claimed_referee_role: string;
+      }
+    >();
+    for (const r of (myAcceptedRefs ?? []) as Array<{
+      id: string;
+      snapshot_vessel_name: string;
+      snapshot_vessel_imo: string;
+      snapshot_start_date: string;
+      snapshot_end_date: string | null;
+      requester_role_at_time: string;
+      claimed_referee_role: string;
+      requester: { display_name?: string | null } | null;
+    }>) {
+      refMap.set(r.id, {
+        requester_display_name: r.requester?.display_name ?? null,
+        snapshot_vessel_name: r.snapshot_vessel_name,
+        snapshot_vessel_imo: r.snapshot_vessel_imo,
+        snapshot_start_date: r.snapshot_start_date,
+        snapshot_end_date: r.snapshot_end_date,
+        requester_role_at_time: r.requester_role_at_time,
+        claimed_referee_role: r.claimed_referee_role,
+      });
+    }
+    const acceptedRefIds = Array.from(refMap.keys());
+    if (acceptedRefIds.length > 0) {
+      const { data: pendingContacts } = await supabase
+        .from('reference_contacts')
+        .select(
+          `id, reference_id, employer_person_id, question, created_at,
+           employer:profiles!reference_contacts_employer_person_id_fkey(display_name)`,
+        )
+        .in('reference_id', acceptedRefIds)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+      for (const c of (pendingContacts ?? []) as Array<{
+        id: string;
+        reference_id: string;
+        employer_person_id: string;
+        question: string | null;
+        created_at: string;
+        employer: { display_name?: string | null } | null;
+      }>) {
+        const refSummary = refMap.get(c.reference_id);
+        if (!refSummary) continue;
+        consentPrompts.push({
+          kind: 'reference_contact',
+          id: c.id,
+          reference_id: c.reference_id,
+          created_at: c.created_at,
+          requester_display_name: refSummary.requester_display_name,
+          employer_display_name: c.employer?.display_name ?? null,
+          snapshot_vessel_name: refSummary.snapshot_vessel_name,
+          snapshot_vessel_imo: refSummary.snapshot_vessel_imo,
+          snapshot_start_date: refSummary.snapshot_start_date,
+          snapshot_end_date: refSummary.snapshot_end_date,
+          requester_role_at_time: refSummary.requester_role_at_time,
+          claimed_referee_role: refSummary.claimed_referee_role,
+          question: c.question,
+          pending_expires_at: null,
+        });
+      }
+    }
+
+    // Sort consent prompts most-recent first.
+    consentPrompts.sort((a, b) => b.created_at.localeCompare(a.created_at));
+
+    return NextResponse.json({
+      conversations,
+      unread_total: unreadTotal,
+      consent_prompts: consentPrompts,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

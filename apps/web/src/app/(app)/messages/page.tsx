@@ -15,6 +15,24 @@ import { EpauletteBadge } from '@/components/epaulette-badge';
 import { useSafeFetch } from '@/hooks/use-safe-fetch';
 import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { createClient } from '@/lib/supabase/client';
+import { ConsentPromptsSection } from '@/components/references/consent-prompts-section';
+
+interface ConsentPrompt {
+  kind: 'reference_invitation' | 'reference_contact';
+  id: string;
+  reference_id: string;
+  created_at: string;
+  requester_display_name: string | null;
+  employer_display_name: string | null;
+  snapshot_vessel_name: string;
+  snapshot_vessel_imo: string;
+  snapshot_start_date: string;
+  snapshot_end_date: string | null;
+  requester_role_at_time: string;
+  claimed_referee_role: string;
+  question: string | null;
+  pending_expires_at: string | null;
+}
 
 interface Conversation {
   id: string;
@@ -48,8 +66,12 @@ export default function MessagesPage() {
     error: fetchError,
     isLoading: loading,
     mutate,
-  } = useSafeFetch<{ conversations?: Conversation[] }>('/api/messages');
+  } = useSafeFetch<{
+    conversations?: Conversation[];
+    consent_prompts?: ConsentPrompt[];
+  }>('/api/messages');
   const conversations = data?.conversations ?? [];
+  const consentPrompts = data?.consent_prompts ?? [];
   const error = fetchError ? 'Failed to load messages. Please try again.' : null;
 
   // Restore scroll position after list content has loaded
@@ -152,6 +174,10 @@ export default function MessagesPage() {
         )}
 
         {loading && <ConversationSkeleton />}
+
+        {!loading && tab === 'active' && consentPrompts.length > 0 && (
+          <ConsentPromptsSection prompts={consentPrompts} onActionComplete={() => mutate()} />
+        )}
 
         {!loading && current.length === 0 && tab === 'active' && (
           <EmptyState

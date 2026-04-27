@@ -57,6 +57,31 @@ function makeRatingsChain(data: unknown[]) {
   };
 }
 
+// Mock for the references consent_prompts queries (Phase 4):
+//   .from('references').select(...).eq('referee_person_id').eq('status').order()
+// Used twice — pending invitations + accepted refs.
+function makeRefereeRefsChain(data: unknown[]) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({ data }),
+        }),
+      }),
+    }),
+  };
+}
+
+function makeRefereeAcceptedChain(data: unknown[]) {
+  return {
+    select: vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data }),
+      }),
+    }),
+  };
+}
+
 
 describe('GET /api/messages', () => {
   beforeEach(() => {
@@ -104,6 +129,8 @@ describe('GET /api/messages', () => {
     mockFromAuth
       .mockReturnValueOnce(makeEngagementChain(crewEngagements)) // crew hat query
       .mockReturnValueOnce(makeMessagesChain([]))                // messages
+      .mockReturnValueOnce(makeRefereeRefsChain([]))             // pending invitations
+      .mockReturnValueOnce(makeRefereeAcceptedChain([]));        // accepted refs for contact prompts
     mockRpc.mockResolvedValueOnce({ data: [] }); // get_unread_counts RPC
 
     const res = await GET();
@@ -133,6 +160,8 @@ describe('GET /api/messages', () => {
     mockFromAuth
       .mockReturnValueOnce(makeEngagementChain(employerEngagements)) // employer hat query
       .mockReturnValueOnce(makeMessagesChain([]))                    // messages
+      .mockReturnValueOnce(makeRefereeRefsChain([]))                 // pending invitations
+      .mockReturnValueOnce(makeRefereeAcceptedChain([]));            // accepted refs
     mockRpc.mockResolvedValueOnce({ data: [] }); // get_unread_counts RPC
 
     const res = await GET();
@@ -146,7 +175,9 @@ describe('GET /api/messages', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     mockFromAuth
-      .mockReturnValueOnce(makeEngagementChain([])); // crew hat, no engagements
+      .mockReturnValueOnce(makeEngagementChain([])) // crew hat, no engagements
+      .mockReturnValueOnce(makeRefereeRefsChain([]))
+      .mockReturnValueOnce(makeRefereeAcceptedChain([]));
 
     const res = await GET();
     expect(res.status).toBe(200);
@@ -172,6 +203,8 @@ describe('GET /api/messages', () => {
       .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([]))                       // ratings (none yet)
       .mockReturnValueOnce(makeMessagesChain([]))                      // messages
+      .mockReturnValueOnce(makeRefereeRefsChain([]))
+      .mockReturnValueOnce(makeRefereeAcceptedChain([]));
     mockRpc.mockResolvedValueOnce({ data: [] }); // get_unread_counts RPC
 
     const res = await GET();
@@ -199,6 +232,8 @@ describe('GET /api/messages', () => {
       .mockReturnValueOnce(makeEngagementChain([completedEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([{ engagement_id: 'e2' }])) // already rated
       .mockReturnValueOnce(makeMessagesChain([]))                      // messages
+      .mockReturnValueOnce(makeRefereeRefsChain([]))
+      .mockReturnValueOnce(makeRefereeAcceptedChain([]));
     mockRpc.mockResolvedValueOnce({ data: [] }); // get_unread_counts RPC
 
     const res = await GET();
@@ -225,6 +260,8 @@ describe('GET /api/messages', () => {
       .mockReturnValueOnce(makeEngagementChain([cancelledEngagement])) // crew hat query
       .mockReturnValueOnce(makeRatingsChain([]))                       // ratings check (cancelled now ratable)
       .mockReturnValueOnce(makeMessagesChain([]))                      // messages
+      .mockReturnValueOnce(makeRefereeRefsChain([]))
+      .mockReturnValueOnce(makeRefereeAcceptedChain([]));
     mockRpc.mockResolvedValueOnce({ data: [] }); // get_unread_counts RPC
 
     const res = await GET();

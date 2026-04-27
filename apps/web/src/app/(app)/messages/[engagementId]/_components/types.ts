@@ -30,7 +30,22 @@ export interface EngagementContext {
   id: string;
   daywork_id: string | null;
   permanent_posting_id: string | null;
-  type: 'daywork' | 'permanent';
+  reference_contact_id?: string | null;
+  type: 'daywork' | 'permanent' | 'reference_contact';
+  reference_context?: {
+    reference_contact_id: string;
+    reference_id: string;
+    reference_status: string;
+    revoke_reason: string | null;
+    requester_display_name: string | null;
+    snapshot_vessel_name: string;
+    snapshot_vessel_imo: string;
+    snapshot_start_date: string;
+    snapshot_end_date: string | null;
+    requester_role_at_time: string;
+    claimed_referee_role: string;
+    comment: string | null;
+  } | null;
   outcome: string | null;
   crew_person_id: string;
   employer_person_id: string;
