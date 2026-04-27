@@ -334,7 +334,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
             type: 'reference_auto_revoked',
             title: 'Reference withdrawn',
             body: `${requesterName} removed the experience this reference was tied to. Your reference for ${r.snapshot_vessel_name} · ${dates} has been withdrawn.`,
-            deep_link: '/profile/settings/references',
+            deep_link: '/settings/references',
             role_context: 'crew',
           };
         });

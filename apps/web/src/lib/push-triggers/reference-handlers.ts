@@ -72,7 +72,7 @@ export async function handleReferenceAccepted(
       notification: {
         title: 'Reference accepted',
         body: `Your reference for ${vessel} has been accepted.`,
-        data: { screen: 'profile/settings/references' },
+        data: { screen: 'settings/references' },
       },
     },
   ];

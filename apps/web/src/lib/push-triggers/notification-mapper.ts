@@ -83,7 +83,7 @@ export function resolveDeepLink(
     case 'REFERENCE.CONTACT_REQUESTED':
       return '/messages';
     case 'REFERENCE.ACCEPTED':
-      return '/profile/settings/references';
+      return '/settings/references';
     case 'REFERENCE.CONTACT_ACCEPTED':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : '/messages';
     default:

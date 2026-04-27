@@ -289,18 +289,56 @@ async function buildCrewProfile(
       .from('references')
       .select(
         `id, experience_id, referee_person_id, claimed_referee_role, claimed_referee_name,
-         comment, consented_at,
-         referee:profiles!references_referee_person_id_fkey(display_name, primary_role_id,
-           yacht_roles!profiles_primary_role_id_fkey(id, name, department))`,
+         comment, consented_at`,
       )
       .in('experience_id', experienceIds)
       .eq('status', 'accepted')
       .not('referee_person_id', 'is', null)
       .order('consented_at', { ascending: false });
-    type RefereeJoin = {
-      display_name?: string | null;
-      yacht_roles?: { id: string; name: string; department: string } | null;
-    } | null;
+
+    // Resolve referee profile + role in a separate query — references.referee_person_id
+    // FKs to persons, not profiles, so PostgREST can't embed the join directly.
+    const refereeIds = Array.from(
+      new Set(
+        ((refRows ?? []) as { referee_person_id: string | null }[])
+          .map((r) => r.referee_person_id)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    type ProfileRow = {
+      person_id: string;
+      display_name: string | null;
+      primary_role_id: string | null;
+    };
+    type RoleRow = { id: string; name: string; department: string };
+    const profileMap = new Map<string, ProfileRow>();
+    const roleMap = new Map<string, RoleRow>();
+    if (refereeIds.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('person_id, display_name, primary_role_id')
+        .in('person_id', refereeIds);
+      for (const p of (profileRows ?? []) as ProfileRow[]) {
+        profileMap.set(p.person_id, p);
+      }
+      const roleIds = Array.from(
+        new Set(
+          ((profileRows ?? []) as ProfileRow[])
+            .map((p) => p.primary_role_id)
+            .filter((id): id is string => !!id),
+        ),
+      );
+      if (roleIds.length > 0) {
+        const { data: roleRows } = await supabase
+          .from('yacht_roles')
+          .select('id, name, department')
+          .in('id', roleIds);
+        for (const r of (roleRows ?? []) as RoleRow[]) {
+          roleMap.set(r.id, r);
+        }
+      }
+    }
+
     const grouped: typeof referencesByExperience = {};
     for (const r of (refRows ?? []) as Array<{
       id: string;
@@ -310,12 +348,13 @@ async function buildCrewProfile(
       claimed_referee_name: string;
       comment: string | null;
       consented_at: string;
-      referee: RefereeJoin;
     }>) {
       const expId = r.experience_id;
       if (!grouped[expId]) grouped[expId] = [];
       const limit = isSelfView ? Number.POSITIVE_INFINITY : visibleCap;
       if (grouped[expId].length >= limit) continue;
+      const profile = profileMap.get(r.referee_person_id);
+      const role = profile?.primary_role_id ? roleMap.get(profile.primary_role_id) : undefined;
       grouped[expId].push({
         id: r.id,
         referee_person_id: r.referee_person_id,
@@ -323,10 +362,10 @@ async function buildCrewProfile(
         claimed_referee_name: r.claimed_referee_name,
         comment: r.comment,
         consented_at: r.consented_at,
-        referee_display_name: r.referee?.display_name ?? null,
-        referee_role_id: r.referee?.yacht_roles?.id ?? null,
-        referee_role_name: r.referee?.yacht_roles?.name ?? null,
-        referee_role_department: r.referee?.yacht_roles?.department ?? null,
+        referee_display_name: profile?.display_name ?? null,
+        referee_role_id: role?.id ?? null,
+        referee_role_name: role?.name ?? null,
+        referee_role_department: role?.department ?? null,
       });
     }
     Object.assign(referencesByExperience, grouped);
