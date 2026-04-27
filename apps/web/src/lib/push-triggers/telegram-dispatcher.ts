@@ -532,6 +532,249 @@ async function resolveBody(
       };
     }
 
+    case 'REFERENCE.REQUESTED': {
+      const referenceId = payload.reference_id as string | undefined;
+      const token = payload.token as string | undefined;
+      const vesselFallback =
+        (payload.snapshot_vessel_name as string | undefined) ?? 'a past vessel';
+      if (!referenceId) {
+        return {
+          text:
+            `📝 <b>Reference request</b>\n\n` +
+            `Someone you worked with on <b>${escapeHtml(vesselFallback)}</b> has asked you to be a reference.` +
+            (token ? cta(`${SITE_URL}/ref/${token}`, 'Review request') : ''),
+        };
+      }
+      const { data: ref } = await sc
+        .from('references')
+        .select(
+          'requester_person_id, requester_role_at_time, claimed_referee_role, snapshot_vessel_name, snapshot_vessel_imo, snapshot_start_date, snapshot_end_date, pending_expires_at',
+        )
+        .eq('id', referenceId)
+        .single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = ref as any;
+      const requesterName = r?.requester_person_id
+        ? await getDisplayName(sc, r.requester_person_id)
+        : 'A crew member';
+      const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
+      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const requesterRole = r?.requester_role_at_time ?? 'Crew';
+      const refereeRole = r?.claimed_referee_role ?? 'a colleague';
+      const expiry = r?.pending_expires_at
+        ? new Date(r.pending_expires_at).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+          })
+        : null;
+      const imoLine = r?.snapshot_vessel_imo ? `\n🆔 IMO ${escapeHtml(r.snapshot_vessel_imo)}` : '';
+      const expiryLine = expiry ? `\n⏳ Expires <b>${escapeHtml(expiry)}</b>` : '';
+      return {
+        text:
+          `📝 <b>Reference request</b>\n\n` +
+          `<b>${escapeHtml(requesterName)}</b> (${escapeHtml(requesterRole)}) is asking you to confirm you worked together as <b>${escapeHtml(refereeRole)}</b>.\n\n` +
+          `⚓ ${escapeHtml(vessel)}` +
+          imoLine +
+          `\n📅 ${dates}` +
+          expiryLine +
+          (token ? cta(`${SITE_URL}/ref/${token}`, 'Review & respond') : ''),
+      };
+    }
+
+    case 'REFERENCE.ACCEPTED': {
+      const referenceId = payload.reference_id as string | undefined;
+      const vesselFallback =
+        (payload.snapshot_vessel_name as string | undefined) ?? 'your past vessel';
+      if (!referenceId) {
+        return {
+          text:
+            `✅ <b>Reference accepted</b>\n\n` +
+            `Your reference for <b>${escapeHtml(vesselFallback)}</b> is now live on your profile.` +
+            cta(`${SITE_URL}/settings/references`, 'View references'),
+        };
+      }
+      const { data: ref } = await sc
+        .from('references')
+        .select(
+          'referee_person_id, claimed_referee_role, claimed_referee_name, snapshot_vessel_name, snapshot_start_date, snapshot_end_date, comment',
+        )
+        .eq('id', referenceId)
+        .single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = ref as any;
+      const refereeName = r?.referee_person_id
+        ? await getDisplayName(sc, r.referee_person_id)
+        : (r?.claimed_referee_name ?? 'Your referee');
+      const refereeRole = r?.claimed_referee_role ?? 'colleague';
+      const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
+      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const comment = (r?.comment as string | null) ?? null;
+      const commentLine = comment
+        ? `\n\n💬 "${escapeHtml(previewText(comment, 220))}"`
+        : '\n\n<i>(no comment provided)</i>';
+      return {
+        text:
+          `✅ <b>Reference accepted</b>\n\n` +
+          `<b>${escapeHtml(refereeName)}</b> (${escapeHtml(refereeRole)}) confirmed your reference.\n\n` +
+          `⚓ ${escapeHtml(vessel)}\n` +
+          `📅 ${dates}` +
+          commentLine +
+          cta(`${SITE_URL}/settings/references`, 'View references'),
+      };
+    }
+
+    case 'REFERENCE.COMMENT_UPDATED': {
+      const referenceId = payload.reference_id as string | undefined;
+      const vesselFallback =
+        (payload.snapshot_vessel_name as string | undefined) ?? 'your past vessel';
+      const cleared = payload.cleared === true;
+      if (!referenceId) {
+        const action = cleared ? 'removed their comment' : 'updated their comment';
+        return {
+          text:
+            `✏️ <b>Reference comment updated</b>\n\n` +
+            `Your referee ${action} on the <b>${escapeHtml(vesselFallback)}</b> reference.` +
+            cta(`${SITE_URL}/settings/references`, 'View references'),
+        };
+      }
+      const { data: ref } = await sc
+        .from('references')
+        .select(
+          'referee_person_id, claimed_referee_role, claimed_referee_name, snapshot_vessel_name, snapshot_start_date, snapshot_end_date, comment',
+        )
+        .eq('id', referenceId)
+        .single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = ref as any;
+      const refereeName = r?.referee_person_id
+        ? await getDisplayName(sc, r.referee_person_id)
+        : (r?.claimed_referee_name ?? 'Your referee');
+      const refereeRole = r?.claimed_referee_role ?? 'colleague';
+      const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
+      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const heading = cleared
+        ? '✏️ <b>Reference comment removed</b>'
+        : '✏️ <b>Reference comment updated</b>';
+      const action = cleared ? 'removed their comment' : 'updated their comment';
+      const newComment = !cleared && r?.comment ? r.comment : null;
+      const commentLine = newComment
+        ? `\n\n💬 New comment:\n"${escapeHtml(previewText(newComment, 220))}"`
+        : cleared
+          ? '\n\n<i>(comment cleared — no longer visible on your profile)</i>'
+          : '';
+      return {
+        text:
+          `${heading}\n\n` +
+          `<b>${escapeHtml(refereeName)}</b> (${escapeHtml(refereeRole)}) ${action} on your reference.\n\n` +
+          `⚓ ${escapeHtml(vessel)}\n` +
+          `📅 ${dates}` +
+          commentLine +
+          cta(`${SITE_URL}/settings/references`, 'Review change'),
+      };
+    }
+
+    case 'REFERENCE.CONTACT_REQUESTED': {
+      const contactId = payload.contact_id as string | undefined;
+      const referenceId = payload.reference_id as string | undefined;
+      const question = (payload.question as string | undefined)?.trim();
+      const vesselFallback =
+        (payload.snapshot_vessel_name as string | undefined) ?? 'a past engagement';
+      if (!contactId || !referenceId) {
+        const questionLine = question ? `\n\n💬 "${escapeHtml(previewText(question, 180))}"` : '';
+        return {
+          text:
+            `🤝 <b>Contact request</b>\n\n` +
+            `An employer would like to chat about your reference for <b>${escapeHtml(vesselFallback)}</b>.` +
+            questionLine +
+            cta(`${SITE_URL}/messages`, 'Review request'),
+        };
+      }
+      const [{ data: contact }, { data: ref }] = await Promise.all([
+        sc.from('reference_contacts').select('employer_person_id').eq('id', contactId).single(),
+        sc
+          .from('references')
+          .select(
+            'requester_person_id, claimed_referee_role, snapshot_vessel_name, snapshot_start_date, snapshot_end_date',
+          )
+          .eq('id', referenceId)
+          .single(),
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const c = contact as any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = ref as any;
+      const employerName = c?.employer_person_id
+        ? await getDisplayName(sc, c.employer_person_id)
+        : 'An employer';
+      const requesterName = r?.requester_person_id
+        ? await getDisplayName(sc, r.requester_person_id)
+        : 'a crew member';
+      const refereeRole = r?.claimed_referee_role ?? 'their colleague';
+      const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
+      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const questionLine = question
+        ? `\n\n💬 They asked:\n"${escapeHtml(previewText(question, 220))}"`
+        : '\n\n<i>(no question included)</i>';
+      return {
+        text:
+          `🤝 <b>Reference contact request</b>\n\n` +
+          `<b>${escapeHtml(employerName)}</b> would like to chat about <b>${escapeHtml(requesterName)}</b>'s reference (you confirmed as ${escapeHtml(refereeRole)}).\n\n` +
+          `⚓ ${escapeHtml(vessel)}\n` +
+          `📅 ${dates}` +
+          questionLine +
+          cta(`${SITE_URL}/messages`, 'Accept or decline'),
+      };
+    }
+
+    case 'REFERENCE.CONTACT_ACCEPTED': {
+      const contactId = payload.contact_id as string | undefined;
+      const eid = payload.engagement_id as string | undefined;
+      const ctaUrl = eid ? `${SITE_URL}/messages/${eid}` : `${SITE_URL}/messages`;
+      if (!contactId) {
+        return {
+          text:
+            `✅ <b>Reference contact accepted</b>\n\n` +
+            `A reference accepted your contact request — chat thread opened.` +
+            cta(ctaUrl, 'Open chat'),
+        };
+      }
+      const { data: contact } = await sc
+        .from('reference_contacts')
+        .select('reference_id')
+        .eq('id', contactId)
+        .single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const c = contact as any;
+      let refereeName = 'Your reference';
+      let vessel = 'a past engagement';
+      let dates = '';
+      if (c?.reference_id) {
+        const { data: ref } = await sc
+          .from('references')
+          .select(
+            'referee_person_id, claimed_referee_name, claimed_referee_role, snapshot_vessel_name, snapshot_start_date, snapshot_end_date',
+          )
+          .eq('id', c.reference_id)
+          .single();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const r = ref as any;
+        refereeName = r?.referee_person_id
+          ? await getDisplayName(sc, r.referee_person_id)
+          : (r?.claimed_referee_name ?? refereeName);
+        if (r?.claimed_referee_role) refereeName = `${refereeName} (${r.claimed_referee_role})`;
+        if (r?.snapshot_vessel_name) vessel = vesselLabel('motor', r.snapshot_vessel_name);
+        dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      }
+      return {
+        text:
+          `✅ <b>Reference contact accepted</b>\n\n` +
+          `<b>${escapeHtml(refereeName)}</b> accepted your request — chat is open.\n\n` +
+          `⚓ ${escapeHtml(vessel)}` +
+          (dates ? `\n📅 ${dates}` : '') +
+          cta(ctaUrl, 'Open chat'),
+      };
+    }
+
     default:
       return null;
   }
