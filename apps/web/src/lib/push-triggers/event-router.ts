@@ -26,6 +26,12 @@ import {
   handlePermanentEngagementClosed,
 } from './permanent-handlers';
 import { handleSupportThreadOpened, handleSupportMessageSent } from './support-handlers';
+import {
+  handleReferenceRequested,
+  handleReferenceAccepted,
+  handleReferenceContactRequested,
+  handleReferenceContactAccepted,
+} from './reference-handlers';
 import { enqueueBroadcast } from './broadcast';
 
 export async function resolveNotification(
@@ -100,6 +106,15 @@ export async function resolveNotification(
       return handleSupportThreadOpened(sc, payload);
     case 'SUPPORT.MESSAGE_SENT':
       return handleSupportMessageSent(sc, payload);
+
+    case 'REFERENCE.REQUESTED':
+      return handleReferenceRequested(sc, payload);
+    case 'REFERENCE.ACCEPTED':
+      return handleReferenceAccepted(sc, payload);
+    case 'REFERENCE.CONTACT_REQUESTED':
+      return handleReferenceContactRequested(sc, payload);
+    case 'REFERENCE.CONTACT_ACCEPTED':
+      return handleReferenceContactAccepted(sc, payload);
 
     default:
       return [];

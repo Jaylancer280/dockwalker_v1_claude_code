@@ -103,6 +103,52 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       );
     }
 
+    // P0-A — Snapshot field edit-lock when active references exist on this
+    // experience. Vessel/role/start/end are frozen on the experience while
+    // references are pending or accepted; users must revoke references first.
+    // The projection layer enforces the same check as defence in depth (00126).
+    const wantsLockedFieldChange =
+      // We only check fields that are explicitly being SET (not undefined).
+      // vesselId isn't accepted by this route (vessel changes happen via a
+      // separate flow), so we only need role/start/end.
+      roleId !== undefined || startDate !== undefined || endDate !== undefined;
+    if (wantsLockedFieldChange) {
+      const { count: activeRefCount } = await serviceClient
+        .from('references')
+        .select('id', { count: 'exact', head: true })
+        .eq('experience_id', id)
+        .in('status', ['pending', 'accepted']);
+      if ((activeRefCount ?? 0) > 0) {
+        const { data: thisExp } = await serviceClient
+          .from('crew_experiences')
+          .select('role_id, start_date, end_date')
+          .eq('id', id)
+          .single();
+        const lockedFields: string[] = [];
+        if (roleId !== undefined && roleId !== thisExp?.role_id) lockedFields.push('role');
+        if (startDate !== undefined && startDate !== thisExp?.start_date)
+          lockedFields.push('start_date');
+        if (
+          endDate !== undefined &&
+          endDate !== thisExp?.end_date &&
+          // null === null is a no-op
+          !(endDate === null && thisExp?.end_date === null)
+        )
+          lockedFields.push('end_date');
+        if (lockedFields.length > 0) {
+          return NextResponse.json(
+            {
+              error:
+                'Revoke active references on this experience before changing vessel, role, or dates.',
+              locked_fields: lockedFields,
+              active_references: activeRefCount,
+            },
+            { status: 409 },
+          );
+        }
+      }
+    }
+
     if (contractDetails && contractDetails.length > 100) {
       return NextResponse.json(
         { error: 'Contract details must be 100 characters or less' },
@@ -212,6 +258,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 /**
  * DELETE /api/experiences/[id]
  * Removes a crew experience entry. Only the owner can delete.
+ *
+ * Fix A — references auto-revoke + in-app notification fan-out: BEFORE firing
+ * EXPERIENCE.REMOVED, we capture the affected accepted-referee set so we can
+ * notify them after the projection's 3-step soft-revoke completes. The
+ * projection (00126) handles the actual revoke + revoke_reason stamping.
  */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireDomainUser();
@@ -234,6 +285,21 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Experience not found' }, { status: 404 });
     }
 
+    // Capture affected accepted referees BEFORE firing EXPERIENCE.REMOVED so
+    // the projection's revoke doesn't blank the data we need for the body.
+    const { data: affectedRefs } = await serviceClient
+      .from('references')
+      .select('id, referee_person_id, snapshot_vessel_name, snapshot_start_date, snapshot_end_date')
+      .eq('experience_id', id)
+      .eq('status', 'accepted')
+      .not('referee_person_id', 'is', null);
+    const { data: requesterProfile } = await serviceClient
+      .from('profiles')
+      .select('display_name')
+      .eq('person_id', user.id)
+      .maybeSingle();
+    const requesterName = requesterProfile?.display_name ?? 'A crew member';
+
     await appendEvent(serviceClient, {
       eventType: 'EXPERIENCE.REMOVED',
       aggregateId: id,
@@ -242,6 +308,43 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       payload: {},
       personId: user.id,
     });
+
+    // In-app-only fan-out (Fix A — no email, no push, no WhatsApp). Direct
+    // notifications insert because notifyOnEvent has no channel override and
+    // would multi-cast. Fire-and-forget — never block the response.
+    if (affectedRefs && affectedRefs.length > 0) {
+      const rows = affectedRefs
+        .filter(
+          (
+            r,
+          ): r is {
+            id: string;
+            referee_person_id: string;
+            snapshot_vessel_name: string;
+            snapshot_start_date: string;
+            snapshot_end_date: string | null;
+          } => r.referee_person_id !== null,
+        )
+        .map((r) => {
+          const dates = r.snapshot_end_date
+            ? `${r.snapshot_start_date}—${r.snapshot_end_date}`
+            : `from ${r.snapshot_start_date}`;
+          return {
+            person_id: r.referee_person_id,
+            type: 'reference_auto_revoked',
+            title: 'Reference withdrawn',
+            body: `${requesterName} removed the experience this reference was tied to. Your reference for ${r.snapshot_vessel_name} · ${dates} has been withdrawn.`,
+            deep_link: '/profile/settings/references',
+            role_context: 'crew',
+          };
+        });
+      if (rows.length > 0) {
+        serviceClient
+          .from('notifications')
+          .insert(rows)
+          .then(() => {});
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

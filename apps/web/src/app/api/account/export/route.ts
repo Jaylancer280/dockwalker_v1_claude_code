@@ -98,6 +98,43 @@ export async function GET() {
         .order('created_at', { ascending: true }),
     ]);
 
+    // P0-C — references + reference_contacts (caller is requester or referee
+    // on references; caller is employer or implicit referee on contacts).
+    const { data: referencesAsRequester } = await supabase
+      .from('references')
+      .select(
+        'id, experience_id, vessel_id, status, claimed_referee_role, claimed_referee_name, claimed_referee_email, comment, comment_updated_at, consented_at, responded_at, expires_at, pending_expires_at, revoked_at, revoke_reason, snapshot_vessel_imo, snapshot_vessel_name, snapshot_start_date, snapshot_end_date, requester_person_id, referee_person_id, created_at',
+      )
+      .eq('requester_person_id', user.id)
+      .order('created_at', { ascending: true });
+    const { data: referencesAsReferee } = await supabase
+      .from('references')
+      .select(
+        'id, experience_id, vessel_id, status, claimed_referee_role, claimed_referee_name, claimed_referee_email, comment, comment_updated_at, consented_at, responded_at, expires_at, pending_expires_at, revoked_at, revoke_reason, snapshot_vessel_imo, snapshot_vessel_name, snapshot_start_date, snapshot_end_date, requester_person_id, referee_person_id, created_at',
+      )
+      .eq('referee_person_id', user.id)
+      .order('created_at', { ascending: true });
+    const refIdsForCaller = [
+      ...new Set([...(referencesAsReferee ?? []).map((r) => r.id as string)]),
+    ];
+    const { data: contactsAsEmployer } = await supabase
+      .from('reference_contacts')
+      .select(
+        'id, reference_id, status, question, engagement_id, employer_person_id, created_at, responded_at',
+      )
+      .eq('employer_person_id', user.id)
+      .order('created_at', { ascending: true });
+    const { data: contactsAsReferee } =
+      refIdsForCaller.length > 0
+        ? await supabase
+            .from('reference_contacts')
+            .select(
+              'id, reference_id, status, question, engagement_id, employer_person_id, created_at, responded_at',
+            )
+            .in('reference_id', refIdsForCaller)
+            .order('created_at', { ascending: true })
+        : { data: [] };
+
     // WhatsApp phone (user's own data — decrypt for export)
     let whatsapp_phone: string | null = null;
     const { data: waChannel } = await supabase
@@ -148,6 +185,14 @@ export async function GET() {
         expiresAt: d.expires_at,
         deletedAt: d.deleted_at,
       })),
+      references: {
+        outbound: referencesAsRequester ?? [],
+        inbound: referencesAsReferee ?? [],
+      },
+      reference_contacts: {
+        as_employer: contactsAsEmployer ?? [],
+        as_referee: contactsAsReferee ?? [],
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';

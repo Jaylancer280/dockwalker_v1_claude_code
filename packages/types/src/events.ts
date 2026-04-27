@@ -84,10 +84,38 @@ export type EventType =
   | 'PERMANENT.SELECTION_REVERTED'
   | 'PERMANENT.WITHDRAWN'
   | 'PERMANENT.CANCELLED_BY_EMPLOYER'
-  | 'PERMANENT.ENGAGEMENT_CLOSED';
+  | 'PERMANENT.ENGAGEMENT_CLOSED'
+  // Reference aggregate (consent-based references)
+  | 'REFERENCE.REQUESTED'
+  | 'REFERENCE.ACCEPTED'
+  | 'REFERENCE.COMMENT_UPDATED'
+  | 'REFERENCE.DECLINED'
+  | 'REFERENCE.REVOKED_BY_REQUESTER'
+  | 'REFERENCE.REVOKED_BY_REFEREE'
+  | 'REFERENCE.EXPIRED'
+  // Reference contact (employer asks referee for chat)
+  | 'REFERENCE.CONTACT_REQUESTED'
+  | 'REFERENCE.CONTACT_ACCEPTED'
+  | 'REFERENCE.CONTACT_DECLINED'
+  | 'REFERENCE.CONTACT_THREAD_CLOSED';
 
 /** Aggregate types that events reference */
-export type AggregateType = 'person' | 'vessel' | 'daywork' | 'application' | 'message' | 'engagement' | 'checklist' | 'experience' | 'invitation' | 'admin' | 'permanent' | 'support' | 'shore_experience';
+export type AggregateType =
+  | 'person'
+  | 'vessel'
+  | 'daywork'
+  | 'application'
+  | 'message'
+  | 'engagement'
+  | 'checklist'
+  | 'experience'
+  | 'invitation'
+  | 'admin'
+  | 'permanent'
+  | 'support'
+  | 'shore_experience'
+  | 'reference'
+  | 'reference_contact';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -138,6 +166,10 @@ export interface EventPayloadMap {
     location_city_id?: string | null;
     smoker?: boolean | null;
     visible_tattoos?: boolean | null;
+    /** Set true by the lightweight referee signup flow (P1-C). Profile is
+     * gated to consent + settings paths until the user completes full
+     * onboarding (which flips this back to false via PROFILE.UPDATED). */
+    referee_only?: boolean;
   };
   'PROFILE.UPDATED': {
     display_name?: string;
@@ -166,6 +198,8 @@ export interface EventPayloadMap {
     location_city_id?: string | null;
     smoker?: boolean | null;
     visible_tattoos?: boolean | null;
+    /** Flips false when a referee_only user completes full onboarding. */
+    referee_only?: boolean;
   };
   'AGENT.VERIFIED': Record<string, never>;
   'VESSEL.CREATED': {
@@ -574,6 +608,52 @@ export interface EventPayloadMap {
     description?: string | null;
   };
   'SHORE_EXPERIENCE.REMOVED': Record<string, never>;
+  // ── REFERENCES (consent-based references — see tasks/todo.md) ───────
+  'REFERENCE.REQUESTED': {
+    id: string;
+    experience_id: string;
+    vessel_id: string;
+    requester_role_at_time: string;
+    claimed_referee_role: string;
+    claimed_referee_name: string;
+    claimed_referee_email?: string | null;
+    token: string;
+    snapshot_vessel_imo: string;
+    snapshot_vessel_name: string;
+    snapshot_start_date: string;
+    snapshot_end_date?: string | null;
+    /** Optional override of the default `now() + 24 months`. */
+    expires_at?: string;
+    /** Optional override of the default `now() + 30 days`. */
+    pending_expires_at?: string;
+  };
+  'REFERENCE.ACCEPTED': Record<string, never>;
+  'REFERENCE.COMMENT_UPDATED': {
+    /** The reference being commented on (carried in payload because the
+     * event aggregate_id is set when fired alongside REFERENCE.ACCEPTED). */
+    reference_id: string;
+    /** Empty/null clears the comment. */
+    comment: string | null;
+  };
+  'REFERENCE.DECLINED': Record<string, never>;
+  'REFERENCE.REVOKED_BY_REQUESTER': Record<string, never>;
+  'REFERENCE.REVOKED_BY_REFEREE': Record<string, never>;
+  'REFERENCE.EXPIRED': Record<string, never>;
+  'REFERENCE.CONTACT_REQUESTED': {
+    id: string;
+    reference_id: string;
+    /** Optional employer question shown on the consent prompt and pre-populated
+     * as the chat's first message on accept (P1-D). Max 200 chars. */
+    question?: string | null;
+  };
+  'REFERENCE.CONTACT_ACCEPTED': {
+    /** New active_engagements row id created for the chat thread. */
+    engagement_id: string;
+  };
+  'REFERENCE.CONTACT_DECLINED': Record<string, never>;
+  'REFERENCE.CONTACT_THREAD_CLOSED': {
+    engagement_id: string;
+  };
 }
 
 /** Materialised daywork invitation row */

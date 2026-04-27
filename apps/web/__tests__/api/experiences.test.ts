@@ -53,6 +53,55 @@ function mockServiceExperiences(data: unknown) {
   }));
 }
 
+/**
+ * Mock the snapshot-field edit-lock count query (references count when
+ * caller changes role/start/end on an experience). Returns count=0 by
+ * default — the lock only fires when active references exist.
+ */
+function mockReferencesEditLockCount(count = 0) {
+  mockServiceFrom.mockImplementationOnce((t: string) => {
+    if (t !== 'references') throw new Error(`Unexpected table for edit-lock: ${t}`);
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ count }),
+        }),
+      }),
+    };
+  });
+}
+
+/**
+ * Mock the DELETE-route's references-affected-referees lookup + the
+ * requester display_name profile lookup. Default = no affected referees.
+ */
+function mockDeleteReferencesPreflight(rows: unknown[] = []) {
+  // references query
+  mockServiceFrom.mockImplementationOnce((t: string) => {
+    if (t !== 'references') throw new Error(`Unexpected table: ${t}`);
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            not: vi.fn().mockResolvedValue({ data: rows }),
+          }),
+        }),
+      }),
+    };
+  });
+  // profiles display_name lookup
+  mockServiceFrom.mockImplementationOnce((t: string) => {
+    if (t !== 'profiles') throw new Error(`Unexpected table: ${t}`);
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: { display_name: 'Test Crew' } }),
+        }),
+      }),
+    };
+  });
+}
+
 const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 
 function jsonRequest(body: Record<string, unknown>) {
@@ -416,6 +465,8 @@ describe('PATCH /api/experiences/:id', () => {
         }),
       }),
     });
+    // Edit-lock count (no active references → unlocked)
+    mockReferencesEditLockCount(0);
 
     const req = new Request('http://localhost/api/experiences/exp1', {
       method: 'PATCH',
@@ -440,6 +491,8 @@ describe('PATCH /api/experiences/:id', () => {
         }),
       }),
     });
+    // Edit-lock count (no active references → unlocked)
+    mockReferencesEditLockCount(0);
     // Fetch this experience's current dates
     mockServiceFrom.mockImplementationOnce(() => ({
       select: vi.fn().mockReturnValue({
@@ -506,6 +559,8 @@ describe('DELETE /api/experiences/:id', () => {
         }),
       }),
     });
+    // Fix A — references-affected lookup + requester profile lookup
+    mockDeleteReferencesPreflight([]);
 
     const req = new Request('http://localhost/api/experiences/exp1', { method: 'DELETE' });
     const res = await DELETE(req, makeParams('exp1'));

@@ -34,6 +34,10 @@
     {
       "path": "/api/cron/document-cleanup",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/reference-expiry",
+      "schedule": "0 5 * * *"
     }
   ]
 }

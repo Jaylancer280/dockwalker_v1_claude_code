@@ -25,6 +25,10 @@ export function mapEventToNotificationType(eventType: string): string | null {
     'PERMANENT.ENGAGEMENT_CLOSED': 'permanent_conversation_closed',
     'SUPPORT.THREAD_OPENED': 'support_opened',
     'SUPPORT.MESSAGE_SENT': 'support_reply',
+    'REFERENCE.REQUESTED': 'reference_request',
+    'REFERENCE.ACCEPTED': 'reference_accepted',
+    'REFERENCE.CONTACT_REQUESTED': 'reference_contact_request',
+    'REFERENCE.CONTACT_ACCEPTED': 'reference_contact_accepted',
   };
   return map[eventType] ?? null;
 }
@@ -74,6 +78,13 @@ export function resolveDeepLink(
     case 'SUPPORT.THREAD_OPENED':
     case 'SUPPORT.MESSAGE_SENT':
       return payload.thread_id ? `/support/${payload.thread_id}` : null;
+    case 'REFERENCE.REQUESTED':
+    case 'REFERENCE.CONTACT_REQUESTED':
+      return '/messages';
+    case 'REFERENCE.ACCEPTED':
+      return '/profile/settings/references';
+    case 'REFERENCE.CONTACT_ACCEPTED':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : '/messages';
     default:
       return null;
   }

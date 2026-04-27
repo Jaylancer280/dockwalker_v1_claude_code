@@ -34,6 +34,7 @@ function chainMock(result: { data: unknown; error: unknown }) {
   chain.select = handler;
   chain.eq = handler;
   chain.or = handler;
+  chain.in = handler;
   chain.order = handler;
   chain.single = () => Promise.resolve(result);
   // For queries that don't end with .single()
@@ -89,6 +90,9 @@ describe('GET /api/account/export', () => {
       chainMock({ data: deviceTokensData, error: null }),    // device_tokens
       chainMock({ data: advisorConvsData, error: null }),    // advisor_conversations
       chainMock({ data: [], error: null }),                    // permanent_postings
+      chainMock({ data: [], error: null }),                     // references (requester)
+      chainMock({ data: [], error: null }),                     // references (referee)
+      chainMock({ data: [], error: null }),                     // reference_contacts (employer)
       chainMock({ data: null, error: null }),                   // notification_channels (WhatsApp)
       chainMock({ data: [], error: null }),                     // engagement_documents
     ];
@@ -113,15 +117,17 @@ describe('GET /api/account/export', () => {
     expect(body.ratings).toEqual(ratingsData);
     expect(body.device_tokens).toEqual(deviceTokensData);
     expect(body.advisor_conversations).toEqual(advisorConvsData);
+    expect(body.references).toEqual({ outbound: [], inbound: [] });
+    expect(body.reference_contacts).toEqual({ as_employer: [], as_referee: [] });
 
-    expect(mockFrom).toHaveBeenCalledTimes(16);
+    expect(mockFrom).toHaveBeenCalledTimes(19);
   });
 
   it('returns empty arrays when user has no data', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
     let callIndex = 0;
-    const results = Array.from({ length: 16 }, () =>
+    const results = Array.from({ length: 19 }, () =>
       chainMock({ data: null, error: null }),
     );
     mockFrom.mockImplementation(() => results[callIndex++]);
