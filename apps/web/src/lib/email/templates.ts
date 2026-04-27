@@ -253,6 +253,91 @@ export function permanentPlacementConfirmedEmail(params: {
   };
 }
 
+export function referenceAcceptedEmail(params: {
+  /** Display name of the requester (the crew member who asked for the reference). */
+  recipientName: string;
+  /** Display name of the referee (the colleague who accepted). */
+  refereeName: string;
+  /** The role the referee held during the shared experience. */
+  refereeRole: string;
+  vesselLabel: string;
+  /** Pre-formatted date range, e.g. "17 July 2024 – 30 September 2025". */
+  dateRange: string;
+  /** Comment the referee left on accept (null = no comment). */
+  comment: string | null;
+}): { subject: string; html: string } {
+  const ctaHref = `${siteUrl()}/settings/references`;
+  const commentBlock = params.comment
+    ? `<div style="background:#f1f5f9;border-left:3px solid #2d7de0;border-radius:6px;padding:14px 18px;margin:0 0 20px;">
+        <p style="color:#475569;font-size:15px;margin:0;font-style:italic;line-height:1.55;">&ldquo;${params.comment}&rdquo;</p>
+      </div>`
+    : paragraph(
+        `<em style="color:#64748b;">No comment was left — your colleague confirmed the working relationship without writing a public note.</em>`,
+      );
+  return {
+    subject: `Reference confirmed by ${params.refereeName} — ${params.vesselLabel}`,
+    html: wrap({
+      previewText: `${params.refereeName} (${params.refereeRole}) confirmed your reference and it's now visible on your profile.`,
+      content: `
+        <h2 style="color:#111a24;font-size:20px;font-weight:600;margin:0 0 16px;">Great news, ${params.recipientName} —</h2>
+        ${paragraph(`<strong>${params.refereeName}</strong> (${params.refereeRole}) confirmed your reference for <strong>${params.vesselLabel}</strong>, ${params.dateRange}. It's now visible to employers viewing your profile.`)}
+        ${commentBlock}
+        ${ctaButton(ctaHref, 'View references')}
+      `,
+    }),
+  };
+}
+
+export function referenceCommentUpdatedEmail(params: {
+  /** Display name of the requester (the crew member whose reference this is). */
+  recipientName: string;
+  /** Display name of the referee who edited / removed their comment. */
+  refereeName: string;
+  refereeRole: string;
+  vesselLabel: string;
+  /** Pre-formatted date range. */
+  dateRange: string;
+  /** The new comment text (null when cleared). */
+  newComment: string | null;
+  /** True when the referee blanked the comment instead of replacing it. */
+  cleared: boolean;
+}): { subject: string; html: string } {
+  const ctaHref = `${siteUrl()}/settings/references`;
+  const subject = params.cleared
+    ? `${params.refereeName} removed their reference comment — ${params.vesselLabel}`
+    : `${params.refereeName} updated their reference comment — ${params.vesselLabel}`;
+  const previewText = params.cleared
+    ? `${params.refereeName} cleared their public comment on the ${params.vesselLabel} reference.`
+    : `${params.refereeName} replaced the public comment on the ${params.vesselLabel} reference.`;
+  const lead = params.cleared
+    ? paragraph(
+        `<strong>${params.refereeName}</strong> (${params.refereeRole}) removed their public comment on the <strong>${params.vesselLabel}</strong> reference (${params.dateRange}). The reference itself is still confirmed — only the written comment is gone.`,
+      )
+    : paragraph(
+        `<strong>${params.refereeName}</strong> (${params.refereeRole}) updated the public comment on the <strong>${params.vesselLabel}</strong> reference (${params.dateRange}). Here's what's visible now on your profile:`,
+      );
+  const commentBlock = params.cleared
+    ? paragraph(
+        `<em style="color:#64748b;">No comment is shown on your profile for this reference.</em>`,
+      )
+    : `<div style="background:#f1f5f9;border-left:3px solid #2d7de0;border-radius:6px;padding:14px 18px;margin:0 0 20px;">
+        <p style="color:#475569;font-size:15px;margin:0;font-style:italic;line-height:1.55;">&ldquo;${params.newComment ?? ''}&rdquo;</p>
+      </div>`;
+  return {
+    subject,
+    html: wrap({
+      previewText,
+      content: `
+        <h2 style="color:#111a24;font-size:20px;font-weight:600;margin:0 0 16px;">Hi ${params.recipientName},</h2>
+        ${lead}
+        ${commentBlock}
+        ${paragraph(`If anything looks wrong, you can revoke the reference from settings — the comment will be removed along with it.`)}
+        ${ctaButton(ctaHref, 'Review change')}
+      `,
+    }),
+  };
+}
+
 export function supportMessageEmail(params: {
   recipientName: string;
   preview: string;

@@ -74,6 +74,15 @@ vi.mock('@/lib/email/templates', () => ({
   permanentPlacementConfirmedEmail: vi
     .fn()
     .mockReturnValue({ subject: 'Placement confirmed', html: '<p>Confirmed</p>' }),
+  referenceAcceptedEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'Reference confirmed', html: '<p>Reference confirmed</p>' }),
+  referenceCommentUpdatedEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'Reference comment updated', html: '<p>Comment updated</p>' }),
+  supportMessageEmail: vi
+    .fn()
+    .mockReturnValue({ subject: 'Support', html: '<p>Support</p>' }),
   formatVesselName: (name: string, type: string) =>
     `${type === 'sail' ? 'S/Y' : 'M/Y'} ${name}`,
   formatEmailDate: (iso: string) => iso,
@@ -81,8 +90,13 @@ vi.mock('@/lib/email/templates', () => ({
 
 // --- Import after mocks ---
 const { sendEmailForEvent } = await import('@/lib/push-triggers/email-dispatcher');
-const { newMessageEmail, applicationReceivedEmail, permanentPlacementConfirmedEmail } =
-  await import('@/lib/email/templates');
+const {
+  newMessageEmail,
+  applicationReceivedEmail,
+  permanentPlacementConfirmedEmail,
+  referenceAcceptedEmail,
+  referenceCommentUpdatedEmail,
+} = await import('@/lib/email/templates');
 
 // --- Supabase mock builder ---
 function createMockSc(tableResponses: Record<string, { data: unknown; error: unknown }> = {}) {
@@ -412,6 +426,108 @@ describe('sendEmailForEvent', () => {
 
     const otherCalls = mockCanSendEmail.mock.calls.filter((c) => c[1] === 'other');
     expect(otherCalls).toHaveLength(4);
+  });
+
+  it('sends reference accepted email with referee + vessel + dates', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+      references: {
+        data: {
+          referee_person_id: 'referee-1',
+          claimed_referee_role: 'Captain',
+          claimed_referee_name: 'Captain Smith',
+          snapshot_vessel_name: 'Burkut',
+          snapshot_start_date: '2024-07-17',
+          snapshot_end_date: '2025-09-30',
+          comment: 'Solid work.',
+        },
+        error: null,
+      },
+    });
+    await sendEmailForEvent(
+      sc,
+      'REFERENCE.ACCEPTED',
+      { reference_id: 'ref-1' },
+      defaultCtx,
+    );
+    expect(referenceAcceptedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refereeName: 'Jane Doe',
+        refereeRole: 'Captain',
+        vesselLabel: 'M/Y Burkut',
+        dateRange: '2024-07-17 – 2025-09-30',
+        comment: 'Solid work.',
+      }),
+    );
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'crew@example.com', subject: 'Reference confirmed' }),
+    );
+  });
+
+  it('reference comment updated → updated variant carries new comment text', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+      references: {
+        data: {
+          referee_person_id: 'referee-1',
+          claimed_referee_role: 'Captain',
+          claimed_referee_name: 'Captain Smith',
+          snapshot_vessel_name: 'Burkut',
+          snapshot_start_date: '2024-07-17',
+          snapshot_end_date: '2025-09-30',
+          comment: 'Updated wording — Alice was excellent.',
+        },
+        error: null,
+      },
+    });
+    await sendEmailForEvent(
+      sc,
+      'REFERENCE.COMMENT_UPDATED',
+      { reference_id: 'ref-1', cleared: false },
+      defaultCtx,
+    );
+    expect(referenceCommentUpdatedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cleared: false,
+        newComment: 'Updated wording — Alice was excellent.',
+      }),
+    );
+  });
+
+  it('reference comment updated → cleared variant nulls newComment regardless of stored row', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+      references: {
+        data: {
+          referee_person_id: 'referee-1',
+          claimed_referee_role: 'Captain',
+          claimed_referee_name: 'Captain Smith',
+          snapshot_vessel_name: 'Burkut',
+          snapshot_start_date: '2024-07-17',
+          snapshot_end_date: '2025-09-30',
+          comment: null,
+        },
+        error: null,
+      },
+    });
+    await sendEmailForEvent(
+      sc,
+      'REFERENCE.COMMENT_UPDATED',
+      { reference_id: 'ref-1', cleared: true },
+      defaultCtx,
+    );
+    expect(referenceCommentUpdatedEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ cleared: true, newComment: null }),
+    );
+  });
+
+  it('reference events skip when reference_id is missing', async () => {
+    const sc = createMockSc({
+      user_preferences: { data: { email_enabled: true }, error: null },
+    });
+    await sendEmailForEvent(sc, 'REFERENCE.ACCEPTED', {}, defaultCtx);
+    await sendEmailForEvent(sc, 'REFERENCE.COMMENT_UPDATED', {}, defaultCtx);
+    expect(mockSendEmail).not.toHaveBeenCalled();
   });
 
   it('skips sendEmail when canSendEmail returns false (cooldown tripped)', async () => {

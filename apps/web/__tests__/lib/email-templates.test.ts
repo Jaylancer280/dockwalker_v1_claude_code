@@ -7,6 +7,8 @@ import {
   permanentShortlistedEmail,
   permanentSelectedEmail,
   permanentPlacementConfirmedEmail,
+  referenceAcceptedEmail,
+  referenceCommentUpdatedEmail,
   formatVesselName,
   formatEmailDate,
 } from '@/lib/email/templates';
@@ -185,5 +187,70 @@ describe('email templates', () => {
     // Link goes to general messages index, not a specific engagement
     expect(result.html).not.toMatch(/\/messages\/eng/);
     expect(result.html).toContain('/messages"');
+  });
+
+  it('referenceAcceptedEmail surfaces referee + vessel + comment', () => {
+    const result = referenceAcceptedEmail({
+      recipientName: 'Alice',
+      refereeName: 'Captain Smith',
+      refereeRole: 'Captain',
+      vesselLabel: 'M/Y Burkut',
+      dateRange: '17 July 2024 – 30 September 2025',
+      comment: 'Alice was outstanding on deck.',
+    });
+    expect(result.subject).toContain('Captain Smith');
+    expect(result.subject).toContain('M/Y Burkut');
+    expect(result.html).toContain('Alice');
+    expect(result.html).toContain('Captain Smith');
+    expect(result.html).toContain('Captain');
+    expect(result.html).toContain('17 July 2024 – 30 September 2025');
+    expect(result.html).toContain('Alice was outstanding on deck.');
+    expect(result.html).toContain('/settings/references');
+  });
+
+  it('referenceAcceptedEmail handles a missing comment gracefully', () => {
+    const result = referenceAcceptedEmail({
+      recipientName: 'Alice',
+      refereeName: 'Captain Smith',
+      refereeRole: 'Captain',
+      vesselLabel: 'M/Y Burkut',
+      dateRange: '17 July 2024 – 30 September 2025',
+      comment: null,
+    });
+    expect(result.html).toMatch(/no comment/i);
+    expect(result.html).not.toContain('&ldquo;'); // no blockquote when no comment
+  });
+
+  it('referenceCommentUpdatedEmail (updated variant) shows the new comment', () => {
+    const result = referenceCommentUpdatedEmail({
+      recipientName: 'Alice',
+      refereeName: 'Captain Smith',
+      refereeRole: 'Captain',
+      vesselLabel: 'M/Y Burkut',
+      dateRange: '17 July 2024 – 30 September 2025',
+      newComment: 'Updated wording — Alice was excellent.',
+      cleared: false,
+    });
+    expect(result.subject).toMatch(/updated/i);
+    expect(result.subject).toContain('Captain Smith');
+    expect(result.subject).toContain('M/Y Burkut');
+    expect(result.html).toContain('Updated wording — Alice was excellent.');
+    expect(result.html).toContain('/settings/references');
+  });
+
+  it('referenceCommentUpdatedEmail (cleared variant) signals removal', () => {
+    const result = referenceCommentUpdatedEmail({
+      recipientName: 'Alice',
+      refereeName: 'Captain Smith',
+      refereeRole: 'Captain',
+      vesselLabel: 'M/Y Burkut',
+      dateRange: '17 July 2024 – 30 September 2025',
+      newComment: null,
+      cleared: true,
+    });
+    expect(result.subject).toMatch(/removed/i);
+    expect(result.html).toMatch(/no comment is shown/i);
+    // No leftover quote markup when cleared
+    expect(result.html).not.toContain('&ldquo;');
   });
 });
