@@ -303,9 +303,9 @@ Each route follows the canonical pattern: `requireDomainUser()` (or `requireAuth
 
 #### Phase 5 — Subscription degrade visibility logic
 
-- [ ] In `/api/profile/[personId]/route.ts`, when assembling experience response: SELECT references WHERE experience_id IN (...) AND status='accepted' ORDER BY consented_at DESC. Group by experience_id. Apply LIMIT per experience based on the EXPERIENCE OWNER's subscription tier (lookup their `subscriptions.plan` once at the top): Free=1, Pro=3. Owner viewing own profile bypasses the limit. View-only profile (different person viewing) applies the limit.
+- [x] In `/api/profile/[personId]/route.ts`, when assembling experience response: SELECT references WHERE experience_id IN (...) AND status='accepted' ORDER BY consented_at DESC. Group by experience_id. Apply LIMIT per experience based on the EXPERIENCE OWNER's subscription tier (lookup their `subscriptions.plan` once at the top): Free=1, Pro=3. Owner viewing own profile bypasses the limit. View-only profile (different person viewing) applies the limit.
 
-- [ ] Verify behaviour in test: a crew with 3 accepted references on one experience downgrades to Free. View-only profile API returns 1 reference (most recent). Re-upgrade restores all 3. References table itself is unchanged throughout — pure read-side filter.
+- [x] Verify behaviour in test: a crew with 3 accepted references on one experience downgrades to Free. View-only profile API returns 1 reference (most recent). Re-upgrade restores all 3. References table itself is unchanged throughout — pure read-side filter.
 
 #### Phase 6 — Tests, docs, commit
 

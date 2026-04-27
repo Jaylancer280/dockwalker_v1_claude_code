@@ -81,7 +81,9 @@ export async function GET(
     const profileWithNats = { ...profile, nationalities_all: nationalitiesAll };
 
     if (profile.identity_type === 'crew') {
-      return NextResponse.json(await buildCrewProfile(supabase, profileWithNats, personId));
+      return NextResponse.json(
+        await buildCrewProfile(supabase, profileWithNats, personId, isSelfView),
+      );
     }
 
     if (profile.identity_type === 'agent') {
@@ -197,8 +199,14 @@ async function checkRelationshipContext(
   return false;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function buildCrewProfile(supabase: any, profile: any, personId: string) {
+async function buildCrewProfile(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  profile: any,
+  personId: string,
+  isSelfView: boolean,
+) {
   // Resolve certification names
   let certifications: { id: string; name: string }[] = [];
   if (profile.certification_ids?.length > 0) {
@@ -246,6 +254,83 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
       .filter((r) => r.vessel_id)
       .map((r) => ({ vessel_id: r.vessel_id as string, start_date: r.start_date })),
   );
+
+  // Phase 5 — accepted references per experience, tier-aware visibility.
+  // The EXPERIENCE OWNER's subscription plan drives the cap (Free=1, Crew Pro=3).
+  // Self-view bypasses the cap; view-only callers see only the most recent N.
+  const experienceIds = experienceRows
+    .map((e) => (e.id as string | undefined) ?? null)
+    .filter((id): id is string => !!id);
+  const referencesByExperience: Record<
+    string,
+    Array<{
+      id: string;
+      referee_person_id: string;
+      claimed_referee_role: string;
+      claimed_referee_name: string;
+      comment: string | null;
+      consented_at: string;
+      referee_display_name: string | null;
+      referee_role_id: string | null;
+      referee_role_name: string | null;
+      referee_role_department: string | null;
+    }>
+  > = {};
+  if (experienceIds.length > 0) {
+    const { data: ownerSub } = await supabase
+      .from('subscriptions')
+      .select('plan')
+      .eq('person_id', personId)
+      .maybeSingle();
+    const ownerPlan = (ownerSub?.plan as string | undefined) ?? 'free';
+    const visibleCap = ownerPlan === 'crew_pro' ? 3 : 1;
+
+    const { data: refRows } = await supabase
+      .from('references')
+      .select(
+        `id, experience_id, referee_person_id, claimed_referee_role, claimed_referee_name,
+         comment, consented_at,
+         referee:profiles!references_referee_person_id_fkey(display_name, primary_role_id,
+           yacht_roles!profiles_primary_role_id_fkey(id, name, department))`,
+      )
+      .in('experience_id', experienceIds)
+      .eq('status', 'accepted')
+      .not('referee_person_id', 'is', null)
+      .order('consented_at', { ascending: false });
+    type RefereeJoin = {
+      display_name?: string | null;
+      yacht_roles?: { id: string; name: string; department: string } | null;
+    } | null;
+    const grouped: typeof referencesByExperience = {};
+    for (const r of (refRows ?? []) as Array<{
+      id: string;
+      experience_id: string;
+      referee_person_id: string;
+      claimed_referee_role: string;
+      claimed_referee_name: string;
+      comment: string | null;
+      consented_at: string;
+      referee: RefereeJoin;
+    }>) {
+      const expId = r.experience_id;
+      if (!grouped[expId]) grouped[expId] = [];
+      const limit = isSelfView ? Number.POSITIVE_INFINITY : visibleCap;
+      if (grouped[expId].length >= limit) continue;
+      grouped[expId].push({
+        id: r.id,
+        referee_person_id: r.referee_person_id,
+        claimed_referee_role: r.claimed_referee_role,
+        claimed_referee_name: r.claimed_referee_name,
+        comment: r.comment,
+        consented_at: r.consented_at,
+        referee_display_name: r.referee?.display_name ?? null,
+        referee_role_id: r.referee?.yacht_roles?.id ?? null,
+        referee_role_name: r.referee?.yacht_roles?.name ?? null,
+        referee_role_department: r.referee?.yacht_roles?.department ?? null,
+      });
+    }
+    Object.assign(referencesByExperience, grouped);
+  }
 
   // Fetch shore-based experiences
   const { data: shoreExperiences } = await supabase
@@ -316,7 +401,9 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
         ? (historicalMap.get(`${exp.vessel_id}|${exp.start_date}`) ?? null)
         : null;
       const current = vessel?.name ?? null;
+      const expId = exp.id as string | undefined;
       return {
+        id: expId,
         vessel_name: current,
         historical_vessel_name: historical && historical !== current ? historical : null,
         vessel_type: vessel?.vessel_type ?? null,
@@ -331,6 +418,7 @@ async function buildCrewProfile(supabase: any, profile: any, personId: string) {
         contract_type: exp.contract_type,
         contract_details: exp.contract_details,
         description: exp.description,
+        references: expId ? (referencesByExperience[expId] ?? []) : [],
       };
     }),
     shore_experiences: (shoreExperiences ?? []).map((se: Record<string, unknown>) => {

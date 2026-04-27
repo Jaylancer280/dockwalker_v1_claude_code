@@ -41,6 +41,7 @@ function mockChain(data: unknown, opts: { count?: number } = {}) {
   chain.limit = vi.fn().mockReturnValue(chain);
   chain.order = vi.fn().mockReturnValue(chain);
   chain.single = vi.fn().mockImplementation(resolve);
+  chain.maybeSingle = vi.fn().mockImplementation(resolve);
   // Make the chain thenable for await without .single()
   chain.then = vi.fn().mockImplementation((cb: (v: unknown) => unknown) =>
     resolve().then(cb),
@@ -297,6 +298,10 @@ describe('GET /api/profile/[personId]', () => {
         },
       ]),
     );
+    // Owner subscription lookup (Phase 5 visibility filter)
+    mockFrom.mockReturnValueOnce(mockChain(null));
+    // References per experience (none accepted)
+    mockFrom.mockReturnValueOnce(mockChain([]));
     // Shore experiences
     mockFrom.mockReturnValueOnce(mockChain([]));
 
