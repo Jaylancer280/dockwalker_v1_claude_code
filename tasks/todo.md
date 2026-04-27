@@ -13,54 +13,7 @@
 
 ### Post-review backlog (sourced from end-to-end audit, 2026-04-27)
 
-> Full context for every item below is in [`tasks/end-to-end-review-2026-04-27.md`](./end-to-end-review-2026-04-27.md). Risk IDs (D-1, M-1, etc.) match the consolidated risk register in that document. Pick items in roughly the order listed — P0 first, then P1.
-
-#### P0 — code-level fixes blocking real-user scale
-
-These are concrete bugs in the projection / event layer. Each is fixable in roughly half a day. Both are latent today (no production traffic / no daywork-deletion path), but they will silently corrupt state the moment scale or a cleanup process arrives.
-
-- [ ] **P0 — D-1: Add event idempotency to prevent double-application of state on retries.**
-
-  **Problem:** The `events` table has no uniqueness constraint preventing the same event from being appended twice. If a route handler is retried (network blip, mobile app's auto-retry, a Vercel function timeout that the client retries), `appendEvent` runs twice. The second call inserts a second event row with the same payload, and `apply_projection` runs the handler a second time. For most events this is benign (idempotent UPDATEs), but for state-mutating events with side-effect math it is not. Concrete failure: `DAYWORK.ACCEPTED` increments `dayworks.positions_filled` by 1 each time it runs. Two appends → `positions_filled` ends up at 2 on a 1-position posting → posting auto-transitions to `in_progress` and rejects all other applicants → the second crew member who "got in" is now an orphaned engagement that the employer never agreed to. Same shape of risk on `ENGAGEMENT.RATED_BY_CREW` (could double-rate), `MESSAGE.SENT` (cosmetic dupe), `PERMANENT.SHORTLISTED` (could push past the cap).
-
-  **Why it matters:** The append-only ledger is the foundation of every single piece of state in the app. Idempotency-on-retry is a property the ledger silently does not have. CLAUDE.md correctness criterion #5 ("all domain states are event-derived") is true but assumes events are appended exactly once. Today nothing enforces that.
-
-  **Suggested fix:** Add an `idempotency_key text` column to `events` with a partial unique constraint on `(person_id, idempotency_key) where idempotency_key is not null`. Update `append_event` RPC signature to accept the key (optional — backwards compatible: NULL = no dedup). Every state-mutating route handler must pass a deterministic key derived from request context — typical pattern: `crypto.randomUUID()` generated client-side and passed in the request body, or `${person_id}:${aggregate_id}:${event_type}:${request_timestamp_truncated_to_minute}` server-side. On duplicate insert, RPC catches `unique_violation` and returns the existing event_id without re-running the projection.
-
-  **Files to touch:** new migration (`00123_event_idempotency.sql` + paired rollback), `packages/db/src/append-event.ts` (signature + RPC body change), every route in `apps/web/src/app/api/` that emits a state-mutating event (~30 files; daywork accept, permanent select, engagement cancel, rate, postpone, vessel request, etc.). Update `__tests__/api/*` tests to pass keys. Document the pattern in `apps/web/README.md`.
-
-  **Acceptance:** stress-test script `scripts/stress-test-event-idempotency.ts` that fires the same `DAYWORK.ACCEPTED` event 5× concurrently against the live remote DB and asserts `positions_filled` increments by exactly 1.
-
-- [ ] **P0 — D-2: Fix NULL coercion in `apply_projection` DAYWORK.ACCEPTED race guard.**
-
-  **Problem:** Inside `apply_projection`'s DAYWORK.ACCEPTED handler, the race guard does:
-
-  ```sql
-  select positions_filled, positions_available
-    into v_filled, v_available
-    from public.dayworks
-   where id = (p_payload->>'daywork_id')::uuid;
-
-  if v_filled >= v_available then ... return; end if;
-  ```
-
-  If the daywork row no longer exists (concurrent admin deletion, cleanup script, future feature that purges old postings), the SELECT returns no rows. PostgreSQL leaves `v_filled` and `v_available` as NULL. The condition `NULL >= NULL` evaluates to NULL, which an `if` statement coerces to false. The handler proceeds, inserts an `applications.status = 'accepted'` row, and creates an `active_engagements` row referencing a daywork_id that doesn't exist — orphan FK in a table that's supposed to be referentially clean.
-
-  **Why it matters:** Latent today because no code path deletes dayworks (we soft-cancel via `DAYWORK.CANCELLED_BY_EMPLOYER`). But: (a) admin tooling could add a hard-delete path tomorrow, (b) GDPR `PERSON.DATA_SCRUBBED` cascading might cascade in ways that delete dependent rows, (c) test seed reset could race with an in-flight event. The risk is low-probability but the failure mode is silent state corruption — the kind that doesn't surface until a customer complains they were "ghosted" on a job they thought they had.
-
-  **Suggested fix:** Two-line addition after the SELECT:
-
-  ```sql
-  if v_available is null then
-    raise exception 'DAYWORK.ACCEPTED: daywork % no longer exists', p_payload->>'daywork_id';
-  end if;
-  ```
-
-  Apply via a new migration that does CREATE OR REPLACE on `apply_projection` with the latest body + this guard. Per `tasks/lessons.md` (apply_projection replacement protocol), diff the new body against the previous to confirm handler count is unchanged (still 71) and the `$$` count is still 2.
-
-  **Files to touch:** new migration `00123_apply_projection_null_safety.sql` + paired rollback. Updated stress-test script to verify the exception fires when the daywork is deleted mid-transaction.
-
-  **Acceptance:** `scripts/stress-test-daywork-accept-null-safety.ts` deletes a daywork between event append and projection run (forced via direct SQL), then confirms the projection raises rather than creating an orphan engagement.
+> Full context for every item below is in [`tasks/end-to-end-review-2026-04-27.md`](./end-to-end-review-2026-04-27.md). Risk IDs (M-1, F-1, etc.) match the consolidated risk register in that document. Both P0 fixes (D-1 event idempotency + D-2 null-safety guards) shipped 2026-04-27 — see commits `bd8a3f8` (D-2), `3eccfff` (D-1), schema v122 → v124.
 
 #### P1 — operational + go-to-market posture
 
@@ -97,18 +50,6 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
   **Suggested fix:** Either (a) acquire Mac+Xcode access (cheapest: rent a cloud Mac via MacStadium or AWS EC2 Mac — ~$60/month, sufficient for sporadic debugging), or (b) contract a Mac-native iOS developer for 2-3 days to surface the crash root cause (~£1500 budget). Option (a) is cheaper but requires founder bandwidth; option (b) is faster and resolves the blocker definitively. Once the crash is fixed: complete Phases 5 (in-flight UX polish), 6 (push notification provisioning), 7 (TestFlight + 3 tester devices + 48-hour zero-P0 window). Then delete Capacitor legacy files per `tasks/mobile-web-split-spec.md` § 9.
 
   **Acceptance:** TestFlight build distributed to 3+ tester devices; zero P0 bugs in 48 hours; Capacitor legacy files removed.
-
-- [ ] **P1 — F-1: Split discover page (834 lines) into tab components.**
-
-  **Problem:** `apps/web/src/app/(app)/discover/page.tsx` is 834 lines mixing state management, swipe animation, lazy-load triggers, availability gating, and 5 lazy-loaded sub-components (`AvailabilityOverlay`, `ProfileOverlay`, `AppliedTab`, `InvitationsTab`, `PermanentJobFeed`). 40+ state variables in one component.
-
-  **Why it matters:** This is the most-touched user-facing page in the app and the most-likely surface for future feature work. Every UX change risks unintended interactions across the unrelated tabs. New contributors (or a future agent picking up a feature) need to load the entire context to make a small edit.
-
-  **Suggested fix:** Extract `<DiscoverBrowse>`, `<DiscoverApplied>`, `<DiscoverInvitations>`, `<DiscoverPermanent>` as sibling components, each owning its own state and data fetches. The page-level component becomes a thin tab router (~50-80 lines) that decides which child to mount. Shared state (active tab, availability status) stays at the page level. Lazy-load each sub-component as a separate dynamic import to keep the discover-tab JS payload small.
-
-  **Files to touch:** `apps/web/src/app/(app)/discover/page.tsx` + new files under `apps/web/src/app/(app)/discover/_components/`. Update tests in `apps/web/__tests__/components/` if they target the page directly.
-
-  **Acceptance:** page is < 150 lines; each tab component is under 300 lines; test suite still green.
 
 - [ ] **P1 — T-1: Wire Playwright E2E to GitHub Actions CI.**
 
@@ -181,8 +122,6 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
   **Files to touch:** Vercel Environment Variables dashboard. `.gitignore` (verify). `tasks/runbook.md` (new policy section).
 
   **Acceptance:** every key in `.env.example` has a value in Vercel Production; rotation log entry exists for any rotated keys; documented policy.
-
----
 
 ---
 
