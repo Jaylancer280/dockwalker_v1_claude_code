@@ -56,7 +56,7 @@ Current schema version: see [BUILD_STATE.md](../../BUILD_STATE.md)
 
 The current app expects the following RPCs to exist in `public`:
 
-- `append_event`
+- `append_event` — accepts an optional `p_idempotency_key text` (since migration 00124 / Fix 257). When supplied, a retry of the same event from the same person resolves to the original event id without re-running the projection. The `appendEvent` helper in `@dockwalker/db` exposes this as an optional `idempotencyKey?: string` parameter. Recommended pattern: derive the key deterministically from request context (e.g. `DAYWORK.ACCEPTED:${crewId}:${dayworkId}`). Required for any state-mutating event whose projection (a) increments a counter, (b) inserts without ON CONFLICT, or (c) lacks a WHERE-clause guard that would make a duplicate run a no-op. Currently wired in `/api/daywork/[id]/applicants/[crewId]/accept`, `/api/daywork/invitations/[id]/respond` (accept branch), and `/api/engagements/[id]/rate` (all four rating events).
 - `check_no_overlap`
 - `check_no_overlap_excluding`
 - `onboard_person`

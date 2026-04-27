@@ -141,6 +141,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         end_date: daywork.end_date,
       },
       personId: user.id,
+      // D-1 idempotency: a retry of the same invitation-accept
+      // resolves to the original event without re-incrementing
+      // `positions_filled`. Invitation IDs are unique so the key
+      // alone is sufficient.
+      idempotencyKey: `DAYWORK.INVITATION_ACCEPTED:${invitationId}`,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to accept invitation';

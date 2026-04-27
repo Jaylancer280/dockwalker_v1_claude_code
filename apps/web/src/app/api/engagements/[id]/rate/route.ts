@@ -115,6 +115,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             overall_match: body.overall_match,
           },
           personId: user.id,
+          // D-1 idempotency: scoped to (person_id, key), so one
+          // rating row per (engagement, rater) is enforced even if
+          // the request retries before the application-layer
+          // pre-check on engagement_ratings sees the new row.
+          idempotencyKey: `ENGAGEMENT.CANCELLATION_RATED_BY_CREW:${engagementId}`,
         });
       } else {
         await appendEvent(serviceClient, {
@@ -128,6 +133,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             overall_match: body.overall_match,
           },
           personId: user.id,
+          idempotencyKey: `ENGAGEMENT.CANCELLATION_RATED_BY_EMPLOYER:${engagementId}`,
         });
       }
     } else {
@@ -215,6 +221,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
               : {}),
           },
           personId: user.id,
+          // D-1 idempotency: prevents duplicate rating row on retry.
+          idempotencyKey: `ENGAGEMENT.RATED_BY_CREW:${engagementId}`,
         });
       } else {
         if (!VALID_YES_NO_PARTIAL.includes(body.skills_as_advertised)) {
@@ -254,6 +262,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             overall_match: body.overall_match,
           },
           personId: user.id,
+          // D-1 idempotency: prevents duplicate rating row on retry.
+          idempotencyKey: `ENGAGEMENT.RATED_BY_EMPLOYER:${engagementId}`,
         });
       }
     }

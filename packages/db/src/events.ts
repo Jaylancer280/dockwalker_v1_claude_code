@@ -8,6 +8,17 @@ export type AppendEventParams<T extends keyof EventPayloadMap> = {
   roleContext: RoleContext;
   payload: EventPayloadMap[T];
   personId: string;
+  /**
+   * Optional idempotency key (D-1). When supplied, a retry of the
+   * same event from the same person resolves to the original event
+   * id without re-running the projection — prevents double-fills,
+   * duplicate ratings, etc. when a network blip causes a client
+   * retry. Recommended pattern: derive deterministically from
+   * request context, e.g. `DAYWORK.ACCEPTED:${crewId}:${dayworkId}`.
+   * Omit (undefined) for events that don't need dedup or where
+   * legitimate duplicates are expected.
+   */
+  idempotencyKey?: string;
 };
 
 /**
@@ -17,8 +28,9 @@ export type AppendEventParams<T extends keyof EventPayloadMap> = {
  *
  * Payload is typed per event — the compiler rejects mismatched fields.
  *
- * @returns The event ID on success
- * @throws Error if the RPC call fails
+ * @returns The event ID on success (or the original event id if a
+ *          retry was deduped via the idempotency key).
+ * @throws Error if the RPC call fails.
  */
 export async function appendEvent<T extends keyof EventPayloadMap>(
   supabase: SupabaseClient,
@@ -31,6 +43,7 @@ export async function appendEvent<T extends keyof EventPayloadMap>(
     p_role_context: params.roleContext,
     p_payload: params.payload,
     p_person_id: params.personId,
+    p_idempotency_key: params.idempotencyKey ?? null,
   });
 
   if (error) {

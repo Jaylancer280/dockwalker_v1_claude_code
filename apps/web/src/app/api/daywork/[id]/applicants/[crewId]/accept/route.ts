@@ -101,6 +101,11 @@ export async function POST(
         end_date: daywork.end_date,
       },
       personId: user.id,
+      // D-1 idempotency: a retry of the same accept (same crew,
+      // same daywork) resolves to the original event without
+      // re-running the projection. Prevents `positions_filled` from
+      // double-incrementing on network-retry.
+      idempotencyKey: `DAYWORK.ACCEPTED:${crewId}:${dayworkId}`,
     });
 
     // Fetch the newly created engagement ID for the client and for push deep-link
