@@ -11,7 +11,178 @@
 
 ## Queue
 
-> _empty — Vessels V2 fully shipped, including both Wave F follow-ups (Fix 254 + Fix 255)._
+### Post-review backlog (sourced from end-to-end audit, 2026-04-27)
+
+> Full context for every item below is in [`tasks/end-to-end-review-2026-04-27.md`](./end-to-end-review-2026-04-27.md). Risk IDs (D-1, M-1, etc.) match the consolidated risk register in that document. Pick items in roughly the order listed — P0 first, then P1.
+
+#### P0 — code-level fixes blocking real-user scale
+
+These are concrete bugs in the projection / event layer. Each is fixable in roughly half a day. Both are latent today (no production traffic / no daywork-deletion path), but they will silently corrupt state the moment scale or a cleanup process arrives.
+
+- [ ] **P0 — D-1: Add event idempotency to prevent double-application of state on retries.**
+
+  **Problem:** The `events` table has no uniqueness constraint preventing the same event from being appended twice. If a route handler is retried (network blip, mobile app's auto-retry, a Vercel function timeout that the client retries), `appendEvent` runs twice. The second call inserts a second event row with the same payload, and `apply_projection` runs the handler a second time. For most events this is benign (idempotent UPDATEs), but for state-mutating events with side-effect math it is not. Concrete failure: `DAYWORK.ACCEPTED` increments `dayworks.positions_filled` by 1 each time it runs. Two appends → `positions_filled` ends up at 2 on a 1-position posting → posting auto-transitions to `in_progress` and rejects all other applicants → the second crew member who "got in" is now an orphaned engagement that the employer never agreed to. Same shape of risk on `ENGAGEMENT.RATED_BY_CREW` (could double-rate), `MESSAGE.SENT` (cosmetic dupe), `PERMANENT.SHORTLISTED` (could push past the cap).
+
+  **Why it matters:** The append-only ledger is the foundation of every single piece of state in the app. Idempotency-on-retry is a property the ledger silently does not have. CLAUDE.md correctness criterion #5 ("all domain states are event-derived") is true but assumes events are appended exactly once. Today nothing enforces that.
+
+  **Suggested fix:** Add an `idempotency_key text` column to `events` with a partial unique constraint on `(person_id, idempotency_key) where idempotency_key is not null`. Update `append_event` RPC signature to accept the key (optional — backwards compatible: NULL = no dedup). Every state-mutating route handler must pass a deterministic key derived from request context — typical pattern: `crypto.randomUUID()` generated client-side and passed in the request body, or `${person_id}:${aggregate_id}:${event_type}:${request_timestamp_truncated_to_minute}` server-side. On duplicate insert, RPC catches `unique_violation` and returns the existing event_id without re-running the projection.
+
+  **Files to touch:** new migration (`00123_event_idempotency.sql` + paired rollback), `packages/db/src/append-event.ts` (signature + RPC body change), every route in `apps/web/src/app/api/` that emits a state-mutating event (~30 files; daywork accept, permanent select, engagement cancel, rate, postpone, vessel request, etc.). Update `__tests__/api/*` tests to pass keys. Document the pattern in `apps/web/README.md`.
+
+  **Acceptance:** stress-test script `scripts/stress-test-event-idempotency.ts` that fires the same `DAYWORK.ACCEPTED` event 5× concurrently against the live remote DB and asserts `positions_filled` increments by exactly 1.
+
+- [ ] **P0 — D-2: Fix NULL coercion in `apply_projection` DAYWORK.ACCEPTED race guard.**
+
+  **Problem:** Inside `apply_projection`'s DAYWORK.ACCEPTED handler, the race guard does:
+
+  ```sql
+  select positions_filled, positions_available
+    into v_filled, v_available
+    from public.dayworks
+   where id = (p_payload->>'daywork_id')::uuid;
+
+  if v_filled >= v_available then ... return; end if;
+  ```
+
+  If the daywork row no longer exists (concurrent admin deletion, cleanup script, future feature that purges old postings), the SELECT returns no rows. PostgreSQL leaves `v_filled` and `v_available` as NULL. The condition `NULL >= NULL` evaluates to NULL, which an `if` statement coerces to false. The handler proceeds, inserts an `applications.status = 'accepted'` row, and creates an `active_engagements` row referencing a daywork_id that doesn't exist — orphan FK in a table that's supposed to be referentially clean.
+
+  **Why it matters:** Latent today because no code path deletes dayworks (we soft-cancel via `DAYWORK.CANCELLED_BY_EMPLOYER`). But: (a) admin tooling could add a hard-delete path tomorrow, (b) GDPR `PERSON.DATA_SCRUBBED` cascading might cascade in ways that delete dependent rows, (c) test seed reset could race with an in-flight event. The risk is low-probability but the failure mode is silent state corruption — the kind that doesn't surface until a customer complains they were "ghosted" on a job they thought they had.
+
+  **Suggested fix:** Two-line addition after the SELECT:
+
+  ```sql
+  if v_available is null then
+    raise exception 'DAYWORK.ACCEPTED: daywork % no longer exists', p_payload->>'daywork_id';
+  end if;
+  ```
+
+  Apply via a new migration that does CREATE OR REPLACE on `apply_projection` with the latest body + this guard. Per `tasks/lessons.md` (apply_projection replacement protocol), diff the new body against the previous to confirm handler count is unchanged (still 71) and the `$$` count is still 2.
+
+  **Files to touch:** new migration `00123_apply_projection_null_safety.sql` + paired rollback. Updated stress-test script to verify the exception fires when the daywork is deleted mid-transaction.
+
+  **Acceptance:** `scripts/stress-test-daywork-accept-null-safety.ts` deletes a daywork between event append and projection run (forced via direct SQL), then confirms the projection raises rather than creating an orphan engagement.
+
+#### P1 — operational + go-to-market posture
+
+These are not code-level bugs; they are gaps in operational readiness, regulatory positioning, and external trust signals. Order of impact roughly: M-1 > M-2 > M-3 > the rest.
+
+- [ ] **P1 — M-1: Publish MLC 2006 positioning statement, fix the marketing-copy/gate gap, and apply for MCA RPSP accreditation.**
+
+  **Problem:** Every agency competitor (YPI Crew, The Crew Network, Wilson Halligan, Quay Crew, Bluewater) leads marketing with MLC 2006 / MCA accreditation. DockWalker is silent on this. To a captain or fleet manager evaluating the platform, that silence reads as "amateur hour" — even though the architecture would actually pass an audit better than most agency CRMs (append-only ledger, immutable IMO anchor, structured cancellation reasons, GDPR export coverage).
+
+  **A separate, narrower issue surfaced by the 2026-04-27 codebase audit:** the Crew Pro tier gates the "Available Crew" tab (proactive employer-initiated invitations) at `apps/web/src/app/api/daywork/[id]/available-crew/route.ts:137-149` — only Crew Pro subscribers appear when employers browse for crew to invite. The structural model is defensible under Reg 1.4 (every daywork posting remains publicly applyable by every crew member; Available Crew is a parallel discovery surface, not the only one — this is closer to LinkedIn Premium than to the historical agency-fee abuse the convention was designed to stop, and Crewseekers operates a more aggressive paid-crew membership model openly without enforcement action). However, the marketing copy is inconsistent with the implementation: `apps/web/src/app/page.tsx:33-35` and `:143-149` claim "no pay-to-rank" / "fair visibility", which is factually contradicted by the gate. This is a truth-in-advertising issue separate from but adjacent to MLC. The upsell at `apps/web/src/components/availability-overlay.tsx:405-413` ("Upgrade to Crew Pro to appear in employer searches") and the feature label at `apps/web/src/app/(app)/billing/page.tsx:36` both read more aggressively than the actual model warrants — a regulator skim-reading those strings in isolation might bucket the platform incorrectly.
+
+  **Why it matters:** Two concerns rolled together. The positioning silence is the largest single credibility gap with sophisticated buyers. The copy-vs-implementation gap creates a small but meaningful regulatory ambiguity that's trivial to close. Both are best handled in the same maritime-lawyer engagement.
+
+  **Suggested fix:** Four deliverables. (1) **Marketing-copy reconciliation** (~1 hour, do this first): rewrite `availability-overlay.tsx:405-413` to lead with free-baseline-access ("Free crew can apply to any posted job. Crew Pro adds proactive discovery — employers can also find and invite you directly."); remove the "no pay-to-rank" / "fair visibility" claims from `page.tsx:33-35` and `:143-149` (the rest of the value-prop block stands); rewrite the Crew Pro feature label at `billing/page.tsx:36` to "Get discovered by employers — appear in proactive search alongside applying directly to posted jobs"; add one line to T&Cs §1 making equal-baseline-access explicit ("Crew may apply to any posted job at no cost. Crew Pro is an optional subscription for additional features."). (2) **Maritime-specialist lawyer review** (~1-2 hour engagement) to confirm the marketplace-facilitator vs manning-agency line is held AND specifically to bless the freemium structure against Reg 1.4. (3) **Marketing-site compliance page** (`/about/compliance` or similar) publishing the MLC 2006 alignment statement, citing Regulation 1.4, listing what DockWalker does and does not do, and naming the data-protection officer (DPO contact already wired as admin@nautalink.io per `apps/web/src/lib/legal-placeholders.ts`). The positioning statement should be deliberate: "DockWalker is a facilitation platform under MLC 2006 Regulation 1.4. We do not charge seafarers for job access. We do not place crew. We provide structured discovery and audit-grade event records." (4) **UK MCA RPSP accreditation application** — see MGN 490 for the criteria.
+
+  **Acceptance:** copy-reconciliation merged (verify with grep that "pay-to-rank" no longer appears in landing page and the upsell leads with free-access framing); compliance page published; T&Cs reviewed by maritime lawyer with explicit Reg 1.4 sign-off on the Crew Pro tier; RPSP application submitted (regardless of outcome — submission alone is a signal).
+
+- [ ] **P1 — M-2: Land 3 named captain endorsements before launch.**
+
+  **Problem:** Trust in the superyacht industry is transitive through named individuals. One named senior captain on a 60m+ moves more crew than three months of paid acquisition. DockWalker has zero captain testimonials, zero named yacht references on the marketing surface today.
+
+  **Why it matters:** The competitor matrix in `tasks/end-to-end-review-2026-04-27.md` shows that platforms without trust signals (Yotspot for crew quality, Crewseekers, etc.) live in the long tail. Agencies that survive long-term all have decades-of-named-captain endorsements quietly underwriting their pipeline. DockWalker can short-cut to that with three deliberate asks.
+
+  **Suggested fix:** Identify three Antibes-based captains running charter-operated 60m+ vessels. Approach via warm intro (likely founder's existing network — Nautalink Technologies is UK-registered and the founder presumably has industry contacts). Offer Crew Pro for life for any named crew member of any captain who endorses. The endorsement is name + yacht (e.g., "Captain X, M/Y Y") — anonymized testimonials don't move trust in this industry.
+
+  **Acceptance:** three published endorsements on the marketing site, by name, with yacht reference.
+
+- [ ] **P1 — M-3: Resolve mobile-app blockage and complete Expo Phase 7 (TestFlight).**
+
+  **Problem:** Daywork is intrinsically mobile. Crew use phones at the dock, captains coordinate from their cabin, the entire WhatsApp loop DockWalker is replacing is mobile-native. Until the Expo app ships, DockWalker is competing one-handed against Dayworker.co's iOS+Android presence and against the inherently-mobile WhatsApp loop. Per project memory, the blocker is a native startup crash that requires Mac + Xcode to debug, and the founder doesn't currently have access — estimated unblock ~June 2026.
+
+  **Why it matters:** The architecture work is done — Phase 4 (conversations) is complete, Phase 5–7 are deployment + UX-polish + Capacitor-removal phases. The blockage is purely environmental, not architectural. Every week of delay extends the window in which Dayworker.co or a copycat can build mindshare in the daywork-native segment that's currently functionally vacant.
+
+  **Suggested fix:** Either (a) acquire Mac+Xcode access (cheapest: rent a cloud Mac via MacStadium or AWS EC2 Mac — ~$60/month, sufficient for sporadic debugging), or (b) contract a Mac-native iOS developer for 2-3 days to surface the crash root cause (~£1500 budget). Option (a) is cheaper but requires founder bandwidth; option (b) is faster and resolves the blocker definitively. Once the crash is fixed: complete Phases 5 (in-flight UX polish), 6 (push notification provisioning), 7 (TestFlight + 3 tester devices + 48-hour zero-P0 window). Then delete Capacitor legacy files per `tasks/mobile-web-split-spec.md` § 9.
+
+  **Acceptance:** TestFlight build distributed to 3+ tester devices; zero P0 bugs in 48 hours; Capacitor legacy files removed.
+
+- [ ] **P1 — F-1: Split discover page (834 lines) into tab components.**
+
+  **Problem:** `apps/web/src/app/(app)/discover/page.tsx` is 834 lines mixing state management, swipe animation, lazy-load triggers, availability gating, and 5 lazy-loaded sub-components (`AvailabilityOverlay`, `ProfileOverlay`, `AppliedTab`, `InvitationsTab`, `PermanentJobFeed`). 40+ state variables in one component.
+
+  **Why it matters:** This is the most-touched user-facing page in the app and the most-likely surface for future feature work. Every UX change risks unintended interactions across the unrelated tabs. New contributors (or a future agent picking up a feature) need to load the entire context to make a small edit.
+
+  **Suggested fix:** Extract `<DiscoverBrowse>`, `<DiscoverApplied>`, `<DiscoverInvitations>`, `<DiscoverPermanent>` as sibling components, each owning its own state and data fetches. The page-level component becomes a thin tab router (~50-80 lines) that decides which child to mount. Shared state (active tab, availability status) stays at the page level. Lazy-load each sub-component as a separate dynamic import to keep the discover-tab JS payload small.
+
+  **Files to touch:** `apps/web/src/app/(app)/discover/page.tsx` + new files under `apps/web/src/app/(app)/discover/_components/`. Update tests in `apps/web/__tests__/components/` if they target the page directly.
+
+  **Acceptance:** page is < 150 lines; each tab component is under 300 lines; test suite still green.
+
+- [ ] **P1 — T-1: Wire Playwright E2E to GitHub Actions CI.**
+
+  **Problem:** 355 Playwright specs across 17 files exist and pass locally (last manual run 2026-03-27 per `tasks/playwright-test-registry.md`). Pre-commit hook runs Vitest + type-check only — it does NOT run Playwright. Visual regressions and flow breakages can land on main and survive until the next manual testing-agent invocation.
+
+  **Why it matters:** Pre-launch is exactly the moment when E2E coverage matters most — the Vitest unit tests catch logic bugs but miss layout regressions, modal z-index conflicts (a recurring class of bug per project memory), navigation flow breakage, and integration-level state drift between tabs.
+
+  **Suggested fix:** Add a `playwright` job to `.github/workflows/ci.yml` that (a) installs Playwright browsers, (b) starts the Next.js dev server in background, (c) runs `npx playwright test`, (d) uploads HTML report as a CI artifact on failure. This will make CI noticeably slower (probably +3-5 minutes per push), but the cost is justified pre-launch. Tolerate occasional flakes by configuring 1-retry on Playwright suites.
+
+  **Files to touch:** `.github/workflows/ci.yml` (add playwright job + dependencies between jobs). Possibly `apps/web/playwright.config.ts` to enable retries in CI mode only.
+
+  **Acceptance:** CI runs Playwright on every push; report visible as artifact; failures block deploy.
+
+- [ ] **P1 — S-1: Audit raw `from('vessels')` queries and ensure NDA masking goes through `get_vessel_public`.**
+
+  **Problem:** `get_vessel_public(uuid)` and `get_vessels_public_batch(uuid[])` (most recently in migration 00122) are the only sanctioned vessel-read paths for non-owners — they apply NDA masking, hidden/pending exclusion, and engagement-based reveal. But there is no enforcement preventing a route from doing a raw `from('vessels').select('id, name, imo_number')` query that bypasses the masking entirely. Any such route silently leaks vessel data.
+
+  **Why it matters:** Vessels V2 Wave F (just shipped) closed the front door (lookup route) and side doors (the two batch RPCs). If any other route still goes direct, the moderation actions admins take (hide a vessel, leave a vessel pending) are partially enforced. NDA + hidden + pending all share the same threat model: keep private data private.
+
+  **Suggested fix:** `grep -rn "from('vessels')\|from(\"vessels\")" apps/web/src/app/api/ apps/web/src/lib/` to enumerate every direct vessel query. For each: confirm it's owner-scoped (e.g., `/api/vessels/[id]` PATCH where the user must own the vessel, RLS-enforced) — that's fine. Any non-owner-scoped read should switch to the RPC. Optionally add a custom ESLint rule banning raw vessel SELECTs outside an allowlist, to prevent regression.
+
+  **Files to touch:** depends on grep result — probably a handful of routes need updating. ESLint rule lives in `apps/web/eslint.config.mjs`.
+
+  **Acceptance:** every non-owner-scoped vessel read goes through one of the two RPCs; lint rule prevents regression.
+
+- [ ] **P1 — S-2: Automate `PERSON.DATA_SCRUBBED` 30 days after `PERSON.DEACTIVATED`.**
+
+  **Problem:** Deactivation flow (`/api/account/deactivate`) appends `PERSON.DEACTIVATED`, sets `deactivated_at`, and bans the auth user. The follow-up `PERSON.DATA_SCRUBBED` event (which actually wipes PII per migration 00108 — 22 profile fields nulled, experiences deleted, structure preserved) is documented but currently a manual admin process. If admin process slips, PII persists past the documented 30-day retention period — a GDPR exposure.
+
+  **Why it matters:** Right-to-erasure under GDPR Article 17 has compliance teeth. EU crew (Antibes, Palma, Monaco) are the bulk of the Med-season audience. Manual processes break under load. The architecture for automation is already there (cron infrastructure exists for availability expiry + engagement-starts).
+
+  **Suggested fix:** New cron at `/api/cron/data-scrub` running daily (recommend `0 4 * * *` to avoid clashing with existing crons at 07:00 and 08:00). Query: persons where `deactivated_at <= now() - interval '30 days'` AND `(scrubbed_at IS NULL OR scrubbed_at IS NOT YET SET)`. For each: append `PERSON.DATA_SCRUBBED` event. Projection (already in 00108) wipes fields. Add to `vercel.json` crons array. Add unit test that sets `deactivated_at` to a date >30d ago, runs the cron handler, asserts the scrub event was appended.
+
+  **Files to touch:** new `apps/web/src/app/api/cron/data-scrub/route.ts`. `vercel.json` crons addition. New unit test in `apps/web/__tests__/api/`.
+
+  **Acceptance:** cron runs daily; deactivated users' PII is scrubbed at 30d + 1 day; ledger event records the scrub.
+
+- [ ] **P1 — I-1: Configure Sentry DSN in Vercel environment variables and verify error capture.**
+
+  **Problem:** `@sentry/nextjs` SDK is integrated in `next.config.ts`, but the DSN is conditional (no-op if `NEXT_PUBLIC_SENTRY_DSN` is unset). The infrastructure agent flagged that the DSN may not be configured in production — meaning production errors live only in Vercel's per-deployment log dashboard, are not aggregated, are not searchable across deploys, and are not alertable.
+
+  **Why it matters:** Pre-launch with no aggregated error tracking is "flying blind." First weeks of real-user traffic are exactly when you need fast iteration on the bug surface.
+
+  **Suggested fix:** Confirm whether DSN is set (check Vercel Environment Variables dashboard → Production env). If not: create Sentry project for `dockwalker-web` (and a separate one for mobile when Expo ships), copy DSN into Vercel env vars. Verify by triggering a deliberate test error on a non-production preview deploy. Cost is roughly $29/month for the Team tier — covers 1M error events.
+
+  **Files to touch:** Vercel Environment Variables dashboard (no code changes needed — `next.config.ts` already reads the DSN).
+
+  **Acceptance:** test error on preview deploy appears in Sentry within 30 seconds.
+
+- [ ] **P1 — I-2: Document database emergency-rollback runbook.**
+
+  **Problem:** Database migrations auto-deploy on push to main (per `.github/workflows/ci.yml` deploy-migrations job). If a migration ships with a bug — a CHECK constraint that rejects valid data, a projection handler that breaks state, an index that takes too long to build — there is no documented procedure for the founder to roll back. Right now, recovery would be ad-hoc.
+
+  **Why it matters:** The migration discipline is already excellent (every migration has a paired `.down.sql`, CI runs forward → reverse → forward cycle). What's missing is the _operational_ playbook: who notices the bad migration, what command runs, what's the order of operations, what's the safety rope if rollback also fails.
+
+  **Suggested fix:** Create `tasks/runbook.md` with an "Emergency database rollback" section. Cover: (a) detection (Sentry error spike, user reports, stress-test failure), (b) decision criteria (when to rollback vs hotfix forward), (c) commands (`npx supabase db query --linked --file supabase/rollbacks/00XXX.down.sql` to apply a single rollback to remote), (d) verification (re-run relevant stress test), (e) post-mortem template. Reference from `CLAUDE.md` § Pre-Commit Hook Requirements.
+
+  **Files to touch:** new `tasks/runbook.md`.
+
+  **Acceptance:** runbook exists; founder can execute it cold without re-deriving.
+
+- [ ] **P1 — I-3 / S-3: Audit and migrate secrets from `.env.production.local` to Vercel Environment Variables; rotate any keys that touched the local file.**
+
+  **Problem:** The infrastructure + security agents both flagged that `.env.production.local` likely contains live API keys (Anthropic, OpenAI, Supabase service-role, possibly Stripe, Resend). Standard practice is to use Vercel Environment Variables for production secrets and keep `.env.production.local` git-ignored as a local-dev-only fallback. The risk is that if `.env.production.local` is ever accidentally committed (gitignore bypass, IDE save-on-focus, manual `git add .`), the keys are publicly exposed in git history.
+
+  **Why it matters:** Service-role key has unrestricted database access. Anthropic / OpenAI keys have direct cost exposure (an attacker can run up tens of thousands in API charges before detection). This is operational hygiene that should be tightened pre-launch even if no incident has occurred.
+
+  **Suggested fix:** (a) Audit Vercel Environment Variables dashboard against `apps/web/.env.example` — every key in `.env.example` should have a value in Vercel Production env. (b) Confirm `.env.production.local` is in `.gitignore` (likely already is — verify). (c) Rotate any key that has _ever_ been in `.env.production.local` on a developer's machine — Anthropic + OpenAI keys are the highest priority because cost exposure is direct. Supabase service-role rotation requires a one-time secret swap in Vercel + a re-deploy. (d) Document the secrets-management policy in `tasks/runbook.md` (no production secrets in the repo, ever).
+
+  **Files to touch:** Vercel Environment Variables dashboard. `.gitignore` (verify). `tasks/runbook.md` (new policy section).
+
+  **Acceptance:** every key in `.env.example` has a value in Vercel Production; rotation log entry exists for any rotated keys; documented policy.
+
+---
 
 ---
 
