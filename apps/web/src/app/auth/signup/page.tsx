@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -13,7 +13,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { AuthAmbientBackground } from '@/components/auth-ambient-background';
 import { GoogleAuthButton } from '@/components/google-auth-button';
 
+// Next.js requires components reading useSearchParams() to be wrapped in
+// a Suspense boundary so the page can prerender. The default export wraps
+// the inner component below.
 export default function SignUpPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignUpPageInner />
+    </Suspense>
+  );
+}
+
+function SignUpPageInner() {
   const searchParams = useSearchParams();
   const isReferee = searchParams.get('referee') === '1';
   const next = searchParams.get('next');
