@@ -309,9 +309,9 @@ Each route follows the canonical pattern: `requireDomainUser()` (or `requireAuth
 
 #### Phase 6 — Tests, docs, commit
 
-- [ ] Unit tests for all 11 routes in `__tests__/api/references-*.test.ts` and `__tests__/api/reference-contacts-*.test.ts`. Cover: 401, validation, per-experience cap (Free vs Pro), NDA-experience rejection, email-match enforcement, two-tier employer contact gate (pending<10 + accepted-30d<5), double-accept guard, revoke routing (requester pending + accepted, referee accepted only), snapshot immutability across experience edits, expired-reference rejection (24mo accepted + 30d pending), comment length cap (500 chars), comment write requires referee + accepted status, accept route batches REFERENCE.ACCEPTED + REFERENCE.COMMENT_UPDATED atomically when comment provided.
+- [x] Unit tests for all 11 routes in `__tests__/api/references-*.test.ts` and `__tests__/api/reference-contacts-*.test.ts`. Cover: 401, validation, per-experience cap (Free vs Pro), NDA-experience rejection, email-match enforcement, two-tier employer contact gate (pending<10 + accepted-30d<5), double-accept guard, revoke routing (requester pending + accepted, referee accepted only), snapshot immutability across experience edits, expired-reference rejection (24mo accepted + 30d pending), comment length cap (500 chars), comment write requires referee + accepted status, accept route batches REFERENCE.ACCEPTED + REFERENCE.COMMENT_UPDATED atomically when comment provided.
 
-- [ ] Stress test `stress-test-references.ts` (live remote DB): fires the full 11-event sequence (request → accept-with-comment → comment-edit → contact-request → contact-accept → engagement chat → close → revoke-by-requester-on-accepted), then negative cases (decline, revoke-pending, double-accept, contact-without-accepted-reference, contact on a revoked reference, NDA experience rejection, email-match block, comment over 500 chars rejected). **Fix A experience-deletion edge cases (5 checks)** — same five sub-cases listed in Phase 1's stress test, run end-to-end against the route layer (DELETE `/api/experiences/[id]` → projection → assert references soft-revoked, contacts declined, chat preserved, snapshots readable, re-request to same referee allowed). **Fix A auto-revoke notification (2 checks):** delete an experience with one accepted referee → assert exactly one row in `notifications` for that referee with `type='reference_auto_revoked'` and the expected body + deep_link; delete an experience with one pending reference (no referee_person_id yet) → assert no notification fires. **B-fix coverage (6 checks):**
+- [x] Stress test `stress-test-references.ts` (live remote DB): fires the full 11-event sequence (request → accept-with-comment → comment-edit → contact-request → contact-accept → engagement chat → close → revoke-by-requester-on-accepted), then negative cases (decline, revoke-pending, double-accept, contact-without-accepted-reference, contact on a revoked reference, NDA experience rejection, email-match block, comment over 500 chars rejected). **Fix A experience-deletion edge cases (5 checks)** — same five sub-cases listed in Phase 1's stress test, run end-to-end against the route layer (DELETE `/api/experiences/[id]` → projection → assert references soft-revoked, contacts declined, chat preserved, snapshots readable, re-request to same referee allowed). **Fix A auto-revoke notification (2 checks):** delete an experience with one accepted referee → assert exactly one row in `notifications` for that referee with `type='reference_auto_revoked'` and the expected body + deep_link; delete an experience with one pending reference (no referee_person_id yet) → assert no notification fires. **B-fix coverage (6 checks):**
   - **B-1:** revoke an accepted ref → re-request the SAME referee → re-accept succeeds (no unique-violation). Same for re-request after expired and after referee-decline.
   - **B-2:** POST `/api/references` for an experience with `is_current=true` returns 400; same experience after toggling is_current=false succeeds.
   - **B-3:** initial REFERENCE.REQUESTED then resend: assert two distinct event rows (idempotency keys differ); double-tap the resend route with same payload → second tap dedups (one new ref, not two).
@@ -321,13 +321,13 @@ Each route follows the canonical pattern: `requireDomainUser()` (or `requireAuth
 
   43-48 checks total.
 
-- [ ] BUILD_STATE.md: bump schema v124 → v126 with two stage entries (one per migration). Migration table rows for 00125 and 00126.
+- [x] BUILD_STATE.md: bump schema v124 → v126 with two stage entries (one per migration). Migration table rows for 00125 and 00126.
 
-- [ ] supabase/README.md: rows for 00125 + 00126.
+- [x] supabase/README.md: rows for 00125 + 00126.
 
-- [ ] apps/web/README.md: section on the 11 new routes + the share-link primitive + the consent-pseudo-thread shape in `/messages` + the `<ReferenceContactHeader>` for chat layout switching.
+- [x] apps/web/README.md: section on the 11 new routes + the share-link primitive + the consent-pseudo-thread shape in `/messages` + the `<ReferenceContactHeader>` for chat layout switching.
 
-- [ ] packages/types/README.md: 11 new event types listed.
+- [x] packages/types/README.md: 11 new event types listed.
 
 - [ ] Final commit + push + watch CI green.
 
