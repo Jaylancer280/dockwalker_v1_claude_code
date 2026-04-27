@@ -200,20 +200,37 @@ export function AddReferenceDialog({
             </div>
           ) : atCap ? (
             <div className="space-y-4">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
-                <p className="font-medium">You&apos;ve used your reference for this experience</p>
-                <p className="mt-1 text-xs">
-                  Crew Pro · €4.99/mo · Adds up to 2 more references per experience + Docky AI
-                  access
-                </p>
-              </div>
+              {cap === 1 ? (
+                // Free tier — surface the Crew Pro upsell as the path forward.
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
+                  <p className="font-medium">You&apos;ve used your reference for this experience</p>
+                  <p className="mt-1 text-xs">
+                    Free includes 1 reference per experience. Upgrade to Crew Pro (€4.99/mo) for up
+                    to <strong>3 references per experience</strong>, plus 500 Docky questions/month
+                    and personalised career advice.
+                  </p>
+                </div>
+              ) : (
+                // Pro tier — already at the 3-cap; no further upgrade exists.
+                <div className="rounded-lg border border-border bg-[var(--surface)] p-4 text-sm">
+                  <p className="font-medium">
+                    You&apos;ve reached the {cap}-reference limit for this experience
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Revoke an existing reference from Settings → References if you want to add a
+                    different one.
+                  </p>
+                </div>
+              )}
               <DialogFooter className="flex gap-2 sm:gap-0">
                 <Button variant="outline" onClick={() => handleClose(false)}>
                   Cancel
                 </Button>
-                <Button asChild>
-                  <a href="/billing?plan=crew_pro">Upgrade</a>
-                </Button>
+                {cap === 1 && (
+                  <Button asChild>
+                    <a href="/billing?plan=crew_pro">Upgrade to Crew Pro</a>
+                  </Button>
+                )}
               </DialogFooter>
             </div>
           ) : (
@@ -261,6 +278,21 @@ export function AddReferenceDialog({
                 Once your referee accepts, the vessel, dates, and role on this experience are locked
                 until you revoke the reference.
               </p>
+              {/* Soft upsell — Free users see this BEFORE they hit the cap.
+                  Pro users (cap > 1) and the cap-reached path get their own
+                  panels above. */}
+              {cap === 1 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Free includes <strong>1 reference per experience</strong>. Want to invite a
+                  captain <em>and</em> a HOD?{' '}
+                  <a
+                    href="/billing?plan=crew_pro"
+                    className="underline underline-offset-2 hover:text-foreground"
+                  >
+                    Crew Pro adds 2 more.
+                  </a>
+                </p>
+              )}
               <DialogFooter className="flex gap-2 sm:gap-0">
                 <Button variant="outline" onClick={() => handleClose(false)}>
                   Cancel

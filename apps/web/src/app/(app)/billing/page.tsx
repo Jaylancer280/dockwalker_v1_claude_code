@@ -29,12 +29,14 @@ const CREW_TIER: TierConfig = {
     '10 Docky questions/month',
     'General MCA guidance',
     '3 daywork + 1 permanent template',
+    '1 reference per experience',
   ],
   proFeatures: [
     '500 Docky questions/month',
     'Personalised career advice — Docky reads your profile',
     'Appear in employer searches for daywork invitations',
     '5 daywork + 2 permanent templates',
+    'Up to 3 references per experience',
   ],
 };
 
