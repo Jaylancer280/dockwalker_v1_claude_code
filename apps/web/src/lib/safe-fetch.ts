@@ -19,12 +19,23 @@ function resolveUrl(url: string): string {
 /**
  * Thin wrapper around fetch with timeout and safe error parsing.
  * Returns a discriminated union — never throws.
+ *
+ * Auth handling (`skipAuthRedirect`):
+ *   - **Default (false):** a 401 hard-redirects the browser to `/auth/login`.
+ *     Use for navigation-style fetches (page loads, list refreshes) where
+ *     dropping the user back at sign-in is the right recovery.
+ *   - **`skipAuthRedirect: true`:** a 401 is returned as a normal error
+ *     result. Use inside form modals so a stale-session response surfaces
+ *     as a toast — the user keeps their typed-in data and can re-auth in
+ *     another tab. Without this, mid-form 401s wipe the form on redirect
+ *     (and on group-routed pages, dump the user back at the route's
+ *     entry state — e.g. the daywork-vs-permanent type selector).
  */
 export async function safeFetch<T = unknown>(
   url: string,
-  init?: RequestInit & { timeoutMs?: number },
+  init?: RequestInit & { timeoutMs?: number; skipAuthRedirect?: boolean },
 ): Promise<SafeFetchResult<T>> {
-  const { timeoutMs = 15000, ...fetchInit } = init ?? {};
+  const { timeoutMs = 15000, skipAuthRedirect = false, ...fetchInit } = init ?? {};
   url = resolveUrl(url);
 
   const controller = new AbortController();
@@ -39,10 +50,16 @@ export async function safeFetch<T = unknown>(
       return { ok: true, data };
     }
 
-    // 401 — session expired, redirect to login
-    if (res.status === 401 && typeof window !== 'undefined') {
-      window.location.href = '/auth/login';
-      return { ok: false, error: 'Session expired', status: 401 };
+    // 401 — session expired
+    if (res.status === 401) {
+      if (!skipAuthRedirect && typeof window !== 'undefined') {
+        window.location.href = '/auth/login';
+      }
+      return {
+        ok: false,
+        error: 'Your session expired — please sign in again',
+        status: 401,
+      };
     }
 
     // HTTP error — parse body safely

@@ -33,8 +33,7 @@ describe('safeFetch', () => {
     expect(result).toEqual({ ok: false, error: 'Invalid input', status: 400 });
   });
 
-  it('redirects to login on HTTP 401', async () => {
-    // Mock window.location
+  it('redirects to login on HTTP 401 (default)', async () => {
     const originalLocation = window.location;
     Object.defineProperty(window, 'location', {
       writable: true,
@@ -48,10 +47,41 @@ describe('safeFetch', () => {
     });
 
     const result = await safeFetch('/api/test');
-    expect(result).toEqual({ ok: false, error: 'Session expired', status: 401 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(401);
+      expect(result.error).toMatch(/session expired/i);
+    }
     expect(window.location.href).toBe('/auth/login');
 
-    // Restore
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    });
+  });
+
+  it('returns 401 as a normal error when skipAuthRedirect is true (form-modal context)', async () => {
+    const originalLocation = window.location;
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, href: 'http://localhost/daywork/post' },
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve(JSON.stringify({ error: 'Unauthorized' })),
+    });
+
+    const result = await safeFetch('/api/test', { skipAuthRedirect: true });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(401);
+      expect(result.error).toMatch(/session expired/i);
+    }
+    // Critically: the browser was NOT redirected away from the form.
+    expect(window.location.href).toBe('http://localhost/daywork/post');
+
     Object.defineProperty(window, 'location', {
       writable: true,
       value: originalLocation,

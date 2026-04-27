@@ -20,7 +20,7 @@ export function useSafeFetch<T = unknown>(url: string | null, options?: SWRConfi
       dedupingInterval: 5000,
       shouldRetryOnError: (err: Error) => {
         // Don't retry on 401 — safeFetch is already redirecting to login
-        if (err.message === 'Session expired') return false;
+        if (/session expired/i.test(err.message)) return false;
         return true;
       },
       ...options,

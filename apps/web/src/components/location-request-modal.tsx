@@ -143,6 +143,9 @@ export function LocationRequestModal({
     const res = await safeFetch<{ cityId: string; portId?: string }>('/api/locations/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // Form modal — keep the user on the page on 401 so they don't lose
+      // what they typed. Surface the error as inline copy instead.
+      skipAuthRedirect: true,
       body: JSON.stringify({
         country_code: region.country_code,
         country_name: region.name,

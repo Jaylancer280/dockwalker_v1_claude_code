@@ -90,6 +90,9 @@ export function AddReferenceDialog({
     const result = await safeFetch<{ id: string; token: string; link: string }>('/api/references', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // Form modal — surface 401 as a toast rather than redirecting the
+      // browser away (which would wipe the typed referee details).
+      skipAuthRedirect: true,
       body: JSON.stringify({
         experienceId,
         claimedRefereeRole: role,
