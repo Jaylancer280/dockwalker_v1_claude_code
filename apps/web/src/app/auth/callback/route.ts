@@ -7,6 +7,12 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/onboarding';
+  // Lightweight referee signup (?referee=1) — after email confirmation,
+  // run onboard_person with referee_only=true so the user has a minimal
+  // profile when they land on /ref/[token]. The full onboarding flow is
+  // skipped because referee_only users only need name + email + the
+  // ability to consent to references.
+  const isReferee = searchParams.get('referee') === '1';
 
   const cookieStore = await cookies();
 
@@ -45,10 +51,37 @@ export async function GET(request: Request) {
     return response;
   }
 
+  async function maybeOnboardReferee(): Promise<void> {
+    if (!isReferee) return;
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (!data?.user) return;
+      // Skip if already onboarded (defence — onboard_person inserts and
+      // would fail on duplicate person_id).
+      const { data: existingPerson } = await supabase
+        .from('persons')
+        .select('id')
+        .eq('id', data.user.id)
+        .maybeSingle();
+      if (existingPerson) return;
+      const displayName = data.user.email?.split('@')[0] ?? 'Referee';
+      await supabase.rpc('onboard_person', {
+        p_identity_type: 'crew',
+        p_current_hat: 'crew',
+        p_profile: { display_name: displayName, referee_only: true },
+        p_person_id: data.user.id,
+      });
+    } catch {
+      // Onboarding RPC failure shouldn't block the redirect — the
+      // /ref/[token] page handles the not-onboarded edge case.
+    }
+  }
+
   // PKCE flow: Supabase redirects with a `code` parameter
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      await maybeOnboardReferee();
       return redirectWithCookies(next);
     }
   }
@@ -60,6 +93,7 @@ export async function GET(request: Request) {
   if (tokenHash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
     if (!error) {
+      await maybeOnboardReferee();
       return redirectWithCookies(next);
     }
   }

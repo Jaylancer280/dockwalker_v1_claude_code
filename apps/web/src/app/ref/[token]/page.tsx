@@ -19,38 +19,48 @@ export default async function ReferenceLandingPage({ params }: RefPageProps) {
   const { token } = await params;
   if (!token || token.length < 16) notFound();
 
-  const sc = await createServiceClient();
-  const { data: ref } = await sc
-    .from('references')
-    .select(
-      [
-        'id',
-        'requester_person_id',
-        'status',
-        'pending_expires_at',
-        'requester_role_at_time',
-        'claimed_referee_role',
-        'claimed_referee_email',
-        'snapshot_vessel_imo',
-        'snapshot_vessel_name',
-        'snapshot_start_date',
-        'snapshot_end_date',
-      ].join(','),
-    )
-    .eq('token', token)
-    .maybeSingle<{
-      id: string;
-      requester_person_id: string;
-      status: string;
-      pending_expires_at: string;
-      requester_role_at_time: string;
-      claimed_referee_role: string;
-      claimed_referee_email: string | null;
-      snapshot_vessel_imo: string;
-      snapshot_vessel_name: string;
-      snapshot_start_date: string;
-      snapshot_end_date: string | null;
-    }>();
+  type RefRow = {
+    id: string;
+    requester_person_id: string;
+    status: string;
+    pending_expires_at: string;
+    requester_role_at_time: string;
+    claimed_referee_role: string;
+    claimed_referee_email: string | null;
+    snapshot_vessel_imo: string;
+    snapshot_vessel_name: string;
+    snapshot_start_date: string;
+    snapshot_end_date: string | null;
+  };
+  let ref: RefRow | null = null;
+  try {
+    const sc = await createServiceClient();
+    const result = await sc
+      .from('references')
+      .select(
+        [
+          'id',
+          'requester_person_id',
+          'status',
+          'pending_expires_at',
+          'requester_role_at_time',
+          'claimed_referee_role',
+          'claimed_referee_email',
+          'snapshot_vessel_imo',
+          'snapshot_vessel_name',
+          'snapshot_start_date',
+          'snapshot_end_date',
+        ].join(','),
+      )
+      .eq('token', token)
+      .maybeSingle<RefRow>();
+    ref = result.data;
+  } catch {
+    // Fall through to the not-found UI rather than rendering the Next.js
+    // error boundary. A misconfigured service-role key or transient network
+    // failure shouldn't show "Something went wrong".
+    ref = null;
+  }
 
   if (!ref) {
     return (
@@ -89,21 +99,35 @@ export default async function ReferenceLandingPage({ params }: RefPageProps) {
     );
   }
 
-  // Lookup requester display_name
-  const { data: requester } = await sc
-    .from('profiles')
-    .select('display_name')
-    .eq('person_id', ref.requester_person_id)
-    .maybeSingle();
+  // Lookup requester display_name (re-creates service client because the
+  // earlier one was inside a try-block that may have failed gracefully).
+  let requesterDisplayName: string | null = null;
+  try {
+    const sc2 = await createServiceClient();
+    const { data: requester } = await sc2
+      .from('profiles')
+      .select('display_name')
+      .eq('person_id', ref.requester_person_id)
+      .maybeSingle();
+    requesterDisplayName = (requester?.display_name as string | undefined) ?? null;
+  } catch {
+    // Display fallback handles the null case.
+  }
 
   // Check the current viewer's session to decide between auth-redirect vs
-  // signup CTA.
-  const userClient = await createClient();
-  const {
-    data: { user: currentUser },
-  } = await userClient.auth.getUser();
+  // signup CTA. Wrapped in try/catch because the WhatsApp in-app browser
+  // ships with no cookies, and partial-session states have caused
+  // auth.getUser() to throw on some auth-server transient failures.
+  let currentUser: { id: string; email?: string | null } | null = null;
+  try {
+    const userClient = await createClient();
+    const result = await userClient.auth.getUser();
+    currentUser = result.data.user;
+  } catch {
+    // Treat as logged-out.
+  }
 
-  const requesterName = (requester?.display_name as string | undefined) ?? 'A crew member';
+  const requesterName = requesterDisplayName ?? 'A crew member';
   const claimedEmailMasked = ref.claimed_referee_email
     ? maskEmail(ref.claimed_referee_email)
     : null;

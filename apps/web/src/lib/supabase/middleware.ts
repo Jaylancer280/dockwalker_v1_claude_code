@@ -84,6 +84,9 @@ export async function updateSession(request: NextRequest) {
     '/auth/reset-password',
     '/privacy',
     '/terms',
+    '/ref/', // Reference consent landing — public so the share-link works for
+    //         first-time visitors who don't have a DockWalker account yet.
+    //         The page itself routes them to lightweight signup if needed.
   ];
   const isPublicRoute =
     publicRoutes.some((route) => path.startsWith(route)) || path.startsWith('/jobs');

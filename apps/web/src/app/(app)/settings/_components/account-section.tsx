@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, CreditCard, LogOut, Check } from 'lucide-react';
+import { ChevronRight, CreditCard, LogOut, Check, Users } from 'lucide-react';
 import type { UserIdentity } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -254,6 +254,20 @@ export function AccountSection({ email, identities }: AccountSectionProps) {
           <div className="flex items-center gap-3">
             <CreditCard className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-medium">Subscription</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+
+        <Separator />
+
+        {/* References */}
+        <button
+          onClick={() => router.push('/settings/references')}
+          className="flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-accent"
+        >
+          <div className="flex items-center gap-3">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-medium">References</p>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </button>

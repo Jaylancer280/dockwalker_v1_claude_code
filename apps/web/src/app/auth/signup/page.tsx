@@ -93,11 +93,21 @@ function SignUpPageInner() {
     setLoading(true);
 
     const supabase = createClient();
+    // Forward `next` + `referee` into the email confirmation link so the
+    // user lands back on /ref/[token] after confirming on a different
+    // device or tab. /auth/callback respects the next param and the
+    // /ref/[token] page handles the post-confirm consent flow.
+    const callbackParams = new URLSearchParams();
+    if (next) callbackParams.set('next', next);
+    if (isReferee) callbackParams.set('referee', '1');
+    const callbackQs = callbackParams.toString();
+    const emailRedirectTo = `${window.location.origin}/auth/callback${callbackQs ? `?${callbackQs}` : ''}`;
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo,
       },
     });
 

@@ -121,8 +121,13 @@ export function AddReferenceDialog({
           url: createdLink.link,
         });
         return;
-      } catch {
-        // User cancelled — fall through to clipboard.
+      } catch (err) {
+        // AbortError means the user dismissed the share sheet (or in some
+        // iOS WebView builds the share completes successfully but still
+        // throws AbortError). Either way, don't fall through to clipboard
+        // and don't surface an error — the user already saw the share UI.
+        if (err instanceof Error && err.name === 'AbortError') return;
+        // Real share failure — fall through to clipboard fallback.
       }
     }
     try {
@@ -131,7 +136,9 @@ export function AddReferenceDialog({
       showSuccess('Link copied');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showError("Couldn't copy link");
+      // Clipboard failed too — silently no-op rather than showing an error.
+      // The share sheet likely already opened, and the user can long-press
+      // the visible link textbox to copy manually.
     }
   }
 
