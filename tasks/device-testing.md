@@ -224,7 +224,96 @@ The `get_vessel_public` RPC now filters pending + hidden vessels for non-owner n
 
 ---
 
-## 7. Regression spot-checks
+## 7. Consent-based references (commits `b2d6d50` → `030600c`)
+
+End-to-end peer references with snapshot lock + employer contact flow. The bulk of the happy path was verified live (send → accept → render on profile, snapshot edit-lock, public profile rendering); below covers what hasn't been on a device yet.
+
+### Already verified live (skip)
+
+- [x] Crew sends a reference invitation → row appears as Pending in Settings → References → 1/3 (or 1/1 on Free)
+- [x] Share link from WhatsApp → consent page renders correctly (vessel, dates, both roles, comment field)
+- [x] Referee accepts with comment → row promotes to Accepted, requester sees it on Settings → References + on the public/employer-view of their profile
+- [x] Edit-experience locks role + dates + currently-onboard inputs (greyed out) when an active reference exists; saves still go through for non-locked fields (description, salary, sea time)
+- [x] Notification deep-links: `REFERENCE.REQUESTED` → `/ref/[token]`, `REFERENCE.ACCEPTED` → `/settings/references`
+
+### Auto-supersede (resend-with-edits)
+
+- [ ] Send a reference to `captain@example.com` for an experience → confirm pending in Settings → References
+- [ ] Without revoking, open Add Reference on the same experience again with the **same** email → confirm route returns a fresh share link
+- [ ] Settings → References: previous pending should be in **History → "Crew member revoked"**, the new one should be the only **Pending** entry (count stays 1/N, no orphan rows)
+- [ ] Repeat with **same name + no email**: the supersede should match by normalized name; same single-pending result
+
+### Per-experience cap
+
+- [ ] On Free plan, send a reference → try to send a second to a _different_ referee on the same experience → 402 with **"upgrade to Crew Pro"** copy and an **Upgrade** button linking to `/billing`
+- [ ] Upgrade to Crew Pro (or stamp the test account directly) → cap should now be 3 — third send to a third referee succeeds; fourth is blocked with **"Per-experience cap of 3 reached"**
+- [ ] Cap pre-check excludes the soon-to-be-superseded row: at-cap user can still resend to one of their existing referees
+
+### B-2 — current-experience block
+
+- [ ] Mark an experience `is_current = true` (Currently onboard) → Add reference button on the expanded card should not appear (blocked by B-2)
+- [ ] If you somehow reach the dialog, server returns 400 — "Mark this experience as completed before adding a reference"
+
+### Decline path
+
+- [ ] Generate an invitation; on the referee's account tap **Decline** → confirm dialog says "We won't tell {requester} that you declined"
+- [ ] Confirm → toast says "Invitation declined", referee returns to Messages
+- [ ] Requester's Settings → References: invitation moves from **Pending Invitations** to **History → "Declined"** (no notification fires to requester per Phase 2 spec)
+
+### Resend (manual, from Settings → References)
+
+- [ ] Pending invitation card shows **Copy link**, **Resend**, **Cancel** buttons
+- [ ] Tap **Resend** → confirm dialog → fresh link generated, old token stops working (visit it → "No longer available — declined/revoked")
+- [ ] Tap **Cancel** on a pending invitation → confirm dialog → row moves to History as "Crew member revoked"
+
+### Edit comment as referee
+
+- [ ] On the referee account, Settings → References → "References you've given" → tap **Edit comment** on an accepted reference
+- [ ] Type a new comment, tap Save → confirm dialog explains it's publicly visible → confirm → toast "Comment updated"
+- [ ] Reload the requester's public profile → updated comment shows on the experience card
+- [ ] Try a comment over 500 chars → server rejects with 400
+
+### Revoke by referee
+
+- [ ] On the referee account, Settings → References → "References you've given" → tap **Revoke consent**
+- [ ] Confirm dialog: "The crew member will lose this reference and your comment from their profile" → confirm
+- [ ] Reload the requester's public profile → reference is gone from the experience card and `references_active_count` drops
+- [ ] Settings → References (referee side): row gone from accepted list; (requester side): row in History as "Referee revoked"
+
+### Auto-revoke on experience removal (Fix A)
+
+- [ ] Crew has an experience with an accepted reference → delete that experience from /profile
+- [ ] Confirm: experience disappears, reference auto-revokes
+- [ ] Referee receives a `reference_auto_revoked` in-app notification: "<Requester> removed the experience this reference was tied to. Your reference for <vessel> has been withdrawn." → tapping deep-links to `/settings/references`
+- [ ] Both Settings → References pages show the row in History with revoke reason "Crew member removed this experience"
+
+### Contact-reference flow (employer side)
+
+Requires an employer/agent account that has _context_ with the crew (engagement, application, or invitation). Easiest setup: the employer test account posts a daywork; the crew with the reference applies.
+
+- [ ] Employer opens the crew's profile from the application → references render on each experience card with the referee's name/role/comment
+- [ ] Tap **Contact reference** → dialog with optional question (≤200 chars) + consent stakes copy
+- [ ] Submit → toast "Request sent" → counter "X left this month" updates
+- [ ] **Free cap**: at 10 outstanding pending → 402 with `pending_budget` gate + Upgrade button. At 5 accepted in any rolling 30-day window → 402 with `monthly_budget` gate + Upgrade button. Pro = unlimited.
+- [ ] Referee receives `REFERENCE.CONTACT_REQUESTED` in-app notification → tap → consent screen with the question (if provided) and Accept/Decline
+- [ ] Accept → opens a 1:1 conversation with the question pre-populated as the first message (P1-D); Decline → silent on employer side, no notification fires
+- [ ] **Self-contact guard** (edge case): if a dual-hat user is _both_ an employer and the referee on a reference, they should NOT be able to "contact themselves" — server returns 409 "You're the referee on this reference — you can't contact yourself"
+
+### Email-mismatch path on /ref/[token]
+
+- [ ] Send an invitation with `claimed_referee_email = a@example.com`
+- [ ] Open the share link while signed in as a _different_ email account → consent page shows amber "This invitation was sent to a different email" warning with a masked hint (`a***a@example.com`)
+- [ ] Sign out + sign in with the matching email → consent page accepts the user, Accept/Decline buttons render
+
+### Vessel-state gating
+
+- [ ] Try Add Reference on an experience attached to an **NDA vessel** → 400 "references on NDA vessels are not supported"
+- [ ] Try Add Reference on an experience attached to a **pending (not curated)** vessel → 400 "references require a curated vessel"
+- [ ] Try Add Reference on a **hidden** vessel → 400 "vessel is hidden"
+
+---
+
+## 8. Regression spot-checks
 
 These weren't directly modified but share infrastructure with what was — quick re-confirm.
 
@@ -238,7 +327,7 @@ These weren't directly modified but share infrastructure with what was — quick
 
 ---
 
-## 8. Known device-test quirks (from `memory/`)
+## 9. Known device-test quirks (from `memory/`)
 
 Read these before reporting bugs — some of what looks broken is a known caching or layering issue:
 

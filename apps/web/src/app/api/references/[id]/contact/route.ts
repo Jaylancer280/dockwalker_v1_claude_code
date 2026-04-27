@@ -51,6 +51,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { status: 409 },
       );
     }
+    // Edge case: a dual-hat user can be both the referee AND an employer/agent
+    // looking at the crew's profile — block self-contact so they don't notify
+    // themselves and burn a budget slot.
+    if ((ref.referee_person_id as string | null) === user.id) {
+      return NextResponse.json(
+        { error: "You're the referee on this reference — you can't contact yourself" },
+        { status: 409 },
+      );
+    }
 
     const body = (await request.json().catch(() => ({}))) as { question?: string };
     const question = typeof body.question === 'string' ? body.question.trim() : null;

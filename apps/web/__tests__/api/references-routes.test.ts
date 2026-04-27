@@ -547,6 +547,26 @@ describe('POST /api/references/[id]/contact', () => {
     );
     expect(res.status).toBe(409);
   });
+
+  it('rejects when caller is the referee (self-contact)', async () => {
+    mockRequireDomainUser.mockResolvedValue(
+      guardOk({ person: { id: 'u1', identity_type: 'crew', current_hat: 'employer' } }),
+    );
+    // referee_person_id matches the caller — dual-hat user contacting their own reference
+    mockServiceFrom.mockReturnValueOnce(
+      chainResolve({ id: 'r1', status: 'accepted', referee_person_id: 'u1', snapshot_vessel_name: 'Boat' }),
+    );
+    const res = await contactRef(
+      new Request('http://localhost/api/references/r1/contact', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }),
+      params({ id: 'r1' }),
+    );
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toMatch(/can't contact yourself/i);
+  });
 });
 
 describe('POST /api/references/[id]/decline', () => {
