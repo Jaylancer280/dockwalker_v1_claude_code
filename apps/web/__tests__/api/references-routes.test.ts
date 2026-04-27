@@ -641,6 +641,65 @@ describe('POST /api/references/[id]/comment', () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it('notifies the requester when the referee edits the comment', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockServiceFrom.mockReturnValueOnce(
+      chainResolve({
+        id: 'r1',
+        status: 'accepted',
+        referee_person_id: 'u1',
+        requester_person_id: 'u2',
+        snapshot_vessel_name: 'Burkut',
+      }),
+    );
+    const res = await commentRef(
+      new Request('http://localhost/api/references/r1/comment', {
+        method: 'POST',
+        body: JSON.stringify({ comment: 'updated comment' }),
+      }),
+      params({ id: 'r1' }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockNotifyOnEvent).toHaveBeenCalledWith(
+      mockServiceClient,
+      'REFERENCE.COMMENT_UPDATED',
+      expect.objectContaining({
+        reference_id: 'r1',
+        recipient_person_id: 'u2',
+        snapshot_vessel_name: 'Burkut',
+        cleared: false,
+      }),
+      'u1',
+    );
+  });
+
+  it('flags the cleared variant when comment is removed', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockServiceFrom.mockReturnValueOnce(
+      chainResolve({
+        id: 'r1',
+        status: 'accepted',
+        referee_person_id: 'u1',
+        requester_person_id: 'u2',
+        snapshot_vessel_name: 'Burkut',
+      }),
+    );
+    const res = await commentRef(
+      new Request('http://localhost/api/references/r1/comment', {
+        method: 'POST',
+        body: JSON.stringify({ comment: null }),
+      }),
+      params({ id: 'r1' }),
+    );
+    expect(res.status).toBe(200);
+    expect(mockNotifyOnEvent).toHaveBeenCalledWith(
+      mockServiceClient,
+      'REFERENCE.COMMENT_UPDATED',
+      expect.objectContaining({ cleared: true }),
+      'u1',
+    );
+  });
 });
 
 describe('GET /api/references/by-token/[token]', () => {

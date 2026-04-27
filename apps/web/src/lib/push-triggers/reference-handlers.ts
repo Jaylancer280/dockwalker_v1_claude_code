@@ -38,6 +38,13 @@ interface RefContactAcceptedPayload {
   recipient_person_id?: string;
 }
 
+interface RefCommentUpdatedPayload {
+  reference_id?: string;
+  recipient_person_id?: string;
+  snapshot_vessel_name?: string;
+  cleared?: boolean;
+}
+
 export async function handleReferenceRequested(
   _sc: SupabaseClient,
   payload: Record<string, unknown>,
@@ -95,6 +102,29 @@ export async function handleReferenceContactRequested(
         title: 'Contact request',
         body: `An employer would like to chat about your reference for ${vessel}.${questionPart}`,
         data: { screen: 'messages' },
+      },
+    },
+  ];
+}
+
+export async function handleReferenceCommentUpdated(
+  _sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const p = payload as RefCommentUpdatedPayload;
+  if (!p.recipient_person_id) return [];
+  const vessel = p.snapshot_vessel_name ?? 'your past vessel';
+  const body = p.cleared
+    ? `Your referee removed their comment on the ${vessel} reference. Tap to review.`
+    : `Your referee updated their comment on the ${vessel} reference. Tap to review.`;
+  return [
+    {
+      recipientPersonId: p.recipient_person_id,
+      roleContext: 'crew',
+      notification: {
+        title: 'Reference comment updated',
+        body,
+        data: { screen: 'settings/references' },
       },
     },
   ];

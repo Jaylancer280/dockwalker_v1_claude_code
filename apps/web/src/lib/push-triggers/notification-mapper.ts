@@ -27,6 +27,7 @@ export function mapEventToNotificationType(eventType: string): string | null {
     'SUPPORT.MESSAGE_SENT': 'support_reply',
     'REFERENCE.REQUESTED': 'reference_request',
     'REFERENCE.ACCEPTED': 'reference_accepted',
+    'REFERENCE.COMMENT_UPDATED': 'reference_comment_updated',
     'REFERENCE.CONTACT_REQUESTED': 'reference_contact_request',
     'REFERENCE.CONTACT_ACCEPTED': 'reference_contact_accepted',
   };
@@ -83,6 +84,7 @@ export function resolveDeepLink(
     case 'REFERENCE.CONTACT_REQUESTED':
       return '/messages';
     case 'REFERENCE.ACCEPTED':
+    case 'REFERENCE.COMMENT_UPDATED':
       return '/settings/references';
     case 'REFERENCE.CONTACT_ACCEPTED':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : '/messages';

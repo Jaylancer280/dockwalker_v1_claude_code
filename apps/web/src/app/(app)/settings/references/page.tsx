@@ -65,6 +65,24 @@ function formatDates(start: string, end: string | null): string {
   return end ? `${start} — ${end}` : `from ${start}`;
 }
 
+function formatEditedAt(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  const diffMs = Date.now() - t;
+  const min = Math.round(diffMs / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function siteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.dockwalker.io';
 }
@@ -258,6 +276,17 @@ export default function ReferencesSettingsPage() {
                             &ldquo;{r.comment}&rdquo;
                           </blockquote>
                         )}
+                        {r.comment &&
+                          r.comment_updated_at &&
+                          r.consented_at &&
+                          r.comment_updated_at !== r.consented_at && (
+                            <p
+                              className="mt-1 pl-2 text-[11px] text-muted-foreground"
+                              title={`Edited ${new Date(r.comment_updated_at).toLocaleString()}`}
+                            >
+                              Edited {formatEditedAt(r.comment_updated_at)}
+                            </p>
+                          )}
                       </div>
                       <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100">
                         Accepted

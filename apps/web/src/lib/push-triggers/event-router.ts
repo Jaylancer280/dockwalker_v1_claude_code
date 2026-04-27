@@ -29,6 +29,7 @@ import { handleSupportThreadOpened, handleSupportMessageSent } from './support-h
 import {
   handleReferenceRequested,
   handleReferenceAccepted,
+  handleReferenceCommentUpdated,
   handleReferenceContactRequested,
   handleReferenceContactAccepted,
 } from './reference-handlers';
@@ -111,6 +112,8 @@ export async function resolveNotification(
       return handleReferenceRequested(sc, payload);
     case 'REFERENCE.ACCEPTED':
       return handleReferenceAccepted(sc, payload);
+    case 'REFERENCE.COMMENT_UPDATED':
+      return handleReferenceCommentUpdated(sc, payload);
     case 'REFERENCE.CONTACT_REQUESTED':
       return handleReferenceContactRequested(sc, payload);
     case 'REFERENCE.CONTACT_ACCEPTED':

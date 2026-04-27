@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
+import { notifyOnEvent } from '@/lib/push-triggers';
 
 /**
  * POST /api/references/[id]/comment
@@ -8,7 +9,10 @@ import { appendEvent } from '@dockwalker/db';
  *   - Auth required, must be the referee.
  *   - Reference must be `accepted`.
  *   - Body: `{ comment: string | null }` (max 500 chars; null/empty clears).
- *   - Fires REFERENCE.COMMENT_UPDATED.
+ *   - Fires REFERENCE.COMMENT_UPDATED + an in-app notification to the
+ *     requester so silent edits to the public-facing comment can't slip
+ *     past unnoticed. Audit lives in the event log; UI surfaces an
+ *     "edited" badge via comment_updated_at.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const guard = await requireDomainUser();
@@ -20,7 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const { data: ref } = await serviceClient
       .from('references')
-      .select('id, status, referee_person_id')
+      .select('id, status, referee_person_id, requester_person_id, snapshot_vessel_name')
       .eq('id', id)
       .maybeSingle();
     if (!ref) {
@@ -53,6 +57,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       payload: { reference_id: id, comment },
       personId: user.id,
     });
+
+    // Notify the requester so they can't be silently rewritten on.
+    notifyOnEvent(
+      serviceClient,
+      'REFERENCE.COMMENT_UPDATED',
+      {
+        reference_id: id,
+        recipient_person_id: ref.requester_person_id as string,
+        snapshot_vessel_name: ref.snapshot_vessel_name as string,
+        cleared: comment === null || comment.length === 0,
+      },
+      user.id,
+    );
 
     return NextResponse.json({ ok: true });
   } catch (err) {

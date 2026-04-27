@@ -31,6 +31,7 @@ interface ReferenceRow {
   claimed_referee_name: string;
   comment: string | null;
   consented_at: string;
+  comment_updated_at: string | null;
   referee_display_name: string | null;
   referee_role_id: string | null;
   referee_role_name: string | null;
@@ -327,11 +328,21 @@ function ReferenceRowList({
                 </div>
               </button>
               {ref.comment && (
-                <ExpandableText
-                  text={`"${ref.comment}"`}
-                  maxLines={3}
-                  className="mt-2 text-sm italic text-muted-foreground"
-                />
+                <>
+                  <ExpandableText
+                    text={`"${ref.comment}"`}
+                    maxLines={3}
+                    className="mt-2 text-sm italic text-muted-foreground"
+                  />
+                  {ref.comment_updated_at && ref.comment_updated_at !== ref.consented_at && (
+                    <p
+                      className="mt-1 text-[11px] text-muted-foreground"
+                      title={`Edited ${new Date(ref.comment_updated_at).toLocaleString()}`}
+                    >
+                      Edited {formatEditedAt(ref.comment_updated_at)}
+                    </p>
+                  )}
+                </>
               )}
               {canContact && onContactReference && (
                 <Button
@@ -871,4 +882,22 @@ function formatDateRange(start: string, end: string | null, isCurrent: boolean):
   if (isCurrent) return `${fmt(start)} — Present`;
   if (!end) return fmt(start);
   return `${fmt(start)} — ${fmt(end)}`;
+}
+
+function formatEditedAt(iso: string): string {
+  const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return '';
+  const diffMs = Date.now() - t;
+  const min = Math.round(diffMs / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.round(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }

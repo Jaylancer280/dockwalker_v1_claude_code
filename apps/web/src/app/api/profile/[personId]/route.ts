@@ -270,6 +270,7 @@ async function buildCrewProfile(
       claimed_referee_name: string;
       comment: string | null;
       consented_at: string;
+      comment_updated_at: string | null;
       referee_display_name: string | null;
       referee_role_id: string | null;
       referee_role_name: string | null;
@@ -289,7 +290,7 @@ async function buildCrewProfile(
       .from('references')
       .select(
         `id, experience_id, referee_person_id, claimed_referee_role, claimed_referee_name,
-         comment, consented_at`,
+         comment, consented_at, comment_updated_at`,
       )
       .in('experience_id', experienceIds)
       .eq('status', 'accepted')
@@ -348,6 +349,7 @@ async function buildCrewProfile(
       claimed_referee_name: string;
       comment: string | null;
       consented_at: string;
+      comment_updated_at: string | null;
     }>) {
       const expId = r.experience_id;
       if (!grouped[expId]) grouped[expId] = [];
@@ -362,6 +364,7 @@ async function buildCrewProfile(
         claimed_referee_name: r.claimed_referee_name,
         comment: r.comment,
         consented_at: r.consented_at,
+        comment_updated_at: r.comment_updated_at,
         referee_display_name: profile?.display_name ?? null,
         referee_role_id: role?.id ?? null,
         referee_role_name: role?.name ?? null,

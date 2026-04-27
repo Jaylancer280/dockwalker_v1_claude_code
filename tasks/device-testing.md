@@ -273,6 +273,14 @@ End-to-end peer references with snapshot lock + employer contact flow. The bulk 
 - [ ] Reload the requester's public profile → updated comment shows on the experience card
 - [ ] Try a comment over 500 chars → server rejects with 400
 
+### Edit-notify + audit badge (anti silent-flip)
+
+- [ ] After a referee edits an accepted comment, the **requester** receives an in-app notification: "Reference comment updated — Your referee updated their comment on the {vessel} reference. Tap to review." → tapping deep-links to `/settings/references`
+- [ ] If the referee _clears_ the comment (saves blank), notification body reads "...removed their comment..."
+- [ ] On the requester's public profile (own preview AND from another account viewing them) → the comment block on the experience card shows "**Edited Xm ago**" / "**Xh ago**" / "**Xd ago**" / absolute date if older than 30 days, with a tooltip showing the full timestamp
+- [ ] On the requester's `/settings/references` "Pending invitations / Accepted references" list → same "Edited X ago" badge appears under the comment
+- [ ] On the _first_ save during accept (referee accepts WITH a comment in the same submission), no "Edited" badge shows — the badge only appears after a _subsequent_ edit to an already-accepted reference
+
 ### Revoke by referee
 
 - [ ] On the referee account, Settings → References → "References you've given" → tap **Revoke consent**
