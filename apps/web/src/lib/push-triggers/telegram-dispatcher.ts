@@ -43,6 +43,30 @@ function formatDateRange(start?: string, end?: string): string {
   return 'dates TBC';
 }
 
+/**
+ * Date range that always carries the year — used for historical
+ * reference snapshots, which routinely span multi-year tenures.
+ * Collapses repeat year ("17 Jul 2024 – 30 Sept 2024" → "17 Jul – 30 Sept 2024")
+ * but keeps both years when the range crosses calendar years.
+ */
+function formatDateRangeWithYear(start?: string, end?: string): string {
+  const yr = (iso: string): string => new Date(iso + 'T00:00:00').getFullYear().toString();
+  const dm = (iso: string): string =>
+    new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const dmy = (iso: string): string =>
+    new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  if (start && end) {
+    if (yr(start) === yr(end)) return `${dm(start)} – ${dmy(end)}`;
+    return `${dmy(start)} – ${dmy(end)}`;
+  }
+  if (start) return `${dmy(start)} – present`;
+  return 'dates TBC';
+}
+
 interface TelegramBody {
   text: string;
 }
@@ -558,7 +582,10 @@ async function resolveBody(
         ? await getDisplayName(sc, r.requester_person_id)
         : 'A crew member';
       const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
-      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const dates = formatDateRangeWithYear(
+        r?.snapshot_start_date,
+        r?.snapshot_end_date ?? undefined,
+      );
       const requesterRole = r?.requester_role_at_time ?? 'Crew';
       const refereeRole = r?.claimed_referee_role ?? 'a colleague';
       const expiry = r?.pending_expires_at
@@ -607,7 +634,10 @@ async function resolveBody(
         : (r?.claimed_referee_name ?? 'Your referee');
       const refereeRole = r?.claimed_referee_role ?? 'colleague';
       const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
-      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const dates = formatDateRangeWithYear(
+        r?.snapshot_start_date,
+        r?.snapshot_end_date ?? undefined,
+      );
       const comment = (r?.comment as string | null) ?? null;
       const commentLine = comment
         ? `\n\n💬 "${escapeHtml(previewText(comment, 220))}"`
@@ -651,7 +681,10 @@ async function resolveBody(
         : (r?.claimed_referee_name ?? 'Your referee');
       const refereeRole = r?.claimed_referee_role ?? 'colleague';
       const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
-      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const dates = formatDateRangeWithYear(
+        r?.snapshot_start_date,
+        r?.snapshot_end_date ?? undefined,
+      );
       const heading = cleared
         ? '✏️ <b>Reference comment removed</b>'
         : '✏️ <b>Reference comment updated</b>';
@@ -711,7 +744,10 @@ async function resolveBody(
         : 'a crew member';
       const refereeRole = r?.claimed_referee_role ?? 'their colleague';
       const vessel = vesselLabel('motor', r?.snapshot_vessel_name ?? vesselFallback);
-      const dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+      const dates = formatDateRangeWithYear(
+        r?.snapshot_start_date,
+        r?.snapshot_end_date ?? undefined,
+      );
       const questionLine = question
         ? `\n\n💬 They asked:\n"${escapeHtml(previewText(question, 220))}"`
         : '\n\n<i>(no question included)</i>';
@@ -763,7 +799,7 @@ async function resolveBody(
           : (r?.claimed_referee_name ?? refereeName);
         if (r?.claimed_referee_role) refereeName = `${refereeName} (${r.claimed_referee_role})`;
         if (r?.snapshot_vessel_name) vessel = vesselLabel('motor', r.snapshot_vessel_name);
-        dates = formatDateRange(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
+        dates = formatDateRangeWithYear(r?.snapshot_start_date, r?.snapshot_end_date ?? undefined);
       }
       return {
         text:
