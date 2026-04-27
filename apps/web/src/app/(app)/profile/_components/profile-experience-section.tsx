@@ -1,4 +1,7 @@
-import { Ship, Pencil, Trash2, Plus, ChevronUp, ChevronDown } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { Ship, Pencil, Trash2, Plus, ChevronUp, ChevronDown, UserPlus } from 'lucide-react';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { computeTotalExperience } from '@dockwalker/shared';
 import { ExpandableText } from '@/components/expandable-text';
+import { AddReferenceDialog } from '@/components/references/add-reference-dialog';
 
 interface ExperienceEntry {
   id: string;
@@ -38,9 +42,13 @@ interface ExperienceEntry {
     vessel_type: string;
     size_band_id: string;
     loa_meters: number;
+    nda_flag?: boolean;
+    source?: string;
+    hidden_at?: string | null;
     vessel_size_bands: unknown;
   } | null;
   yacht_roles: { id: string; name: string; department: string } | null;
+  references_active_count?: number;
 }
 
 interface ProfileExperienceSectionProps {
@@ -55,6 +63,10 @@ interface ProfileExperienceSectionProps {
   handleDeleteExperience: (id: string) => Promise<void>;
   onAddExperience: () => void;
   onEditExperience: (id: string) => void;
+  /** Caller's subscription plan — drives the per-experience reference cap. */
+  subscriptionPlan?: 'free' | 'crew_pro' | 'employer_pro' | string;
+  /** Triggered after an Add Reference dialog closes — caller refetches. */
+  onReferencesChanged?: () => void;
 }
 
 export function ProfileExperienceSection({
@@ -69,7 +81,12 @@ export function ProfileExperienceSection({
   handleDeleteExperience,
   onAddExperience,
   onEditExperience,
+  subscriptionPlan = 'free',
+  onReferencesChanged,
 }: ProfileExperienceSectionProps) {
+  const [addRefDialogExpId, setAddRefDialogExpId] = useState<string | null>(null);
+  const refsCap = subscriptionPlan === 'crew_pro' ? 3 : 1;
+  const dialogExp = experiences.find((e) => e.id === addRefDialogExpId);
   return (
     <>
       <div className="flex flex-col gap-2">
@@ -209,7 +226,32 @@ export function ProfileExperienceSection({
                           className="mt-2 text-sm text-muted-foreground"
                         />
                       )}
-                      <div className="mt-3 flex justify-end gap-2">
+                      <div className="mt-3 flex flex-wrap justify-end gap-2">
+                        {(() => {
+                          const refsActive = exp.references_active_count ?? 0;
+                          const ndaBlocked = exp.vessels?.nda_flag === true;
+                          const sourceBlocked =
+                            exp.vessels?.source !== undefined && exp.vessels.source !== 'curated';
+                          const hiddenBlocked = !!exp.vessels?.hidden_at;
+                          const currentBlocked = exp.is_current;
+                          const blocked =
+                            ndaBlocked || sourceBlocked || hiddenBlocked || currentBlocked;
+                          if (blocked) return null;
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 gap-1 text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAddRefDialogExpId(exp.id);
+                              }}
+                            >
+                              <UserPlus className="h-3 w-3" />
+                              Add reference ({refsActive}/{refsCap})
+                            </Button>
+                          );
+                        })()}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -244,6 +286,21 @@ export function ProfileExperienceSection({
           </>
         )}
       </div>
+
+      {dialogExp && (
+        <AddReferenceDialog
+          open={!!addRefDialogExpId}
+          onOpenChange={(o) => {
+            if (!o) {
+              setAddRefDialogExpId(null);
+              onReferencesChanged?.();
+            }
+          }}
+          experienceId={dialogExp.id}
+          activeCount={dialogExp.references_active_count ?? 0}
+          cap={refsCap}
+        />
+      )}
 
       <Dialog open={!!confirmDeleteExpId} onOpenChange={() => setConfirmDeleteExpId(null)}>
         <DialogContent>

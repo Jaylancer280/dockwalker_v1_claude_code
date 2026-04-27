@@ -125,6 +125,7 @@ export default function ProfilePage() {
 
   // Maritime experience state
   const [experiences, setExperiences] = useState<ExperienceEntry[]>([]);
+  const [subscriptionPlan, setSubscriptionPlan] = useState<string>('free');
   const [expandedExpId, setExpandedExpId] = useState<string | null>(null);
   const [deletingExpId, setDeletingExpId] = useState<string | null>(null);
   const [confirmDeleteExpId, setConfirmDeleteExpId] = useState<string | null>(null);
@@ -291,9 +292,15 @@ export default function ProfilePage() {
   }, []);
 
   const loadExperiences = useCallback(async () => {
-    const result = await safeFetch<{ experiences?: ExperienceEntry[] }>('/api/experiences');
+    const result = await safeFetch<{
+      experiences?: ExperienceEntry[];
+      subscription_plan?: string;
+    }>('/api/experiences');
     if (result.ok) {
       setExperiences(result.data.experiences ?? []);
+      if (result.data.subscription_plan) {
+        setSubscriptionPlan(result.data.subscription_plan);
+      }
     }
   }, []);
 
@@ -785,6 +792,8 @@ export default function ProfilePage() {
                 handleDeleteExperience={handleDeleteExperience}
                 onAddExperience={() => router.push('/profile/add-experience')}
                 onEditExperience={(id) => router.push(`/profile/edit-experience/${id}`)}
+                subscriptionPlan={subscriptionPlan}
+                onReferencesChanged={loadExperiences}
               />
 
               <ProfileShoreExperienceSection

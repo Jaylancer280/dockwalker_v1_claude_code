@@ -28,6 +28,10 @@ vi.mock('next/image', () => ({
   },
 }));
 
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 import SignUpPage from '@/app/auth/signup/page';
 
 describe('SignUpPage — session polling after success', () => {

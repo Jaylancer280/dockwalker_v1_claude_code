@@ -48,6 +48,8 @@ export default function EditExperiencePage() {
   const [contractDetails, setContractDetails] = useState('');
   const [description, setDescription] = useState('');
 
+  const [referencesActiveCount, setReferencesActiveCount] = useState(0);
+
   // Private intelligence fields (write-only — GET never returns these)
   const [salaryAmount, setSalaryAmount] = useState('');
   const [salaryPeriod, setSalaryPeriod] = useState<'daily' | 'monthly' | 'annually'>('monthly');
@@ -80,6 +82,7 @@ export default function EditExperiencePage() {
             salary_currency: string | null;
             salary_period: string | null;
             vessels: { name: string; vessel_type: string } | null;
+            references_active_count?: number;
           }[];
         }>('/api/experiences'),
         safeFetch<{ person?: { identity_type?: string } }>('/api/profile'),
@@ -113,6 +116,7 @@ export default function EditExperiencePage() {
             setVesselName(exp.vessels.name ?? '');
             setVesselType(exp.vessels.vessel_type ?? 'motor');
           }
+          setReferencesActiveCount(exp.references_active_count ?? 0);
         }
       }
     } finally {
@@ -193,6 +197,22 @@ export default function EditExperiencePage() {
             {vesselPrefix} {vesselName || 'Unknown vessel'}
           </p>
         </div>
+
+        {/* H-7 — edit-lock banner when active references exist */}
+        {referencesActiveCount > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100">
+            <p className="font-medium">
+              Some fields are locked because this experience has {referencesActiveCount} active
+              reference{referencesActiveCount === 1 ? '' : 's'}.
+            </p>
+            <p className="mt-1 text-xs">
+              Revoke references to change vessel, role, or dates.{' '}
+              <a href="/settings/references" className="underline">
+                Open Settings → References
+              </a>
+            </p>
+          </div>
+        )}
 
         <ExperienceDetailsSection
           roles={roles}

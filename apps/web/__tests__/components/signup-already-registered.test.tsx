@@ -26,6 +26,10 @@ vi.mock('next/image', () => ({
   },
 }));
 
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 import SignUpPage from '@/app/auth/signup/page';
 
 describe('SignUpPage — duplicate email handling', () => {

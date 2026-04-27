@@ -37,7 +37,7 @@ export async function GET() {
         description, sea_time_days, sea_time_nautical_miles,
         salary_amount, salary_currency, salary_period,
         created_at, updated_at,
-        vessels(id, imo_number, name, vessel_type, size_band_id, loa_meters, vessel_size_bands(label)),
+        vessels(id, imo_number, name, vessel_type, size_band_id, loa_meters, nda_flag, source, hidden_at, vessel_size_bands(label)),
         yacht_roles(id, name, department)
       `,
       )
@@ -71,7 +71,38 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ experiences: enriched });
+    // References — per-experience active counts for the "Add reference" UI.
+    const expIds = enriched.map((r) => r.id as string).filter(Boolean);
+    let referencesActiveByExp: Record<string, number> = {};
+    if (expIds.length > 0) {
+      const { data: refRows } = await supabase
+        .from('references')
+        .select('experience_id')
+        .in('experience_id', expIds)
+        .in('status', ['pending', 'accepted']);
+      referencesActiveByExp = (refRows ?? []).reduce<Record<string, number>>((acc, row) => {
+        const id = row.experience_id as string;
+        acc[id] = (acc[id] ?? 0) + 1;
+        return acc;
+      }, {});
+    }
+    const enrichedWithRefs = enriched.map((r) => ({
+      ...r,
+      references_active_count: referencesActiveByExp[r.id as string] ?? 0,
+    }));
+
+    // Caller's subscription plan — drives the per-experience cap on "Add reference".
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('plan')
+      .eq('person_id', user.id)
+      .maybeSingle();
+    const subscriptionPlan = (sub?.plan as string | undefined) ?? 'free';
+
+    return NextResponse.json({
+      experiences: enrichedWithRefs,
+      subscription_plan: subscriptionPlan,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

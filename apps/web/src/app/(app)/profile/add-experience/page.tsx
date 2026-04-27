@@ -15,6 +15,7 @@ import { AddVesselDialog } from '@/components/add-vessel-dialog';
 import { VesselDetailsSection } from '../_components/vessel-details-section';
 import { ExperienceDetailsSection } from '../_components/experience-details-section';
 import { PrivateIntelligenceSection } from '../_components/private-intelligence-section';
+import { AddReferenceDialog } from '@/components/references/add-reference-dialog';
 
 interface RoleItem {
   id: string;
@@ -62,6 +63,8 @@ export default function AddExperiencePage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isCurrent, setIsCurrent] = useState(false);
+  const [includeReferences, setIncludeReferences] = useState<'yes' | 'no' | null>(null);
+  const [createdExperienceId, setCreatedExperienceId] = useState<string | null>(null);
   const [isAgent, setIsAgent] = useState(false);
   const [contractType, setContractType] = useState('');
   const [contractDetails, setContractDetails] = useState('');
@@ -135,7 +138,7 @@ export default function AddExperiencePage() {
       vesselId = vesselResult.data.id;
     }
 
-    const result = await safeFetch('/api/experiences', {
+    const result = await safeFetch<{ id?: string }>('/api/experiences', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -159,6 +162,13 @@ export default function AddExperiencePage() {
 
     if (result.ok) {
       showSuccess('Experience added');
+      // If user opted in to references, open the AddReferenceDialog inline
+      // before navigating away.
+      if (includeReferences === 'yes' && result.data.id) {
+        setCreatedExperienceId(result.data.id);
+        setSubmitting(false);
+        return;
+      }
       router.push('/profile');
       router.refresh();
     } else {
@@ -296,10 +306,55 @@ export default function AddExperiencePage() {
           setSeaTimeNauticalMiles={setSeaTimeNauticalMiles}
         />
 
+        {/* Include references? — required Yes/No (B-2 disables when is_current=true) */}
+        <div className="space-y-2 rounded-xl border bg-[var(--surface)] p-3">
+          <p className="text-sm font-medium">
+            Include references on this experience? <span className="text-destructive">*</span>
+          </p>
+          {isCurrent ? (
+            <p className="text-xs text-muted-foreground">
+              References are for past working relationships — you can add them after marking this
+              job complete.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              References from past captains boost your hiring chances. Choose Yes to invite them
+              now, or No if you&apos;d rather skip.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={includeReferences === 'yes' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setIncludeReferences('yes')}
+              disabled={isCurrent}
+              className="flex-1"
+            >
+              Yes
+            </Button>
+            <Button
+              type="button"
+              variant={includeReferences === 'no' || isCurrent ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setIncludeReferences('no')}
+              className="flex-1"
+            >
+              No
+            </Button>
+          </div>
+        </div>
+
         {/* Submit */}
         <Button
           onClick={handleSubmit}
-          disabled={submitting || !roleId || !startDate || !imoNumber}
+          disabled={
+            submitting ||
+            !roleId ||
+            !startDate ||
+            !imoNumber ||
+            (includeReferences === null && !isCurrent)
+          }
           className="w-full"
         >
           {submitting ? (
@@ -312,6 +367,22 @@ export default function AddExperiencePage() {
           )}
         </Button>
       </div>
+
+      {createdExperienceId && (
+        <AddReferenceDialog
+          open={!!createdExperienceId}
+          onOpenChange={(o) => {
+            if (!o) {
+              setCreatedExperienceId(null);
+              router.push('/profile');
+              router.refresh();
+            }
+          }}
+          experienceId={createdExperienceId}
+          activeCount={0}
+          cap={1}
+        />
+      )}
     </main>
   );
 }

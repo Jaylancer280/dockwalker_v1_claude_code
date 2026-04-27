@@ -164,6 +164,22 @@ describe('GET /api/experiences', () => {
         }),
       }),
     });
+    // Per-experience active reference count lookup
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      }),
+    });
+    // Caller's subscription plan lookup
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+        }),
+      }),
+    });
 
     const res = await GET();
     expect(res.status).toBe(200);
@@ -171,6 +187,7 @@ describe('GET /api/experiences', () => {
     expect(body.experiences).toHaveLength(1);
     expect(body.experiences[0].id).toBe('exp1');
     expect(body.experiences[0].historical_vessel_name).toBeNull();
+    expect(body.subscription_plan).toBe('free');
   });
 
   it('surfaces a historical name when vessel was renamed after the experience', async () => {
@@ -229,6 +246,22 @@ describe('GET /api/experiences', () => {
             ],
             error: null,
           }),
+        }),
+      }),
+    });
+    // references active count lookup
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          in: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      }),
+    });
+    // subscription plan lookup
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null }),
         }),
       }),
     });

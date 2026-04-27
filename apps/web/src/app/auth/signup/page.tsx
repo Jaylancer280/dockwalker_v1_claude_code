@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,15 +14,22 @@ import { AuthAmbientBackground } from '@/components/auth-ambient-background';
 import { GoogleAuthButton } from '@/components/google-auth-button';
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
+  const isReferee = searchParams.get('referee') === '1';
+  const next = searchParams.get('next');
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Poll for confirmed session after signup success
+  // Poll for confirmed session after signup success.
+  // Lightweight referee path: route them back to /ref/[token] (via `next`) so
+  // they can explicitly Accept the consent. Standard path goes to /onboarding.
   useEffect(() => {
     if (!success) return;
 
@@ -31,12 +39,30 @@ export default function SignUpPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        window.location.href = '/onboarding';
+        if (isReferee) {
+          // Onboard the lightweight profile via onboard_person, then route to next.
+          try {
+            await supabase.rpc('onboard_person', {
+              p_identity_type: 'crew',
+              p_current_hat: 'crew',
+              p_profile: {
+                display_name: displayName || (user.email?.split('@')[0] ?? 'Referee'),
+                referee_only: true,
+              },
+              p_person_id: user.id,
+            });
+          } catch {
+            // If RPC fails (e.g. already onboarded), fall through to redirect.
+          }
+          window.location.href = next ?? '/messages';
+        } else {
+          window.location.href = '/onboarding';
+        }
       }
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [success]);
+  }, [success, isReferee, next, displayName]);
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
@@ -183,11 +209,17 @@ export default function SignUpPage() {
 
         <Card className="w-full">
           <CardHeader>
-            <CardTitle className="text-base">Create an account</CardTitle>
-            <CardDescription>Start finding or posting daywork</CardDescription>
+            <CardTitle className="text-base">
+              {isReferee ? 'Sign up to give a reference' : 'Create an account'}
+            </CardTitle>
+            <CardDescription>
+              {isReferee
+                ? 'Lightweight signup — email + name only. You can complete a full crew profile later if you want.'
+                : 'Start finding or posting daywork'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <GoogleAuthButton next="/onboarding" />
+            <GoogleAuthButton next={isReferee && next ? next : '/onboarding'} />
 
             <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-muted-foreground">
               <span className="h-px flex-1 bg-[var(--border)]" />
@@ -196,6 +228,27 @@ export default function SignUpPage() {
             </div>
 
             <form onSubmit={handleSignUp} className="flex flex-col gap-4">
+              {isReferee && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="display-name">Your name</Label>
+                  <Input
+                    id="display-name"
+                    type="text"
+                    placeholder="Captain Smith"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    required
+                    minLength={2}
+                    maxLength={80}
+                  />
+                  {/* H-6 inline hint */}
+                  <p className="text-xs text-muted-foreground">
+                    By signing up you agree to DockWalker&apos;s Terms. Your basic profile (name +
+                    the role you held) will be visible only on the references you accept. You can
+                    complete a full crew profile later.
+                  </p>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email">Email</Label>
                 <Input
