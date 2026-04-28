@@ -24,20 +24,19 @@ function guardOk(overrides: Record<string, unknown> = {}) {
 }
 
 function makeChain(data: unknown) {
-  const eqFn: ReturnType<typeof vi.fn> = vi.fn().mockReturnValue({
-    single: vi.fn().mockResolvedValue({ data }),
-    maybeSingle: vi.fn().mockResolvedValue({ data }),
-  });
-  // Support chaining multiple .eq() calls (e.g. .eq('a', 1).eq('b', 2).single())
-  eqFn.mockReturnValue({
+  const eqFn: ReturnType<typeof vi.fn> = vi.fn();
+  const limitFn: ReturnType<typeof vi.fn> = vi.fn();
+  const terminal = {
     eq: eqFn,
+    limit: limitFn,
     single: vi.fn().mockResolvedValue({ data }),
     maybeSingle: vi.fn().mockResolvedValue({ data }),
-  });
+  };
+  // Support chaining multiple .eq()/.limit() calls before .single()/.maybeSingle()
+  eqFn.mockReturnValue(terminal);
+  limitFn.mockReturnValue(terminal);
   return {
-    select: vi.fn().mockReturnValue({
-      eq: eqFn,
-    }),
+    select: vi.fn().mockReturnValue(terminal),
   };
 }
 
@@ -143,6 +142,99 @@ describe('GET /api/messages/:engagementId/context', () => {
     const body = await res.json();
     expect(body.engagement.other_name).toBe('Unknown');
     expect(body.engagement.has_rated).toBe(false);
+  });
+
+  // 00130 — NDA masking on reference-contact engagement chat header.
+  function makeRefContactEngagement(callerIs: 'employer' | 'referee') {
+    return {
+      id: 'e1',
+      reference_contact_id: 'rc1',
+      crew_person_id: callerIs === 'referee' ? 'u1' : 'reqperson',
+      employer_person_id: callerIs === 'employer' ? 'u1' : 'empperson',
+      start_date: null,
+      end_date: null,
+    };
+  }
+
+  function makeContactRow(opts: { vesselId: string | null }): unknown {
+    return {
+      id: 'rc1',
+      reference_id: 'ref1',
+      references: [
+        {
+          status: 'accepted',
+          revoke_reason: null,
+          requester_person_id: 'reqperson',
+          vessel_id: opts.vesselId,
+          snapshot_vessel_name: 'Top Secret',
+          snapshot_vessel_imo: '7654321',
+          snapshot_start_date: '2024-01-01',
+          snapshot_end_date: '2024-12-31',
+          requester_role_at_time: 'Bosun',
+          claimed_referee_role: 'Captain',
+          comment: null,
+        },
+      ],
+    };
+  }
+
+  it('00130: referee in reference-contact chat sees full NDA snapshot', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(makeChain(makeRefContactEngagement('referee')))
+      .mockReturnValueOnce(makeChain({ display_name: 'Stress Employer' })) // otherProfile
+      .mockReturnValueOnce(makeChain(null)) // myRating
+      .mockReturnValueOnce(makeChain(null)) // checklist
+      .mockReturnValueOnce(makeChain(makeContactRow({ vesselId: 'v-nda' }))) // contactRow
+      .mockReturnValueOnce(makeChain({ display_name: 'Stress Requester' })) // requester profile
+      .mockReturnValueOnce(makeChain({ nda_flag: true })); // vessel nda check
+
+    const res = await GET(new Request('http://localhost'), makeParams('e1'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.engagement.reference_context).toBeDefined();
+    expect(body.engagement.reference_context.snapshot_vessel_name).toBe('Top Secret');
+    expect(body.engagement.reference_context.snapshot_vessel_imo).toBe('7654321');
+  });
+
+  it('00130: employer in reference-contact chat sees masked NDA snapshot when not engaged', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(makeChain(makeRefContactEngagement('employer')))
+      .mockReturnValueOnce(makeChain({ display_name: 'Captain Smith' })) // otherProfile
+      .mockReturnValueOnce(makeChain(null)) // myRating
+      .mockReturnValueOnce(makeChain(null)) // checklist
+      .mockReturnValueOnce(makeChain(makeContactRow({ vesselId: 'v-nda' }))) // contactRow
+      .mockReturnValueOnce(makeChain({ display_name: 'Stress Requester' })) // requester profile
+      .mockReturnValueOnce(makeChain({ nda_flag: true })) // vessel nda check
+      .mockReturnValueOnce(makeChain(null)) // active_engagements daywork hit (none)
+      .mockReturnValueOnce(makeChain(null)); // active_engagements permanent hit (none)
+
+    const res = await GET(new Request('http://localhost'), makeParams('e1'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.engagement.reference_context.snapshot_vessel_name).toBe('NDA Vessel');
+    expect(body.engagement.reference_context.snapshot_vessel_imo).toBe('');
+  });
+
+  it('00130: employer with active engagement on the NDA vessel sees full snapshot', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth
+      .mockReturnValueOnce(makeChain(makeRefContactEngagement('employer')))
+      .mockReturnValueOnce(makeChain({ display_name: 'Captain Smith' }))
+      .mockReturnValueOnce(makeChain(null))
+      .mockReturnValueOnce(makeChain(null))
+      .mockReturnValueOnce(makeChain(makeContactRow({ vesselId: 'v-nda' })))
+      .mockReturnValueOnce(makeChain({ display_name: 'Stress Requester' }))
+      .mockReturnValueOnce(makeChain({ nda_flag: true }))
+      .mockReturnValueOnce(makeChain({ id: 'eng-active' })) // daywork engagement hit
+      .mockReturnValueOnce(makeChain(null)); // permanent engagement (none)
+
+    const res = await GET(new Request('http://localhost'), makeParams('e1'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.engagement.reference_context.snapshot_vessel_name).toBe('Top Secret');
+    expect(body.engagement.reference_context.snapshot_vessel_imo).toBe('7654321');
   });
 
   it('returns has_rated true with my_rating when user has already rated', async () => {

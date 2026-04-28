@@ -192,8 +192,9 @@ describe('POST /api/references', () => {
     );
   });
 
-  it('rejects on NDA vessel', async () => {
+  it('00130: allows references on NDA vessels (referee gets full snapshot)', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+    // experience
     mockSupabaseFrom.mockReturnValueOnce(
       chainResolve({
         id: 'exp1',
@@ -205,16 +206,24 @@ describe('POST /api/references', () => {
         is_current: false,
       }),
     );
+    // vessel — NDA
     mockServiceFrom.mockReturnValueOnce(
       chainResolve({
         id: 'v1',
-        name: 'Test',
-        imo_number: '1111111',
+        name: 'Top Secret',
+        imo_number: '7654321',
         nda_flag: true,
         source: 'curated',
         hidden_at: null,
       }),
     );
+    // yacht_roles
+    mockServiceFrom.mockReturnValueOnce(chainResolve({ name: 'Bosun' }));
+    // existing pending refs (auto-supersede pre-check) — none match
+    mockServiceFrom.mockReturnValueOnce(chainResolve([]));
+    // subscriptions (Free) + cap pre-check
+    mockServiceFrom.mockReturnValueOnce(chainResolve(null));
+    mockServiceFrom.mockReturnValueOnce(chainResolve([], { count: 0 }));
     const res = await createRef(
       new Request('http://localhost/api/references', {
         method: 'POST',
@@ -225,9 +234,19 @@ describe('POST /api/references', () => {
         }),
       }),
     );
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toMatch(/NDA/);
+    expect(res.status).toBe(200);
+    // Snapshot captures full vessel name + IMO regardless of NDA — masking
+    // happens at display time on the employer-side chat header.
+    expect(mockAppendEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventType: 'REFERENCE.REQUESTED',
+        payload: expect.objectContaining({
+          snapshot_vessel_name: 'Top Secret',
+          snapshot_vessel_imo: '7654321',
+        }),
+      }),
+    );
   });
 
   it('returns 402 with crew_pro_required gate on Free at cap', async () => {

@@ -1,13 +1,12 @@
 /**
- * Stress test for migrations 00128 + 00129 (and RLS regression coverage).
+ * Stress test for migrations 00128 + 00129 + 00130 (and RLS regression).
  *
  * Exercises the live remote DB end-to-end via append_event (the same path
  * the routes use). Validates:
  *
  *   00128 — pending-vessel relaxation
  *     A1. REFERENCE.REQUESTED on source='pending' vessel succeeds.
- *     A2. NDA vessels still rejected.
- *     A3. hidden_at vessels still rejected.
+ *     A2. hidden_at vessels still rejected.
  *
  *   00129 — currently-onboard experiences
  *     B1. REFERENCE.REQUESTED on is_current=true experience succeeds.
@@ -33,6 +32,15 @@
  *     C5. Employer CAN SELECT their own contact requests.
  *     C6. Referee CAN SELECT contact requests targeted at them via the
  *         reference link.
+ *
+ *   00130 — NDA references (referee full reveal, employer mask)
+ *     D1. REFERENCE.REQUESTED on NDA vessel succeeds (write-time gate
+ *         dropped at projection layer).
+ *     D2. Snapshot captures full vessel name + IMO regardless of NDA.
+ *     D3. Referee reads full NDA snapshot via RLS-authenticated SELECT.
+ *     D4. NDA vessel state observable for the display-mask logic in
+ *         /api/messages/[engagementId]/context (route-layer masking is
+ *         covered by messages-context.test.ts unit tests).
  *
  * Run: `npx tsx scripts/stress-test-references-currently-onboard.ts`
  *
@@ -370,34 +378,9 @@ async function main(): Promise<void> {
       );
       record('A1: REFERENCE.REQUESTED on source=pending vessel succeeds', !r.error, r.error);
     }
-    {
-      const r = await fire(
-        sb,
-        'REFERENCE.REQUESTED',
-        randomUUID(),
-        'reference',
-        {
-          id: randomUUID(),
-          experience_id: fx.ndaExpId,
-          vessel_id: fx.ndaVesselId,
-          requester_role_at_time: 'Bosun',
-          claimed_referee_role: 'Captain',
-          claimed_referee_name: 'Capt NDA',
-          claimed_referee_email: null,
-          token: randomUUID(),
-          snapshot_vessel_imo: '8000002',
-          snapshot_vessel_name: '__stress_co_nda__',
-          snapshot_start_date: '2021-01-01',
-          snapshot_end_date: '2021-12-31',
-        },
-        fx.requester.id,
-      );
-      record(
-        'A2: REFERENCE.REQUESTED on NDA vessel rejected',
-        !!r.error && /NDA/i.test(r.error),
-        r.error ?? '(unexpectedly succeeded)',
-      );
-    }
+    // 00130: NDA write-time gate removed. NDA on REFERENCE.REQUESTED is
+    // now allowed at the projection layer; positive assertion lives in
+    // section D below. Hidden vessels remain rejected.
     {
       const r = await fire(
         sb,
@@ -421,7 +404,7 @@ async function main(): Promise<void> {
         fx.requester.id,
       );
       record(
-        'A3: REFERENCE.REQUESTED on hidden vessel rejected',
+        'A2: REFERENCE.REQUESTED on hidden vessel rejected',
         !!r.error && /hidden/i.test(r.error),
         r.error ?? '(unexpectedly succeeded)',
       );
@@ -717,6 +700,86 @@ async function main(): Promise<void> {
         'C6: referee sees contact request through reference link',
         !error && Array.isArray(data) && data.length === 1,
         error?.message ?? `rows=${data?.length}`,
+      );
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // D — 00130 NDA references (referee full reveal, employer mask)
+    // ──────────────────────────────────────────────────────────────────
+    console.log('\nD. 00130 — NDA references:');
+
+    const ndaRefId = randomUUID();
+    {
+      const r = await fire(
+        sb,
+        'REFERENCE.REQUESTED',
+        ndaRefId,
+        'reference',
+        {
+          id: ndaRefId,
+          experience_id: fx.ndaExpId,
+          vessel_id: fx.ndaVesselId,
+          requester_role_at_time: 'Bosun',
+          claimed_referee_role: 'Captain',
+          claimed_referee_name: 'Capt NDA',
+          claimed_referee_email: null,
+          token: randomUUID(),
+          snapshot_vessel_imo: '8000002',
+          snapshot_vessel_name: '__stress_co_nda__',
+          snapshot_start_date: '2021-01-01',
+          snapshot_end_date: '2021-12-31',
+        },
+        fx.requester.id,
+      );
+      record('D1: REFERENCE.REQUESTED on NDA vessel succeeds', !r.error, r.error);
+    }
+    {
+      const { data: row } = await sb
+        .from('references')
+        .select('snapshot_vessel_name, snapshot_vessel_imo')
+        .eq('id', ndaRefId)
+        .maybeSingle();
+      const r = row as { snapshot_vessel_name?: string; snapshot_vessel_imo?: string } | null;
+      record(
+        'D2: snapshot captures full name + IMO regardless of NDA',
+        r?.snapshot_vessel_name === '__stress_co_nda__' && r?.snapshot_vessel_imo === '8000002',
+        `name=${r?.snapshot_vessel_name} imo=${r?.snapshot_vessel_imo}`,
+      );
+    }
+    // Accept the NDA reference as the referee so they're a party with
+    // RLS read access via referee_person_id.
+    await fire(sb, 'REFERENCE.ACCEPTED', ndaRefId, 'reference', {}, fx.referee.id);
+    {
+      // Referee reads full snapshot via authenticated SELECT (RLS-allowed).
+      const { data, error } = await refereeClient
+        .from('references')
+        .select('snapshot_vessel_name, snapshot_vessel_imo')
+        .eq('id', ndaRefId)
+        .maybeSingle();
+      const r = data as
+        | { snapshot_vessel_name?: string; snapshot_vessel_imo?: string }
+        | null;
+      record(
+        'D3: referee reads full NDA snapshot via RLS-authenticated SELECT',
+        !error && r?.snapshot_vessel_name === '__stress_co_nda__' && r?.snapshot_vessel_imo === '8000002',
+        error?.message ?? `name=${r?.snapshot_vessel_name} imo=${r?.snapshot_vessel_imo}`,
+      );
+    }
+    // D4 (employer-side mask) and D5 (employer-engaged unmasked) live in
+    // the route-layer logic of /api/messages/[engagementId]/context, which
+    // is HTTP. They're covered by the unit tests in messages-context.test.ts;
+    // we don't HTTP from this script. The DB-side prerequisites are
+    // observable here:
+    {
+      const { data: vesselRow } = await sb
+        .from('vessels')
+        .select('nda_flag')
+        .eq('id', fx.ndaVesselId)
+        .maybeSingle();
+      record(
+        'D4: NDA vessel has live nda_flag=true (input to display-mask logic)',
+        (vesselRow as { nda_flag?: boolean } | null)?.nda_flag === true,
+        `nda_flag=${(vesselRow as { nda_flag?: boolean } | null)?.nda_flag}`,
       );
     }
 

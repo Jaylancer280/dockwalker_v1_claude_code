@@ -113,7 +113,7 @@ export async function GET(
         .select(
           `id, reference_id,
            references!reference_contacts_reference_id_fkey(
-             status, revoke_reason, requester_person_id, snapshot_vessel_name,
+             status, revoke_reason, requester_person_id, vessel_id, snapshot_vessel_name,
              snapshot_vessel_imo, snapshot_start_date, snapshot_end_date,
              requester_role_at_time, claimed_referee_role, comment
            )`,
@@ -128,19 +128,74 @@ export async function GET(
         const ref = refList[0] as Record<string, unknown> | null;
         if (ref) {
           const requesterPersonId = ref.requester_person_id as string;
-          const { data: requester } = await supabase
-            .from('profiles')
-            .select('display_name')
-            .eq('person_id', requesterPersonId)
-            .maybeSingle();
+          const vesselId = ref.vessel_id as string | null;
+          const [{ data: requester }, { data: vesselNda }] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('display_name')
+              .eq('person_id', requesterPersonId)
+              .maybeSingle(),
+            vesselId
+              ? supabase.from('vessels').select('nda_flag').eq('id', vesselId).maybeSingle()
+              : Promise.resolve({ data: null }),
+          ]);
+
+          // 00130 NDA mask: when the caller is the employer side of this
+          // reference-contact engagement AND the vessel is currently NDA
+          // AND the caller has no separate active engagement on that
+          // vessel with the crew member (= existing trust-boundary
+          // precedent from get_vessel_public / 00083), redact the
+          // snapshot vessel name and IMO. The referee always sees full
+          // — they were physically aboard. If the underlying vessel was
+          // deleted (vessel_id NULL), there's no NDA owner left to
+          // protect; treat as non-NDA.
+          let maskedName = ref.snapshot_vessel_name as string;
+          let maskedImo = ref.snapshot_vessel_imo as string;
+          const ndaFlag = (vesselNda as { nda_flag?: boolean } | null)?.nda_flag === true;
+          const isCallerEmployer = engagement.employer_person_id === user.id;
+          if (ndaFlag && isCallerEmployer && vesselId) {
+            const crewPersonId = requesterPersonId;
+            const employerPersonId = user.id;
+            // Trust-boundary check: any active daywork or permanent
+            // engagement for THIS employer + crew + vessel unmasks. We
+            // use service-role-equivalent supabase here (caller is the
+            // employer + we already know the engagement exists), with
+            // explicit FK joins so a single round-trip resolves both.
+            const [{ data: dwHit }, { data: ppHit }] = await Promise.all([
+              supabase
+                .from('active_engagements')
+                .select('id, dayworks!inner(vessel_id)')
+                .eq('crew_person_id', crewPersonId)
+                .eq('employer_person_id', employerPersonId)
+                .eq('status', 'active')
+                .eq('dayworks.vessel_id', vesselId)
+                .limit(1)
+                .maybeSingle(),
+              supabase
+                .from('active_engagements')
+                .select('id, permanent_postings!inner(vessel_id)')
+                .eq('crew_person_id', crewPersonId)
+                .eq('employer_person_id', employerPersonId)
+                .eq('status', 'active')
+                .eq('permanent_postings.vessel_id', vesselId)
+                .limit(1)
+                .maybeSingle(),
+            ]);
+            const engagedOnVessel = !!dwHit || !!ppHit;
+            if (!engagedOnVessel) {
+              maskedName = 'NDA Vessel';
+              maskedImo = '';
+            }
+          }
+
           referenceContext = {
             reference_contact_id: engagement.reference_contact_id as string,
             reference_id: contactRow.reference_id as string,
             reference_status: ref.status as string,
             revoke_reason: (ref.revoke_reason as string | null) ?? null,
             requester_display_name: (requester?.display_name as string | undefined) ?? null,
-            snapshot_vessel_name: ref.snapshot_vessel_name as string,
-            snapshot_vessel_imo: ref.snapshot_vessel_imo as string,
+            snapshot_vessel_name: maskedName,
+            snapshot_vessel_imo: maskedImo,
             snapshot_start_date: ref.snapshot_start_date as string,
             snapshot_end_date: (ref.snapshot_end_date as string | null) ?? null,
             requester_role_at_time: ref.requester_role_at_time as string,

@@ -46,24 +46,20 @@ export interface VesselGateRow {
 }
 
 /**
- * Returns null if the vessel is references-eligible (non-NDA, not hidden);
- * otherwise returns a structured rejection with a user-facing message.
+ * Returns null if the vessel is references-eligible (not hidden); otherwise
+ * returns a structured rejection with a user-facing message.
  *
- * The source check (curated only) was relaxed in 00128 — while the vessel
- * database is being populated and admin curation is catching up, users can
- * gather references on their own pending vessels.
+ * 00128 dropped the source=curated check (pending vessels in the admin
+ * queue accept references). 00130 dropped the NDA check too — NDA protects
+ * vessel identity from OUTSIDE parties; the referee was the captain/HOD on
+ * the vessel and obviously already knows the IMO. Display-layer masking
+ * (`/api/messages/[engagementId]/context`) handles employer visibility in
+ * reference-contact chats.
  */
 export function checkVesselReferenceGate(
   vessel: VesselGateRow | null,
 ): { ok: false; status: number; error: string } | { ok: true } {
   if (!vessel) return { ok: false, status: 404, error: 'Vessel not found' };
-  if (vessel.nda_flag) {
-    return {
-      ok: false,
-      status: 400,
-      error: "References on NDA vessels aren't supported yet",
-    };
-  }
   if (vessel.hidden_at !== null) {
     return {
       ok: false,
