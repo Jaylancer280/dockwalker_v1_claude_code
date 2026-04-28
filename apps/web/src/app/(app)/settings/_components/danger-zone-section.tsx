@@ -69,10 +69,17 @@ export function DangerZoneSection() {
           <button
             onClick={handleExportData}
             disabled={exporting}
-            className="flex items-center gap-3 px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-accent"
+            className="flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent"
           >
-            <Download className="h-4 w-4 text-muted-foreground" />
-            {exporting ? 'Exporting...' : 'Export my data'}
+            <Download className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">
+                {exporting ? 'Exporting...' : 'Export my data'}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                GDPR data export — downloads instantly as a JSON file.
+              </span>
+            </div>
           </button>
 
           <Separator />
