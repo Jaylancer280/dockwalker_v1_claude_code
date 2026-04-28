@@ -182,8 +182,10 @@ Per Wave D's note, post forms redirect to `/vessels` via the existing `saveFormA
 ### Admin curation queue
 
 - [ ] Login as admin → sidebar has "**Pending vessels**" → page lists every pending vessel with M/Y or S/Y prefix, IMO, builder, full specs row (LOA / size band / flag / year built / GT), submitter name, recency
-- [ ] **Approve**: click → `prompt()` lets you optionally fix the name → row promotes to canonical; pending vessel_names + vessel_flag_states rows promote in the same call
-- [ ] **Approve with name override**: edit the name in the prompt, save → vessel + vessel_names row both update
+- [ ] **Approve — full enrichment dialog**: click Approve → modal opens with editable fields **name**, **vessel_type**, **LOA** (auto-derives size band on change), **flag_state_id** (FlagStatePicker, searchable), **year_built**, **builder**, **gross_tonnage**, **beam_meters**, **nda_flag** toggle. The user submits a minimum payload (IMO + name + type + LOA); admin fills the rest from external sources before promotion.
+- [ ] Submit Approve → row promotes to canonical with all enriched fields persisted; pending `vessel_names` + `vessel_flag_states` rows promote in the same call. The pending row disappears from the queue.
+- [ ] LOA change in the Approve dialog re-derives `size_band_id` automatically — no manual band selection
+- [ ] Required-field validation: clearing name / vessel_type / LOA blocks submit
 - [ ] **Hide**: click → confirm → row disappears from pending; spot-check that the submitter still sees the vessel on their experience entry, but a different account searching the same IMO via `/api/vessels/lookup` returns "Not found"
 - [ ] **Merge**:
   - [ ] Click → sub-dialog opens IMO search
@@ -191,6 +193,24 @@ Per Wave D's note, post forms redirect to `/vessels` via the existing `saveFormA
   - [ ] Confirm → submitter's experience entry re-points to the canonical vessel; pending vessel deleted
   - [ ] Try to merge into a pending target → blocked
   - [ ] Try to merge into self → blocked
+
+### Admin Edit (mistake recovery, curated vessels)
+
+If the admin typo'd during Approve, the canonical row is now editable in-place via PATCH `/api/admin/vessels/[id]`. No SQL needed.
+
+- [ ] Login as admin → /admin/canonical → Vessels tab → each row has an **Edit** button alongside Hide
+- [ ] Tap Edit → dialog mirrors the Approve enrichment form (same fields + validation)
+- [ ] Edit the vessel name → save → `vessels.name` updates AND the open-ended `vessel_names` row updates in lockstep (timeline-table denormalisation stays consistent)
+- [ ] Edit LOA → `size_band_id` re-derived automatically
+- [ ] Edit flag state → updates the `flag_state_id` column directly (no `vessel_flag_states` timeline rewrite — those events are deferred per "they sit in the db but not projected for now")
+- [ ] **Refuses pending vessels**: try to load Edit on a `source='pending'` row → 409 "Pending vessels must go through the Pending-vessels Approve action"
+- [ ] **Diff-only update**: if you don't change a field, it's not in the PATCH payload — confirm by inspecting the network tab (only the changed fields go up)
+
+### Admin midway-cancellation paths (queue manipulation while users are mid-flight)
+
+- [ ] **Admin Hides a pending vessel that already has an active reference attached to it via the experience**: the requester's experience FK still resolves (they own it), but other users searching the same IMO via /api/vessels/lookup get "Not found". The reference itself stays Accepted (the lookup-route filter is upstream of the references projection). Confirm by viewing the requester's profile from another non-engaged account → reference card still renders with snapshot fields (snapshot survives via FK ON DELETE SET NULL).
+- [ ] **Admin Approves a pending vessel during a pending reference invitation**: the reference's snapshot fields were captured at REFERENCE.REQUESTED time and don't change. The vessel just goes from `source='pending'` to `'curated'`. The referee's `/ref/[token]` link continues to work; on accept, snapshot fields render unchanged.
+- [ ] **Admin Merges a pending vessel during a pending reference invitation**: the user's experience FK re-points to the merge target. Reference's `vessel_id` points to the OLD pending row which then gets deleted → reference's `vessel_id` becomes NULL via ON DELETE SET NULL, snapshot fields preserved. Confirm reference is still readable on both party views.
 
 ### Admin notification on submission
 
@@ -258,10 +278,22 @@ End-to-end peer references with snapshot lock + employer contact flow. The bulk 
 - [ ] Upgrade to Crew Pro (or stamp the test account directly) → cap should now be 3 — third send to a third referee succeeds; fourth is blocked with **"Per-experience cap of 3 reached"**
 - [ ] Cap pre-check excludes the soon-to-be-superseded row: at-cap user can still resend to one of their existing referees
 
-### B-2 — current-experience block
+### Currently-onboard references — happy path (00129)
 
-- [ ] Mark an experience `is_current = true` (Currently onboard) → Add reference button on the expanded card should not appear (blocked by B-2)
-- [ ] If you somehow reach the dialog, server returns 400 — "Mark this experience as completed before adding a reference"
+> 00129 dropped B-2: first-vessel crew can now request references from the captain they're working under right now (the most valuable referee they will ever have).
+
+- [ ] Crew has a `is_current = true` experience (Currently onboard). On the expanded card, the **Add reference** CTA appears (no longer blocked).
+- [ ] Tap Add Reference → dialog opens, fill in referee → submit → POST succeeds (no 400)
+- [ ] Settings → References → Pending: row shows the experience with date range "Jan 2024 – **Present**" (snapshot_end_date is null while still onboard)
+- [ ] Referee accepts → row promotes to Accepted on both sides; on the employer-view of the requester's profile, dates render "Jan 2024 – Present"
+
+### Currently-onboard references — midway cancellation paths
+
+- [ ] **Requester revokes while pending**: send a current-experience invitation → before the referee accepts, requester taps Cancel from Settings → References → Pending → confirm → row moves to History as "Crew member revoked"; the referee's `/ref/[token]` link now says "No longer available"
+- [ ] **Referee declines mid-flight**: send a current-experience invitation → referee taps Decline on `/ref/[token]` → confirm dialog ("We won't tell {requester} that you declined") → silent for the requester (no notification), row moves to History as "Declined"
+- [ ] **Auto-supersede on resend**: send to `captainA@x.com` for a current experience → without revoking, send to the same `captainA@x.com` for the same experience again → fresh link returned; previous pending row in History as "Crew member revoked", only one Pending row remains (count stays 1/N)
+- [ ] **Referee revokes after accept**: referee accepts → on referee account, Settings → References → "References you've given" → Revoke consent → confirm → row gone from requester's profile, History entry on both sides reads "Referee revoked"
+- [ ] **Pending invitation expiry (30 days)**: an invitation older than `pending_expires_at` should not be acceptable. If you have a way to fast-forward (DB tweak), confirm `/ref/[token]` reads "expired" and the requester's row moves to History as "Expired"
 
 ### Decline path
 
@@ -322,11 +354,99 @@ Requires an employer/agent account that has _context_ with the crew (engagement,
 - [ ] Open the share link while signed in as a _different_ email account → consent page shows amber "This invitation was sent to a different email" warning with a masked hint (`a***a@example.com`)
 - [ ] Sign out + sign in with the matching email → consent page accepts the user, Accept/Decline buttons render
 
-### Vessel-state gating
+### Vessel-state gating (post-00128/00129/00130)
 
-- [ ] Try Add Reference on an experience attached to an **NDA vessel** → 400 "references on NDA vessels are not supported"
-- [ ] Try Add Reference on an experience attached to a **pending (not curated)** vessel → 400 "references require a curated vessel"
-- [ ] Try Add Reference on a **hidden** vessel → 400 "vessel is hidden"
+> Of the original 3 write-time gates, only **hidden_at** remains. NDA dropped in 00130 (referee was the captain — they already know the IMO; mask moved to the chat-header display layer). Pending dropped in 00128 (admin queue can take days to drain; first-vessel crew shouldn't have to wait).
+
+- [ ] Add Reference on a **hidden** vessel → 400 "vessel is unavailable for references" (admin Hide on /admin/canonical Vessels tab is the easiest setup)
+- [ ] Add Reference on a **NDA vessel** → succeeds (00130). The mask happens at chat-header time, not write time.
+- [ ] Add Reference on a **pending (admin-queue) vessel** → succeeds (00128). The vessel doesn't have to be admin-approved first.
+- [ ] Add Reference on a **non-existent vessel_id** → projection raises "vessel … not found" (route layer should catch this earlier with 404; defence-in-depth check)
+
+### Closing-transition warning — happy path (00129)
+
+When a user has active references on a currently-onboard experience and is about to close it (set an end_date / clear is_current), a one-time confirmation dialog must fire because end_date is permanently locked afterwards while refs are attached. Snapshot end_date on the references row also auto-propagates to the new value so referee-verified records stop saying "Jan 2024 – Present" forever after the user leaves.
+
+Setup: a currently-onboard experience with at least one Accepted reference (run "Currently-onboard references — happy path" first).
+
+- [ ] Profile → Edit experience on the currently-onboard one with active refs
+- [ ] Note: vessel/role/start_date are greyed/disabled with the snapshot-locked banner; end_date input + "Currently onboard" checkbox remain editable (this is the one-time closing transition)
+- [ ] Uncheck "Currently onboard" → end_date input becomes active → pick a date in the past → tap **Save**
+- [ ] Confirmation dialog fires: "**Lock end date?** You're closing a currently-onboard experience that has N active reference(s). This is a one-time change — once saved, the end date can't be edited again while references are attached, and your referee's record will update to show the closed period."
+- [ ] Tap **Confirm and save** → form saves, navigates to /profile, experience now shows "Jan 2024 – Apr 2025"
+- [ ] Open Settings → References (referee account) → "References you've given" → date range now reads "Jan 2024 – Apr 2025" (NOT "Jan 2024 – Present"). Auto-propagation worked.
+- [ ] Open the requester's public profile from another account → reference card on the experience also shows the closed range
+- [ ] Try editing the same experience again → end_date input is now disabled (greyed), Currently-onboard checkbox disabled. Server-side, attempting to PATCH end_date returns 409 with `locked_fields: ['end_date']`.
+
+### Closing-transition — midway cancellation paths
+
+- [ ] **Cancel the warning dialog**: trigger the closing-transition save → on the dialog, tap **Cancel** → dialog closes, form remains in edit mode, no save happened, end_date input still shows the date you typed (not committed yet). Navigate away → discarded.
+- [ ] **Cancel by navigating away**: trigger the dialog → tap iOS back gesture or close the modal entirely → no save, no warning lingers
+- [ ] **Edit without closing-transition**: edit description / salary / sea-time on a currently-onboard-with-refs experience without touching end_date or is_current → no warning dialog, normal save
+- [ ] **Edit a non-current experience with refs**: pick an already-completed experience that has active refs → end_date is unconditionally locked (greyed), no closing-transition dialog ever fires for these
+- [ ] **Try to "re-open" a closed experience**: after closing transition, edit the same experience and try to clear end_date or re-tick Currently-onboard → field is disabled in the UI; if you POST anyway via curl, server returns 409 with `locked_fields: ['end_date']` / `['is_current']`
+
+### Edit-experience field locks (00126/00129)
+
+A defence-in-depth check that complements the closing-transition tests above.
+
+- [ ] Active references on a _completed_ experience → vessel, role, start_date, end_date all greyed/disabled with snapshot-locked banner
+- [ ] Server-side: PATCH /api/experiences/[id] with role_id change → 409 with `locked_fields: ['role']`, `active_references: N`
+- [ ] Server-side: PATCH with start_date change → 409 with `locked_fields: ['start_date']`
+- [ ] Active references on a _currently-onboard_ experience → vessel, role, start_date locked; end_date + is_current editable (closing transition allowed exactly once)
+- [ ] No active references on any experience → all fields editable as before
+- [ ] After revoking the only active reference, the lock should release → re-edit the experience → vessel/role/dates editable again
+
+### NDA references — referee full reveal (00130)
+
+> Referee was the captain/HOD on the vessel — they obviously already know the IMO. The whole point of asking them is to verify the period of service, which means they need to see what they're being asked to vouch for. Mask moves to the chat-header display layer.
+
+- [ ] Crew owns an NDA vessel and has an experience on it → Add Reference on that experience → succeeds (was 400 pre-00130)
+- [ ] Settings → References (requester side) → pending row shows full vessel name + IMO (they own it, no mask in their own view)
+- [ ] Send the link to the referee out-of-band (WhatsApp/email) → referee opens `/ref/[token]` → consent page shows full vessel name + IMO + date range
+- [ ] Referee accepts → row promotes to Accepted; both party views (requester + referee) show full snapshot
+
+### NDA references — referee declines / revokes mid-flight
+
+- [ ] **Referee declines NDA invitation**: send an NDA reference invite → referee opens `/ref/[token]` → Decline → silent for the requester, History row reads "Declined"
+- [ ] **Referee revokes NDA accepted reference**: NDA reference accepted → referee Settings → References → "References you've given" → Revoke consent → row gone from requester's profile + chat-header, History on both sides reads "Referee revoked"
+- [ ] **Requester revokes mid-pending**: send an NDA invite → before referee accepts, requester taps Cancel from Settings → References → Pending → confirm; referee's `/ref/[token]` link reads "No longer available"
+
+### NDA references — employer chat-header mask (00130)
+
+This is where the NDA actually protects the vessel identity from outside parties. The flow requires (a) an NDA-vessel reference accepted and (b) an employer initiating contact via /references/[id]/contact, then both parties viewing the resulting chat header.
+
+Setup: a crew with an Accepted NDA reference; an employer/agent test account that has cross-party context with the crew (engagement/application/invitation).
+
+- [ ] Crew applies to a daywork or permanent posting from employer X → context is established
+- [ ] Employer X opens crew's profile from the application → references list renders with referee name/role/comment (snapshot fields are not exposed by the profile API anyway, so no leak here pre-mask either)
+- [ ] Employer X taps **Contact reference** on the NDA-vessel reference → ContactReferenceDialog opens (note: dialog never displays the vessel name) → submit → toast "Request sent"
+- [ ] Referee receives a `REFERENCE.CONTACT_REQUESTED` in-app notification → tap → consent screen → Accept → 1:1 chat opens
+- [ ] **Employer X views the chat header** (ReferenceContactHeader): vessel name renders as "**NDA Vessel**", IMO is empty, date range / requester role / referee role / comment all render normally
+- [ ] **Referee views the same chat from their account**: vessel name + IMO render in **full** — the referee was aboard, no NDA against themselves
+- [ ] **Trust-boundary unmask**: separately, employer X also has an _active_ engagement (daywork or permanent) with the same crew on the **same NDA vessel** (e.g., they previously hired this crew via a daywork on this boat) → re-open the reference-contact chat → vessel name + IMO now reveal in full to employer X (existing 00083 trust-boundary precedent — they already crossed the trust line). Confirm by ending that engagement (cancel/complete) → mask should reapply on the next chat header refresh.
+
+### NDA contact-reference — midway cancellation paths
+
+- [ ] **Referee declines the contact request**: employer X sends contact request on NDA reference → referee taps Decline on the consent prompt → silent for employer (no notification); employer's `/messages` does NOT open a chat with the referee; their counter does NOT increment toward the 30-day cap (only accepted contacts count)
+- [ ] **Either party closes the chat**: after Accept, either party taps Close conversation → fires `REFERENCE.CONTACT_THREAD_CLOSED` → `active_engagements.status='closed'` + `outcome='reference_complete'`. Chat header now shows ClosedBanner, footer disabled.
+- [ ] **Underlying reference revoked while contact chat is open**: referee revokes the reference (Revoke consent on Settings → References) → chat header shows the Fix A "reference revoked" banner with the structured revoke reason; employer cannot re-contact (the cap row is preserved as audit history)
+- [ ] **NDA flag toggled mid-flight**: admin un-NDAs the vessel (admin canonical edit, set NDA flag = false) → re-open the chat header → vessel name + IMO now reveal to employer (live nda_flag check). Re-NDA the vessel → mask reapplies on next refresh.
+
+### Billing tier copy advertises reference outreach (employer)
+
+> Both crew and employer billing tiers now advertise their reference allowances. Without this, the paywall fires with no prior context.
+
+- [ ] Login as **crew** → /billing → Free card lists "1 reference per experience" + Crew Pro card lists "Up to 3 references per experience" (was already there)
+- [ ] Login as **employer** → /billing → Free card lists "**Reach out to references — 5 contacts per 30 days (10 pending)**" + Pro card lists "**Unlimited reference outreach**" (NEW this session — was missing before)
+- [ ] **Free 30-day cap hit mid-flight**: as Free employer, send 5 contact requests that get accepted in any rolling 30-day window → next attempt → 402 "Monthly contact-request budget reached" with **Upgrade to Employer Pro** button
+- [ ] **Free outstanding-pending cap hit**: at 10 pending (no responses yet) → 402 "You have too many outstanding contact requests" with Upgrade button
+- [ ] **Pro lifts both caps**: as Employer Pro, neither cap fires; counter copy in ContactReferenceDialog reads "Employer Pro · unlimited contact requests"
+- [ ] **Self-contact guard**: dual-hat user who is both employer and the referee on a reference → POST /api/references/[id]/contact returns 409 "You're the referee on this reference — you can't contact yourself"
+
+### Pending-vessel references (00128) — no separate test
+
+> Already covered by "Vessel-state gating (post-00128/00129/00130)" above (third bullet). The pending-vessel happy path is just "create a vessel via /vessels Add (which lands as `source='pending'`), add an experience on it, request a reference — it works." No mid-flight cancellation specific to the pending state — the standard revoke / decline / supersede paths apply identically. If admin Hides the vessel mid-flight, the experience-level RPC filter takes over (covered in §6 "Lookup filter — pending/hidden visibility").
 
 ---
 
