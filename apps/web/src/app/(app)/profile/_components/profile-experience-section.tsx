@@ -236,20 +236,53 @@ export function ProfileExperienceSection({
                           const currentBlocked = exp.is_current;
                           const blocked =
                             ndaBlocked || sourceBlocked || hiddenBlocked || currentBlocked;
-                          if (blocked) return null;
+                          if (!blocked) {
+                            return (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 gap-1 text-xs"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddRefDialogExpId(exp.id);
+                                }}
+                              >
+                                <UserPlus className="h-3 w-3" />
+                                Add reference ({refsActive}/{refsCap})
+                              </Button>
+                            );
+                          }
+                          // Add is blocked — but the count is still useful
+                          // information when references already exist on
+                          // this experience. Surface it as a passive badge
+                          // with a tooltip explaining why Add is disabled.
+                          const reason = currentBlocked
+                            ? 'Mark this experience as completed to add references.'
+                            : ndaBlocked
+                              ? "References on NDA vessels aren't supported yet."
+                              : hiddenBlocked
+                                ? 'This vessel was hidden by admin — references are unavailable.'
+                                : 'References available once admin approves this vessel.';
+                          if (refsActive === 0) {
+                            return (
+                              <span
+                                className="flex items-center gap-1 rounded-full bg-[var(--surface)] px-2 py-1 text-[11px] text-muted-foreground"
+                                title={reason}
+                              >
+                                <UserPlus className="h-3 w-3" />
+                                References unavailable
+                              </span>
+                            );
+                          }
                           return (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 gap-1 text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setAddRefDialogExpId(exp.id);
-                              }}
+                            <span
+                              className="flex items-center gap-1 rounded-full bg-[var(--surface)] px-2 py-1 text-[11px] text-muted-foreground"
+                              title={reason}
                             >
                               <UserPlus className="h-3 w-3" />
-                              Add reference ({refsActive}/{refsCap})
-                            </Button>
+                              {refsActive}/{refsCap} reference
+                              {refsActive === 1 ? '' : 's'}
+                            </span>
                           );
                         })()}
                         <Button
