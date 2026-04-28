@@ -2,10 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { GET } from '@/app/api/jobs/[jobNumber]/route';
 
 const mockServiceFrom = vi.fn();
+const mockServiceRpc = vi.fn();
 vi.mock('@/lib/supabase/server', () => ({
   createServiceClient: () =>
     Promise.resolve({
       from: mockServiceFrom,
+      rpc: mockServiceRpc,
     }),
 }));
 
@@ -73,10 +75,24 @@ describe('GET /api/jobs/[jobNumber]', () => {
     );
     // Experience bracket
     mockServiceFrom.mockReturnValueOnce(mockChain({ label: 'Junior' }));
-    // Vessel
-    mockServiceFrom.mockReturnValueOnce(
-      mockChain({ name: 'M/Y Test', vessel_type: 'motor', loa_meters: 45, nda_flag: false, vessel_size_bands: { label: '40-60m' } }),
-    );
+    // Vessel — now goes through get_vessel_public RPC, which returns
+    // a table (array of rows) with the masked shape.
+    mockServiceRpc.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'v1',
+          imo_number: '1234567',
+          name: 'M/Y Test',
+          vessel_type: 'motor',
+          size_band_id: 'sb1',
+          size_band_label: '40-60m',
+          loa_meters: 45,
+          nda_flag: false,
+          owner_person_id: 'u-other',
+        },
+      ],
+      error: null,
+    });
     // Certs
     mockServiceFrom.mockReturnValueOnce(mockChain([{ name: 'STCW' }]));
 
@@ -124,13 +140,28 @@ describe('GET /api/jobs/[jobNumber]', () => {
     mockServiceFrom.mockReturnValueOnce(
       mockChain({ name: 'Port Vauban', cities: { name: 'Antibes', regions: { name: 'Antibes' } } }),
     );
-    mockServiceFrom.mockReturnValueOnce(
-      mockChain({ name: 'M/Y Secret', vessel_type: 'motor', loa_meters: 50, nda_flag: true, vessel_size_bands: { label: '40-60m' } }),
-    );
+    // RPC returns the row but with NDA name/IMO already masked server-side.
+    mockServiceRpc.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'v2',
+          imo_number: null,
+          name: 'NDA Vessel',
+          vessel_type: 'motor',
+          size_band_id: 'sb1',
+          size_band_label: '40-60m',
+          loa_meters: 50,
+          nda_flag: true,
+          owner_person_id: 'u-other',
+        },
+      ],
+      error: null,
+    });
 
     const res = await GET(new Request('http://localhost'), makeParams('DW-00002'));
     const body = await res.json();
     expect(body.vessel_name).toBe('NDA Vessel');
+    // JS-side LOA mask still hides loa for NDA on the public job page
     expect(body.loa_meters).toBeNull();
   });
 
@@ -165,9 +196,22 @@ describe('GET /api/jobs/[jobNumber]', () => {
     mockServiceFrom.mockReturnValueOnce(
       mockChain({ name: 'Marina', cities: { name: 'Palma', regions: { name: 'Palma' } } }),
     );
-    mockServiceFrom.mockReturnValueOnce(
-      mockChain({ name: 'M/Y Atlas', vessel_type: 'motor', loa_meters: 55, nda_flag: false, vessel_size_bands: { label: '40-60m' } }),
-    );
+    mockServiceRpc.mockResolvedValueOnce({
+      data: [
+        {
+          id: 'v1',
+          imo_number: '7654321',
+          name: 'M/Y Atlas',
+          vessel_type: 'motor',
+          size_band_id: 'sb1',
+          size_band_label: '40-60m',
+          loa_meters: 55,
+          nda_flag: false,
+          owner_person_id: 'u-other',
+        },
+      ],
+      error: null,
+    });
 
     const res = await GET(new Request('http://localhost'), makeParams('PM-00001'));
     expect(res.status).toBe(200);

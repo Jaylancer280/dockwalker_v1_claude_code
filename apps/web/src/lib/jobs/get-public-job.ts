@@ -38,18 +38,31 @@ export interface PublicJobData {
 const JOB_NUMBER_RE = /^(DW|PM)-(\d{5})$/;
 
 type PortJoin = { name: string; cities: { name: string; regions: { name: string } } } | null;
-type VesselJoin = {
+type PublicVesselRow = {
+  id: string;
+  imo_number: string | null;
   name: string;
   vessel_type: string;
+  size_band_id: string | null;
+  size_band_label: string | null;
   loa_meters: number | null;
   nda_flag: boolean;
-  vessel_size_bands: { label: string } | null;
-} | null;
+  owner_person_id: string;
+};
 
 /**
  * Fetch a public job by job number (e.g. "DW-00001" or "PM-00003").
- * Uses service client — no auth required. NDA vessels masked.
- * Returns null if not found, inactive, or malformed input.
+ * Uses service client — no auth required.
+ *
+ * Vessel data goes through `get_vessel_public(uuid)` (S-1 audit, 2026-04-28):
+ *   - NDA name → 'NDA Vessel', IMO → null, size band + type still visible.
+ *   - Pending vessels (admin queue) and hidden vessels return no row →
+ *     fallback to 'Unknown Vessel' label.
+ *   - LOA mask kept JS-side here (RPC reveals LOA; we additionally hide
+ *     it on the unauthenticated public-job surface to avoid combining
+ *     LOA + port + dates into an NDA-vessel fingerprint).
+ *
+ * Returns null if the posting doesn't exist or is malformed.
  */
 export async function getPublicJob(jobNumber: string): Promise<PublicJobData | null> {
   const match = JOB_NUMBER_RE.exec(jobNumber);
@@ -89,31 +102,24 @@ export async function getPublicJob(jobNumber: string): Promise<PublicJobData | n
       dw.experience_bracket_id
         ? sc.from('experience_brackets').select('label').eq('id', dw.experience_bracket_id).single()
         : null,
-      dw.vessel_id
-        ? sc
-            .from('vessels')
-            .select(
-              'name, vessel_type, loa_meters, nda_flag, vessel_size_bands:size_band_id(label)',
-            )
-            .eq('id', dw.vessel_id)
-            .single()
-        : null,
+      dw.vessel_id ? sc.rpc('get_vessel_public', { p_vessel_id: dw.vessel_id }) : null,
       dw.required_certification_ids?.length > 0
         ? sc.from('certifications').select('name').in('id', dw.required_certification_ids)
         : null,
     ]);
 
     const portData = port?.data as PortJoin;
-    const vesselData = vessel?.data as VesselJoin;
+    const vesselRows = (vessel?.data ?? []) as PublicVesselRow[];
+    const vesselData = vesselRows[0] ?? null;
 
     return {
       job_number: jobNumber,
       type: 'daywork',
       role_name: role?.data?.name ?? 'Unknown Role',
       department: role?.data?.department ?? 'deck',
-      vessel_name: vesselData?.nda_flag ? 'NDA Vessel' : (vesselData?.name ?? 'Unknown Vessel'),
+      vessel_name: vesselData?.name ?? 'Unknown Vessel',
       vessel_type: vesselData?.vessel_type ?? 'motor',
-      size_band: vesselData?.vessel_size_bands?.label ?? null,
+      size_band: vesselData?.size_band_label ?? null,
       loa_meters: vesselData?.nda_flag ? null : (vesselData?.loa_meters ?? null),
       region: portData?.cities?.regions?.name ?? null,
       city: portData?.cities?.name ?? null,
@@ -162,29 +168,24 @@ export async function getPublicJob(jobNumber: string): Promise<PublicJobData | n
     pp.experience_bracket_id
       ? sc.from('experience_brackets').select('label').eq('id', pp.experience_bracket_id).single()
       : null,
-    pp.vessel_id
-      ? sc
-          .from('vessels')
-          .select('name, vessel_type, loa_meters, nda_flag, vessel_size_bands:size_band_id(label)')
-          .eq('id', pp.vessel_id)
-          .single()
-      : null,
+    pp.vessel_id ? sc.rpc('get_vessel_public', { p_vessel_id: pp.vessel_id }) : null,
     pp.required_certification_ids?.length > 0
       ? sc.from('certifications').select('name').in('id', pp.required_certification_ids)
       : null,
   ]);
 
   const portData = port?.data as PortJoin;
-  const vesselData = vessel?.data as VesselJoin;
+  const vesselRows = (vessel?.data ?? []) as PublicVesselRow[];
+  const vesselData = vesselRows[0] ?? null;
 
   return {
     job_number: jobNumber,
     type: 'permanent',
     role_name: role?.data?.name ?? 'Unknown Role',
     department: role?.data?.department ?? 'deck',
-    vessel_name: vesselData?.nda_flag ? 'NDA Vessel' : (vesselData?.name ?? 'Unknown Vessel'),
+    vessel_name: vesselData?.name ?? 'Unknown Vessel',
     vessel_type: vesselData?.vessel_type ?? 'motor',
-    size_band: vesselData?.vessel_size_bands?.label ?? null,
+    size_band: vesselData?.size_band_label ?? null,
     loa_meters: vesselData?.nda_flag ? null : (vesselData?.loa_meters ?? null),
     region: portData?.cities?.regions?.name ?? null,
     city: portData?.cities?.name ?? null,

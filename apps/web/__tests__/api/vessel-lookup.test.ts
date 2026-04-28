@@ -8,17 +8,65 @@ vi.mock('@/lib/auth/require-auth-session', () => ({
 }));
 
 const mockServiceFrom = vi.fn();
+const mockSupabaseRpc = vi.fn();
 
 function guardOk(overrides: Record<string, unknown> = {}) {
   return {
     ok: true,
     value: {
       user: { id: 'u1' },
-      supabase: { from: vi.fn() },
+      supabase: { rpc: mockSupabaseRpc },
       serviceClient: { from: mockServiceFrom },
       ...overrides,
     },
   };
+}
+
+interface PublicVesselRow {
+  id: string;
+  imo_number: string | null;
+  name: string;
+  vessel_type: string;
+  size_band_id: string | null;
+  size_band_label: string | null;
+  loa_meters: number | null;
+  nda_flag: boolean;
+  owner_person_id: string;
+}
+
+/**
+ * Mock the IMO-scan step: serviceClient returns id+imo_number rows.
+ * Mode 'partial' uses .ilike(...).limit(...). Mode 'exact' uses .eq(...).
+ */
+function mockImoScan(
+  rows: Array<{ id: string; imo_number: string }>,
+  mode: 'partial' | 'exact',
+  error: { message: string } | null = null,
+) {
+  if (mode === 'partial') {
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        ilike: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({ data: error ? null : rows, error }),
+        }),
+      }),
+    });
+  } else {
+    mockServiceFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: error ? null : rows, error }),
+      }),
+    });
+  }
+}
+
+/**
+ * Mock the RPC step: get_vessels_public_batch returns masked rows.
+ * Pass an empty array to simulate the visibility filter (pending /
+ * hidden / not-owned-not-engaged) excluding everything.
+ */
+function mockRpcBatch(rows: PublicVesselRow[], error: { message: string } | null = null) {
+  mockSupabaseRpc.mockResolvedValueOnce({ data: error ? null : rows, error });
 }
 
 describe('GET /api/vessels/lookup', () => {
@@ -65,35 +113,37 @@ describe('GET /api/vessels/lookup', () => {
 
   it('returns partial results for 4-digit IMO prefix', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    const vessels = [
+    mockImoScan(
+      [
+        { id: 'v1', imo_number: '1234567' },
+        { id: 'v2', imo_number: '1234890' },
+      ],
+      'partial',
+    );
+    mockRpcBatch([
       {
         id: 'v1',
+        imo_number: '1234567',
         name: 'Alpha',
         vessel_type: 'motor',
+        size_band_id: null,
+        size_band_label: null,
         loa_meters: 40,
-        imo_number: '1234567',
-        source: 'curated',
-        hidden_at: null,
+        nda_flag: false,
         owner_person_id: 'u-other',
       },
       {
         id: 'v2',
+        imo_number: '1234890',
         name: 'Beta',
         vessel_type: 'sail',
+        size_band_id: null,
+        size_band_label: null,
         loa_meters: 30,
-        imo_number: '1234890',
-        source: 'curated',
-        hidden_at: null,
+        nda_flag: false,
         owner_person_id: 'u-other',
       },
-    ];
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        ilike: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({ data: vessels, error: null }),
-        }),
-      }),
-    });
+    ]);
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=1234'));
     expect(res.status).toBe(200);
@@ -106,13 +156,7 @@ describe('GET /api/vessels/lookup', () => {
 
   it('returns empty results array for partial with no matches', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        ilike: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-        }),
-      }),
-    });
+    mockImoScan([], 'partial');
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=9999'));
     expect(res.status).toBe(200);
@@ -122,84 +166,58 @@ describe('GET /api/vessels/lookup', () => {
 
   it('returns at most 5 results for partial search and filters out other-user pending rows', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    const mockLimit = vi.fn().mockResolvedValue({
-      data: [
-        // Two visible curated rows
+    // IMO scan returns 7 candidate IDs: 5 curated + 1 pending-other + 1 hidden-other
+    mockImoScan(
+      [
         ...Array.from({ length: 5 }, (_, i) => ({
           id: `v${i}`,
-          name: `Vessel ${i}`,
-          vessel_type: 'motor',
-          loa_meters: 30 + i,
           imo_number: `5678${i}00`,
-          source: 'curated',
-          hidden_at: null,
-          owner_person_id: 'u-other',
         })),
-        // Other user's pending row — must be filtered out
-        {
-          id: 'pending-other',
-          name: 'Other Pending',
-          vessel_type: 'motor',
-          loa_meters: 60,
-          imo_number: '5678999',
-          source: 'pending',
-          hidden_at: null,
-          owner_person_id: 'u-other',
-        },
-        // Other user's hidden row — must be filtered out
-        {
-          id: 'hidden-other',
-          name: 'Hidden Other',
-          vessel_type: 'motor',
-          loa_meters: 60,
-          imo_number: '5678888',
-          source: 'curated',
-          hidden_at: '2026-04-26T00:00:00Z',
-          owner_person_id: 'u-other',
-        },
+        { id: 'pending-other', imo_number: '5678999' },
+        { id: 'hidden-other', imo_number: '5678888' },
       ],
-      error: null,
-    });
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        ilike: vi.fn().mockReturnValue({
-          limit: mockLimit,
-        }),
-      }),
-    });
+      'partial',
+    );
+    // RPC's WHERE clause excludes pending-other + hidden-other; only the
+    // 5 curated rows survive the visibility filter.
+    mockRpcBatch(
+      Array.from({ length: 5 }, (_, i) => ({
+        id: `v${i}`,
+        imo_number: `5678${i}00`,
+        name: `Vessel ${i}`,
+        vessel_type: 'motor',
+        size_band_id: null,
+        size_band_label: null,
+        loa_meters: 30 + i,
+        nda_flag: false,
+        owner_person_id: 'u-other',
+      })),
+    );
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=5678'));
     expect(res.status).toBe(200);
     const body = await res.json();
-    // Only the 5 curated rows survive the filter; pending + hidden owned by
-    // another user are excluded.
     expect(body.results).toHaveLength(5);
     expect(body.results.every((r: { id: string }) => r.id.startsWith('v'))).toBe(true);
   });
 
-  it('partial search includes the caller\'s own pending submission', async () => {
+  it("partial search includes the caller's own pending submission", async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        ilike: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: [
-              {
-                id: 'mine',
-                name: 'My Pending Yacht',
-                vessel_type: 'motor',
-                loa_meters: 50,
-                imo_number: '5678123',
-                source: 'pending',
-                hidden_at: null,
-                owner_person_id: 'u1', // matches guardOk's user.id
-              },
-            ],
-            error: null,
-          }),
-        }),
-      }),
-    });
+    mockImoScan([{ id: 'mine', imo_number: '5678123' }], 'partial');
+    // Owner branch in RPC includes pending row when caller IS the owner.
+    mockRpcBatch([
+      {
+        id: 'mine',
+        imo_number: '5678123',
+        name: 'My Pending Yacht',
+        vessel_type: 'motor',
+        size_band_id: null,
+        size_band_label: null,
+        loa_meters: 50,
+        nda_flag: false,
+        owner_person_id: 'u1',
+      },
+    ]);
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=5678'));
     expect(res.status).toBe(200);
@@ -210,13 +228,7 @@ describe('GET /api/vessels/lookup', () => {
 
   it('returns 500 on partial search DB error', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        ilike: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({ data: null, error: { message: 'DB error' } }),
-        }),
-      }),
-    });
+    mockImoScan([], 'partial', { message: 'DB error' });
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=1234'));
     expect(res.status).toBe(500);
@@ -224,11 +236,7 @@ describe('GET /api/vessels/lookup', () => {
 
   it('returns found: false when vessel not in DB', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({ data: [], error: null }),
-      }),
-    });
+    mockImoScan([], 'exact');
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=9876543'));
     expect(res.status).toBe(200);
@@ -238,26 +246,20 @@ describe('GET /api/vessels/lookup', () => {
 
   it('returns found: true with vessel data when a curated vessel exists', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({
-          data: [
-            {
-              id: 'v1',
-              name: 'M/Y Test',
-              vessel_type: 'motor',
-              size_band_id: 'sb1',
-              loa_meters: 45,
-              source: 'curated',
-              hidden_at: null,
-              owner_person_id: 'u-other',
-              vessel_size_bands: { label: '40-50m' },
-            },
-          ],
-          error: null,
-        }),
-      }),
-    });
+    mockImoScan([{ id: 'v1', imo_number: '9876543' }], 'exact');
+    mockRpcBatch([
+      {
+        id: 'v1',
+        imo_number: '9876543',
+        name: 'M/Y Test',
+        vessel_type: 'motor',
+        size_band_id: 'sb1',
+        size_band_label: '40-50m',
+        loa_meters: 45,
+        nda_flag: false,
+        owner_person_id: 'u-other',
+      },
+    ]);
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=9876543'));
     expect(res.status).toBe(200);
@@ -269,28 +271,11 @@ describe('GET /api/vessels/lookup', () => {
     expect(body.vessel).not.toHaveProperty('imo_number');
   });
 
-  it('exact lookup hides another user\'s pending vessel from the caller', async () => {
+  it("exact lookup hides another user's pending vessel from the caller", async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({
-          data: [
-            {
-              id: 'pending-other',
-              name: 'Pending Other',
-              vessel_type: 'motor',
-              size_band_id: 'sb1',
-              loa_meters: 50,
-              source: 'pending',
-              hidden_at: null,
-              owner_person_id: 'u-other',
-              vessel_size_bands: null,
-            },
-          ],
-          error: null,
-        }),
-      }),
-    });
+    mockImoScan([{ id: 'pending-other', imo_number: '9876543' }], 'exact');
+    // RPC's visibility filter excludes the row entirely → empty array
+    mockRpcBatch([]);
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=9876543'));
     expect(res.status).toBe(200);
@@ -298,28 +283,22 @@ describe('GET /api/vessels/lookup', () => {
     expect(body.found).toBe(false);
   });
 
-  it('exact lookup returns the caller\'s own pending vessel', async () => {
+  it("exact lookup returns the caller's own pending vessel", async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({
-          data: [
-            {
-              id: 'mine',
-              name: 'My Pending Yacht',
-              vessel_type: 'motor',
-              size_band_id: 'sb1',
-              loa_meters: 50,
-              source: 'pending',
-              hidden_at: null,
-              owner_person_id: 'u1',
-              vessel_size_bands: null,
-            },
-          ],
-          error: null,
-        }),
-      }),
-    });
+    mockImoScan([{ id: 'mine', imo_number: '9876543' }], 'exact');
+    mockRpcBatch([
+      {
+        id: 'mine',
+        imo_number: '9876543',
+        name: 'My Pending Yacht',
+        vessel_type: 'motor',
+        size_band_id: 'sb1',
+        size_band_label: null,
+        loa_meters: 50,
+        nda_flag: false,
+        owner_person_id: 'u1',
+      },
+    ]);
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=9876543'));
     expect(res.status).toBe(200);
@@ -330,30 +309,41 @@ describe('GET /api/vessels/lookup', () => {
 
   it('exact lookup hides a hidden vessel from non-owner', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
-    mockServiceFrom.mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockResolvedValue({
-          data: [
-            {
-              id: 'hidden',
-              name: 'Hidden Vessel',
-              vessel_type: 'motor',
-              size_band_id: 'sb1',
-              loa_meters: 50,
-              source: 'curated',
-              hidden_at: '2026-04-26T00:00:00Z',
-              owner_person_id: 'u-other',
-              vessel_size_bands: null,
-            },
-          ],
-          error: null,
-        }),
-      }),
-    });
+    mockImoScan([{ id: 'hidden', imo_number: '9876543' }], 'exact');
+    // RPC excludes hidden_at row for non-owner non-engaged caller
+    mockRpcBatch([]);
 
     const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=9876543'));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.found).toBe(false);
+  });
+
+  it('S-1: NDA vessel returns masked name and null IMO for non-engaged caller', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockImoScan([{ id: 'v-nda', imo_number: '7654321' }], 'exact');
+    // RPC returns the row but with name masked and imo_number nulled
+    mockRpcBatch([
+      {
+        id: 'v-nda',
+        imo_number: null, // RPC null-mask for NDA
+        name: 'NDA Vessel', // RPC string-mask for NDA
+        vessel_type: 'motor',
+        size_band_id: 'sb2',
+        size_band_label: '60-80m',
+        loa_meters: 70,
+        nda_flag: true,
+        owner_person_id: 'u-other',
+      },
+    ]);
+
+    const res = await GET(new Request('http://localhost/api/vessels/lookup?imo=7654321'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.found).toBe(true);
+    expect(body.vessel.name).toBe('NDA Vessel');
+    expect(body.vessel).not.toHaveProperty('imo_number');
+    // size_band still visible per existing precedent
+    expect(body.vessel.size_band_label).toBe('60-80m');
   });
 });

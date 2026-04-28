@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server';
 import { requireAuthSession } from '@/lib/auth/require-auth-session';
 
+interface PublicVesselRow {
+  id: string;
+  imo_number: string | null;
+  name: string;
+  vessel_type: string;
+  size_band_id: string | null;
+  size_band_label: string | null;
+  loa_meters: number | null;
+  nda_flag: boolean;
+  owner_person_id: string;
+}
+
 /**
  * GET /api/vessels/lookup?imo=1234567
  * Looks up vessels by IMO number prefix.
@@ -9,11 +21,21 @@ import { requireAuthSession } from '@/lib/auth/require-auth-session';
  * Any authenticated user can look up vessels (for experience entry).
  * Onboarding-friendly: pre-onboarding users hit this from the
  * vessel-experience step.
+ *
+ * Two-step pattern (S-1 audit, 2026-04-28):
+ *   1. service-role IMO scan returns candidate IDs only (no NDA-sensitive
+ *      data leaves SQL).
+ *   2. user-authenticated `get_vessels_public_batch(uuid[])` RPC returns
+ *      masked detail rows — NDA name → 'NDA Vessel' + IMO → null for
+ *      callers who are neither owner nor actively engaged on the vessel,
+ *      and pending/hidden rows filtered out (except for the submitting
+ *      owner). `auth.uid()` must resolve correctly so we use the
+ *      user-bound `supabase` client for step 2, not service-role.
  */
 export async function GET(request: Request) {
   const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
-  const { user, serviceClient } = guard.value;
+  const { supabase, serviceClient } = guard.value;
 
   const { searchParams } = new URL(request.url);
   const imo = searchParams.get('imo');
@@ -30,33 +52,36 @@ export async function GET(request: Request) {
     );
   }
 
-  // Wave F filter: hide `source='pending'` and `hidden_at IS NOT NULL`
-  // rows from everyone EXCEPT the submitting owner. The submitter still
-  // needs to find their own pending vessel via this lookup (e.g. to
-  // attach it to a new posting before admin approval lands).
-  const PUBLIC_SOURCES = ['curated', 'user_submitted'] as const;
+  // Step 1 — IDs by IMO match. Service-role to bypass RLS so we don't
+  // miss the caller's own pending vessel (RLS would filter that out
+  // before the RPC's owner-branch can re-include it).
+  const idQuery = serviceClient.from('vessels').select('id, imo_number');
+  const { data: candidates, error: idError } =
+    imoClean.length < 7
+      ? await idQuery.ilike('imo_number', `${imoClean}%`).limit(50)
+      : await idQuery.eq('imo_number', imoClean);
+  if (idError) {
+    return NextResponse.json({ error: idError.message }, { status: 500 });
+  }
+  const candidateIds = (candidates ?? []).map((v) => v.id as string);
+  if (candidateIds.length === 0) {
+    return imoClean.length < 7
+      ? NextResponse.json({ results: [] })
+      : NextResponse.json({ found: false });
+  }
 
-  // Partial search (4-6 digits): prefix match returning up to 5 results
+  // Step 2 — masked details via the RPC. Visibility filter (pending
+  // hidden) + NDA name+IMO mask all happen server-side using auth.uid().
+  const { data: rpcRows, error: rpcError } = await supabase.rpc('get_vessels_public_batch', {
+    p_vessel_ids: candidateIds,
+  });
+  if (rpcError) {
+    return NextResponse.json({ error: rpcError.message }, { status: 500 });
+  }
+  const visible = (rpcRows ?? []) as PublicVesselRow[];
+
+  // Partial search — return up to 5 visible results
   if (imoClean.length < 7) {
-    const { data: vessels, error } = await serviceClient
-      .from('vessels')
-      .select('id, name, vessel_type, loa_meters, imo_number, source, hidden_at, owner_person_id')
-      .ilike('imo_number', `${imoClean}%`)
-      .limit(20);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const visible = (vessels ?? []).filter((v) => {
-      if (v.hidden_at && v.owner_person_id !== user.id) return false;
-      if (v.source === 'pending' && v.owner_person_id !== user.id) return false;
-      return (
-        PUBLIC_SOURCES.includes(v.source as 'curated' | 'user_submitted') ||
-        v.owner_person_id === user.id
-      );
-    });
-
     return NextResponse.json({
       results: visible.slice(0, 5).map((v) => ({
         id: v.id,
@@ -68,41 +93,11 @@ export async function GET(request: Request) {
     });
   }
 
-  // Exact search (7 digits): single vessel lookup with the same Wave F
-  // filter — but if the only matching row is THIS user's own pending
-  // submission, return it so they can attach it to follow-on flows.
-  const { data: vessels, error } = await serviceClient
-    .from('vessels')
-    .select(
-      'id, name, vessel_type, size_band_id, loa_meters, source, hidden_at, owner_person_id, vessel_size_bands(label)',
-    )
-    .eq('imo_number', imoClean);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  const candidates = (vessels ?? []) as unknown as Array<{
-    id: string;
-    name: string;
-    vessel_type: string;
-    size_band_id: string | null;
-    loa_meters: number | null;
-    source: string;
-    hidden_at: string | null;
-    owner_person_id: string;
-    vessel_size_bands: { label: string } | null;
-  }>;
-  const vessel =
-    candidates.find(
-      (v) =>
-        !v.hidden_at &&
-        (v.source === 'curated' || v.source === 'user_submitted' || v.owner_person_id === user.id),
-    ) ?? null;
-
+  // Exact search — one row expected
+  const vessel = visible[0];
   if (!vessel) {
     return NextResponse.json({ found: false });
   }
-
   return NextResponse.json({
     found: true,
     vessel: {
@@ -111,8 +106,7 @@ export async function GET(request: Request) {
       vessel_type: vessel.vessel_type,
       size_band_id: vessel.size_band_id,
       loa_meters: vessel.loa_meters,
-      size_band_label:
-        (vessel.vessel_size_bands as unknown as { label: string } | null)?.label ?? null,
+      size_band_label: vessel.size_band_label,
     },
   });
 }
