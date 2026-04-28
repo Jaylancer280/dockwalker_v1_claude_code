@@ -53,6 +53,11 @@ export interface ExperienceDetailsSectionProps {
    *  lock and rejects mutations to these fields with 409 — disabling
    *  the inputs prevents users from drafting changes that can't save. */
   snapshotLocked?: boolean;
+  /** When true (set when the loaded experience was currently-onboard with
+   *  no end_date), the end_date input and the is_current checkbox stay
+   *  enabled despite `snapshotLocked` so the user can perform the
+   *  one-time closing transition (00129). Role/start_date stay locked. */
+  allowClosing?: boolean;
 }
 
 export function ExperienceDetailsSection({
@@ -78,7 +83,10 @@ export function ExperienceDetailsSection({
   description,
   setDescription,
   snapshotLocked,
+  allowClosing,
 }: ExperienceDetailsSectionProps) {
+  const lockEndDate = snapshotLocked && !allowClosing;
+  const lockIsCurrent = snapshotLocked && !allowClosing;
   return (
     <>
       {/* Role — department hierarchy picker */}
@@ -129,16 +137,16 @@ export function ExperienceDetailsSection({
           <DateInput
             value={endDate}
             onChange={setEndDate}
-            disabled={isCurrent || snapshotLocked}
+            disabled={isCurrent || lockEndDate}
             min={startDate || undefined}
           />
         </div>
       </div>
       {!isAgent && (
-        <label className={`flex items-center gap-2 text-sm ${snapshotLocked ? 'opacity-60' : ''}`}>
+        <label className={`flex items-center gap-2 text-sm ${lockIsCurrent ? 'opacity-60' : ''}`}>
           <Checkbox
             checked={isCurrent}
-            disabled={snapshotLocked}
+            disabled={lockIsCurrent}
             onCheckedChange={(checked) => {
               setIsCurrent(checked === true);
               if (checked) setEndDate('');

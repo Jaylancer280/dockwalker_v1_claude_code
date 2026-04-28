@@ -3,6 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { createClient } from '@/lib/supabase/client';
 import { useLookups } from '@/hooks/use-lookups';
 import { safeFetch } from '@/lib/safe-fetch';
@@ -49,6 +57,12 @@ export default function EditExperiencePage() {
   const [description, setDescription] = useState('');
 
   const [referencesActiveCount, setReferencesActiveCount] = useState(0);
+  // Initial-state snapshots so we can detect the one-time closing transition
+  // (currently-onboard → completed) and warn the user before saving when
+  // active references would lock the new end_date permanently.
+  const [initialIsCurrent, setInitialIsCurrent] = useState(false);
+  const [initialEndDate, setInitialEndDate] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Private intelligence fields (write-only — GET never returns these)
   const [salaryAmount, setSalaryAmount] = useState('');
@@ -101,6 +115,8 @@ export default function EditExperiencePage() {
           setStartDate(exp.start_date ?? '');
           setEndDate(exp.end_date ?? '');
           setIsCurrent(exp.is_current ?? false);
+          setInitialEndDate(exp.end_date ?? '');
+          setInitialIsCurrent(exp.is_current ?? false);
           setContractType(exp.contract_type ?? '');
           setContractDetails(exp.contract_details ?? '');
           setDescription(exp.description ?? '');
@@ -128,10 +144,20 @@ export default function EditExperiencePage() {
     loadData();
   }, [loadData]);
 
-  async function handleSubmit() {
-    if (!roleId || !startDate) return;
+  // The one-time closing transition: experience was loaded as currently-
+  // onboard with no end_date AND the user is now setting an end_date or
+  // clearing is_current. After saving, the projection auto-stamps the new
+  // end_date onto any active reference snapshots and the lock becomes
+  // permanent on those fields.
+  const wasOnboard = initialIsCurrent && !initialEndDate;
+  const isClosingNow = wasOnboard && (!isCurrent || !!endDate);
+  const allowClosing = referencesActiveCount > 0 && wasOnboard;
+  const needsConfirm = referencesActiveCount > 0 && isClosingNow;
+
+  async function performSave() {
     setSubmitting(true);
     setError(null);
+    setConfirmOpen(false);
 
     const result = await safeFetch<{ error?: string }>(`/api/experiences/${id}`, {
       method: 'PATCH',
@@ -162,6 +188,15 @@ export default function EditExperiencePage() {
       setError(result.error);
     }
     setSubmitting(false);
+  }
+
+  async function handleSubmit() {
+    if (!roleId || !startDate) return;
+    if (needsConfirm) {
+      setConfirmOpen(true);
+      return;
+    }
+    await performSave();
   }
 
   if (loading) {
@@ -237,6 +272,7 @@ export default function EditExperiencePage() {
           description={description}
           setDescription={setDescription}
           snapshotLocked={referencesActiveCount > 0}
+          allowClosing={allowClosing}
         />
 
         <PrivateIntelligenceSection
@@ -272,6 +308,39 @@ export default function EditExperiencePage() {
           )}
         </Button>
       </div>
+
+      {/* One-time confirmation when closing a currently-onboard experience
+          with active references. After save the end_date is locked
+          permanently on both the experience and the reference snapshots. */}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Lock end date?</DialogTitle>
+            <DialogDescription>
+              You&rsquo;re closing a currently-onboard experience that has {referencesActiveCount}{' '}
+              active reference
+              {referencesActiveCount === 1 ? '' : 's'}. This is a one-time change — once saved, the
+              end date can&rsquo;t be edited again while references are attached, and your
+              referee&rsquo;s record will update to show the closed period.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
+            <Button onClick={performSave} disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Confirm and save'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

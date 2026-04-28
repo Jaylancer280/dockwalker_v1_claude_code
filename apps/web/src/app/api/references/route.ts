@@ -18,10 +18,13 @@ import { notifyOnEvent } from '@/lib/push-triggers';
  * Crew creates a consent invitation for a referee.
  *
  *   - Verifies the experience belongs to the caller.
- *   - B-2: rejects when `is_current=true` (references are retrospective).
- *   - Vessel-state gate: NDA / non-curated / hidden vessels are rejected.
+ *   - Vessel-state gate: NDA / hidden vessels are rejected.
  *   - Per-experience cap by subscription tier (Free=1, Crew Pro=3).
  *   - Snapshots vessel IMO + period-correct vessel name + dates onto the row.
+ *     For currently-onboard experiences (is_current=true, end_date=null) the
+ *     snapshot_end_date stays null until the experience is later closed; the
+ *     EXPERIENCE.UPDATED projection auto-updates snapshots in that one-time
+ *     null→date transition (see 00129).
  *   - Generates an opaque token; returns the share-link URL.
  *   - B-6: opportunistic in-app notification to a matched DockWalker person
  *     (only when `claimedRefereeEmail` matches an existing account).
@@ -72,17 +75,6 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (!experience) {
       return NextResponse.json({ error: 'Experience not found' }, { status: 404 });
-    }
-
-    // B-2: forbid references on currently-active experiences.
-    if (experience.is_current) {
-      return NextResponse.json(
-        {
-          error:
-            'Mark this experience as completed before adding a reference — references are for past working relationships',
-        },
-        { status: 400 },
-      );
     }
 
     // Vessel-state gate.

@@ -104,14 +104,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     // P0-A — Snapshot field edit-lock when active references exist on this
-    // experience. Vessel/role/start/end are frozen on the experience while
-    // references are pending or accepted; users must revoke references first.
-    // The projection layer enforces the same check as defence in depth (00126).
+    // experience. role/start_date are unconditionally locked. end_date and
+    // is_current are locked EXCEPT for the one-time null→date / true→false
+    // transition that closes a currently-onboard experience (see 00129).
+    // The projection layer enforces the same rule as defence in depth.
     const wantsLockedFieldChange =
-      // We only check fields that are explicitly being SET (not undefined).
-      // vesselId isn't accepted by this route (vessel changes happen via a
-      // separate flow), so we only need role/start/end.
-      roleId !== undefined || startDate !== undefined || endDate !== undefined;
+      roleId !== undefined ||
+      startDate !== undefined ||
+      endDate !== undefined ||
+      isCurrent !== undefined;
     if (wantsLockedFieldChange) {
       const { count: activeRefCount } = await serviceClient
         .from('references')
@@ -121,25 +122,33 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       if ((activeRefCount ?? 0) > 0) {
         const { data: thisExp } = await serviceClient
           .from('crew_experiences')
-          .select('role_id, start_date, end_date')
+          .select('role_id, start_date, end_date, is_current')
           .eq('id', id)
           .single();
         const lockedFields: string[] = [];
+        const wasOnboard = thisExp?.is_current === true && thisExp?.end_date === null;
+
         if (roleId !== undefined && roleId !== thisExp?.role_id) lockedFields.push('role');
         if (startDate !== undefined && startDate !== thisExp?.start_date)
           lockedFields.push('start_date');
-        if (
-          endDate !== undefined &&
-          endDate !== thisExp?.end_date &&
-          // null === null is a no-op
-          !(endDate === null && thisExp?.end_date === null)
-        )
-          lockedFields.push('end_date');
+
+        // end_date: null→date allowed iff currently-onboard. Anything else (date→null,
+        // date→date, null→null are filtered out as no-ops) is locked.
+        if (endDate !== undefined && endDate !== thisExp?.end_date) {
+          const isClosingTransition = wasOnboard && endDate !== null;
+          if (!isClosingTransition) lockedFields.push('end_date');
+        }
+
+        // is_current: true→false allowed iff currently-onboard. Anything else is locked.
+        if (isCurrent !== undefined && isCurrent !== thisExp?.is_current) {
+          const isClosingTransition = wasOnboard && isCurrent === false;
+          if (!isClosingTransition) lockedFields.push('is_current');
+        }
+
         if (lockedFields.length > 0) {
           return NextResponse.json(
             {
-              error:
-                'Revoke active references on this experience before changing vessel, role, or dates.',
+              error: 'Revoke active references on this experience before changing locked fields.',
               locked_fields: lockedFields,
               active_references: activeRefCount,
             },

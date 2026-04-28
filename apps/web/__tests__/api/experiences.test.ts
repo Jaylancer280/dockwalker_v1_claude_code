@@ -72,6 +72,39 @@ function mockReferencesEditLockCount(count = 0) {
 }
 
 /**
+ * Mock both the edit-lock count query AND the follow-up thisExp lookup
+ * (00129 path: when count > 0, the route reads role_id/start_date/end_date/
+ * is_current to decide if a closing transition is allowed).
+ */
+function mockEditLockWithRefs(opts: {
+  count: number;
+  roleId: string;
+  startDate: string;
+  endDate: string | null;
+  isCurrent: boolean;
+}) {
+  mockReferencesEditLockCount(opts.count);
+  mockServiceFrom.mockImplementationOnce((t: string) => {
+    if (t !== 'crew_experiences')
+      throw new Error(`Unexpected table for thisExp lookup: ${t}`);
+    return {
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              role_id: opts.roleId,
+              start_date: opts.startDate,
+              end_date: opts.endDate,
+              is_current: opts.isCurrent,
+            },
+          }),
+        }),
+      }),
+    };
+  });
+}
+
+/**
  * Mock the DELETE-route's references-affected-referees lookup + the
  * requester display_name profile lookup. Default = no affected referees.
  */
@@ -556,6 +589,112 @@ describe('PATCH /api/experiences/:id', () => {
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.error).toContain('overlap');
+  });
+
+  it('00129: allows null→date end_date transition when currently-onboard with active refs', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'exp1' } }),
+          }),
+        }),
+      }),
+    });
+    mockEditLockWithRefs({
+      count: 2,
+      roleId: 'r1',
+      startDate: '2024-01-01',
+      endDate: null,
+      isCurrent: true,
+    });
+    // Date-overlap check still runs — fetch thisExp dates + others (none).
+    mockServiceFrom.mockImplementationOnce(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: { start_date: '2024-01-01', end_date: null },
+          }),
+        }),
+      }),
+    }));
+    mockServiceFrom.mockImplementationOnce(() => ({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          neq: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      }),
+    }));
+
+    const req = new Request('http://localhost/api/experiences/exp1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endDate: '2025-04-30', isCurrent: false }),
+    });
+    const res = await PATCH(req, makeParams('exp1'));
+    expect(res.status).toBe(200);
+    expect(mockAppendEvent).toHaveBeenCalledOnce();
+  });
+
+  it('00129: rejects end_date change on already-completed experience with active refs', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'exp1' } }),
+          }),
+        }),
+      }),
+    });
+    mockEditLockWithRefs({
+      count: 1,
+      roleId: 'r1',
+      startDate: '2024-01-01',
+      endDate: '2024-06-30',
+      isCurrent: false,
+    });
+
+    const req = new Request('http://localhost/api/experiences/exp1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endDate: '2024-08-01' }),
+    });
+    const res = await PATCH(req, makeParams('exp1'));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.locked_fields).toContain('end_date');
+  });
+
+  it('00129: rejects role change on currently-onboard experience with active refs', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFrom.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'exp1' } }),
+          }),
+        }),
+      }),
+    });
+    mockEditLockWithRefs({
+      count: 1,
+      roleId: 'r1',
+      startDate: '2024-01-01',
+      endDate: null,
+      isCurrent: true,
+    });
+
+    const req = new Request('http://localhost/api/experiences/exp1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roleId: 'r2' }),
+    });
+    const res = await PATCH(req, makeParams('exp1'));
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.locked_fields).toContain('role');
   });
 });
 

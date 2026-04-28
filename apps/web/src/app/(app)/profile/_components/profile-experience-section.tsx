@@ -231,8 +231,7 @@ export function ProfileExperienceSection({
                           const refsActive = exp.references_active_count ?? 0;
                           const ndaBlocked = exp.vessels?.nda_flag === true;
                           const hiddenBlocked = !!exp.vessels?.hidden_at;
-                          const currentBlocked = exp.is_current;
-                          const blocked = ndaBlocked || hiddenBlocked || currentBlocked;
+                          const blocked = ndaBlocked || hiddenBlocked;
                           if (!blocked) {
                             return (
                               <Button
@@ -253,11 +252,9 @@ export function ProfileExperienceSection({
                           // information when references already exist on
                           // this experience. Surface it as a passive badge
                           // with a tooltip explaining why Add is disabled.
-                          const reason = currentBlocked
-                            ? 'Mark this experience as completed to add references.'
-                            : ndaBlocked
-                              ? "References on NDA vessels aren't supported yet."
-                              : 'This vessel was hidden by admin — references are unavailable.';
+                          const reason = ndaBlocked
+                            ? "References on NDA vessels aren't supported yet."
+                            : 'This vessel was hidden by admin — references are unavailable.';
                           if (refsActive === 0) {
                             return (
                               <span

@@ -135,8 +135,9 @@ describe('POST /api/references', () => {
     expect(res.status).toBe(403);
   });
 
-  it('B-2 rejects when experience.is_current=true', async () => {
+  it('00129: allows references on currently-onboard experiences', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
+    // experience — currently onboard, no end_date
     mockSupabaseFrom.mockReturnValueOnce(
       chainResolve({
         id: 'exp1',
@@ -148,6 +149,24 @@ describe('POST /api/references', () => {
         is_current: true,
       }),
     );
+    // vessel — non-NDA, not hidden
+    mockServiceFrom.mockReturnValueOnce(
+      chainResolve({
+        id: 'v1',
+        name: 'Test',
+        imo_number: '1111111',
+        nda_flag: false,
+        source: 'curated',
+        hidden_at: null,
+      }),
+    );
+    // yacht_roles
+    mockServiceFrom.mockReturnValueOnce(chainResolve({ name: 'Bosun' }));
+    // existing pending refs (auto-supersede pre-check) — none match
+    mockServiceFrom.mockReturnValueOnce(chainResolve([]));
+    // subscriptions (Free) + cap pre-check
+    mockServiceFrom.mockReturnValueOnce(chainResolve(null));
+    mockServiceFrom.mockReturnValueOnce(chainResolve([], { count: 0 }));
     const res = await createRef(
       new Request('http://localhost/api/references', {
         method: 'POST',
@@ -158,9 +177,19 @@ describe('POST /api/references', () => {
         }),
       }),
     );
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.error).toMatch(/currently-active|completed before/);
+    expect(body.token).toBeDefined();
+    // Snapshot end_date is null when the experience is still currently-onboard.
+    expect(mockAppendEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        eventType: 'REFERENCE.REQUESTED',
+        payload: expect.objectContaining({
+          snapshot_end_date: null,
+        }),
+      }),
+    );
   });
 
   it('rejects on NDA vessel', async () => {
