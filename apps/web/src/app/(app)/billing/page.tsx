@@ -44,8 +44,16 @@ const EMPLOYER_TIER: TierConfig = {
   planId: 'employer_pro',
   proLabel: 'Employer Pro',
   proPrice: '€14.99/month',
-  freeFeatures: ['3 daywork + 1 permanent template', 'Shortlist up to 3 candidates'],
-  proFeatures: ['Unlimited templates', 'Shortlist up to 8 candidates'],
+  freeFeatures: [
+    '3 daywork + 1 permanent template',
+    'Shortlist up to 3 candidates',
+    'Reach out to references — 5 contacts per 30 days (10 pending)',
+  ],
+  proFeatures: [
+    'Unlimited templates',
+    'Shortlist up to 8 candidates',
+    'Unlimited reference outreach',
+  ],
 };
 
 export default function BillingPage() {
