@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     let query = serviceClient
       .from('vessels')
       .select(
-        'id, imo_number, name, vessel_type, loa_meters, nda_flag, owner_person_id, created_at',
+        'id, imo_number, name, vessel_type, loa_meters, nda_flag, owner_person_id, created_at, source, flag_state_id, year_built, builder, gross_tonnage, beam_meters, flag_states:flag_state_id(name)',
         {
           count: 'exact',
         },
@@ -48,10 +48,17 @@ export async function GET(request: Request) {
       }
     }
 
-    const rows = vessels.map((v) => ({
-      ...v,
-      owner_name: nameMap.get(v.owner_person_id) ?? 'Unknown',
-    }));
+    const rows = vessels.map((v) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const flagStates = (v as any).flag_states as { name: string } | null | undefined;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { flag_states: _omit, ...rest } = v as Record<string, unknown>;
+      return {
+        ...rest,
+        flag_state_name: flagStates?.name ?? null,
+        owner_name: nameMap.get(v.owner_person_id) ?? 'Unknown',
+      };
+    });
 
     return NextResponse.json({ vessels: rows, total: count ?? 0 });
   } catch (err) {
