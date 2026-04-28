@@ -203,8 +203,21 @@ If the admin typo'd during Approve, the canonical row is now editable in-place v
 - [ ] Edit the vessel name → save → `vessels.name` updates AND the open-ended `vessel_names` row updates in lockstep (timeline-table denormalisation stays consistent)
 - [ ] Edit LOA → `size_band_id` re-derived automatically
 - [ ] Edit flag state → updates the `flag_state_id` column directly (no `vessel_flag_states` timeline rewrite — those events are deferred per "they sit in the db but not projected for now")
-- [ ] **Refuses pending vessels**: try to load Edit on a `source='pending'` row → 409 "Pending vessels must go through the Pending-vessels Approve action"
-- [ ] **Diff-only update**: if you don't change a field, it's not in the PATCH payload — confirm by inspecting the network tab (only the changed fields go up)
+- [ ] **Refuses pending vessels** 🔧 F12 — On `/admin/canonical` Vessels tab, find a row whose source is `pending` (the UI may show a Pending badge or hide the Edit button — if hidden, fire from Console). Tap **Edit** → modify any field → **Save**. DevTools → **Network** → click the PATCH `/api/admin/vessels/<vessel-id>` request:
+  - Status: `409 Conflict`
+  - Response body: `{"error":"Pending vessels must go through the pending-vessels Approve action — use that route instead."}`
+  - If Edit is hidden in the UI, paste in **Console** instead:
+    ```js
+    fetch('/api/admin/vessels/<vessel-id>', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Should Reject' }),
+    }).then((r) => r.json().then((b) => console.log(r.status, b)));
+    ```
+- [ ] **Diff-only update** 🔧 F12 — Tap Edit on a curated vessel → modify ONLY ONE field (e.g., change `year_built` from 2018 to 2019) → **Save**. DevTools → **Network** → click the PATCH `/api/admin/vessels/<vessel-id>` request → **Payload** tab:
+  - Body should contain ONLY `{"year_built": 2019}` — nothing else.
+  - Untouched fields (name, vessel_type, loa_meters, flag_state_id, builder, gross_tonnage, beam_meters, nda_flag) must NOT appear in the payload.
+  - Status: `200`. Response: `{"ok": true}`.
 
 ### Admin midway-cancellation paths (queue manipulation while users are mid-flight)
 
@@ -256,6 +269,30 @@ The `get_vessel_public` RPC now filters pending + hidden vessels for non-owner n
 ## 7. Consent-based references (commits `b2d6d50` → `030600c`)
 
 End-to-end peer references with snapshot lock + employer contact flow. The bulk of the happy path was verified live (send → accept → render on profile, snapshot edit-lock, public profile rendering); below covers what hasn't been on a device yet.
+
+### 🔧 F12 helper — server-side lock verification
+
+Several tests below verify that **server-side** locks fire even if the UI is bypassed. The UI greys out locked inputs, so you can't trigger these by tapping. Use DevTools → **Console** tab and paste a `fetch` call. The browser session cookie authenticates you automatically.
+
+**Boilerplate** (substitute the marked bits per test):
+
+```js
+fetch('<URL>', {
+  method: '<METHOD>',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(<BODY>),
+}).then(r => r.json().then(b => console.log(r.status, b)));
+```
+
+You'll see something like `409 { error: "...", locked_fields: [...], active_references: N }` printed in the Console.
+
+**Where to find IDs:**
+
+- `<experience-id>` — open `/profile/edit-experience/<id>` and copy the trailing UUID from the URL bar.
+- `<vessel-id>` (admin-only) — open `/admin/canonical` Vessels tab → DevTools → Network → reload the page → click the `vessels` GET request → Response tab → find the row's `id` field.
+- `<reference-id>` — `/settings/references` → Network tab → look in the `/api/references/mine` response body.
+
+**Network-tab tests** (status code + payload inspection) — open DevTools → **Network** tab → filter by `Fetch/XHR` → tap the action in the UI → click the resulting request to see status and request/response body.
 
 ### Already verified live (skip)
 
@@ -346,7 +383,15 @@ Requires an employer/agent account that has _context_ with the crew (engagement,
 - [ ] **Free cap**: at 10 outstanding pending → 402 with `pending_budget` gate + Upgrade button. At 5 accepted in any rolling 30-day window → 402 with `monthly_budget` gate + Upgrade button. Pro = unlimited.
 - [ ] Referee receives `REFERENCE.CONTACT_REQUESTED` in-app notification → tap → consent screen with the question (if provided) and Accept/Decline
 - [ ] Accept → opens a 1:1 conversation with the question pre-populated as the first message (P1-D); Decline → silent on employer side, no notification fires
-- [ ] **Self-contact guard** (edge case): if a dual-hat user is _both_ an employer and the referee on a reference, they should NOT be able to "contact themselves" — server returns 409 "You're the referee on this reference — you can't contact yourself"
+- [ ] **Self-contact guard** (edge case) 🔧 F12 — A dual-hat user who is BOTH the employer side AND the referee on a reference should not be able to contact themselves. Set up: a reference where you are the accepted referee, switch to your employer hat. Get the reference id from `/settings/references` Network → `/api/references/mine` response (`inbound_accepted[].id`). Console → paste:
+  ```js
+  fetch('/api/references/<paste-reference-id>/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: 'self-contact attempt' }),
+  }).then((r) => r.json().then((b) => console.log(r.status, b)));
+  ```
+  Expected: `409 { error: "You're the referee on this reference — you can't contact yourself" }`.
 
 ### Email-mismatch path on /ref/[token]
 
@@ -376,7 +421,16 @@ Setup: a currently-onboard experience with at least one Accepted reference (run 
 - [ ] Tap **Confirm and save** → form saves, navigates to /profile, experience now shows "Jan 2024 – Apr 2025"
 - [ ] Open Settings → References (referee account) → "References you've given" → date range now reads "Jan 2024 – Apr 2025" (NOT "Jan 2024 – Present"). Auto-propagation worked.
 - [ ] Open the requester's public profile from another account → reference card on the experience also shows the closed range
-- [ ] Try editing the same experience again → end_date input is now disabled (greyed), Currently-onboard checkbox disabled. Server-side, attempting to PATCH end_date returns 409 with `locked_fields: ['end_date']`.
+- [ ] Try editing the same experience again → end_date input is disabled (greyed), Currently-onboard checkbox disabled. ✅ UI-side check passes.
+- [ ] **Server-side end_date lock** 🔧 F12 — UI greys out the input; verify the server still rejects. Open `/profile/edit-experience/<id>` to copy `<id>` from the URL, then DevTools → **Console** → paste:
+  ```js
+  fetch('/api/experiences/<paste-experience-id>', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endDate: '2025-06-30' }),
+  }).then((r) => r.json().then((b) => console.log(r.status, b)));
+  ```
+  Expected: `409 { error: "Revoke active references...", locked_fields: ["end_date"], active_references: <N> }`.
 
 ### Closing-transition — midway cancellation paths
 
@@ -384,15 +438,49 @@ Setup: a currently-onboard experience with at least one Accepted reference (run 
 - [ ] **Cancel by navigating away**: trigger the dialog → tap iOS back gesture or close the modal entirely → no save, no warning lingers
 - [ ] **Edit without closing-transition**: edit description / salary / sea-time on a currently-onboard-with-refs experience without touching end_date or is_current → no warning dialog, normal save
 - [ ] **Edit a non-current experience with refs**: pick an already-completed experience that has active refs → end_date is unconditionally locked (greyed), no closing-transition dialog ever fires for these
-- [ ] **Try to "re-open" a closed experience**: after closing transition, edit the same experience and try to clear end_date or re-tick Currently-onboard → field is disabled in the UI; if you POST anyway via curl, server returns 409 with `locked_fields: ['end_date']` / `['is_current']`
+- [ ] **Try to "re-open" a closed experience** 🔧 F12 — UI disables the field; verify the server still rejects. DevTools → **Console** → fire two requests against the same experience and confirm both 409:
+
+  ```js
+  // Attempt to clear end_date
+  fetch('/api/experiences/<paste-experience-id>', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endDate: null }),
+  }).then((r) => r.json().then((b) => console.log('clear end_date →', r.status, b)));
+
+  // Attempt to re-tick Currently-onboard
+  fetch('/api/experiences/<paste-experience-id>', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ isCurrent: true }),
+  }).then((r) => r.json().then((b) => console.log('re-tick is_current →', r.status, b)));
+  ```
+
+  Both expected: `409 { error: "Revoke active references...", locked_fields: ["end_date"] }` / `["is_current"]` respectively.
 
 ### Edit-experience field locks (00126/00129)
 
 A defence-in-depth check that complements the closing-transition tests above.
 
 - [ ] Active references on a _completed_ experience → vessel, role, start_date, end_date all greyed/disabled with snapshot-locked banner
-- [ ] Server-side: PATCH /api/experiences/[id] with role_id change → 409 with `locked_fields: ['role']`, `active_references: N`
-- [ ] Server-side: PATCH with start_date change → 409 with `locked_fields: ['start_date']`
+- [ ] **Server-side role_id lock** 🔧 F12 — Get a _different_ role UUID first (DevTools → Network → reload `/profile` → click the `/api/onboarding-data` or `/api/profile` request → find any role from the `roles` array that's NOT the current one). Console → paste:
+  ```js
+  fetch('/api/experiences/<paste-experience-id>', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roleId: '<paste-other-role-uuid>' }),
+  }).then((r) => r.json().then((b) => console.log(r.status, b)));
+  ```
+  Expected: `409 { error: "Revoke active references...", locked_fields: ["role"], active_references: <N> }`.
+- [ ] **Server-side start_date lock** 🔧 F12 — Console → paste:
+  ```js
+  fetch('/api/experiences/<paste-experience-id>', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ startDate: '2020-01-01' }),
+  }).then((r) => r.json().then((b) => console.log(r.status, b)));
+  ```
+  Expected: `409 { error: "Revoke active references...", locked_fields: ["start_date"], active_references: <N> }`.
 - [ ] Active references on a _currently-onboard_ experience → vessel, role, start_date locked; end_date + is_current editable (closing transition allowed exactly once)
 - [ ] No active references on any experience → all fields editable as before
 - [ ] After revoking the only active reference, the lock should release → re-edit the experience → vessel/role/dates editable again
@@ -442,7 +530,15 @@ Setup: a crew with an Accepted NDA reference; an employer/agent test account tha
 - [ ] **Free 30-day cap hit mid-flight**: as Free employer, send 5 contact requests that get accepted in any rolling 30-day window → next attempt → 402 "Monthly contact-request budget reached" with **Upgrade to Employer Pro** button
 - [ ] **Free outstanding-pending cap hit**: at 10 pending (no responses yet) → 402 "You have too many outstanding contact requests" with Upgrade button
 - [ ] **Pro lifts both caps**: as Employer Pro, neither cap fires; counter copy in ContactReferenceDialog reads "Employer Pro · unlimited contact requests"
-- [ ] **Self-contact guard**: dual-hat user who is both employer and the referee on a reference → POST /api/references/[id]/contact returns 409 "You're the referee on this reference — you can't contact yourself"
+- [ ] **Self-contact guard** 🔧 F12 — Same setup as the §7 Contact-reference self-contact test above. Confirm the gate fires regardless of which surface initiates the request:
+  ```js
+  fetch('/api/references/<paste-reference-id>/contact', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: 'self-contact attempt' }),
+  }).then((r) => r.json().then((b) => console.log(r.status, b)));
+  ```
+  Expected: `409 { error: "You're the referee on this reference — you can't contact yourself" }`.
 
 ### Pending-vessel references (00128) — no separate test
 
