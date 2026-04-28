@@ -221,6 +221,86 @@ describe('POST /api/admin/vessels/pending/[id]', () => {
     expect(updateSpies['vessel_names']).toEqual({ source: 'curated', name: 'Sea Wolf' });
   });
 
+  it('approve enriches the vessel with admin-edited beam / GT / year / builder / flag / NDA', async () => {
+    mockRequireAdmin.mockResolvedValue(adminOk());
+    const FLAG_UUID = '11111111-1111-1111-1111-111111111111';
+    const updateSpies: Record<string, unknown> = {};
+    let call = 0;
+    fromMock.mockImplementation((table: string) => {
+      call++;
+      if (call === 1 && table === 'vessels') {
+        return chainSelect({ id: VALID_UUID, source: 'pending', name: 'Sea Wolf' });
+      }
+      return {
+        update: vi.fn((payload) => {
+          updateSpies[table] = payload;
+          return {
+            eq: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+            }),
+          };
+        }),
+      };
+    });
+
+    const res = await actionPOST(
+      makeReq({
+        action: 'approve',
+        flag_state_id: FLAG_UUID,
+        year_built: 2018,
+        builder: 'Lürssen',
+        gross_tonnage: 1234.5,
+        beam_meters: 12.4,
+        nda_flag: true,
+      }),
+      { params: Promise.resolve({ id: VALID_UUID }) },
+    );
+    expect(res.status).toBe(200);
+    expect(updateSpies['vessels']).toMatchObject({
+      source: 'curated',
+      flag_state_id: FLAG_UUID,
+      year_built: 2018,
+      builder: 'Lürssen',
+      gross_tonnage: 1234.5,
+      beam_meters: 12.4,
+      nda_flag: true,
+    });
+    // Name unchanged → vessel_names only flips source, no name in payload
+    expect(updateSpies['vessel_names']).toEqual({ source: 'curated' });
+  });
+
+  it('approve rejects out-of-range year_built', async () => {
+    mockRequireAdmin.mockResolvedValue(adminOk());
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'vessels') {
+        return chainSelect({ id: VALID_UUID, source: 'pending', name: 'Sea Wolf' });
+      }
+      return chainSelect(null);
+    });
+    const res = await actionPOST(makeReq({ action: 'approve', year_built: 1850 }), {
+      params: Promise.resolve({ id: VALID_UUID }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/year_built/i);
+  });
+
+  it('approve rejects negative gross_tonnage', async () => {
+    mockRequireAdmin.mockResolvedValue(adminOk());
+    fromMock.mockImplementation((table: string) => {
+      if (table === 'vessels') {
+        return chainSelect({ id: VALID_UUID, source: 'pending', name: 'Sea Wolf' });
+      }
+      return chainSelect(null);
+    });
+    const res = await actionPOST(makeReq({ action: 'approve', gross_tonnage: -10 }), {
+      params: Promise.resolve({ id: VALID_UUID }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/gross_tonnage/i);
+  });
+
   it('hide stamps hidden_at = now()', async () => {
     mockRequireAdmin.mockResolvedValue(adminOk());
     const updateSpy = vi.fn();

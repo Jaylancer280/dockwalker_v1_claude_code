@@ -4,11 +4,30 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 interface ActionBody {
   action?: 'approve' | 'merge' | 'hide';
   mergeToId?: string;
-  /** Optional name override on Approve — admin can fix typos / casing
-   *  in the same call. Updates `vessels.name` AND every existing
-   *  `vessel_names` row whose source is still `'pending'`. */
+  /** All fields below are optional admin-curation overrides on Approve.
+   *  User submission only requires name + IMO + vessel_type + LOA; the
+   *  admin enriches the rest from Equasis / MarineTraffic before
+   *  promoting to canonical.
+   *
+   *  Direct-update pattern (no event ledger churn) — same approach
+   *  used for the source flip and the locations-pending approve.
+   *  Per the project's curation discipline, admin moderation is a
+   *  privileged path that bypasses VESSEL.METADATA_UPDATED events;
+   *  the values are stored on `vessels` columns and do not yet
+   *  flow through `vessel_flag_states` history rows.
+   */
   name?: string;
+  vessel_type?: 'motor' | 'sail';
+  loa_meters?: number;
+  flag_state_id?: string | null;
+  year_built?: number | null;
+  builder?: string | null;
+  gross_tonnage?: number | null;
+  beam_meters?: number | null;
+  nda_flag?: boolean;
 }
+
+const VALID_VESSEL_TYPES = ['motor', 'sail'] as const;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -85,13 +104,117 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const newName =
         typeof body.name === 'string' && body.name.trim().length > 0 ? body.name.trim() : null;
 
-      // 1. Flip the vessel's source + optionally rewrite name.
+      // 1. Build the vessel UPDATE — source flip is mandatory; every
+      //    other column is an optional admin override.
       const vesselUpdates: Record<string, unknown> = { source: 'curated' };
       if (newName) vesselUpdates.name = newName;
+
+      if (body.vessel_type !== undefined) {
+        if (!VALID_VESSEL_TYPES.includes(body.vessel_type)) {
+          return NextResponse.json({ error: 'vessel_type must be motor or sail' }, { status: 400 });
+        }
+        vesselUpdates.vessel_type = body.vessel_type;
+      }
+
+      // LOA change auto-derives the size band so the displayed range
+      // stays in sync. Admin can change LOA without thinking about
+      // bands.
+      if (body.loa_meters !== undefined) {
+        const loa = Number(body.loa_meters);
+        if (!Number.isFinite(loa) || loa <= 0) {
+          return NextResponse.json(
+            { error: 'loa_meters must be a positive number' },
+            { status: 400 },
+          );
+        }
+        vesselUpdates.loa_meters = loa;
+        const { data: bands } = await serviceClient
+          .from('vessel_size_bands')
+          .select('id, min_meters, max_meters')
+          .order('min_meters');
+        const band = (bands ?? []).find(
+          (b) =>
+            loa >= (b.min_meters as number) &&
+            (b.max_meters === null || loa < (b.max_meters as number)),
+        );
+        if (!band) {
+          return NextResponse.json(
+            { error: `LOA ${loa}m does not match any size band` },
+            { status: 400 },
+          );
+        }
+        vesselUpdates.size_band_id = band.id;
+      }
+
+      if (body.flag_state_id !== undefined) {
+        if (body.flag_state_id !== null && !UUID_RE.test(body.flag_state_id)) {
+          return NextResponse.json({ error: 'Invalid flag_state_id' }, { status: 400 });
+        }
+        vesselUpdates.flag_state_id = body.flag_state_id;
+      }
+
+      if (body.year_built !== undefined) {
+        if (body.year_built !== null) {
+          const year = Number(body.year_built);
+          const currentYear = new Date().getFullYear();
+          if (!Number.isInteger(year) || year < 1900 || year > currentYear) {
+            return NextResponse.json(
+              { error: `year_built must be an integer between 1900 and ${currentYear}` },
+              { status: 400 },
+            );
+          }
+          vesselUpdates.year_built = year;
+        } else {
+          vesselUpdates.year_built = null;
+        }
+      }
+
+      if (body.builder !== undefined) {
+        vesselUpdates.builder =
+          typeof body.builder === 'string' && body.builder.trim().length > 0
+            ? body.builder.trim()
+            : null;
+      }
+
+      if (body.gross_tonnage !== undefined) {
+        if (body.gross_tonnage !== null) {
+          const gt = Number(body.gross_tonnage);
+          if (!Number.isFinite(gt) || gt <= 0) {
+            return NextResponse.json(
+              { error: 'gross_tonnage must be a positive number' },
+              { status: 400 },
+            );
+          }
+          vesselUpdates.gross_tonnage = gt;
+        } else {
+          vesselUpdates.gross_tonnage = null;
+        }
+      }
+
+      if (body.beam_meters !== undefined) {
+        if (body.beam_meters !== null) {
+          const beam = Number(body.beam_meters);
+          if (!Number.isFinite(beam) || beam <= 0) {
+            return NextResponse.json(
+              { error: 'beam_meters must be a positive number' },
+              { status: 400 },
+            );
+          }
+          vesselUpdates.beam_meters = beam;
+        } else {
+          vesselUpdates.beam_meters = null;
+        }
+      }
+
+      if (body.nda_flag !== undefined) {
+        vesselUpdates.nda_flag = body.nda_flag === true;
+      }
+
       const { error: vEr } = await serviceClient.from('vessels').update(vesselUpdates).eq('id', id);
       if (vEr) return NextResponse.json({ error: vEr.message }, { status: 500 });
 
-      // 2. Promote every still-pending vessel_names row.
+      // 2. Promote every still-pending vessel_names row, mirroring any
+      //    name change so the timeline stays consistent.
       const nameUpdates: Record<string, unknown> = { source: 'curated' };
       if (newName) nameUpdates.name = newName;
       const { error: vnEr } = await serviceClient
@@ -101,7 +224,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         .eq('source', 'pending');
       if (vnEr) return NextResponse.json({ error: vnEr.message }, { status: 500 });
 
-      // 3. Same for any pending flag-state rows the submitter included.
+      // 3. Promote any pending flag-state rows the submitter seeded.
+      //    Note: we do NOT insert a new vessel_flag_states row when the
+      //    admin SETS a flag for the first time during approve — that
+      //    timeline-tracking belongs to a future VESSEL.REFLAGGED flow.
+      //    Per "they sit in the db but not projected for now": the flag
+      //    lives on the vessels column directly.
       const { error: vfEr } = await serviceClient
         .from('vessel_flag_states')
         .update({ source: 'curated' })
