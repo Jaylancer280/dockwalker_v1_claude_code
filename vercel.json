@@ -38,6 +38,10 @@
     {
       "path": "/api/cron/reference-expiry",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/data-scrub",
+      "schedule": "0 4 * * *"
     }
   ]
 }
