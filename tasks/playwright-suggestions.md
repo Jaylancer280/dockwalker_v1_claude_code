@@ -4,6 +4,8 @@
 >
 > Each suggestion has been verified against the actual codebase. False positives are marked and moved to Rejected.
 
+> ⚠️ **STALE TRIAGE (flagged 2026-04-28).** Last triage was 2026-03-27 — over a month old. Schema has shifted v122 → v130 with multiple feature waves (references, vessel history, locations pending, multi-nationality phase 2, cert "extras", admin Approve enrichment, etc.) that have not been re-walked through the testing agent. The "Pending: None" line below reflects the 2026-03-27 state and should not be trusted as current.
+
 ## Pending
 
 (None — all suggestions have been triaged as of 2026-03-27.)

@@ -29,7 +29,7 @@
 | ---------------------------------------- | ---------------------------- | -------------------------------------------------------------- | ---------------------------------------------------- | ------------------- |
 | Email, password                          | Signup                       | `auth.users`                                                   | Authentication                                       | Contract            |
 | Display name, deck name                  | Onboarding, profile          | `profiles.display_name`, `profiles.deck_name`                  | Identity in app                                      | Contract            |
-| Nationality, visa types                  | Profile                      | `profiles.nationality_id`, `profiles.visa_type_ids`            | Employer review                                      | Consent             |
+| Nationality, entry rights                | Profile                      | `profiles.nationality_ids`, `profiles.entry_right_ids`         | Employer review                                      | Consent             |
 | Profile photo                            | Profile                      | `avatars` storage bucket, `profiles.avatar_url`                | Identity                                             | Consent             |
 | Certifications declared                  | Profile                      | `profiles.certification_ids`                                   | Job matching, cert-gating permanent applications     | Consent             |
 | Role, department                         | Profile, onboarding          | `profiles.role_id`                                             | Job matching                                         | Consent             |

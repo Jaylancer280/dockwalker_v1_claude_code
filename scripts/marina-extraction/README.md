@@ -21,7 +21,7 @@ Target output: ~15,000–25,000 marinas globally.
 
 ## Run sequence
 
-See `LOCATIONS_RUNBOOK.md` at the repo root for the complete step-by-step.
+See `tasks/admin-locations-runbook.md` for the complete step-by-step.
 Short version:
 
 ```bash

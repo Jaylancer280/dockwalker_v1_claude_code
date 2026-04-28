@@ -3,6 +3,8 @@
 > Maintained by the visual testing agent. Do not edit manually unless correcting stale data.
 > All timestamps are UTC to the minute.
 
+> ⚠️ **STALE BASELINE (flagged 2026-04-28).** The "Last Tested Commit" below is `6473b0f` from 2026-03-27. Schema has drifted from v122 → v130 with significant feature waves shipped in the interim that this registry has zero E2E coverage for: consent-based references (Stages 252-258 incl. NDA visibility split, currently-onboard refs, pending-vessel refs), Vessels V2 waves A-F (vessel history, pending queue, NDA RPC filter), Locations V2 manual-add + admin queue, multi-nationality phase 2, cert "extras" indicator, permanent applicant card enrichment. The next testing-agent run must re-walk every spec against the current code; previous PASS rows below are NOT trustworthy.
+
 ## Last Tested Commit
 
 `6473b0f` — 2026-03-27T10:30

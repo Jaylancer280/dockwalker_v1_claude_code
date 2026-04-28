@@ -1,6 +1,6 @@
 # Ephemeral Document Exchange — Feature Spec
 
-> **Status:** SPEC COMPLETE — ready for implementation planning when prioritised.
+> **Status:** IMPLEMENTED — see migrations `00090_engagement_documents.sql` (table + storage bucket + RLS) and `00091_gdpr_engagement_documents.sql` (PERSON.DATA_SCRUBBED soft-delete handler). Routes live at `apps/web/src/app/api/messages/[engagementId]/documents/`. Retained as architectural reference; not a planning artifact.
 > **Scope:** Temporary file sharing in engagement chat threads. Both parties upload, both download, files auto-delete after 48 hours.
 > **Decision date:** 2026-04-05.
 

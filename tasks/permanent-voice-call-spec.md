@@ -1,6 +1,6 @@
 # In-App Voice Call — Permanent Jobs Interview Feature
 
-> **Status:** SPEC COMPLETE — ready for implementation planning when prioritised.
+> **Status:** DEFERRED POST-LAUNCH (Fix 222d). Hand-rolled WebRTC scaffolding shipped (`apps/web/src/hooks/use-voice-call.ts`, `voice-call-context.tsx`, `call-bar.tsx`, `incoming-call-listener.tsx`, `/api/calls/turn-credentials`, `/api/messages/[id]/call-ended`) but retained as dead code; phone button in `chat-header.tsx` shows "Voice calls — coming soon" toast. When un-deferring: plan is to swap the hand-rolled stack for a managed RTC provider (LiveKit Cloud preferred over Twilio TURN+Supabase-Realtime-signaling — symmetric NAT on yacht crew networks broke the P2P model). See `tasks/todo.md` Backlog → Deferred post-launch for the restoration checklist.
 > **Scope:** Voice-only calling within permanent job messaging threads. No video. No recording.
 > **Decision date:** 2026-04-05.
 

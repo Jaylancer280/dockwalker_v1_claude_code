@@ -1,6 +1,6 @@
 # Share Job to Social — Feature Spec
 
-> **Status:** READY TO BUILD — no migration, no event model changes, single implementation session.
+> **Status:** IMPLEMENTED (Stage 200). API at `apps/web/src/app/api/jobs/[jobNumber]/route.ts`, public page at `apps/web/src/app/jobs/[jobNumber]/page.tsx` with dynamic OG metadata via `generateMetadata()`, share button via `ShareJobButton` component, middleware allows unauthenticated `/jobs/*` access. Retained as architectural reference; not a planning artifact.
 > **Priority:** High — this is the primary organic acquisition channel. Every shared job is a signup funnel.
 > **Decision date:** 2026-04-05.
 

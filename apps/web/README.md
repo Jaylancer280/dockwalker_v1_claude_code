@@ -33,18 +33,19 @@ SUPABASE_SERVICE_ROLE_KEY=...
 
 ## Local Development
 
+> **This project does NOT use local Docker / local Supabase.** All development runs against the **linked remote Supabase project**. After any new migration in `supabase/migrations/`, apply it with `npx supabase db push`. Do not attempt `npx supabase db reset` — it requires Docker, which is not part of the supported workflow. Same applies to the integration test path below.
+
 From the repo root:
 
 ```bash
 npm install
-npx supabase start
-npx supabase db reset
+npx supabase db push      # apply any pending migrations to the linked remote
 npm run dev
 ```
 
 App URL: `http://localhost:3000`
 
-Local Supabase defaults from `supabase/config.toml`:
+The `supabase/config.toml` ports listed below describe the local-stack defaults if you ever opt into local Docker, but the canonical workflow is remote-only:
 
 - API: `http://127.0.0.1:54321`
 - DB: `127.0.0.1:54322`
@@ -73,15 +74,7 @@ If you see errors like:
 Could not find the function public.onboard_person(...) in the schema cache
 ```
 
-your database is behind the code. Apply migrations and refresh the local stack:
-
-```bash
-npx supabase db reset
-npx supabase stop
-npx supabase start
-```
-
-For a linked remote project, use:
+your database is behind the code. Apply migrations to the linked remote:
 
 ```bash
 npx supabase db push
@@ -133,7 +126,7 @@ npm test
 
 The API tests mock `@/lib/supabase/server` and call route handlers directly. Component tests mock `@/lib/supabase/client` and render pages to verify UI behaviour (e.g. canonical dropdown population). Both are fast unit tests that do not require a running database.
 
-Integration tests (`npm run test:integration`) run against a real local Supabase instance and verify that events emitted with the same payload shape as the API routes are correctly projected into materialised tables. They require `npx supabase start` and `npx supabase db reset` to be run first. These tests are excluded from the default `npm test` run.
+Integration tests (`npm run test:integration`) verify that events emitted with the same payload shape as the API routes are correctly projected into materialised tables. They were authored against a local Supabase instance (`npx supabase start` + `db reset`) but the project no longer uses local Docker — running them requires either spinning Docker up ad-hoc or pointing the test harness at a linked-remote test schema. Excluded from the default `npm test` run.
 
 ## Infrastructure
 
