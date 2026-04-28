@@ -232,6 +232,22 @@ describe('POST /api/vessels', () => {
     );
   });
 
+  it('every user-submitted vessel lands as source=pending for admin review', async () => {
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce(makeSelectChain(sizeBands));
+    mockFromService.mockReturnValueOnce(makeSelectChain(null));
+    mockRpc.mockResolvedValueOnce({ error: null });
+
+    await POST(makeRequest(validBody));
+    expect(mockRpc).toHaveBeenCalledWith(
+      'append_event',
+      expect.objectContaining({
+        p_event_type: 'VESSEL.CREATED',
+        p_payload: expect.objectContaining({ source: 'pending' }),
+      }),
+    );
+  });
+
   it('auto-derives correct band for 80m+ vessels', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockFromAuth.mockReturnValueOnce(makeSelectChain(sizeBands));

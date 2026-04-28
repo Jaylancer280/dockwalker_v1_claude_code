@@ -163,6 +163,15 @@ Same shape as Locations V2 but for vessels. Schema v119 → v122. The IMO is the
 
 - [ ] Navigate to `/vessels` → "Add vessel" → manual entry on an unknown IMO works the same way → vessel appears in your vessel list
 
+### All-creates-go-to-pending (canonical-curation rule)
+
+Every user-submitted vessel — regardless of which form created it — should land as `source='pending'` until an admin approves it. Only seed-migration data and admin-approved rows are `'curated'`.
+
+- [ ] Create a vessel from `/profile/add-experience` (manual-add path) → admin Pending Vessels queue lists it
+- [ ] Create a vessel from `/vessels` standalone Add Vessel form → admin Pending Vessels queue also lists it (was the gap before this fix — these creates were silently landing as `curated` and bypassing review)
+- [ ] Search the same IMO from a _different_ account via the IMO-lookup field → returns "Not found" until admin approves (the submitter's own FK still resolves on their own profile)
+- [ ] After admin Approve → IMO lookup from any account now returns the vessel; row drops out of the pending queue
+
 ### Daywork & permanent post flows (indirect)
 
 Per Wave D's note, post forms redirect to `/vessels` via the existing `saveFormAndCreateVessel` pattern.

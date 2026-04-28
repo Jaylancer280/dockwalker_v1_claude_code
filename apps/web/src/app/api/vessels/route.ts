@@ -33,6 +33,13 @@ export async function GET() {
  * POST /api/vessels
  * Creates a new vessel. Any authenticated user can create (crew for experience, employers for postings).
  *
+ * Always lands as `source='pending'` so admin can review before the vessel
+ * appears in canonical search for non-owners. The submitting user's FK
+ * resolves regardless of source, so they can use the vessel immediately
+ * (post a daywork, attach to an experience). Curated rows come from the
+ * seed migration or the admin pending-queue Approve action — never from
+ * this endpoint directly.
+ *
  * Body: {
  *   imoNumber: string (required),
  *   name: string (required),
@@ -122,6 +129,7 @@ export async function POST(request: Request) {
         size_band_id: sizeBand.id,
         loa_meters: loa,
         nda_flag: person.current_hat === 'crew' ? false : (ndaFlag ?? false),
+        source: 'pending',
       },
       personId: user.id,
     });
