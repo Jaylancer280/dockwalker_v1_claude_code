@@ -46,8 +46,12 @@ export interface VesselGateRow {
 }
 
 /**
- * Returns null if the vessel is references-eligible (curated, non-NDA, not hidden);
+ * Returns null if the vessel is references-eligible (non-NDA, not hidden);
  * otherwise returns a structured rejection with a user-facing message.
+ *
+ * The source check (curated only) was relaxed in 00128 — while the vessel
+ * database is being populated and admin curation is catching up, users can
+ * gather references on their own pending vessels.
  */
 export function checkVesselReferenceGate(
   vessel: VesselGateRow | null,
@@ -58,13 +62,6 @@ export function checkVesselReferenceGate(
       ok: false,
       status: 400,
       error: "References on NDA vessels aren't supported yet",
-    };
-  }
-  if (vessel.source !== 'curated') {
-    return {
-      ok: false,
-      status: 400,
-      error: 'References available once your vessel is verified',
     };
   }
   if (vessel.hidden_at !== null) {

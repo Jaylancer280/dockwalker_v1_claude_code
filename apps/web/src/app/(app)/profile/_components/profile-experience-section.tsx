@@ -230,12 +230,9 @@ export function ProfileExperienceSection({
                         {(() => {
                           const refsActive = exp.references_active_count ?? 0;
                           const ndaBlocked = exp.vessels?.nda_flag === true;
-                          const sourceBlocked =
-                            exp.vessels?.source !== undefined && exp.vessels.source !== 'curated';
                           const hiddenBlocked = !!exp.vessels?.hidden_at;
                           const currentBlocked = exp.is_current;
-                          const blocked =
-                            ndaBlocked || sourceBlocked || hiddenBlocked || currentBlocked;
+                          const blocked = ndaBlocked || hiddenBlocked || currentBlocked;
                           if (!blocked) {
                             return (
                               <Button
@@ -260,9 +257,7 @@ export function ProfileExperienceSection({
                             ? 'Mark this experience as completed to add references.'
                             : ndaBlocked
                               ? "References on NDA vessels aren't supported yet."
-                              : hiddenBlocked
-                                ? 'This vessel was hidden by admin — references are unavailable.'
-                                : 'References available once admin approves this vessel.';
+                              : 'This vessel was hidden by admin — references are unavailable.';
                           if (refsActive === 0) {
                             return (
                               <span
