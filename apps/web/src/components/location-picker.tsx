@@ -286,8 +286,18 @@ export function LocationPicker({
 
   const handleManualSubmit = useCallback(
     (result: { cityId: string; portId?: string }, displayLabel: string) => {
-      const cityName = displayLabel.split(',')[0]?.trim() ?? displayLabel;
-      const regionName = displayLabel.split(',').slice(-1)[0]?.trim() ?? null;
+      // displayLabel shapes from LocationRequestModal:
+      //   with port:    `${port} — ${city}, ${region}`
+      //   without port: `${city}, ${region}`
+      // Parse so the city slot doesn't accidentally absorb the port chunk
+      // (which would render as `port — port — city — region` in the trigger).
+      const [preComma, ...regionParts] = displayLabel.split(',');
+      const regionName = regionParts.join(',').trim() || null;
+      const dashSplit = preComma.split(' — ');
+      const portName = dashSplit.length > 1 ? dashSplit[0].trim() : null;
+      const cityName = (
+        dashSplit.length > 1 ? dashSplit.slice(1).join(' — ') : dashSplit[0]
+      ).trim();
       // Prime the label cache so the trigger renders the user's typed
       // text immediately — no /by-ids round-trip needed.
       setLabels((prev) => {
@@ -295,10 +305,8 @@ export function LocationPicker({
         const cities = new Map(prev.cities);
         cities.set(result.cityId, { name: cityName, regionName });
         if (result.portId) {
-          // For port submissions the displayLabel starts with the port name.
-          const portName = displayLabel.split(' — ')[0]?.trim() ?? cityName;
           ports.set(result.portId, {
-            name: portName,
+            name: portName ?? cityName,
             cityName,
             regionName,
           });
