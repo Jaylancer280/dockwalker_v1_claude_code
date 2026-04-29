@@ -22,6 +22,14 @@ vi.mock('@/lib/rate-limit', () => ({
   getQrHireLimit: () => ({ limit: mockQrLimit }),
 }));
 
+// Feature flag is hard-locked off in production. Mock to `true` so
+// these tests can prove the underlying QR-hire behaviour. Locked-state
+// is covered separately in `daywork-qr-hire-locked.test.ts`.
+vi.mock('@/lib/cv/feature-flag', () => ({
+  CV_BUILDER_ENABLED: true,
+  CV_BUILDER_LOCKED_PAYLOAD: { error: 'locked', message: 'locked' },
+}));
+
 const mockFromAuth = vi.fn();
 const mockServiceFrom = vi.fn();
 

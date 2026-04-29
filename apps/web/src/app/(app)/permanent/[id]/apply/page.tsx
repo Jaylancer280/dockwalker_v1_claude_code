@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
+import { CV_BUILDER_ENABLED } from '@/lib/cv/feature-flag';
 
 interface Posting {
   id: string;
@@ -40,7 +41,11 @@ export default function PermanentApplyPage() {
   const params = useParams<{ id: string }>();
   const postingId = params.id;
   const search = useSearchParams();
-  const fromInvitationId = search.get('from_invitation');
+  const fromInvitationIdRaw = search.get('from_invitation');
+  // CV Builder is hard-locked. The apply-after-invite UX is part of
+  // CV Builder; while locked, drop the invitation link and treat this
+  // as a regular apply. The route also strips the field server-side.
+  const fromInvitationId = CV_BUILDER_ENABLED ? fromInvitationIdRaw : null;
   const router = useRouter();
   const { showSuccess, showError } = useToast();
 

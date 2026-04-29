@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { CV_BUILDER_ENABLED, CV_BUILDER_LOCKED_PAYLOAD } from '@/lib/cv/feature-flag';
 
 /**
  * PATCH /api/cv/settings
@@ -24,6 +25,10 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
  * owned by the caller (avoids leaking row existence).
  */
 export async function PATCH(request: Request) {
+  if (!CV_BUILDER_ENABLED) {
+    return NextResponse.json(CV_BUILDER_LOCKED_PAYLOAD, { status: 503 });
+  }
+
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
   const { user, person, serviceClient } = guard.value;

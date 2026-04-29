@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { safeFetch } from '@/lib/safe-fetch';
 import { createClient } from '@/lib/supabase/client';
+import { CV_BUILDER_ENABLED } from '@/lib/cv/feature-flag';
 
 type Tombstone = { tombstone: true };
 type CvPayload = {
@@ -157,6 +158,32 @@ function Tombstone() {
   );
 }
 
+/**
+ * Locked-state screen — rendered for ALL visitors while
+ * CV_BUILDER_ENABLED is false (2026-04-29 product call). The page
+ * intentionally doesn't fetch the CV; the API endpoint also returns
+ * 503 as defence in depth.
+ */
+function ComingSoon() {
+  return (
+    <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-12">
+      <div className="page-width-narrow flex max-w-md flex-col items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-8 text-center">
+        <Lock className="h-10 w-10 text-muted-foreground" />
+        <h1 className="text-xl font-semibold">DockWalker CV — Coming Soon</h1>
+        <p className="text-sm text-muted-foreground">
+          DockWalker CVs aren&apos;t live yet. The full surface — profile preview, references, and
+          the QR hiring flow — will unlock with the next release.
+        </p>
+        <div className="mt-2 flex gap-2">
+          <Button asChild size="sm">
+            <Link href="/">Visit DockWalker</Link>
+          </Button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 function NotFound() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-12">
@@ -180,12 +207,24 @@ export default function CvLandingPage() {
 
   const [data, setData] = useState<Response | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Start non-loading when the feature is locked — the useEffect bails
+  // out without fetching, and the render path returns the Coming-Soon
+  // screen above the loading guard. Avoids the
+  // react-hooks/set-state-in-effect lint rule firing on a synchronous
+  // setLoading(false) inside the effect.
+  const [loading, setLoading] = useState(CV_BUILDER_ENABLED);
   const [authedHat, setAuthedHat] = useState<string | null>(null);
   const [authedIdentity, setAuthedIdentity] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
+    // CV Builder locked → don't fetch. The render branch above returns
+    // the Coming-Soon screen regardless. Skipping the fetch avoids a
+    // wasted network call to a 503 endpoint. `loading` starts false in
+    // this case so the page renders immediately.
+    if (!CV_BUILDER_ENABLED) {
+      return;
+    }
     void (async () => {
       // Cheap auth read so we know which render state to use. We don't gate
       // anything on auth here — the route itself returns the same payload.
@@ -217,6 +256,15 @@ export default function CvLandingPage() {
       setLoading(false);
     })();
   }, [handle]);
+
+  // CV Builder is hard-locked at the user level. Render the
+  // Coming-Soon screen unconditionally. The useEffect above still
+  // runs (we don't conditionally call hooks), but the API endpoint
+  // returns 503 so no real CV data is exposed even if the fetch
+  // races ahead. Defence in depth.
+  if (!CV_BUILDER_ENABLED) {
+    return <ComingSoon />;
+  }
 
   if (loading) {
     return (

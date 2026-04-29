@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient, createServiceClient } from '@/lib/supabase/server';
 import { resolveHistoricalVesselNames } from '@/lib/vessels/historical-names';
 import { getCvHandleAnonLimit, getCvHandleAuthLimit } from '@/lib/rate-limit';
+import { CV_BUILDER_ENABLED, CV_BUILDER_LOCKED_PAYLOAD } from '@/lib/cv/feature-flag';
 
 /**
  * GET /api/cv/[handle]
@@ -87,6 +88,10 @@ function rateLimitHeaders(remaining: number, reset: number): Record<string, stri
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ handle: string }> }) {
+  if (!CV_BUILDER_ENABLED) {
+    return NextResponse.json(CV_BUILDER_LOCKED_PAYLOAD, { status: 503 });
+  }
+
   const { handle } = await params;
 
   if (!HANDLE_RE.test(handle)) {

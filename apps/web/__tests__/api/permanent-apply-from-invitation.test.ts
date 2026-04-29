@@ -15,6 +15,15 @@ vi.mock('@/lib/push-triggers', () => ({
   notifyOnEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
+// Feature flag mock — these tests prove the apply-after-invite plumbing
+// for when Stage 2 unlocks. The locked-state behaviour (route silently
+// drops `fromInvitationId` so the application is recorded without
+// invitation attribution) is covered in
+// `permanent-apply-from-invitation-locked.test.ts`.
+vi.mock('@/lib/cv/feature-flag', () => ({
+  CV_BUILDER_ENABLED: true,
+}));
+
 const mockFromAuth = vi.fn();
 const mockServiceFrom = vi.fn();
 

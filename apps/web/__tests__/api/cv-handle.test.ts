@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Feature flag is hard-locked off; tests here cover the underlying
+// behaviour for when Stage 2 unlocks. Locked-state coverage is in
+// `cv-handle-locked.test.ts`.
+vi.mock('@/lib/cv/feature-flag', () => ({
+  CV_BUILDER_ENABLED: true,
+  CV_BUILDER_LOCKED_PAYLOAD: { error: 'locked', message: 'locked' },
+}));
+
 const mockGetUser = vi.fn();
 const mockServiceFrom = vi.fn();
 

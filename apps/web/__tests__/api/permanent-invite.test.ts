@@ -20,6 +20,14 @@ vi.mock('@/lib/rate-limit', () => ({
   getQrHireLimit: () => ({ limit: mockQrLimit }),
 }));
 
+// CV Builder feature is hard-locked. These tests cover underlying
+// behaviour for when Stage 2 unlocks. Locked-state in
+// `permanent-invite-locked.test.ts`.
+vi.mock('@/lib/cv/feature-flag', () => ({
+  CV_BUILDER_ENABLED: true,
+  CV_BUILDER_LOCKED_PAYLOAD: { error: 'locked', message: 'locked' },
+}));
+
 const mockSupabaseFrom = vi.fn();
 const mockServiceFrom = vi.fn();
 

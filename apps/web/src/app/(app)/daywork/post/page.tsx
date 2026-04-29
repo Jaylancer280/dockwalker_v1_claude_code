@@ -41,6 +41,7 @@ import { WorkingDayCalendar } from '@/components/working-day-calendar';
 import { LANGUAGES } from '@dockwalker/shared';
 import { PostingTypeSelector } from './_components/posting-type-selector';
 import { PermanentPostForm } from './_components/permanent-post-form';
+import { CV_BUILDER_ENABLED } from '@/lib/cv/feature-flag';
 
 interface LookupItem {
   id: string;
@@ -94,6 +95,30 @@ function PostDayworkContent() {
         ? 'daywork'
         : null;
   const [postingType, setPostingType] = useState<'daywork' | 'permanent' | null>(initialType);
+
+  // CV Builder is hard-locked. Block the QR-hire entry point —
+  // visitors who somehow reach `/daywork/post?invite=<personId>` get a
+  // Coming-Soon screen and can navigate back. The route's QR-hire
+  // branch also returns 503 as defence in depth.
+  const inviteCrewPersonId = pageSearchParams.get('invite');
+  if (inviteCrewPersonId && !CV_BUILDER_ENABLED) {
+    return (
+      <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-12">
+        <div className="page-width-narrow flex max-w-md flex-col items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-8 text-center">
+          <h1 className="text-xl font-semibold">DockWalker CV — Coming Soon</h1>
+          <p className="text-sm text-muted-foreground">
+            Hire-from-QR isn&apos;t live yet. You can still post a public daywork or permanent
+            position from My Jobs.
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Link href="/daywork/mine" className="text-sm font-medium underline">
+              Go to My Jobs
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   if (postingType === null) {
     return <PostingTypeSelector onSelect={setPostingType} />;

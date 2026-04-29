@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
 import { notifyOnEvent } from '@/lib/push-triggers';
 import { getQrHireLimit } from '@/lib/rate-limit';
+import { CV_BUILDER_ENABLED, CV_BUILDER_LOCKED_PAYLOAD } from '@/lib/cv/feature-flag';
 import { randomUUID } from 'crypto';
 
 /**
@@ -31,6 +32,10 @@ import { randomUUID } from 'crypto';
  * /permanent/[id]/apply?from_invitation={invitation_id}.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!CV_BUILDER_ENABLED) {
+    return NextResponse.json(CV_BUILDER_LOCKED_PAYLOAD, { status: 503 });
+  }
+
   const { id: postingId } = await params;
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
+import { CV_BUILDER_ENABLED } from '@/lib/cv/feature-flag';
 
 interface ProfileResponse {
   person: { id: string; identity_type: string; current_hat: string };
@@ -127,6 +128,10 @@ export default function CvBuilderSettingsPage() {
   }
 
   async function handleSeaTimeToggle() {
+    if (!CV_BUILDER_ENABLED) {
+      handleComingSoon();
+      return;
+    }
     const next = !seaTime;
     setSeaTime(next);
     const res = await safeFetch('/api/cv/settings', {
@@ -141,6 +146,10 @@ export default function CvBuilderSettingsPage() {
   }
 
   async function handleReferenceToggle(refId: string, current: boolean) {
+    if (!CV_BUILDER_ENABLED) {
+      handleComingSoon();
+      return;
+    }
     const next = !current;
     setRefs((prev) => prev.map((r) => (r.id === refId ? { ...r, include_on_cv: next } : r)));
     const res = await safeFetch('/api/cv/settings', {
@@ -155,6 +164,10 @@ export default function CvBuilderSettingsPage() {
   }
 
   async function handleExperienceToggle(expId: string, current: boolean) {
+    if (!CV_BUILDER_ENABLED) {
+      handleComingSoon();
+      return;
+    }
     const next = !current;
     setNdaExperiences((prev) =>
       prev.map((e) => (e.id === expId ? { ...e, cv_show_full_vessel: next } : e)),
@@ -195,17 +208,20 @@ export default function CvBuilderSettingsPage() {
       </header>
 
       <div className="page-width flex w-full flex-col gap-6 px-4 py-6">
-        {/* Stage-1 Coming-Soon banner — sets expectations + makes toggles useful in advance */}
+        {/* Coming-Soon banner — applies to the entire page while
+            CV_BUILDER_ENABLED is false. Toggles below are visible (so
+            the layout stays stable for Stage 2) but inert: tapping any
+            of them fires a "Coming Soon" toast and does NOT call the
+            (also-locked) /api/cv/settings PATCH route. */}
         <section className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4">
           <div className="flex items-start gap-3">
             <FileText className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
             <div className="flex flex-col gap-2">
               <p className="text-sm font-semibold">DockWalker CV — Coming Soon</p>
               <p className="text-xs text-muted-foreground">
-                Configure your CV settings now: choose which references to include, decide which NDA
-                experiences to disclose, and toggle sea time inclusion. When the PDF generator
-                launches, your settings will be ready and your first download will reflect them — no
-                re-configuration needed.
+                CV Builder is currently disabled while we finalise the experience. The settings
+                below preview what you&apos;ll be able to configure when the feature launches — they
+                don&apos;t save anything yet.
               </p>
             </div>
           </div>

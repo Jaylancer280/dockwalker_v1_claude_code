@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent } from '@dockwalker/db';
 import { notifyOnEvent } from '@/lib/push-triggers';
 import { meetsRequirements, type BundleMap } from '@dockwalker/shared';
+import { CV_BUILDER_ENABLED } from '@/lib/cv/feature-flag';
 import { randomUUID } from 'crypto';
 
 /**
@@ -28,7 +29,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = await request.json().catch(() => ({}));
     const message =
       body.message && typeof body.message === 'string' ? body.message.slice(0, 250) : undefined;
-    const fromInvitationIdRaw = body.fromInvitationId;
+    // CV Builder is locked at the user level (2026-04-29 product call).
+    // The apply route still works for regular /discover applications;
+    // we just ignore the `fromInvitationId` field while the feature is
+    // off so the application is recorded without invitation attribution.
+    const fromInvitationIdRaw = CV_BUILDER_ENABLED ? body.fromInvitationId : null;
     const fromInvitationId =
       typeof fromInvitationIdRaw === 'string' && fromInvitationIdRaw.length > 0
         ? fromInvitationIdRaw

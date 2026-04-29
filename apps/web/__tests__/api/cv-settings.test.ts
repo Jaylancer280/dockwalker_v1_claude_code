@@ -6,6 +6,16 @@ vi.mock('@/lib/auth/require-domain-user', () => ({
   requireDomainUser: () => mockRequireDomainUser(),
 }));
 
+// CV Builder is hard-locked behind a Coming-Soon gate at the user level
+// (2026-04-29). The existing tests cover the underlying behaviour for
+// when Stage 2 unlocks the flag — mock the flag to `true` so the route
+// reaches its real validation logic. The locked-state behaviour is
+// covered in `cv-settings-locked.test.ts`.
+vi.mock('@/lib/cv/feature-flag', () => ({
+  CV_BUILDER_ENABLED: true,
+  CV_BUILDER_LOCKED_PAYLOAD: { error: 'locked', message: 'locked' },
+}));
+
 import { PATCH } from '@/app/api/cv/settings/route';
 
 const mockServiceFrom = vi.fn();

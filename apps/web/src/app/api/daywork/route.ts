@@ -3,6 +3,7 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
 import { appendEvent, appendEvents } from '@dockwalker/db';
 import { notifyOnEvent } from '@/lib/push-triggers';
 import { getQrHireLimit } from '@/lib/rate-limit';
+import { CV_BUILDER_ENABLED, CV_BUILDER_LOCKED_PAYLOAD } from '@/lib/cv/feature-flag';
 import { randomUUID } from 'crypto';
 
 /**
@@ -216,6 +217,13 @@ export async function POST(request: Request) {
 
     // QR-hire branch (spec §6): atomic DAYWORK.POSTED + DAYWORK.INVITED.
     if (inviteCrewPersonId) {
+      if (!CV_BUILDER_ENABLED) {
+        // Feature is locked at the user level. Reject the QR-flagged
+        // post entirely — refuse to create the daywork at all so a
+        // captain who somehow finds the URL doesn't end up with a
+        // public posting + a phantom uninvited crew member.
+        return NextResponse.json(CV_BUILDER_LOCKED_PAYLOAD, { status: 503 });
+      }
       if (typeof inviteCrewPersonId !== 'string') {
         return NextResponse.json({ error: 'inviteCrewPersonId must be a string' }, { status: 400 });
       }

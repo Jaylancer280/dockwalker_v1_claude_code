@@ -23,6 +23,14 @@ vi.mock('@/lib/safe-fetch', () => ({
   safeFetch: (...args: unknown[]) => mockSafeFetch(...args),
 }));
 
+// Default state: CV Builder is locked. Individual tests that exercise
+// the unlocked toggle behaviour (re-introduced when Stage 2 ships) can
+// override this via vi.mocked or a per-test mock — but the default
+// covers the locked production state.
+vi.mock('@/lib/cv/feature-flag', () => ({
+  CV_BUILDER_ENABLED: false,
+}));
+
 import CvBuilderSettingsPage from '@/app/(app)/settings/cv/page';
 
 function profileResponse(hat: string, seaTime = false) {
@@ -99,13 +107,11 @@ describe('CV Builder settings page', () => {
     });
   });
 
-  it('toggles sea time and PATCHes /api/cv/settings with cvIncludeSeaTime', async () => {
+  it('clicking the sea-time toggle while locked fires Coming-Soon toast and does NOT call /api/cv/settings', async () => {
     mockSafeFetch
       .mockResolvedValueOnce(profileResponse('crew', false))
       .mockResolvedValueOnce(refsResponse([]))
-      .mockResolvedValueOnce(expsResponse([]))
-      // PATCH response
-      .mockResolvedValueOnce({ ok: true, data: { ok: true } });
+      .mockResolvedValueOnce(expsResponse([]));
 
     render(<CvBuilderSettingsPage />);
     await waitFor(() => {
@@ -115,17 +121,15 @@ describe('CV Builder settings page', () => {
     const toggle = screen.getByLabelText(/Include sea time totals on my CV/i);
     fireEvent.click(toggle);
 
-    await waitFor(() => {
-      const patchCall = mockSafeFetch.mock.calls.find(
-        (c) =>
-          typeof c[0] === 'string' &&
-          c[0] === '/api/cv/settings' &&
-          (c[1] as { method?: string })?.method === 'PATCH',
-      );
-      expect(patchCall).toBeDefined();
-      const body = JSON.parse((patchCall?.[1] as { body: string }).body);
-      expect(body).toEqual({ cvIncludeSeaTime: true });
-    });
+    expect(mockShowSuccess).toHaveBeenCalledWith('DockWalker CV — Coming Soon');
+    // No PATCH happened — only the initial 3 fetches (profile, refs, experiences).
+    const patchCall = mockSafeFetch.mock.calls.find(
+      (c) =>
+        typeof c[0] === 'string' &&
+        c[0] === '/api/cv/settings' &&
+        (c[1] as { method?: string })?.method === 'PATCH',
+    );
+    expect(patchCall).toBeUndefined();
   });
 
   it('renders accepted references with per-row Include-on-CV toggles', async () => {
