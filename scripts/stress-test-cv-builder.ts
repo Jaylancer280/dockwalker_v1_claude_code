@@ -50,9 +50,12 @@
  * Run: `npx tsx scripts/stress-test-cv-builder.ts`
  *
  * Service role + remote URL come from apps/web/.env.production.local.
- * The script is idempotent — failures during cleanup leave a small
- * number of __stress_cv_*@stresstest.invalid auth rows, which can
- * be wiped via the Supabase dashboard or admin_delete_person RPC.
+ * Cleanup is performed inline via direct table deletes (NOT via
+ * `admin_delete_person` — that RPC has a pre-existing typo on line
+ * 65 of migration 00095 referencing a non-existent
+ * `notification_read_cursors` table, and a separate FK-ordering bug
+ * around `permanent_postings` with applications. The RPC is dead-
+ * code-by-default in this codebase but is wired here for parity).
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -166,9 +169,109 @@ async function onboardEmployer(sb: Sb, personId: string, displayName: string): P
   );
 }
 
+/**
+ * Per-person cleanup. Does NOT use `admin_delete_person` (the RPC has a
+ * pre-existing typo on line 65 of migration 00095 — references a
+ * non-existent `notification_read_cursors` table — and a separate FK-
+ * ordering bug that blocks deletion of employer rows whose postings
+ * have applications). Instead, delete each row directly in FK-safe
+ * order, scoped to this single person. Service role bypasses RLS.
+ *
+ * Also handles the auth.users row (the RPC wouldn't anyway, per its
+ * own docstring).
+ */
 async function cleanup(sb: Sb, personId: string): Promise<void> {
+  // 1. Find engagements + vessels + postings tied to this person so we
+  //    can cascade their children before nuking the parents.
+  const { data: engs } = await sb
+    .from('active_engagements')
+    .select('id')
+    .or(`crew_person_id.eq.${personId},employer_person_id.eq.${personId}`);
+  const engIds = ((engs ?? []) as Array<{ id: string }>).map((e) => e.id);
+
+  const { data: vessels } = await sb.from('vessels').select('id').eq('owner_person_id', personId);
+  const vesselIds = ((vessels ?? []) as Array<{ id: string }>).map((v) => v.id);
+
+  const { data: posts } = await sb
+    .from('permanent_postings')
+    .select('id')
+    .eq('employer_person_id', personId);
+  const postIds = ((posts ?? []) as Array<{ id: string }>).map((p) => p.id);
+
+  const { data: dws } = await sb
+    .from('dayworks')
+    .select('id')
+    .eq('poster_person_id', personId);
+  const dwIds = ((dws ?? []) as Array<{ id: string }>).map((d) => d.id);
+
+  const { data: refs1 } = await sb.from('references').select('id').eq('requester_person_id', personId);
+  const { data: refs2 } = await sb.from('references').select('id').eq('referee_person_id', personId);
+  const refIds = [
+    ...((refs1 ?? []) as Array<{ id: string }>).map((r) => r.id),
+    ...((refs2 ?? []) as Array<{ id: string }>).map((r) => r.id),
+  ];
+
+  const { data: rcs } = await sb
+    .from('reference_contacts')
+    .select('id')
+    .eq('employer_person_id', personId);
+  const rcIds = ((rcs ?? []) as Array<{ id: string }>).map((r) => r.id);
+
+  // 2. Delete in FK-safe order.
+  async function tryDelete(table: string, where: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await sb.from(table).delete().in(where, ids);
+  }
+  async function tryDeleteEq(table: string, where: string, value: string): Promise<void> {
+    await sb.from(table).delete().eq(where, value);
+  }
+
+  await tryDelete('message_read_cursors', 'engagement_id', engIds);
+  await tryDelete('engagement_ratings', 'engagement_id', engIds);
+  await tryDelete('engagement_checklists', 'engagement_id', engIds);
+  await tryDelete('messages', 'engagement_id', engIds);
+  await tryDelete('active_engagements', 'id', engIds);
+  await tryDelete('reference_contacts', 'id', rcIds);
+  await tryDelete('references', 'id', [...new Set(refIds)]);
+  await tryDeleteEq('applications', 'crew_person_id', personId);
+  // Also delete applications that reference postings WE OWN — when this
+  // user is the employer being cleaned up, applications from other
+  // crew (test or otherwise) hold an FK that would block the posting
+  // delete below. The wider stress test ensures these "other" crew
+  // are also stress users; the leak guard at the script entry point
+  // confirmed no real-user applications exist before the run started.
+  await tryDelete('applications', 'permanent_posting_id', postIds);
+  await tryDelete('applications', 'daywork_id', dwIds);
+  await tryDeleteEq('permanent_invitations', 'crew_person_id', personId);
+  await tryDeleteEq('permanent_invitations', 'invited_by_person_id', personId);
+  // Also cover invitations bound to OUR postings (in case the inviter
+  // was a different stress user)
+  await tryDelete('permanent_invitations', 'permanent_posting_id', postIds);
+  await tryDeleteEq('daywork_invitations', 'crew_person_id', personId);
+  await tryDeleteEq('daywork_invitations', 'employer_person_id', personId);
+  await tryDelete('daywork_invitations', 'daywork_id', dwIds);
+  await tryDelete('permanent_postings', 'id', postIds);
+  await tryDelete('dayworks', 'id', dwIds);
+  await tryDeleteEq('crew_experiences', 'person_id', personId);
+  await tryDeleteEq('shore_experiences', 'person_id', personId);
+  await tryDelete('vessel_names', 'vessel_id', vesselIds);
+  await tryDelete('vessel_flag_states', 'vessel_id', vesselIds);
+  await tryDelete('vessels', 'id', vesselIds);
+  await tryDeleteEq('user_preferences', 'person_id', personId);
+  await tryDeleteEq('notification_channels', 'person_id', personId);
+  await tryDeleteEq('availability_windows', 'person_id', personId);
+  await tryDeleteEq('notifications', 'person_id', personId);
+  await tryDeleteEq('subscriptions', 'person_id', personId);
+  // events table is append-only — leave its rows in place. The
+  // projection rows that reference these events are gone above; the
+  // event rows themselves are orphaned but harmless audit-only data.
+  await tryDeleteEq('profiles', 'person_id', personId);
+  await tryDeleteEq('persons', 'id', personId);
+
+  // 3. auth.users
   try {
-    await sb.rpc('admin_delete_person', { p_person_id: personId });
+    // @ts-expect-error supabase-js admin types lag
+    await sb.auth.admin.deleteUser(personId);
   } catch {
     /* non-fatal */
   }
@@ -562,9 +665,11 @@ async function main(): Promise<void> {
       await cleanup(sb, crewId3);
     }
   } finally {
-    if (employerId) await cleanup(sb, employerId);
+    // Clean crew before employer so applications (which would block
+    // permanent_postings deletes via FK) are gone first.
     if (crewId) await cleanup(sb, crewId);
     if (crewId2) await cleanup(sb, crewId2);
+    if (employerId) await cleanup(sb, employerId);
   }
 
   // ── D1: daywork-invitations UNIQUE constraint
@@ -660,8 +765,10 @@ async function main(): Promise<void> {
       inv2.error ?? '(no error — bug?)',
     );
   } finally {
-    if (dwEmployer) await cleanup(sb, dwEmployer);
+    // Crew before employer for the same FK-ordering reason as the
+    // permanent block above.
     if (dwCrew) await cleanup(sb, dwCrew);
+    if (dwEmployer) await cleanup(sb, dwEmployer);
   }
 
   // ── Summary
