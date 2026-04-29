@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Save, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,6 +65,8 @@ interface PermanentPostFormProps {
 
 export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCrewPersonId = searchParams.get('invite');
   const { showSuccess, showError: showErrorToast } = useToast();
   const { currency: preferredCurrency } = usePreferences();
   const submittingRef = useRef(false);
@@ -296,6 +298,35 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
       return;
     }
 
+    // QR-hire (Phase 5b): if the captain arrived from /cv/[handle], the
+    // crew person id is in the URL. Spec v2.1 deferred "select existing
+    // posting" to v2 — the Stage-1 wizard always creates a fresh posting
+    // first (just done), then fires PERMANENT.INVITED via the dedicated
+    // route. Failures here surface as inline errors but don't roll back
+    // the posting (it's a real public posting either way).
+    if (inviteCrewPersonId) {
+      const newPostingId = (result.data as { id?: string }).id;
+      if (newPostingId) {
+        const inviteResult = await safeFetch<{ invitation?: { id: string }; error?: string }>(
+          `/api/permanent/${newPostingId}/invite`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ crewPersonId: inviteCrewPersonId }),
+          },
+        );
+        if (!inviteResult.ok) {
+          showErrorToast(`Posting created but invite failed: ${inviteResult.error}`);
+        } else {
+          showSuccess('Permanent posting created and crew invited');
+          router.push('/daywork/mine');
+          setLoading(false);
+          submittingRef.current = false;
+          return;
+        }
+      }
+    }
+
     // Save template alongside if checked
     if (saveAsTemplate && templateName.trim()) {
       const tplResult = await safeFetch<{ error?: string }>('/api/permanent/templates', {
@@ -344,6 +375,20 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         </button>
         <h1 className="text-[24px] font-bold tracking-[-0.5px]">Post Permanent Position</h1>
       </div>
+
+      {/* QR-hire banner (Phase 5b) — visible when arriving from
+          /cv/[handle] with ?invite=<personId>. Stage-1 wizard always
+          creates a fresh posting then fires PERMANENT.INVITED. */}
+      {inviteCrewPersonId ? (
+        <div className="mb-4 rounded-[14px] border border-[var(--accent)] bg-[var(--accent-lo)] px-4 py-3 text-xs">
+          <p className="font-semibold">Hiring from QR — invite-to-apply</p>
+          <p className="text-muted-foreground">
+            Posting this role will create the public posting and send a personal invitation to apply
+            to the scanned crew member. They&apos;ll see your invitation in their notifications and
+            can apply via the deep link.
+          </p>
+        </div>
+      ) : null}
 
       {/* Load template */}
       {templates.length > 0 && (

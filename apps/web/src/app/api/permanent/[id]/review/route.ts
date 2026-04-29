@@ -39,7 +39,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       .from('applications')
       .select(
         `
-        id, crew_person_id, status, message, created_at, source,
+        id, crew_person_id, status, message, created_at, source, invited_from_id,
         profiles!applications_crew_person_id_profiles_fkey(
           display_name, bio, avatar_url,
           primary_role_id, certification_ids, languages, experience_bracket_id,
@@ -186,6 +186,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         message: app.message,
         applied_at: app.created_at,
         source: app.source,
+        // v2.1: surfaced so the review-queue card can render an
+        // "✉ Invited" badge for applications that came in via a
+        // PERMANENT.INVITED deep link. Boolean flag is enough — the
+        // invitation row itself isn't shown.
+        invited: Boolean(app.invited_from_id),
         display_name: profile?.display_name ?? null,
         bio: profile?.bio ?? null,
         avatar_url: profile?.avatar_url ?? null,

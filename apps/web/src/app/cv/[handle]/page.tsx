@@ -316,39 +316,43 @@ export default function CvLandingPage() {
         ) : null}
 
         {/* State 2: signed-in employer/agent → full profile + sticky action bar.
-            The Hire / Contact actions land in Phase 5. The bar is rendered
-            inert here so the layout is locked-in. */}
+            Phase 5b wires the Hire actions: both navigate to the existing
+            post forms with `?invite=<personId>` so the captain reuses the
+            proven posting UI (vessel selector, role picker, dates, etc.).
+            The form fires the right combination atomically:
+              - daywork: POST /api/daywork with inviteCrewPersonId →
+                DAYWORK.POSTED + DAYWORK.INVITED in one transaction
+              - permanent: POST /api/permanent (creates posting) → POST
+                /api/permanent/[id]/invite (PERMANENT.INVITED)
+            "Contact a reference" stays inert pending Phase 6 wiring on
+            the existing reference-contact API. */}
         {isEmployerOrAgent ? (
           <section className="sticky top-0 z-10 rounded-[14px] border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
             <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled
-                aria-disabled="true"
-                title="Hire from QR — coming in Phase 5"
-                className="opacity-60"
-              >
-                <Briefcase className="mr-2 h-4 w-4" />
-                Hire daywork
+              <Button size="sm" asChild>
+                <Link
+                  href={`/daywork/post?invite=${encodeURIComponent(cv.person_id)}`}
+                  prefetch={false}
+                >
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Hire daywork
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" asChild>
+                <Link
+                  href={`/daywork/post?invite=${encodeURIComponent(cv.person_id)}&type=permanent`}
+                  prefetch={false}
+                >
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Hire permanent
+                </Link>
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 disabled
                 aria-disabled="true"
-                title="Hire from QR — coming in Phase 5"
-                className="opacity-60"
-              >
-                <Briefcase className="mr-2 h-4 w-4" />
-                Hire permanent
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled
-                aria-disabled="true"
-                title="Contact reference — coming in Phase 5"
+                title="Contact reference — coming soon"
                 className="opacity-60"
               >
                 <Mail className="mr-2 h-4 w-4" />

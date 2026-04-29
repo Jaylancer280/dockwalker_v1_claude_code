@@ -57,6 +57,10 @@ interface Applicant {
     missing_count: number;
   } | null;
   cert_extras: number;
+  /** v2.1: true when the application carries an `invited_from_id`.
+   * Drives the ✉ Invited badge so the captain sees at a glance which
+   * applicants came in via a PERMANENT.INVITED deep link. */
+  invited?: boolean;
 }
 
 function availabilityLabel(a: Applicant) {
@@ -297,6 +301,15 @@ export default function PermanentReviewPage() {
                         {app.display_name ?? 'Unknown'}
                       </span>
                       {app.role_name && <EpauletteBadge roleName={app.role_name} size="sm" />}
+                      {app.invited && (
+                        <Badge
+                          variant="secondary"
+                          className="gap-1 text-[10px]"
+                          title="This crew applied via your invitation"
+                        >
+                          ✉ Invited
+                        </Badge>
+                      )}
                       {app.status === 'selected' && (
                         <Badge variant="status-filling" className="text-xs">
                           In negotiation

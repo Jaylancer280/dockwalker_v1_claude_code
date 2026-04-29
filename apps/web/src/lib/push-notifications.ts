@@ -108,6 +108,16 @@ export function resolveDeepLinkUrl(data: Record<string, string>): string | undef
       return data.type === 'invitation' ? '/discover?tab=invitations' : '/discover';
     case 'review':
       return data.dayworkId ? `/daywork/${data.dayworkId}/review` : undefined;
+    case 'permanent-apply': {
+      // PERMANENT.INVITED deep link (spec v2.1). Drops the crew straight
+      // into the apply form with the invitation id pre-filled.
+      const postingId = data.permanentPostingId;
+      if (!postingId) return undefined;
+      const fromInvitation = data.fromInvitation;
+      return fromInvitation
+        ? `/permanent/${postingId}/apply?from_invitation=${fromInvitation}`
+        : `/permanent/${postingId}/apply`;
+    }
     default:
       return undefined;
   }

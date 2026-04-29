@@ -38,4 +38,24 @@ describe('resolveDeepLinkUrl', () => {
   it('returns undefined for unknown screen', () => {
     expect(resolveDeepLinkUrl({ screen: 'settings' })).toBeUndefined();
   });
+
+  it('maps screen:permanent-apply + posting + invitation to /permanent/:id/apply?from_invitation=', () => {
+    expect(
+      resolveDeepLinkUrl({
+        screen: 'permanent-apply',
+        permanentPostingId: 'pp-1',
+        fromInvitation: 'inv-9',
+      }),
+    ).toBe('/permanent/pp-1/apply?from_invitation=inv-9');
+  });
+
+  it('maps screen:permanent-apply without invitation to /permanent/:id/apply', () => {
+    expect(
+      resolveDeepLinkUrl({ screen: 'permanent-apply', permanentPostingId: 'pp-1' }),
+    ).toBe('/permanent/pp-1/apply');
+  });
+
+  it('returns undefined for screen:permanent-apply without postingId', () => {
+    expect(resolveDeepLinkUrl({ screen: 'permanent-apply' })).toBeUndefined();
+  });
 });

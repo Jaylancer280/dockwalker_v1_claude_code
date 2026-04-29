@@ -81,9 +81,19 @@ export default function PostDayworkPage() {
 function PostDayworkContent() {
   const pageSearchParams = useSearchParams();
   const permanentTemplateId = pageSearchParams.get('permanentTemplateId');
-  const [postingType, setPostingType] = useState<'daywork' | 'permanent' | null>(
-    permanentTemplateId ? 'permanent' : null,
-  );
+  // QR-hire (Phase 5b): /cv/[handle] action bar passes `?invite=<personId>`
+  // for daywork and `?invite=...&type=permanent` for permanent. Skip the
+  // type selector when the URL specifies a type or carries a permanent
+  // template id.
+  const typeParam = pageSearchParams.get('type');
+  const initialType: 'daywork' | 'permanent' | null = permanentTemplateId
+    ? 'permanent'
+    : typeParam === 'permanent'
+      ? 'permanent'
+      : typeParam === 'daywork'
+        ? 'daywork'
+        : null;
+  const [postingType, setPostingType] = useState<'daywork' | 'permanent' | null>(initialType);
 
   if (postingType === null) {
     return <PostingTypeSelector onSelect={setPostingType} />;
@@ -465,6 +475,13 @@ function DayworkPostForm() {
     setShowPostConfirm(false);
     setLoading(true);
 
+    // QR-hire (Phase 5b): when arriving from /cv/[handle] we carry the
+    // crew person id in the `?invite=` query param. The route fires
+    // DAYWORK.POSTED + DAYWORK.INVITED atomically. Re-submitting after a
+    // success would 409 (UNIQUE on daywork_invitations) — the spec'd
+    // 409 message surfaces here as the form error.
+    const inviteCrewPersonId = searchParams.get('invite') ?? undefined;
+
     const result = await safeFetch<{ error?: string }>('/api/daywork', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -485,6 +502,7 @@ function DayworkPostForm() {
         notes: notes || undefined,
         positionsAvailable: parseInt(positionsAvailable, 10) || 1,
         permanentOpportunity: permanentOpportunity || undefined,
+        ...(inviteCrewPersonId ? { inviteCrewPersonId } : {}),
       }),
     });
 
@@ -494,7 +512,7 @@ function DayworkPostForm() {
         await handleSaveTemplate();
       }
       sessionStorage.removeItem('dockwalker:daywork-post-draft');
-      showSuccess('Daywork posted');
+      showSuccess(inviteCrewPersonId ? 'Daywork posted and crew invited' : 'Daywork posted');
       router.push('/daywork/mine');
     } else {
       setError(result.error);
@@ -515,6 +533,19 @@ function DayworkPostForm() {
       </header>
 
       <form onSubmit={handleSubmit} className="page-width flex w-full flex-col gap-4 px-4 py-6">
+        {/* QR-hire banner (Phase 5b): visible when the captain arrived
+            from /cv/[handle]. The crew person id is in the URL; we just
+            surface the intent so the captain knows they're hiring this
+            specific crew, not posting a public job. */}
+        {searchParams.get('invite') ? (
+          <div className="rounded-[14px] border border-[var(--accent)] bg-[var(--accent-lo)] px-4 py-3 text-xs">
+            <p className="font-semibold">Hiring from QR</p>
+            <p className="text-muted-foreground">
+              Posting this daywork will both create the job and invite the scanned crew member
+              directly. The job will also appear on the public Discover feed.
+            </p>
+          </div>
+        ) : null}
         {/* Load template */}
         {templates.length > 0 && (
           <div className="flex flex-col gap-1.5">
