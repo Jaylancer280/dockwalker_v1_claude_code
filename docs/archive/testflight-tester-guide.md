@@ -1,5 +1,14 @@
 # DockWalker TestFlight — Tester Guide
 
+> **ARCHIVED 2026-04-29.** The native mobile app was deleted; there is no
+> TestFlight build to install. This guide is preserved as a reference for any
+> future mobile resume. See `docs/archive/mobile-web-split-spec.md` for the
+> deletion rationale.
+>
+> Original guide follows.
+>
+> ---
+>
 > How to install and test DockWalker on your iPhone.
 
 ## Step 1: Install TestFlight

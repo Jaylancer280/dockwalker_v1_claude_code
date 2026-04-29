@@ -232,7 +232,7 @@
     transition: background-color 0.3s, color 0.3s;
   }
 
-  /* Mobile-first safe area handling for Capacitor */
+  /* Safe-area handling for mobile web (notch, home indicator). */
   html {
     -webkit-text-size-adjust: 100%;
     overscroll-behavior: none;

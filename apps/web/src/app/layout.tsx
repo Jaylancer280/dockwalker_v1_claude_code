@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import { NativeInit } from '@/components/native-init';
 import { PushToast } from '@/components/push-toast';
 import { ThemeProvider } from '@/components/theme-provider';
 import { THEME_COLOR_DARK } from '@/lib/theme-colors';
@@ -81,7 +80,6 @@ export default function RootLayout({
         }}
       >
         <ThemeProvider>
-          <NativeInit />
           <PushToast />
           {children}
           <Analytics />

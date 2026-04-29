@@ -1,5 +1,26 @@
 # DockWalker Mobile/Web Split — Architecture Specification
 
+> **ARCHIVED 2026-04-29.** The native mobile app (`apps/mobile/`) was deleted in
+> the same commit that moved this spec to `docs/archive/`. The work it specified
+> was built across Stages 163–173 (Phases 1–6 architecturally complete, Phase 7
+> EAS Build config staged) — but the resulting code accumulated 53 Rules of
+> Hooks violations, never had a verified successful build, and missed the
+> entire References system (migrations 00125–00130) plus several months of
+> subsequent schema drift (CV Builder, vessel history, multi-nationality v2,
+> locations V2, certifications V1). The "blocked on Mac+Xcode" framing turned
+> out to be unverified; no Sentry / crash logs ever documented an actual
+> native-side issue.
+>
+> The spec is preserved here as a record of the architectural thinking — shared
+> packages structure, two-frontends-one-backend invariant, phase decomposition,
+> testing strategy. If a future mobile effort resumes, this is the starting
+> point, but the implementation should be done fresh against the current
+> schema rather than resuming the deleted code.
+>
+> Original spec follows.
+>
+> ---
+>
 > Implementation blueprint for the native mobile app alongside the existing web app.
 > This document contains concrete decisions, not options. Follow it exactly.
 >

@@ -1,46 +1,9 @@
-import { Capacitor } from '@capacitor/core';
+// Haptic feedback no-ops. Web has no equivalent to native iOS/Android
+// haptics; preserved as a stable surface so swipe components don't need
+// platform branching at every callsite.
 
-/**
- * Haptic feedback utilities for native swipe actions.
- * No-ops gracefully on web.
- */
-
-let Haptics: typeof import('@capacitor/haptics').Haptics | null = null;
-let ImpactStyle: typeof import('@capacitor/haptics').ImpactStyle | undefined;
-
-if (Capacitor.isNativePlatform()) {
-  import('@capacitor/haptics').then((mod) => {
-    Haptics = mod.Haptics;
-    ImpactStyle = mod.ImpactStyle;
-  });
-}
-
-export async function hapticLight() {
-  if (Haptics && ImpactStyle) {
-    await Haptics.impact({ style: ImpactStyle.Light });
-  }
-}
-
-export async function hapticMedium() {
-  if (Haptics && ImpactStyle) {
-    await Haptics.impact({ style: ImpactStyle.Medium });
-  }
-}
-
-export async function hapticHeavy() {
-  if (Haptics && ImpactStyle) {
-    await Haptics.impact({ style: ImpactStyle.Heavy });
-  }
-}
-
-export async function hapticSuccess() {
-  if (Haptics) {
-    await Haptics.notification({ type: 'success' as never });
-  }
-}
-
-export async function hapticError() {
-  if (Haptics) {
-    await Haptics.notification({ type: 'error' as never });
-  }
-}
+export async function hapticLight() {}
+export async function hapticMedium() {}
+export async function hapticHeavy() {}
+export async function hapticSuccess() {}
+export async function hapticError() {}

@@ -14,7 +14,6 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useLookups } from '@/hooks/use-lookups';
-import { PushPrompt } from '@/components/push-prompt';
 import { DiscoverDataProvider, useDiscoverData } from './_components/discover-data-context';
 import { DiscoverApplied } from './_components/discover-applied';
 import { DiscoverInvitations } from './_components/discover-invitations';
@@ -153,8 +152,6 @@ function DiscoverPageInner() {
         hasActiveFilters={hasActiveFilters}
         onClearFilters={() => browseRef.current?.clear()}
       />
-
-      <PushPrompt />
 
       {activeTab === 'invitations' && (
         <DiscoverInvitations

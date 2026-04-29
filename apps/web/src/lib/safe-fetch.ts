@@ -2,12 +2,10 @@ type SafeFetchSuccess<T> = { ok: true; data: T };
 type SafeFetchError = { ok: false; error: string; status?: number };
 type SafeFetchResult<T> = SafeFetchSuccess<T> | SafeFetchError;
 
-/**
- * Resolve a relative URL to an absolute URL.
- * In Capacitor (NEXT_PUBLIC_API_BASE_URL set), relative /api/* calls
- * are prefixed with the server URL so they reach Vercel.
- * In browser (no prefix), relative URLs work as-is.
- */
+// When NEXT_PUBLIC_API_BASE_URL is set, prefix relative /api/* calls so
+// they reach an absolute origin. Useful for any future cross-origin client
+// (web push worker, edge function caller). Same-origin browser calls leave
+// the path untouched.
 function resolveUrl(url: string): string {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
   if (base && url.startsWith('/')) {
