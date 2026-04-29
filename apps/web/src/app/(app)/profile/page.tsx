@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Pencil, X, Check, Ship, Briefcase, Eye } from 'lucide-react';
+import { Settings, Pencil, X, Check, Ship, Briefcase, Eye, FileText, Lock } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { AvatarUpload } from '@/components/avatar-upload';
@@ -667,6 +667,28 @@ export default function ProfilePage() {
             <Eye className="h-4 w-4" />
             How employers see you
           </Button>
+        )}
+
+        {/* CV Builder hot button — locked in Stage 1 (Phase 8 unlocks). Crew-only;
+            agents have no CV by design (out of scope per spec §12 v2-deferred). */}
+        {!editing && isCrewHat && person.identity_type === 'crew' && (
+          <button
+            type="button"
+            onClick={() => showSuccess('DockWalker CV — Coming Soon')}
+            aria-disabled="true"
+            aria-label="DockWalker CV — coming soon"
+            className="flex w-full items-center gap-3 rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-left opacity-60 transition-colors hover:bg-accent"
+          >
+            <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <div className="flex flex-1 flex-col">
+              <span className="text-sm font-medium">Build your DockWalker CV</span>
+              <span className="text-xs text-muted-foreground">
+                Coming soon — configure your settings now in{' '}
+                <span className="underline">Settings → CV Builder</span>.
+              </span>
+            </div>
+            <Lock className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
         )}
         {!editing && !isCrewHat && person.identity_type === 'agent' && (
           <Button

@@ -56,16 +56,22 @@
 
 #### Phase 3 — CV Builder UI (locked-entry)
 
-- [ ] New route: `apps/web/src/app/(app)/settings/cv/page.tsx`
-- [ ] **(v2.1) Hat gate**: render `null` (or redirect to `/settings`) when the active hat is `agent` — agent CVs are explicitly out of scope per spec §12 v2-deferred. Same gate hides the profile hot button for agents.
-- [ ] **Stage-1 Coming-Soon banner card** at top of section: title + body per spec §12.1 ("Configure your CV settings now ... When the PDF generator launches ...")
-- [ ] **Generate CV button**: greyed out / `disabled`, click handler shows toast "DockWalker CV — Coming Soon" (match `chat-header.tsx` Voice-calls Coming-Soon pattern from Fix 222d). Stage 2 will un-grey + wire to `/api/cv/generate`.
-- [ ] Section: sea time toggle — fully working, writes to `profiles.cv_include_sea_time`
-- [ ] Section: references list with per-row "Include on CV" toggle — fully working, writes to `references.include_on_cv`; helper text re: referee consent inheritance
-- [ ] Section: NDA experiences list (only experiences where `vessel.nda_flag = true`); per-row "Show full vessel name on CV" toggle — fully working, writes to `crew_experiences.cv_show_full_vessel`; banner above the section per spec wording
-- [ ] **Skip in Stage 1**: "Regenerate my CV link" button (no QRs in circulation to invalidate) — Phase 8.
-- [ ] Profile page hot button: card matching Docky-readiness pattern, near avatar block. **Locked**: greyed out + Coming-Soon toast on tap. Stage 2 unlocks: Free → "Build your DockWalker CV" → `/settings/cv`; Pro → "Your DockWalker CV — last generated {relative}" → `/settings/cv`.
-- [ ] Component tests: toggles persist; locked Generate button fires Coming-Soon toast and does NOT call the API; locked profile hot button fires Coming-Soon toast.
+- [x] New route: `apps/web/src/app/(app)/settings/cv/page.tsx`
+- [x] **(v2.1) Hat gate**: agent hat → `router.replace('/settings')` and render null while redirect is in flight
+- [x] **Stage-1 Coming-Soon banner card** at top of section per spec §12.1 wording
+- [x] **Generate CV button**: locked with `aria-disabled="true"` + Coming-Soon toast on click (matches `chat-header.tsx` Fix 222d pattern). Does NOT call `/api/cv/generate`.
+- [x] Section: sea time toggle — PATCH /api/cv/settings with `{ cvIncludeSeaTime }`
+- [x] Section: references list (filtered to `status='accepted'`) with per-row toggle — PATCH /api/cv/settings with `{ referenceId, includeOnCv }`. Helper text re: referee consent inheritance.
+- [x] Section: NDA experiences list (filtered to `vessels.nda_flag = true`); per-row toggle — PATCH /api/cv/settings with `{ experienceId, cvShowFullVessel }`. Banner above per spec wording.
+- [x] **Skipped in Stage 1**: Regenerate-handle button (Phase 8)
+- [x] Profile page hot button: locked card just below the avatar block, crew-hat + crew-identity gated. Greyed-out + Coming-Soon toast on tap. Stage 2 unlocks.
+- [x] Settings nav link: added "CV Builder" entry to `account-section.tsx` so users can find the new page from `/settings`.
+- [x] **API surface (Phase 3 additions):**
+  - GET /api/profile extended with `cv_handle, cv_handle_updated_at, cv_include_sea_time, cv_generated_at`
+  - GET /api/references/mine REF_COLUMNS extended with `include_on_cv`
+  - GET /api/experiences SELECT extended with `cv_show_full_vessel`
+  - **New** PATCH /api/cv/settings — single endpoint, polymorphic body, owner-scoped. Justified as direct UPDATE (not event-sourced) because these are per-row UI display preferences with no projection cascade or temporal semantics.
+- [x] Component tests (15 new): 9 PATCH endpoint tests (401/403/400/200×3/500/404×2) + 6 page tests (banner renders, locked Generate fires toast and does NOT call /api/cv/generate, agent hat redirects, sea-time toggle PATCHes correctly, accepted-only references render, NDA-only experiences render)
 
 #### Phase 4 — QR-landing route + page
 

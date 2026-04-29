@@ -25,6 +25,7 @@ export async function GET() {
         languages,
         permanent_availability, notice_period_days, currently_employed,
         smoker, visible_tattoos,
+        cv_handle, cv_handle_updated_at, cv_include_sea_time, cv_generated_at,
         agency_name, role_specialization_ids,
         yacht_roles!profiles_primary_role_id_fkey(id, name, department),
         desired_roles:yacht_roles!profiles_desired_role_id_fkey(id, name),

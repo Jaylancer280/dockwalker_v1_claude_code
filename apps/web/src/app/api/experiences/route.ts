@@ -36,6 +36,7 @@ export async function GET() {
         vessel_operation, flag_state, contract_type, contract_details,
         description, sea_time_days, sea_time_nautical_miles,
         salary_amount, salary_currency, salary_period,
+        cv_show_full_vessel,
         created_at, updated_at,
         vessels(id, imo_number, name, vessel_type, size_band_id, loa_meters, nda_flag, source, hidden_at, vessel_size_bands(label)),
         yacht_roles(id, name, department)

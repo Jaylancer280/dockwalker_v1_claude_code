@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, CreditCard, LogOut, Check, Users } from 'lucide-react';
+import { ChevronRight, CreditCard, FileText, LogOut, Check, Users } from 'lucide-react';
 import type { UserIdentity } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -268,6 +268,20 @@ export function AccountSection({ email, identities }: AccountSectionProps) {
           <div className="flex items-center gap-3">
             <Users className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm font-medium">References</p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </button>
+
+        <Separator />
+
+        {/* CV Builder — visible to all hats; the page itself hat-gates to crew. */}
+        <button
+          onClick={() => router.push('/settings/cv')}
+          className="flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-accent"
+        >
+          <div className="flex items-center gap-3">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm font-medium">CV Builder</p>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </button>

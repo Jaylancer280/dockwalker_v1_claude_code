@@ -51,6 +51,7 @@ const REF_COLUMNS = [
   'requester_person_id',
   'referee_person_id',
   'created_at',
+  'include_on_cv',
 ].join(',');
 
 /**
