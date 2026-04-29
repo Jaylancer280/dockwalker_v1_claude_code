@@ -7,6 +7,7 @@ import { safeFetch } from '@/lib/safe-fetch';
 import { usePreferences } from '@/hooks/use-preferences';
 import { feetToMeters } from '@dockwalker/shared';
 import { uuid } from '@/lib/uuid';
+import { safeRedirectPath } from '@/lib/auth/safe-redirect-path';
 
 import { WelcomeStep } from './_components/welcome-step';
 import { IdentityStep } from './_components/identity-step';
@@ -364,7 +365,19 @@ export default function OnboardingPage() {
         });
       }
 
-      router.push('/profile');
+      // Phase 6: post-onboarding redirect target. The `?next=` query
+      // param survives the signup → email-confirm → callback → middleware
+      // bounce → onboarding chain so a captain who signed up from a
+      // /cv/{handle} QR scan lands back on that CV after completing
+      // onboarding. Validated via safeRedirectPath against the same
+      // allowlist used elsewhere; falls back to /profile when missing or
+      // unsafe.
+      let nextParam: string | null = null;
+      if (typeof window !== 'undefined') {
+        nextParam = new URLSearchParams(window.location.search).get('next');
+      }
+      const safeNext = safeRedirectPath(nextParam);
+      router.push(safeNext ?? '/profile');
     } finally {
       setLoading(false);
       submittingRef.current = false;

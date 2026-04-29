@@ -102,11 +102,11 @@
 
 #### Phase 6 — Auth flow polish + abuse mitigations
 
-- [ ] `?redirect=` parameter handling in signup flow (validate against allowlist, default to /profile)
-- [ ] Hat-switch banner UI on `/cv/[handle]` for crew-hat scanners
-- [ ] Confirm Upstash rate-limit configs are in place: `/api/cv/[handle]` (20/100), QR-flagged posts (5/hr), regen (1/7d)
-- [ ] Admin abuse review surface: small admin page or query template for spotting QR-spam patterns (`dayworks` with high count of invitations from a single employer in a short window)
-- [ ] **(v2.1)** Daily expiry cron for `permanent_invitations`: extend an existing cron handler (e.g., `/api/cron/reference-expiry`) OR add a new handler that flips `permanent_invitations SET status='expired' WHERE status='pending' AND created_at < now() - interval '30 days'`. Uses partial index `idx_permanent_invitations_pending_expiry`. Add to `vercel.json` if a new cron is created (recommend `0 3 * * *` to avoid clashes). Unit test: pending invitation 31d old → cron flips to `expired`; pending invitation 5d old → unchanged; non-pending invitations are not touched.
+- [x] `?next=` parameter handling end-to-end (sign-up → email confirm → middleware → onboarding → destination). New `safeRedirectPath` helper in `lib/auth/safe-redirect-path.ts` allowlists relative paths (rejects `//`, `..`, `:`, > 256 chars). Onboarding page reads `?next=` and routes there on completion (default `/profile`). Middleware preserves original path as `?next=<path>` on `/onboarding` redirect. Sign-up polling threads through. `/cv/[handle]` CTAs migrated from `?redirect=` to canonical `?next=`.
+- [x] Hat-switch CTA on `/cv/[handle]` crew-hat banner — calls existing `POST /api/hat` and reloads. Hidden for agents (they don't switch hats).
+- [x] Rate-limit configs verified: `/api/cv/[handle]` 20/hr unauth + 100/hr auth (Phase 4), QR-hire 5/hr per employer (Phase 5a). Regen 1/7d will land in Stage 2 (Phase 8) alongside the regenerate route itself.
+- [ ] **(deferred to a polish phase)** Admin abuse review surface — sprawling; recommend a /admin/postings filter for high-invitation-count posters rather than a new page. Defer until QR-hire usage data is available to inform threshold choices.
+- [x] **(v2.1)** Daily expiry cron at `GET /api/cron/invitation-expiry` (Vercel cron `0 3 * * *`, CRON_SECRET-gated). Direct UPDATE flips `pending → expired` for invitations past 30 days. Justified as direct UPDATE (no event) because nothing in the domain reacts to expiry — the apply-after-invite server validator already drops non-pending invitations silently. Powered by `idx_permanent_invitations_pending_expiry` partial index from migration 00131. 6 unit tests cover auth (401 missing/wrong/no-env-secret), happy path with cutoff assertion, idempotent re-run, error path.
 
 #### Phase 7 — Stress test + device-test additions (Stage 1 scope)
 

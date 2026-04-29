@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   Anchor,
+  ArrowRightLeft,
   Briefcase,
   ExternalLink,
   Globe,
@@ -181,6 +182,8 @@ export default function CvLandingPage() {
   const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authedHat, setAuthedHat] = useState<string | null>(null);
+  const [authedIdentity, setAuthedIdentity] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -192,10 +195,11 @@ export default function CvLandingPage() {
         if (userRes.user) {
           const { data: personRow } = await supabase
             .from('persons')
-            .select('current_hat')
+            .select('current_hat, identity_type')
             .eq('id', userRes.user.id)
             .single();
           setAuthedHat((personRow?.current_hat as string | null) ?? null);
+          setAuthedIdentity((personRow?.identity_type as string | null) ?? null);
         }
       } catch {
         // Anon — leave authedHat null.
@@ -241,7 +245,7 @@ export default function CvLandingPage() {
           </Link>
           {isSignedOut ? (
             <Button size="sm" asChild>
-              <a href={`/auth/signup?redirect=${encodeURIComponent(`/cv/${handle}`)}`}>Sign up</a>
+              <a href={`/auth/signup?next=${encodeURIComponent(`/cv/${handle}`)}`}>Sign up</a>
             </Button>
           ) : null}
         </div>
@@ -298,20 +302,51 @@ export default function CvLandingPage() {
               references — and reach out on the platform.
             </p>
             <Button className="mt-4" size="sm" asChild>
-              <a href={`/auth/signup?redirect=${encodeURIComponent(`/cv/${handle}`)}`}>
+              <a href={`/auth/signup?next=${encodeURIComponent(`/cv/${handle}`)}`}>
                 Create your DockWalker account
               </a>
             </Button>
           </section>
         ) : null}
 
-        {/* State 3: signed-in crew → hat-switch hint + full data fallback. */}
+        {/* State 3: signed-in crew → hat-switch hint + full data fallback.
+            Phase 6: wires the Switch CTA so dual-hat crew (the most common
+            QR scanner who already has a DockWalker login) can flip to
+            their employer hat in one click and unlock the action bar.
+            Agents can't switch hats — they always use their crew/agent
+            identity, so the CTA is hidden for them. */}
         {isCrewHat ? (
-          <section className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm">
+          <section className="flex flex-col gap-2 rounded-[14px] border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm">
             <p className="font-medium">You&apos;re viewing as crew</p>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Switch to your employer hat to hire this crew or contact references.
             </p>
+            {authedIdentity !== 'agent' ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={switching}
+                onClick={async () => {
+                  setSwitching(true);
+                  const res = await fetch('/api/hat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hat: 'employer' }),
+                  });
+                  if (res.ok) {
+                    // Reload so middleware re-reads the JWT claim and the
+                    // page re-renders with employer-hat surfaces.
+                    window.location.reload();
+                  } else {
+                    setSwitching(false);
+                  }
+                }}
+                className="w-fit gap-1.5"
+              >
+                <ArrowRightLeft className="h-3 w-3" />
+                {switching ? 'Switching…' : 'Switch to employer hat'}
+              </Button>
+            ) : null}
           </section>
         ) : null}
 

@@ -220,7 +220,22 @@ export async function updateSession(request: NextRequest) {
 
     if (!onboarded) {
       const url = request.nextUrl.clone();
+      // Phase 6: preserve the user's intended target as `?next=<path>` so
+      // the onboarding page can route them back after completion. Skip
+      // when the original target is itself /onboarding or a known root
+      // surface — the user explicitly asked for /onboarding or didn't
+      // pick a target.
+      const originalPath = request.nextUrl.pathname;
+      const originalQs = request.nextUrl.search;
+      const skipNext =
+        originalPath === '/' ||
+        originalPath === '/dashboard' ||
+        originalPath.startsWith('/onboarding');
       url.pathname = '/onboarding';
+      url.search = '';
+      if (!skipNext) {
+        url.searchParams.set('next', originalPath + originalQs);
+      }
       return NextResponse.redirect(url);
     }
 

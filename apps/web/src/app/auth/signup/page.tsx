@@ -67,7 +67,12 @@ function SignUpPageInner() {
           }
           window.location.href = next ?? '/messages';
         } else {
-          window.location.href = '/onboarding';
+          // Phase 6: thread `next` through to /onboarding so the page
+          // can route there on completion. Preserves QR-landing context
+          // (e.g. /cv/{handle}) across the signup → onboarding hop.
+          window.location.href = next
+            ? `/onboarding?next=${encodeURIComponent(next)}`
+            : '/onboarding';
         }
       }
     }, 3000);
