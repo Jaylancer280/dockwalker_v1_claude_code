@@ -2,9 +2,9 @@
 
 **Product:** DockWalker
 **Owner:** Nautalink Technologies, Inc.
-**Status:** Spec v2 — ready for implementation phasing
-**Last updated:** April 2026
-**Supersedes:** Spec v1 (2026-04-05)
+**Status:** Spec v2.1 — ready for implementation phasing
+**Last updated:** 2026-04-29
+**Supersedes:** Spec v1 (2026-04-05), Spec v2 (2026-04-28)
 
 ---
 
@@ -109,6 +109,14 @@ Handle is **stored on `profiles.cv_handle`**, minted lazily on first PDF generat
 **State 1: not signed in**
 Teaser only — name, photo, primary role, availability badge. Single CTA: **"Sign up to view full profile and contact"** → `/auth/signup?redirect=/cv/{handle}` (B-8: redirect preserved through auth).
 
+The **availability badge** renders **permanent availability only** (not daywork — daywork's rolling 14-day window is too volatile for a printed CV in circulation for weeks/months). Three states from `profiles.permanent_availability`:
+
+- `immediate` → "Available now"
+- `after_notice` (with `notice_period_days`) → "Available in {N} days"
+- `not_looking` → "Not currently looking — open to discuss"
+
+The "open to discuss" softening on `not_looking` keeps the door open without overstating availability. Captains who choose to push past it go through the `not_looking` warning in the permanent QR-hire wizard (see §6).
+
 **State 2: signed in, hat = employer or agent**
 Full profile + sticky action bar at top:
 
@@ -160,17 +168,52 @@ Submit:
 
 - Atomic `appendEvents([DAYWORK.POSTED, DAYWORK.INVITED])` — one transaction, two events. Daywork is created with `status='active'`; invitation row inserted with `crew_person_id` pre-targeted.
 - Rate limit (B-4): **5 QR-flagged daywork posts per hour per employer.** New `qr_origin` field on `dayworks` (or marker on `daywork_invitations`) plus an Upstash key.
+- **Idempotency** (v2.1): `daywork_invitations` carries a `UNIQUE(daywork_id, crew_person_id)` constraint (added in migration 00131 if not already present). Re-invitation on the same posting → 409 with `{ error: "You've already invited this crew to this posting." }`. Wizard submit button has client-side debounce. Different daywork (e.g., captain re-thought dates) = different posting = different invitation = no conflict.
 - Crew receives notification → can accept (engagement opens) or decline → existing flow.
 
 Free for everyone (Free + Pro employer alike). Hiring is the platform's win; capping it would push hires off-platform.
 
 ### Hire for permanent (invite-to-apply)
 
-Captain taps **Hire for permanent**. Wizard creates a `permanent_postings` row, then fires `PERMANENT.INVITED` (new event) addressed to the scanned crew. Crew receives notification → taps "Apply" → enters the normal apply → cert hard-gate fires → shortlist → select flow (B-2 invariant preservation).
+Captain taps **Hire for permanent**. Wizard creates a `permanent_postings` row, then fires `PERMANENT.INVITED` (new event) addressed to the scanned crew. Crew receives notification → taps "Apply" → enters the apply form (with banner — see Apply-after-invite UX below) → cert hard-gate fires → shortlist → select flow (B-2 invariant preservation).
 
-This is **invitation-to-apply**, not direct hire. Cert gate is preserved; no architectural exception. The wizard's value is "this captain has explicitly thought about this crew" — surfaces them at the top of the applicant list with an `invited` flag.
+This is **invitation-to-apply**, not direct hire. Cert gate is preserved; no architectural exception. The wizard's value is "this captain has explicitly thought about this crew" — surfaces them at the top of the applicant review list with an "✉ Invited" badge.
 
 Same rate limit (5/hr per employer) applies.
+
+#### `not_looking` warning (v2.1)
+
+If the targeted crew has `permanent_availability = 'not_looking'`, the wizard renders an inline banner before the submit button:
+
+> **Sophie has marked themselves as not currently looking for permanent positions.** Continuing will send the invitation anyway — they can decline.
+> [Cancel] [Send invitation anyway]
+
+This respects crew intent in the default path (most captains will reconsider) while preserving captain agency for genuine edge cases. Crew's `permanent_availability` value is not changed; they receive the invitation and can decline normally.
+
+#### State machine (v2.1)
+
+`permanent_invitations.status` transitions:
+
+```
+pending  →  applied   (crew applies through the apply form)
+         →  declined  (crew taps Decline on the invitation)
+         →  revoked   (captain rescinds the invitation)
+         →  expired   (30 days no response — daily cron tick)
+```
+
+Backlink: `applications.invited_from_id uuid references permanent_invitations(id) on delete set null` lets the crew's application carry attribution. The `PERMANENT.APPLIED` projection handler reads `payload.invited_from_id`; if present, the same transaction also sets `permanent_invitations SET status='applied', responded_at=now()`. Daily expiry tick extends the existing `cron/reference-expiry` cron (or a dedicated handler) to flip `pending` → `expired` for invitations past 30 days.
+
+#### Apply-after-invite UX (v2.1)
+
+Crew taps the `PERMANENT.INVITED` notification → deep-links to `/permanent/[id]/apply?from_invitation={invitation_id}`. The apply page renders a context banner at the top:
+
+> **Captain James invited you to apply for Bosun on M/Y Serenity.** Their invitation is what brought you here.
+
+Standard apply form below — same fields, same cert validation, same message box. Crew writes their own message; we don't pre-fill (avoids putting words in their mouth).
+
+Server-side validation on POST: confirm the invitation exists, is in `pending` status, and the caller is the invited `crew_person_id`. On success, `applications.invited_from_id` is set; the projection's PERMANENT.APPLIED handler also flips the invitation row to `applied` (single transaction).
+
+Captain's review queue surfaces invited applications with an "✉ Invited" badge above the application card. No change to ordering — invited applications appear in the normal recency-based queue but are visually distinguishable.
 
 ### Reference contact from QR
 
@@ -201,13 +244,26 @@ alter table public.crew_experiences
 alter table public.references
   add column include_on_cv boolean not null default false;
 
+-- daywork_invitations: idempotency for QR-hire posts (v2.1)
+-- guarantees a single (posting, crew) pair across the system; re-invite returns 409
+alter table public.daywork_invitations
+  add constraint daywork_invitations_unique_posting_crew
+  unique (daywork_id, crew_person_id);
+
+-- applications: backlink so a permanent application can carry attribution to its invitation (v2.1)
+alter table public.applications
+  add column invited_from_id uuid references public.permanent_invitations(id) on delete set null;
+
+create index idx_applications_invited_from on public.applications(invited_from_id)
+  where invited_from_id is not null;
+
 -- permanent_invitations table mirroring daywork_invitations
 create table public.permanent_invitations (
   id uuid primary key default gen_random_uuid(),
   permanent_posting_id uuid not null references public.permanent_postings(id) on delete cascade,
   crew_person_id uuid not null references public.persons(id) on delete cascade,
   status text not null default 'pending'
-    check (status in ('pending', 'applied', 'declined', 'revoked')),
+    check (status in ('pending', 'applied', 'declined', 'revoked', 'expired')),
   invited_by_person_id uuid references public.persons(id) on delete set null,
   message text check (message is null or length(message) <= 500),
   created_at timestamptz not null default now(),
@@ -217,6 +273,9 @@ create table public.permanent_invitations (
 
 create index idx_permanent_invitations_crew on public.permanent_invitations(crew_person_id, status);
 create index idx_permanent_invitations_posting on public.permanent_invitations(permanent_posting_id);
+create index idx_permanent_invitations_pending_expiry
+  on public.permanent_invitations(created_at)
+  where status = 'pending';
 
 alter table public.permanent_invitations enable row level security;
 
@@ -238,6 +297,26 @@ alter table public.events add constraint events_aggregate_type_check
   check (aggregate_type in ( /* existing list */, 'permanent_invitation' ));
 ```
 
+### Mint-on-conflict retry (v2.1)
+
+`cv_handle` is an 8-char random alphanumeric. The minter generates a candidate and inserts; on `unique_violation` (very rare — birthday paradox at 218 trillion combinations is negligible until ~10M handles, but defence in depth), retry up to **5 times**, then surface a 500. Both `CV.HANDLE_REGENERATED` (regen) and the lazy mint inside `/api/cv/generate` use the same helper:
+
+```ts
+// apps/web/src/lib/cv/mint-handle.ts
+async function mintHandle(personId: string, supabase: SupabaseClient) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = randomAlphanumeric(8);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ cv_handle: candidate, cv_handle_updated_at: new Date().toISOString() })
+      .eq('person_id', personId);
+    if (!error) return candidate;
+    if (error.code !== '23505') throw error; // unique_violation only
+  }
+  throw new Error('cv_handle minting exhausted retry budget');
+}
+```
+
 ### New events
 
 | Event                   | Aggregate type         | Purpose                                                                                     |
@@ -249,7 +328,8 @@ alter table public.events add constraint events_aggregate_type_check
 ### apply_projection extensions
 
 - `PERMANENT.INVITED` → INSERT into `permanent_invitations`; notification fan-out via push-triggers
-- `CV.GENERATED` → UPDATE `profiles.cv_generated_at = now()`; mint `cv_handle` if null
+- `PERMANENT.APPLIED` → existing handler is **extended**: when `payload.invited_from_id` is present, the same transaction sets `permanent_invitations SET status='applied', responded_at=now() WHERE id=payload.invited_from_id AND status='pending'` and writes `applications.invited_from_id = payload.invited_from_id`. No-op when `invited_from_id` is null (preserves all existing apply flows). The `AND status='pending'` clause is the race guard — concurrent decline + apply, decline wins.
+- `CV.GENERATED` → UPDATE `profiles.cv_generated_at = now()`; mint `cv_handle` via `mintHandle()` if null
 - `CV.HANDLE_REGENERATED` → UPDATE `profiles.cv_handle = payload.new_handle`, `cv_handle_updated_at = now()`
 
 ---
@@ -418,6 +498,9 @@ The main risk: PDF design uncovers a constraint that requires changing the URL f
 ### v2 (deferred)
 
 - "Send a message" channel from QR landing — needs new engagement type (`cv_inquiry`), auto-close timer, conversion nag. Tolerate v1 leakage to off-platform messaging; ship if it becomes a measured pain point.
+- **Agent CVs** — explicitly **out of scope** for v1. CV Builder is crew-only. Agent profiles do not have `cv_handle`, do not surface the CV Builder section in settings, and the profile hot button is hidden when the user's hat is `agent`. Agents who want a marketing surface have their existing agency profile pages. Revisit if there is measured agent demand for a similar artefact.
+- **PERMANENT.INVITED notification copy** — Stage 1 ships the event + projection + push-trigger fan-out infrastructure. Final notification body copy ("Captain James invited you to apply for Bosun on M/Y Serenity") is a content-only change applied during Stage 1 implementation, not a v2 deferral; documenting here so it is not forgotten in the QA pass. Push trigger lives in the existing `notification_triggers` table; entry shape mirrors `DAYWORK.INVITED`.
+- **Inviting through an existing permanent posting** — Stage 1 captain wizard always creates a fresh `permanent_postings` row when firing `PERMANENT.INVITED`. v2 may add a "select an existing open posting" picker in the wizard for captains who already have a live permanent role and want to invite a specific candidate without duplicating the posting. Deferred because (a) captains who already have an open posting can simply send the candidate the URL; (b) the wizard's value is captain-focus on _this crew_, which fresh posting reinforces.
 - Verified vessel-presence badges (post overlapping-crew-ledger maturity)
 - "DockWalker Verified" seal (post-deeper-verification ledger)
 - HTML preview mode for CV (currently PDF download only — fine for v1)
@@ -430,7 +513,7 @@ The main risk: PDF design uncovers a constraint that requires changing the URL f
 
 ## 13. Open Questions (closed for v1)
 
-All v1 design decisions resolved during planning. Items deferred to post-v1 implementation:
+All v1 design decisions resolved during planning. v2.1 closed the six gap-fill items (daywork idempotency, permanent invitation lifecycle, `not_looking` warning, apply-after-invite UX, mint retry, expired-status cron) and the three deferral items (agent CVs out of scope, notification copy as content-pass, existing-posting invite as v2). Items deferred to post-v1 implementation:
 
 - **Watermark / footer wording final copy** — to be styled during implementation; spec calls for "Generated by DockWalker · dockwalker.io · {Name} · {date}" as the neutral default.
 - **PDF colour palette specifics** — implementation will follow `apps/web` design tokens.
