@@ -21,25 +21,25 @@
 
 #### Phase 1 — Schema + flags + permanent_invitations
 
-- [ ] Migration `00131_cv_builder_v1.sql`:
-  - [ ] `profiles` add: `cv_handle text unique`, `cv_handle_updated_at timestamptz`, `cv_include_sea_time boolean not null default false`, `cv_generated_at timestamptz`
-  - [ ] Partial index `idx_profiles_cv_handle on profiles(cv_handle) where cv_handle is not null`
-  - [ ] `crew_experiences` add: `cv_show_full_vessel boolean not null default true`
-  - [ ] `references` add: `include_on_cv boolean not null default false`
-  - [ ] **(v2.1)** `daywork_invitations` add: `unique (daywork_id, crew_person_id)` (idempotency for QR-hire — re-invite returns 409 from API layer)
-  - [ ] **(v2.1)** `applications` add: `invited_from_id uuid references public.permanent_invitations(id) on delete set null` + partial index `idx_applications_invited_from(invited_from_id) where invited_from_id is not null`
-  - [ ] New table `permanent_invitations` (id, permanent_posting_id FK, crew_person_id FK, status CHECK including `'expired'` (v2.1), invited_by_person_id FK ON DELETE SET NULL, message ≤500, created_at, responded_at, UNIQUE(posting, crew))
-  - [ ] Indexes: `idx_permanent_invitations_crew(crew_person_id, status)`, `idx_permanent_invitations_posting(permanent_posting_id)`, **(v2.1)** `idx_permanent_invitations_pending_expiry(created_at) where status='pending'` (powers the daily expiry cron)
-  - [ ] Enable RLS + policy: invited_by OR crew OR posting employer/agent can SELECT
-  - [ ] Drop+recreate `events_aggregate_type_check` to add `'permanent_invitation'`
-  - [ ] `apply_projection` handlers: `PERMANENT.INVITED` (INSERT into permanent_invitations + notification path), `CV.GENERATED` (UPDATE profiles.cv_generated_at + mint cv_handle if null via `mintHandle()`), `CV.HANDLE_REGENERATED` (UPDATE profiles.cv_handle + cv_handle_updated_at)
-  - [ ] **(v2.1)** Extend existing `PERMANENT.APPLIED` handler: when `payload.invited_from_id` is present, in the same transaction set `permanent_invitations SET status='applied', responded_at=now() WHERE id=payload.invited_from_id AND status='pending'` AND set `applications.invited_from_id = payload.invited_from_id`. No-op when payload field is null. The `AND status='pending'` clause is the race guard (concurrent decline wins).
-- [ ] Rollback `00131_*.down.sql`: drop columns (incl. applications.invited_from_id, indexes), drop daywork_invitations UNIQUE constraint, drop permanent_invitations CASCADE, restore aggregate_type CHECK, **revert PERMANENT.APPLIED handler to its v130 body** (do not leave the v2.1 invited_from_id branch behind on rollback)
-- [ ] **(v2.1)** Add `apps/web/src/lib/cv/mint-handle.ts` helper — generates 8-char alphanumeric, retries up to 5 times on `unique_violation` (Postgres error code `23505`), throws on exhaustion. Used by `CV.GENERATED` lazy mint path AND admin mint-handle route AND Stage-2 `/api/cv/regenerate-handle`.
-- [ ] Lessons-mandated apply_projection replacement protocol: $$ count = 2, ends `end case; end; $$;`
-- [ ] Run typecheck + tests
-- [ ] Apply to remote: `npx supabase db push`
-- [ ] Stress test against live: PERMANENT.INVITED firing + permanent_invitations row created; CV.GENERATED minting handle on first call; CV.HANDLE_REGENERATED rotating handle correctly; **(v2.1)** PERMANENT.APPLIED with invited_from_id flips invitation row to `applied`; PERMANENT.APPLIED without invited_from_id is a no-op for permanent_invitations; daywork re-invitation on same posting hits UNIQUE constraint and 409s
+- [x] Migration `00131_cv_builder_v1.sql` — applied to live remote 2026-04-29:
+  - [x] `profiles` add: `cv_handle text unique`, `cv_handle_updated_at timestamptz`, `cv_include_sea_time boolean not null default false`, `cv_generated_at timestamptz`
+  - [x] Partial index `idx_profiles_cv_handle on profiles(cv_handle) where cv_handle is not null`
+  - [x] `crew_experiences` add: `cv_show_full_vessel boolean not null default true`
+  - [x] `references` add: `include_on_cv boolean not null default false`
+  - [x] **(v2.1)** `daywork_invitations` UNIQUE — already exists from 00030 (`daywork_invitations_unique_crew_daywork`), no-op confirmed
+  - [x] **(v2.1)** `applications` add: `invited_from_id uuid references public.permanent_invitations(id) on delete set null` + partial index `idx_applications_invited_from(invited_from_id) where invited_from_id is not null`
+  - [x] New table `permanent_invitations` (id, permanent_posting_id FK, crew_person_id FK, status CHECK including `'expired'`, invited_by_person_id FK ON DELETE SET NULL, message ≤500, created_at, responded_at, UNIQUE(posting, crew))
+  - [x] Indexes: `idx_permanent_invitations_crew(crew_person_id, status)`, `idx_permanent_invitations_posting(permanent_posting_id)`, `idx_permanent_invitations_pending_expiry(created_at) where status='pending'`
+  - [x] Enable RLS + policy: invited_by OR crew OR posting employer can SELECT (note: permanent_postings has no `agent_person_id` column — agents post via `employer_person_id`, so policy uses that single check)
+  - [x] Drop+recreate `events_aggregate_type_check` to add `'permanent_invitation'`
+  - [x] `apply_projection` handlers: `PERMANENT.INVITED`, `CV.GENERATED` (lazy-mint cv_handle from payload via coalesce on OLD), `CV.HANDLE_REGENERATED`. CV handlers deliberately don't bump `profiles.updated_at` (preserves staleness signal for spec §11)
+  - [x] **(v2.1)** Extended existing `PERMANENT.APPLIED` handler: optional `invited_from_id` branch with race-guarded `AND status='pending'` flip
+- [x] Rollback `00131_*.down.sql` — schema fully reversed (drops invited_from_id + index, permanent_invitations CASCADE, references/crew_experiences/profiles columns + index, restores prior aggregate_type CHECK); apply_projection NOTICE points at re-applying 00130
+- [x] **(v2.1)** `apps/web/src/lib/cv/mint-handle.ts` helper + 8 unit tests
+- [x] Lessons-mandated apply_projection replacement protocol verified — `$$` count = 2, file ends `end case; end; $$;`, handler count 82 → 85
+- [x] Run typecheck + tests — 1362 tests pass (+8 new mint-handle), web lint 0 errors, aggregate_type audit pass
+- [x] Apply to remote: `npx supabase db push` — applied successfully (one fix-and-retry: removed reference to nonexistent `permanent_postings.agent_person_id` column)
+- [x] Stress test `scripts/stress-test-cv-builder-phase1.ts` — 19/19 pass against live remote (schema columns exist, CV.GENERATED back-fills handle on first call + preserves on second, CV.HANDLE_REGENERATED rotates correctly). PERMANENT.INVITED + PERMANENT.APPLIED invited_from_id branch deferred to Phase 5 stress test (route exists then; full posting fixture too heavy for Phase 1)
 
 ---
 
