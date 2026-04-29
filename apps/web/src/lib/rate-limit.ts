@@ -6,6 +6,8 @@ import type { NextRequest } from 'next/server';
 let _redis: Redis | null | undefined = undefined;
 let _globalLimit: Ratelimit | null = null;
 let _writeLimit: Ratelimit | null = null;
+let _cvHandleAuthLimit: Ratelimit | null = null;
+let _cvHandleAnonLimit: Ratelimit | null = null;
 
 function getRedis(): Redis | null {
   if (_redis !== undefined) return _redis;
@@ -46,6 +48,42 @@ function getWriteLimit(): Ratelimit | null {
     });
   }
   return _writeLimit;
+}
+
+/**
+ * CV-handle landing endpoint rate limits (spec §5):
+ *   - Unauth IP: 20 requests / hour
+ *   - Auth IP:   100 requests / hour
+ *
+ * Tighter than the global API limit because the endpoint is an unsigned-in
+ * scrape target and a caching CDN is not feasible (response varies per
+ * caller). Generous enough that a real captain scanning one CV doesn't
+ * trip it.
+ */
+export function getCvHandleAuthLimit(): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+  if (!_cvHandleAuthLimit) {
+    _cvHandleAuthLimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(100, '60 m'),
+      prefix: 'rl:cv-handle:auth',
+    });
+  }
+  return _cvHandleAuthLimit;
+}
+
+export function getCvHandleAnonLimit(): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+  if (!_cvHandleAnonLimit) {
+    _cvHandleAnonLimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(20, '60 m'),
+      prefix: 'rl:cv-handle:anon',
+    });
+  }
+  return _cvHandleAnonLimit;
 }
 
 export async function checkRateLimit(request: NextRequest): Promise<NextResponse | null> {

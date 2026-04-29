@@ -75,15 +75,15 @@
 
 #### Phase 4 — QR-landing route + page
 
-- [ ] `apps/web/src/app/api/cv/[handle]/route.ts` — GET, returns full crew profile + opted-in accepted references. Rate limit: 20/hr unauth IP, 100/hr auth IP (Upstash). NDA mask: respects `crew_experiences.cv_show_full_vessel`; defaults to mask if column missing (privacy-safe backstop).
-- [ ] Tombstone state: if crew is deactivated, return 200 with tombstone payload (don't 404 — graceful UX per B-5)
-- [ ] `apps/web/src/app/cv/[handle]/page.tsx` — public route (allowed in middleware)
-- [ ] Three render states: not-signed-in (teaser + sign-up CTA with `?redirect=/cv/{handle}`), signed-in employer/agent (full profile + sticky action bar), signed-in crew (hat-switch banner)
-- [ ] Stale notice: if `profiles.updated_at > cv_generated_at + 30d`, render banner per spec
-- [ ] Tombstone state: shows "no longer active" + soft handoff to discovery
-- [ ] Sign-up flow: `/auth/signup` route reads `?redirect=` param and routes there post-onboarding (B-8)
-- [ ] Hat-switch banner: re-uses existing hat-switcher infrastructure
-- [ ] Unit tests: rate-limit fires; NDA mask applies per toggle; tombstone for deactivated crew; stale banner triggers correctly
+- [x] `apps/web/src/app/api/cv/[handle]/route.ts` — GET, full crew profile + period-correct experiences + opted-in accepted references + sea-time totals (when `cv_include_sea_time=true`) + canonical lookups (certs, nationalities, entry rights). Two new Upstash limiters in `lib/rate-limit.ts`: 20/hr per IP for unauth callers, 100/hr per `auth:<userId>` for authed callers. NDA mask respects per-experience `cv_show_full_vessel`; reference snapshots inherit the toggle from their bound experience and default-mask when the experience is missing (FK auto-nulled by EXPERIENCE.REMOVED soft-revoke).
+- [x] Tombstone state: deactivated_at OR blocked_at OR current_hat=null (post-PERSON.DATA_SCRUBBED) → 200 `{ tombstone: true }` per B-5
+- [x] `apps/web/src/app/cv/[handle]/page.tsx` — public route, registered as `/cv/` in `lib/supabase/middleware.ts` publicRoutes
+- [x] Three render states: signed-out teaser + sign-up CTA with `?redirect=/cv/{handle}`; signed-in employer/agent → full profile with inert hire-action bar (Phase 5 wires it); signed-in crew → hat-switch hint card + full data fallback
+- [x] Stale notice: amber banner when `profiles.updated_at > cv_generated_at + 30d` (constant `STALE_DAYS = 30` in route)
+- [x] Tombstone state: NotFound + Tombstone components — soft handoff with sign-up + browse-crew CTAs
+- [x] **(deferred to Phase 6):** sign-up `?redirect=` consumption + hat-switcher CTA wiring
+- [x] **(deferred to Phase 5):** sticky hire-action bar buttons are present but inert (`disabled` + `title` hint) — Phase 5 wires the wizards
+- [x] Unit tests (13 new): handle format validation; anon rate-limit fires; auth limiter used for signed-in callers (key = `auth:<userId>`); 404 when profile missing; tombstone for deactivated_at; tombstone for scrubbed (current_hat=null); NDA mask applies when toggle false; non-NDA never masked; references filtered to `accepted` + `include_on_cv=true`; sea-time omitted when toggle false; sea-time totals when toggle true; stale=true at >30d gap; stale=false within grace window
 
 #### Phase 5 — Hire-from-QR wizards
 

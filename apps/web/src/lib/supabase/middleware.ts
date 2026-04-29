@@ -87,6 +87,9 @@ export async function updateSession(request: NextRequest) {
     '/ref/', // Reference consent landing — public so the share-link works for
     //         first-time visitors who don't have a DockWalker account yet.
     //         The page itself routes them to lightweight signup if needed.
+    '/cv/', // QR-landing for printed CVs (spec §5). Public so a captain can
+    //         scan the QR before signing up; the page itself shows a teaser
+    //         when signed-out and the full profile when signed-in.
   ];
   const isPublicRoute =
     publicRoutes.some((route) => path.startsWith(route)) || path.startsWith('/jobs');
