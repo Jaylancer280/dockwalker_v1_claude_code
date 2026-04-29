@@ -1,5 +1,19 @@
 # DockWalker End-to-End Review — 2026-04-27
 
+> **POST-AUDIT UPDATE 2026-04-29.** Two days after this audit was written, the
+> native mobile app (`apps/mobile/`, Expo) was deleted entirely (Stage 232) and
+> the Capacitor wrapper was removed from `apps/web/` (Stage 233 — `capacitor.config.ts`,
+> `apps/web/ios/`, `apps/web/android/`, 8 `@capacitor/*` deps, 4 `cap:*` scripts,
+> `NativeInit`, `PushPrompt`, and the Capacitor-bound push registration code).
+> The platform is now web-only. Anything below referencing the mobile blockage,
+> the Capacitor legacy, or `NativeInit` in the root layout is a snapshot of state
+> that no longer exists. See `BUILD_STATE.md` Stages 232–233 and
+> `docs/archive/mobile-web-split-spec.md` for the deletion rationale.
+>
+> Original audit follows.
+>
+> ---
+>
 > Comprehensive production-readiness audit synthesised from six parallel domain agents (infrastructure, security, frontend/UX, testing/API, business logic, industry positioning). Every claim is footnoted with a confidence level: **[verified]** = checked first-hand during synthesis; **[agent]** = reported by the domain agent and not independently re-verified; **[memory]** = drawn from prior session context.
 >
 > **Snapshot:** Schema v122 (122 migrations applied), 1286 unit tests passing, 355 Playwright E2E specs, 4 live-DB stress test scripts. Two frontends (web active, mobile blocked). UK-registered (Nautalink Technologies). Pre-launch.

@@ -120,7 +120,7 @@ export default function PrivacyPage() {
           <p className="mt-2">
             DockWalker is operated by {LEGAL.companyName}, {LEGAL.registeredAddress}. We are the
             data controller for personal data collected through the DockWalker application at{' '}
-            <span className="font-mono">{LEGAL.appDomain}</span> and our iOS and Android apps.
+            <span className="font-mono">{LEGAL.appDomain}</span>.
           </p>
         </section>
 
