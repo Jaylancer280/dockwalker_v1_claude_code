@@ -5,29 +5,158 @@
 
 ## Current Task
 
-### Location manual-add bug on daywork posting
+### CV Builder v1
 
-> Reported during references QA on 2026-04-27. Parked while we shipped the references work; now resuming.
+> Spec: [`tasks/cv-builder-spec.md`](./cv-builder-spec.md) (v2). Sign-off received 2026-04-28 on tier model, QR-landing UX, hire-from-QR primitives, lockdown approach, and 11 stress-test calls. Staged rollout decision 2026-04-29: PDF rendering deferred to Stage 2 to decouple from design iteration; rest of the wiring ships in Stage 1 with locked entry points (WhatsApp Coming-Soon pattern).
+>
+> Schema v130 → v131. Stage 1 scope: ~5–6 focused sessions across Phases 1–7. Stage 2 (Phase 8): PDF render + lockdown + unlock, sized when PDF design is ready.
 
-**Symptoms (user report):**
+**Pre-flight checks (every session):**
 
-- During daywork posting, when the LocationPicker can't find a place and the user uses "Add it manually", the location appears not to save and the user is bounced back to the "Post a job" type selector (daywork vs permanent).
-- Admin → Pending locations is empty after the manual add — no row to approve / merge / hide.
+- Read CLAUDE.md invariants: append-only ledger, IMO truth anchor, RLS on every table, migrations reversible, TS strict.
+- Confirm spec section being implemented — not drift.
+- Re-check `MEMORY.md` for project patterns (no Docker, `npx supabase db push` only).
 
-Both ends broken: the row isn't being persisted AND the form navigates away. Two possibly-independent failures stacked.
+---
 
-**Investigation steps:**
+#### Phase 1 — Schema + flags + permanent_invitations
 
-- [ ] Reproduce locally: post-daywork → location field → search for `Captain Bob's Private Dock` → click "Add it manually" → fill country/city/port/notes → submit → observe network tab + page navigation.
-- [ ] Check the manual-add API route. Likely candidates: `apps/web/src/app/api/locations/request/route.ts` or similar. Read the handler — does it actually insert, or does it rollback. Verify the `00117_locations_pending_v1.sql` migration is applied to the live remote (working tree had it untracked initially).
-- [ ] Inspect the LocationPicker submit handler. Why does the form navigate to the type selector? Likely: form state is reset after the picker modal closes, then a stale `router.push` fires.
-- [ ] Verify the admin pending-locations RLS — submitter can see their own pending rows, admins can see all. If admin sees nothing, either the row isn't being inserted, or the admin policy doesn't grant SELECT.
+- [ ] Migration `00131_cv_builder_v1.sql`:
+  - [ ] `profiles` add: `cv_handle text unique`, `cv_handle_updated_at timestamptz`, `cv_include_sea_time boolean not null default false`, `cv_generated_at timestamptz`
+  - [ ] Partial index `idx_profiles_cv_handle on profiles(cv_handle) where cv_handle is not null`
+  - [ ] `crew_experiences` add: `cv_show_full_vessel boolean not null default true`
+  - [ ] `references` add: `include_on_cv boolean not null default false`
+  - [ ] New table `permanent_invitations` (id, permanent_posting_id FK, crew_person_id FK, status CHECK, invited_by_person_id FK ON DELETE SET NULL, message ≤500, created_at, responded_at, UNIQUE(posting, crew))
+  - [ ] Indexes: `idx_permanent_invitations_crew(crew_person_id, status)`, `idx_permanent_invitations_posting(permanent_posting_id)`
+  - [ ] Enable RLS + policy: invited_by OR crew OR posting employer/agent can SELECT
+  - [ ] Drop+recreate `events_aggregate_type_check` to add `'permanent_invitation'`
+  - [ ] `apply_projection` handlers: `PERMANENT.INVITED` (INSERT into permanent_invitations + notification path), `CV.GENERATED` (UPDATE profiles.cv_generated_at + mint cv_handle if null), `CV.HANDLE_REGENERATED` (UPDATE profiles.cv_handle + cv_handle_updated_at)
+- [ ] Rollback `00131_*.down.sql`: drop columns, drop table CASCADE, restore aggregate_type CHECK
+- [ ] Lessons-mandated apply_projection replacement protocol: $$ count = 2, ends `end case; end; $$;`
+- [ ] Run typecheck + tests
+- [ ] Apply to remote: `npx supabase db push`
+- [ ] Stress test against live: PERMANENT.INVITED firing + permanent_invitations row created; CV.GENERATED minting handle on first call; CV.HANDLE_REGENERATED rotating handle correctly
 
-**Acceptance:**
+---
 
-- Manually-added location persists in the post form (no kick-back to type selector).
-- Row appears in admin Pending Locations queue with Approve / Merge / Hide actions.
-- Resulting job card shows the location label to all viewers.
+> **Stage 1 — Locked-entry MVP (Phases 1–7).** PDF rendering deferred to Stage 2; everything else ships with Generate / Build CV buttons greyed-out + "Coming Soon" toast. Phase 1 above is shared with Stage 1 (schema enables both stages).
+
+#### Phase 2 — Stage-1 plumbing (handle scaffolding, PDF deferred)
+
+- [ ] `npm install qrcode` only — `@react-pdf/renderer` and `pdf-lib` are Stage 2 (Phase 8)
+- [ ] `apps/web/src/app/api/cv/generate/route.ts` — POST stub, crew-only auth, returns `503 { error: "DockWalker CV — Coming Soon" }`. The route exists so the UI can call it; Stage 2 swaps the body to the real PDF render.
+- [ ] `apps/web/src/app/api/admin/cv/mint-handle/[personId]/route.ts` — POST, requireAdmin gate. Mints an 8-char alphanumeric `cv_handle` for the given person if null; fires `CV.HANDLE_REGENERATED` event with `old_handle=null, new_handle={minted}`. Used during Stage 1 for QA + stress-test setup. Stays as admin-only post-Stage 2 (operational rescue tool).
+- [ ] **Skip in Stage 1:** `cv-pdf.tsx`, `cv-data.ts`, `lockdown.ts`, `/api/cv/regenerate-handle` — all Phase 8.
+- [ ] Unit tests: 503 stub returns the expected payload for crew callers + 401/403 for unauthenticated/non-crew; admin mint-handle route mints exactly once per crew, returns 409 if handle already exists, fires the event correctly.
+
+#### Phase 3 — CV Builder UI (locked-entry)
+
+- [ ] New route: `apps/web/src/app/(app)/settings/cv/page.tsx`
+- [ ] **Stage-1 Coming-Soon banner card** at top of section: title + body per spec §12.1 ("Configure your CV settings now ... When the PDF generator launches ...")
+- [ ] **Generate CV button**: greyed out / `disabled`, click handler shows toast "DockWalker CV — Coming Soon" (match `chat-header.tsx` Voice-calls Coming-Soon pattern from Fix 222d). Stage 2 will un-grey + wire to `/api/cv/generate`.
+- [ ] Section: sea time toggle — fully working, writes to `profiles.cv_include_sea_time`
+- [ ] Section: references list with per-row "Include on CV" toggle — fully working, writes to `references.include_on_cv`; helper text re: referee consent inheritance
+- [ ] Section: NDA experiences list (only experiences where `vessel.nda_flag = true`); per-row "Show full vessel name on CV" toggle — fully working, writes to `crew_experiences.cv_show_full_vessel`; banner above the section per spec wording
+- [ ] **Skip in Stage 1**: "Regenerate my CV link" button (no QRs in circulation to invalidate) — Phase 8.
+- [ ] Profile page hot button: card matching Docky-readiness pattern, near avatar block. **Locked**: greyed out + Coming-Soon toast on tap. Stage 2 unlocks: Free → "Build your DockWalker CV" → `/settings/cv`; Pro → "Your DockWalker CV — last generated {relative}" → `/settings/cv`.
+- [ ] Component tests: toggles persist; locked Generate button fires Coming-Soon toast and does NOT call the API; locked profile hot button fires Coming-Soon toast.
+
+#### Phase 4 — QR-landing route + page
+
+- [ ] `apps/web/src/app/api/cv/[handle]/route.ts` — GET, returns full crew profile + opted-in accepted references. Rate limit: 20/hr unauth IP, 100/hr auth IP (Upstash). NDA mask: respects `crew_experiences.cv_show_full_vessel`; defaults to mask if column missing (privacy-safe backstop).
+- [ ] Tombstone state: if crew is deactivated, return 200 with tombstone payload (don't 404 — graceful UX per B-5)
+- [ ] `apps/web/src/app/cv/[handle]/page.tsx` — public route (allowed in middleware)
+- [ ] Three render states: not-signed-in (teaser + sign-up CTA with `?redirect=/cv/{handle}`), signed-in employer/agent (full profile + sticky action bar), signed-in crew (hat-switch banner)
+- [ ] Stale notice: if `profiles.updated_at > cv_generated_at + 30d`, render banner per spec
+- [ ] Tombstone state: shows "no longer active" + soft handoff to discovery
+- [ ] Sign-up flow: `/auth/signup` route reads `?redirect=` param and routes there post-onboarding (B-8)
+- [ ] Hat-switch banner: re-uses existing hat-switcher infrastructure
+- [ ] Unit tests: rate-limit fires; NDA mask applies per toggle; tombstone for deactivated crew; stale banner triggers correctly
+
+#### Phase 5 — Hire-from-QR wizards
+
+- [ ] Daywork wizard component — reuses fields from `/post` daywork form, prefilled with `inviteCrewPersonId`. Single-page form.
+- [ ] Vessel pre-step component — minimal form (IMO + name + vessel_type + LOA + flag state). Reuses existing `/api/vessels` POST flow; vessel lands as `source='pending'` per current behaviour.
+- [ ] Extend `/api/daywork/route.ts` POST: optional `inviteCrewPersonId` payload; if present, atomic `appendEvents([DAYWORK.POSTED, DAYWORK.INVITED])`. Rate limit: 5/hr per employer for QR-flagged posts.
+- [ ] Permanent invite wizard — reuses fields from `/post/permanent`, fires `PERMANENT.INVITED` after `PERMANENT.POSTED`.
+- [ ] `apps/web/src/app/api/permanent/[id]/invite/route.ts` — POST, employer/agent hat, fires PERMANENT.INVITED, sends notification, rate-limited 5/hr/employer
+- [ ] Notification triggers: `notifyOnEvent` mappings for PERMANENT.INVITED → crew gets push + in-app card with deep link to apply flow
+- [ ] Sticky action bar on `/cv/[handle]` page: "Hire daywork" / "Hire permanent" / inline "Contact reference" per accepted reference card
+- [ ] Agent variant: agent's vessel selector points at their placement clients' vessels (reuse existing pattern from agent-side `/post/permanent`)
+- [ ] Unit tests: atomic POST+INVITE event ordering; rate limit fires 429; agent placement-vessel flow
+
+#### Phase 6 — Auth flow polish + abuse mitigations
+
+- [ ] `?redirect=` parameter handling in signup flow (validate against allowlist, default to /profile)
+- [ ] Hat-switch banner UI on `/cv/[handle]` for crew-hat scanners
+- [ ] Confirm Upstash rate-limit configs are in place: `/api/cv/[handle]` (20/100), QR-flagged posts (5/hr), regen (1/7d)
+- [ ] Admin abuse review surface: small admin page or query template for spotting QR-spam patterns (`dayworks` with high count of invitations from a single employer in a short window)
+
+#### Phase 7 — Stress test + device-test additions (Stage 1 scope)
+
+- [ ] `scripts/stress-test-cv-builder.ts` — live-DB E2E (Stage 1 cases):
+  - Admin mint-handle route mints exactly once per person
+  - `/api/cv/[handle]` returns full profile + opted-in references; respects NDA per-experience toggle (full vs masked)
+  - Rate limit on `/api/cv/[handle]`: 21st request from one IP in an hour returns 429
+  - QR-hire daywork: atomic POST+INVITE event sequence; rate limit fires at 6th post in an hour
+  - QR-hire permanent: PERMANENT.INVITED fires; cert hard-gate still applies on the crew's subsequent apply step
+  - Tombstone: deactivated crew returns tombstone, not 404
+  - **Skip in Stage 1**: PDF rendering tests, regen rate-limit (both Phase 8).
+- [ ] `tasks/device-testing.md` additions — new §11: CV Builder (Stage 1):
+  - Crew flows: toggles in `/settings/cv` persist (sea time, references, NDA reveal); profile hot button shows Coming-Soon toast; Generate button shows Coming-Soon toast
+  - Internal QA flows (admin-minted handle): scan/visit `/cv/{handle}` → teaser when signed-out; sign up with redirect → land on full profile; sticky action bar visible; NDA mask respects per-experience toggle; stale CV banner triggers when configured
+  - Captain flows: hire daywork (atomic post+invite); hire permanent (invite-to-apply, cert gate fires on apply); contact reference (Free cap → upgrade nudge)
+  - Agent flow: placement vessel selector for permanent invite-to-apply
+  - Edge cases: deactivated crew tombstone, dual-hat scanner (hat switch banner)
+- [ ] BUILD_STATE.md: stage entry for CV Builder Stage 1, schema bump v130 → v131, migration table row, Deferred Decisions (Phase 8 + v2 items)
+- [ ] apps/web/README.md: new sections — `/api/cv/[handle]` route + admin mint-handle route, `/cv/[handle]` public page, CV Builder tier model, abuse mitigations, Stage-1 locked-entry state
+- [ ] supabase/README.md: migration 00131 row
+
+**Acceptance (Stage 1):**
+
+- Migration 00131 applied; schema at v131; all toggles writable.
+- `/settings/cv` renders Coming-Soon banner + working toggles + locked Generate button.
+- Profile hot button locked + shows Coming-Soon toast.
+- `/api/cv/[handle]` works for any admin-minted handle; `/cv/[handle]` page renders all three states + tombstone correctly.
+- Hire-from-QR wizards (daywork + permanent) function end-to-end with admin-minted handles; rate limits fire as expected.
+- All Stage-1 stress-test cases pass; device-testing additions cover the locked-entry surface.
+- Stage-2 entry points (PDF render) clearly identified as deferred in BUILD_STATE.
+
+---
+
+---
+
+> **Stage 2 — Unlock (deferred work stream, design-iteration-driven).** Triggered when PDF visual design is signed off. Single deploy unlocks the whole feature surface.
+
+#### Phase 8 — PDF render + lockdown + unlock entry points
+
+- [ ] Confirm PDF visual design is signed off (mockups / Figma / agreement on layout, typography, colour, opt-in section rendering)
+- [ ] `npm install @react-pdf/renderer pdf-lib`
+- [ ] `apps/web/src/lib/cv/cv-pdf.tsx` — React component tree (two-column A4, photo top-left, navy header, Geist typography, neutral footer with name + date, optional QR section for Pro)
+- [ ] `apps/web/src/lib/cv/cv-data.ts` — server-side data assembly: profile + experiences (with period-correct vessel names via existing `lib/vessels/historical-names.ts`) + opted-in references + sea time totals if toggle on
+- [ ] `apps/web/src/lib/cv/lockdown.ts` — pdf-lib post-processing: modifying false, copying false, documentAssembly false, contentAccessibility true; render footer + QR as vector graphics; stamp `Producer` metadata
+- [ ] Replace 503 stub at `/api/cv/generate` with real PDF return: crew-only, fires CV.GENERATED, mints `cv_handle` if null on first call, returns PDF blob with `Content-Type: application/pdf`. Pro adds QR section to render tree; Free omits.
+- [ ] `apps/web/src/app/api/cv/regenerate-handle/route.ts` — POST, Crew Pro only, 7-day rate limit (Upstash), explicit confirmation header, fires CV.HANDLE_REGENERATED. Wire into the previously-skipped Settings-CV "Regenerate my CV link" button (Phase 3 carve-out).
+- [ ] **Un-grey Generate / Build CV buttons** in Settings + profile hot button. Remove the Stage-1 Coming-Soon banner card from `/settings/cv`.
+- [ ] Unit tests: cv-data assembly per tier (Free no QR, Pro with QR, NDA toggle respected, sea time toggle respected); render-tree shape; lockdown permissions applied; regen rate-limit fires 429.
+- [ ] Extend `scripts/stress-test-cv-builder.ts` with PDF cases:
+  - Generate PDF for Free crew (no QR, no salary, references included only if opt-in)
+  - Generate PDF for Pro crew (QR present, all opt-ins respected, NDA toggle respected)
+  - Regenerate handle within 7d → 429; after 7d → success; old `/cv/{old_handle}` returns tombstone
+- [ ] Extend `tasks/device-testing.md` §11 with PDF flow:
+  - Generate (Free → no QR), preview download, regenerate handle (Pro), verify old QR resolves to "no longer valid" tombstone, lockdown verified by attempting to edit in Acrobat / Preview
+- [ ] BUILD_STATE.md: stage entry for CV Builder Stage 2 unlock; remove Phase 8 from Deferred Decisions
+- [ ] apps/web/README.md: update CV section to reflect PDF generator live; remove Stage-1 locked-entry note
+
+**Acceptance (Stage 2 — full feature live):**
+
+- Free crew generates a beautiful, branded CV PDF with no QR. Footer reads "Generated by DockWalker · dockwalker.io · {Name} · {date}".
+- Crew Pro generates the same CV with a working QR code that resolves to `/cv/{handle}` with a sticky action bar.
+- Captain scanning a Pro CV → signs up (redirect preserved) → hires for daywork (atomic post+invite) or invites for permanent (invite-to-apply, cert gate fires on apply) or contacts a reference (subject to Employer Free 5/30d cap).
+- Agent scanning a Pro CV → can do all the above with their placement vessel selector.
+- All abuse mitigations (rate limits) fire under stress test. NDA respects per-experience toggle on both PDF and QR-landing surfaces.
+- Stress test 100% pass against remote (Stage 1 + Stage 2 cases).
+- BUILD_STATE.md, apps/web/README.md, supabase/README.md, device-testing.md all updated to reflect feature-complete state.
 
 ---
 
