@@ -21,7 +21,7 @@ jobs:
       - run: npm ci
 
       - name: Lint
-        run: npx turbo run lint --filter='!mobile'
+        run: npx turbo run lint
 
       - name: Type Check
         run: npm run type-check
