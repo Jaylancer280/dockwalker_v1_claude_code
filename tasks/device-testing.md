@@ -546,6 +546,73 @@ Setup: a crew with an Accepted NDA reference; an employer/agent test account tha
 
 ---
 
+## 7b. CV Builder — Stage 1 (locked-entry MVP)
+
+> The PDF generator is deferred to Stage 2 (Phase 8). Stage 1 has the
+> entire wiring in place with the Generate button greyed out and a
+> "Coming Soon" toast on tap. These checks verify the surface that
+> ships TODAY — settings toggles, the QR-landing page, hire-from-QR
+> wizards, and the apply-after-invite flow.
+
+### Settings → CV Builder section (crew hat)
+
+- [ ] **Section appears in Settings nav** — open `/settings`, scroll to "CV Builder" entry under Account.
+- [ ] **Banner card** at top of `/settings/cv` reads "DockWalker CV — Coming Soon" with copy about configuring settings now.
+- [ ] **Generate CV button** is greyed out (`opacity-60`); tap fires a toast "DockWalker CV — Coming Soon" and does NOT trigger a download.
+- [ ] **Sea time toggle** persists — toggle on, reload page, still on. Toggle off, reload, still off.
+- [ ] **References list** — only `accepted` references appear. Each row has an "Include on CV" toggle that persists.
+- [ ] **NDA experiences list** — only experiences where the underlying vessel has `nda_flag=true` appear. Toggle "Show full vessel name on CV" persists per-row.
+- [ ] **Empty state** — if you have zero accepted references / zero NDA experiences, the section renders the empty-state copy ("You don't have any accepted references yet" / "You haven't recorded any NDA-flagged experiences yet").
+
+### Settings → CV Builder section (employer + agent hats)
+
+- [ ] **Employer hat** — visit `/settings/cv` while on employer hat. Same UI as crew (settings-only; the page itself is hat-agnostic).
+- [ ] **Agent identity** — agents are redirected to `/settings` on visit (out of scope per spec §12 v2-deferred). No CV section appears.
+
+### Profile page hot button
+
+- [ ] **Locked card** appears on profile (just below the avatar block) for crew-hat + crew-identity_type users. Greyed out, tap fires "DockWalker CV — Coming Soon" toast.
+- [ ] **Hidden for agents** — agent identity_type does NOT see the card.
+
+### `/cv/[handle]` QR-landing — internal QA via admin mint
+
+> Stage 1 has no PDF generator, so handles aren't minted in natural
+> user flows. Use the admin route to seed one for testing:
+> `POST /api/admin/cv/mint-handle/<crewPersonId>` (admin user only).
+
+- [ ] **Signed-out scanner** — visit `/cv/<handle>` in a private window. See the teaser (avatar, name, role, availability badge — permanent only). Single CTA: "Sign up to view full profile and contact". URL preserves `?next=/cv/<handle>` on the sign-up button.
+- [ ] **Sign up → email confirm → /onboarding → finish → land back on `/cv/<handle>`** (the original target, not /profile).
+- [ ] **Stale notice** — when `profiles.updated_at > cv_generated_at + 30d`, an amber banner appears. Edit the crew's profile (e.g. update bio), wait beyond the 30-day boundary (test by manually advancing `cv_generated_at` 31 days back via SQL), reload — banner shows.
+- [ ] **Tombstone** — deactivate the crew (Settings → Delete account), then scan/visit `/cv/<handle>`. See "CV no longer available" handoff with sign-up + browse-crew CTAs.
+- [ ] **NDA mask** — crew toggles "Show full vessel name" OFF on an NDA experience. Reload `/cv/<handle>`, the experience renders as "NDA Vessel" + NDA badge. Toggle back ON, the real name returns.
+- [ ] **Availability badge** — three states: `immediate` → "Available now", `after_notice` → "Available in N days", `not_looking` → "Not currently looking — open to discuss". Daywork availability does NOT influence this badge.
+
+### `/cv/[handle]` — signed-in employer
+
+- [ ] **Sticky action bar** — Hire daywork / Hire permanent / Contact a reference. The first two are wired (Phase 5b); Contact a reference is locked.
+- [ ] **Hire daywork** — tapping navigates to `/daywork/post?invite=<personId>`. The post page shows the QR-hire banner at top. Filling in vessel/role/dates/rate and submitting fires DAYWORK.POSTED + DAYWORK.INVITED atomically. The daywork appears on the captain's My Jobs and the crew gets a pre-shortlisted application + invitation notification.
+- [ ] **Daywork idempotency** — open the same `/cv/<handle>` again, tap Hire daywork, fill in the SAME daywork details (or use a fresh posting that already invited this crew). Submit. Expect a 409 inline error: "You've already invited this crew to this posting."
+- [ ] **Hire permanent** — tapping navigates to `/daywork/post?invite=<personId>&type=permanent`. The permanent form shows the QR-hire banner. Filling in salary/role/etc and submitting creates the posting AND fires PERMANENT.INVITED. Toast: "Permanent posting created and crew invited".
+
+### `/cv/[handle]` — signed-in crew
+
+- [ ] **Hat-switch hint** — banner appears: "You're viewing as crew" with copy about switching to employer hat. The button "Switch to employer hat" calls POST /api/hat and reloads the page; the action bar then unlocks.
+- [ ] **Agent identity** — the Switch button is hidden (agents can't switch hats).
+
+### Apply-after-invite flow (crew side)
+
+- [ ] **Notification** — captain fires PERMANENT.INVITED → invited crew receives a push + in-app notification "Captain X invited you to apply for {role} on {vessel}".
+- [ ] **Tap notification** — deep-links to `/permanent/<id>/apply?from_invitation=<id>`. Page renders an accent banner at top: "Captain X invited you to apply for {role} on {vessel}. Their invitation is what brought you here." + the captain's optional message in italic.
+- [ ] **No pre-fill** — the message textarea is empty (spec v2.1 deliberately avoids pre-filling). Crew writes their own message.
+- [ ] **Submit** — POST /api/permanent/<id>/apply succeeds. Toast: "Application submitted". Returning to /discover, the application appears in Applied tab.
+- [ ] **Captain review** — captain visits `/permanent/<id>/review`. The applicant card shows the **✉ Invited** badge next to the role epaulette.
+
+### Cron — invitation expiry (manual smoke)
+
+- [ ] **Trigger the cron locally** — `curl -H "Authorization: Bearer <CRON_SECRET>" https://<deploy>/api/cron/invitation-expiry`. Response: `{ expired: <count> }`. With a fresh DB, expect 0. After manually setting an invitation's `created_at` to >30 days ago, expect 1.
+
+---
+
 ## 8. Regression spot-checks
 
 These weren't directly modified but share infrastructure with what was — quick re-confirm.

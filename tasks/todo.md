@@ -110,29 +110,30 @@
 
 #### Phase 7 — Stress test + device-test additions (Stage 1 scope)
 
-- [ ] `scripts/stress-test-cv-builder.ts` — live-DB E2E (Stage 1 cases):
-  - Admin mint-handle route mints exactly once per person
-  - `/api/cv/[handle]` returns full profile + opted-in references; respects NDA per-experience toggle (full vs masked)
-  - Rate limit on `/api/cv/[handle]`: 21st request from one IP in an hour returns 429
-  - QR-hire daywork: atomic POST+INVITE event sequence; rate limit fires at 6th post in an hour
-  - **(v2.1)** Daywork idempotency: re-inviting the same crew on the same daywork posting returns 409 with the spec'd error message; inviting on a fresh daywork post is allowed (different `daywork_id`)
-  - QR-hire permanent: PERMANENT.INVITED fires; cert hard-gate still applies on the crew's subsequent apply step
-  - **(v2.1)** Permanent invitation lifecycle: pending → applied (crew applies via apply form with from_invitation, projection updates row + sets applications.invited_from_id); pending → declined (crew taps decline); pending → revoked (captain rescinds); pending → expired (cron tick after 30 days)
-  - **(v2.1)** Apply-after-invite race: crew taps decline and apply concurrently — `AND status='pending'` race guard ensures only one transition wins; the other surfaces a graceful error
-  - **(v2.1)** `not_looking` warning: invitation against `not_looking` crew renders the banner; submit-anyway still creates the invitation; crew's `permanent_availability` is unchanged
-  - **(v2.1)** Captain review queue: invited applications display the `✉ Invited` badge; non-invited applications do not
-  - **(v2.1)** Mint retry: simulate `unique_violation` once on the first mint attempt → helper retries and succeeds on the second; simulate 5 consecutive failures → helper throws (covered with a unit test using a mocked Supabase, not stress test)
-  - Tombstone: deactivated crew returns tombstone, not 404
-  - **Skip in Stage 1**: PDF rendering tests, regen rate-limit (both Phase 8).
-- [ ] `tasks/device-testing.md` additions — new §11: CV Builder (Stage 1):
-  - Crew flows: toggles in `/settings/cv` persist (sea time, references, NDA reveal); profile hot button shows Coming-Soon toast; Generate button shows Coming-Soon toast
-  - Internal QA flows (admin-minted handle): scan/visit `/cv/{handle}` → teaser when signed-out; sign up with redirect → land on full profile; sticky action bar visible; NDA mask respects per-experience toggle; stale CV banner triggers when configured
-  - Captain flows: hire daywork (atomic post+invite); hire permanent (invite-to-apply, cert gate fires on apply); contact reference (Free cap → upgrade nudge)
-  - Agent flow: placement vessel selector for permanent invite-to-apply
-  - Edge cases: deactivated crew tombstone, dual-hat scanner (hat switch banner)
-- [ ] BUILD_STATE.md: stage entry for CV Builder Stage 1, schema bump v130 → v131, migration table row, Deferred Decisions (Phase 8 + v2 items)
-- [ ] apps/web/README.md: new sections — `/api/cv/[handle]` route + admin mint-handle route, `/cv/[handle]` public page, CV Builder tier model, abuse mitigations, Stage-1 locked-entry state
-- [ ] supabase/README.md: migration 00131 row
+- [x] `scripts/stress-test-cv-builder.ts` — live-DB E2E. 30/30 pass against live remote (schema sanity 13, CV.GENERATED + coalesce-on-OLD + CV.HANDLE_REGENERATED 6, PERMANENT.INVITED projection 3, apply-after-invite chain + race-guard 5, invitation-expiry cron path 2, daywork-invitations UNIQUE 1). Random handles avoid cross-run collisions. Superseded `stress-test-cv-builder-phase1.ts` deleted.
+- [x] `tasks/device-testing.md` §7b — full Stage 1 surface: settings toggles + locked Generate, profile hot-button toast, /cv/[handle] three states + tombstone + stale banner + NDA mask + availability badge, hire-from-QR daywork + permanent flows, hat-switch CTA, apply-after-invite UX, ✉ Invited badge, cron smoke.
+
+##### Coverage map — original Phase 7 case list mapped to where each case landed:
+
+| Original case                                                    | Where covered                                                                                                  |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Admin mint-handle exactly-once                                   | Unit test `__tests__/api/admin-cv-mint-handle.test.ts` (Phase 2)                                               |
+| `/api/cv/[handle]` profile + NDA mask                            | Unit test `__tests__/api/cv-handle.test.ts` (Phase 4)                                                          |
+| Rate limit `/api/cv/[handle]` 429                                | Unit test `__tests__/api/cv-handle.test.ts` (Phase 4) — Upstash state isn't reliably testable in a stress test |
+| QR-hire daywork atomic POST+INVITE                               | Unit test `__tests__/api/daywork-qr-hire.test.ts` (Phase 5a) + stress test D1a/D1b                             |
+| Daywork idempotency 409                                          | Unit test (Phase 5a) + stress test D1b                                                                         |
+| QR-hire permanent + cert hard-gate                               | Unit test `__tests__/api/permanent-invite.test.ts` + `permanent-apply.test.ts` (Phase 5a)                      |
+| Permanent invitation lifecycle (pending → applied)               | Stress test I1 + A1 (live remote)                                                                              |
+| Apply-after-invite race-guard                                    | Stress test A2 (PERMANENT.APPLIED with non-pending invitation no-op)                                           |
+| Pending → declined / revoked                                     | Routes not yet shipped — deferred                                                                              |
+| Pending → expired (30-day cron)                                  | Stress test E1 + E2 + cron unit tests `__tests__/api/cron-invitation-expiry.test.ts`                           |
+| `not_looking` warning UX                                         | Component-test territory; UX deferred to a polish phase                                                        |
+| ✉ Invited badge                                                  | Phase 5b page test + visible in `tasks/device-testing.md` §7b                                                  |
+| Mint retry helper                                                | Unit test `__tests__/lib/mint-handle.test.ts` (Phase 1)                                                        |
+| Tombstone for deactivated crew                                   | Unit test `__tests__/api/cv-handle.test.ts` + device-testing §7b                                               |
+| PDF rendering / regen rate-limit                                 | Skipped in Stage 1 — Phase 8                                                                                   |
+| Device-testing additions                                         | `tasks/device-testing.md` §7b                                                                                  |
+| BUILD_STATE.md / supabase/README.md / apps/web/README.md updates | Done across Phases 1–6                                                                                         |
 
 **Acceptance (Stage 1):**
 
