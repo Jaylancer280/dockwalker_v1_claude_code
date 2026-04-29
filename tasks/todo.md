@@ -215,16 +215,6 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
   **Acceptance:** three published endorsements on the marketing site, by name, with yacht reference.
 
-- [ ] **P1 — M-3: Resolve mobile-app blockage and complete Expo Phase 7 (TestFlight).**
-
-  **Problem:** Daywork is intrinsically mobile. Crew use phones at the dock, captains coordinate from their cabin, the entire WhatsApp loop DockWalker is replacing is mobile-native. Until the Expo app ships, DockWalker is competing one-handed against Dayworker.co's iOS+Android presence and against the inherently-mobile WhatsApp loop. Per project memory, the blocker is a native startup crash that requires Mac + Xcode to debug, and the founder doesn't currently have access — estimated unblock ~June 2026.
-
-  **Why it matters:** The architecture work is done — Phase 4 (conversations) is complete, Phase 5–7 are deployment + UX-polish + Capacitor-removal phases. The blockage is purely environmental, not architectural. Every week of delay extends the window in which Dayworker.co or a copycat can build mindshare in the daywork-native segment that's currently functionally vacant.
-
-  **Suggested fix:** Either (a) acquire Mac+Xcode access (cheapest: rent a cloud Mac via MacStadium or AWS EC2 Mac — ~$60/month, sufficient for sporadic debugging), or (b) contract a Mac-native iOS developer for 2-3 days to surface the crash root cause (~£1500 budget). Option (a) is cheaper but requires founder bandwidth; option (b) is faster and resolves the blocker definitively. Once the crash is fixed: complete Phases 5 (in-flight UX polish), 6 (push notification provisioning), 7 (TestFlight + 3 tester devices + 48-hour zero-P0 window). Then delete Capacitor legacy files per `tasks/mobile-web-split-spec.md` § 9.
-
-  **Acceptance:** TestFlight build distributed to 3+ tester devices; zero P0 bugs in 48 hours; Capacitor legacy files removed.
-
 - [ ] **P1 — T-1: Wire Playwright E2E to GitHub Actions CI.**
 
   **Problem:** 355 Playwright specs across 17 files exist and pass locally (last manual run 2026-03-27 per `tasks/playwright-test-registry.md`). Pre-commit hook runs Vitest + type-check only — it does NOT run Playwright. Visual regressions and flow breakages can land on main and survive until the next manual testing-agent invocation.
@@ -267,7 +257,7 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
   **Why it matters:** Pre-launch with no aggregated error tracking is "flying blind." First weeks of real-user traffic are exactly when you need fast iteration on the bug surface.
 
-  **Suggested fix:** Confirm whether DSN is set (check Vercel Environment Variables dashboard → Production env). If not: create Sentry project for `dockwalker-web` (and a separate one for mobile when Expo ships), copy DSN into Vercel env vars. Verify by triggering a deliberate test error on a non-production preview deploy. Cost is roughly $29/month for the Team tier — covers 1M error events.
+  **Suggested fix:** Confirm whether DSN is set (check Vercel Environment Variables dashboard → Production env). If not: create Sentry project for `dockwalker-web`, copy DSN into Vercel env vars. Verify by triggering a deliberate test error on a non-production preview deploy. Cost is roughly $29/month for the Team tier — covers 1M error events.
 
   **Files to touch:** Vercel Environment Variables dashboard (no code changes needed — `next.config.ts` already reads the DSN).
 
@@ -384,7 +374,7 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
 ### Deferred post-launch
 
-- **Voice calling — replace Twilio + browser QA before unmute.** Phone button in chat header is gated behind a "Coming soon" toast (Fix 222d); `IncomingCallListener` unmounted from the app layout. `use-voice-call.ts`, `voice-call-context.tsx`, `call-bar.tsx`, `incoming-call-listener.tsx`, `turn-credentials` route, `call-ended` route all retained as dead code. When unmuting: (1) decide on managed RTC provider — LiveKit Cloud is the preferred replacement over Twilio TURN+Supabase-Realtime-signaling (SFU routing, call history, recording capability); (2) swap the hand-rolled `RTCPeerConnection` stack in `use-voice-call.ts` for the provider's SDK; (3) restore phone button's real `onClick` wiring to `voiceCall.startCall` + gate on `isPermanent && status === 'active'`; (4) re-mount `IncomingCallListener` in `(app)/layout.tsx`; (5) run browser QA matrix (Chrome/Firefox/Safari × desktop+mobile, glare resolution, network drops, backgrounded tab, multi-tab, offline user). Audit-trail gap: currently only `MESSAGE.SENT` records a call; add `CALL.STARTED`/`CALL.ENDED` events in the ledger at the same time.
+- **Voice calling — replace Twilio + browser QA before unmute.** Phone button in chat header is gated behind a "Coming soon" toast (Fix 222d); `IncomingCallListener` unmounted from the app layout. `use-voice-call.ts`, `voice-call-context.tsx`, `call-bar.tsx`, `incoming-call-listener.tsx`, `turn-credentials` route, `call-ended` route all retained as dead code. When unmuting: (1) decide on managed RTC provider — LiveKit Cloud is the preferred replacement over Twilio TURN+Supabase-Realtime-signaling (SFU routing, call history, recording capability); (2) swap the hand-rolled `RTCPeerConnection` stack in `use-voice-call.ts` for the provider's SDK; (3) restore phone button's real `onClick` wiring to `voiceCall.startCall` + gate on `isPermanent && status === 'active'`; (4) re-mount `IncomingCallListener` in `(app)/layout.tsx`; (5) run browser QA matrix (Chrome/Firefox/Safari on desktop, glare resolution, network drops, backgrounded tab, multi-tab, offline user). Audit-trail gap: currently only `MESSAGE.SENT` records a call; add `CALL.STARTED`/`CALL.ENDED` events in the ledger at the same time.
 
 ### Business logic / server-side
 

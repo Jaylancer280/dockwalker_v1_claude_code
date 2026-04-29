@@ -13,18 +13,16 @@ DockWalker is a two-sided hiring app for the superyacht industry covering daywor
 | Layer                 | Technology                                                                                |
 | --------------------- | ----------------------------------------------------------------------------------------- |
 | Web frontend + API    | Next.js 16 + TypeScript (`apps/web/`)                                                     |
-| Native mobile         | Expo/React Native (`apps/mobile/`)                                                        |
 | Database + Auth       | Supabase (PostgreSQL + RLS) (`supabase/`)                                                 |
 | Shared types          | `packages/types/`                                                                         |
-| DB helpers            | `packages/db/` — includes `createMobileClient()` for React Native                         |
+| DB helpers            | `packages/db/`                                                                            |
 | Shared business logic | `packages/shared/` — pure TS, zero platform deps (units, languages, epaulettes, grouping) |
 | Monorepo orchestrator | Turborepo (`turbo.json`)                                                                  |
 | Hosting (web + API)   | Vercel                                                                                    |
-| Hosting (mobile)      | EAS Build + EAS Update                                                                    |
 | CI/CD                 | GitHub Actions                                                                            |
-| Push notifications    | Expo Push Service (abstracts APNs + FCM)                                                  |
+| Push notifications    | FCM HTTP v1 + APNs HTTP/2 (server-side, see `apps/web/src/lib/push-delivery.ts`)          |
 
-**Capacitor status:** Legacy Capacitor files remain in `apps/web/` pending removal after Expo app validation (Phase 7). Do not add new Capacitor dependencies or write Capacitor-compatible code. Removal criteria: Expo app on 3+ tester devices via TestFlight, all user-facing screens functional, zero P0 bugs in 48 hours. See `tasks/mobile-web-split-spec.md` Section 9 for the file removal list.
+**Web-only platform.** A native mobile app (`apps/mobile/`, Expo/React Native) was built then deleted on 2026-04-29 — see `docs/archive/mobile-web-split-spec.md` for the full record. The shared packages (`packages/types`, `packages/db`, `packages/shared`) stay because the cross-platform discipline is cheap and useful for future workers / edge functions / scripts. Do not add a new mobile target without explicit user instruction.
 
 Never introduce a dependency that conflicts with the above. If a task cannot be built within this stack, stop and raise it explicitly.
 
@@ -52,11 +50,9 @@ Every migration in `supabase/migrations/` must have a corresponding rollback in 
 
 `strict: true` in all `tsconfig.json` files. No `any` types without explicit comment justification.
 
-### 6. Two Frontends, One Backend
+### 6. Shared Packages Stay Pure-TS
 
-`apps/web/` (Next.js on Vercel) and `apps/mobile/` (Expo/React Native) share the same Supabase backend, the same API routes, and the same shared packages. Mobile reads directly from Supabase (RLS-gated), writes via Vercel API routes. Neither app may import from the other. See `tasks/mobile-web-split-spec.md` for the full architecture.
-
-**Extraction rule:** Pure TypeScript utilities (zero React, zero platform imports) belong in `packages/shared/`. Anything requiring React, React Native, or Next.js stays in the consuming app. If a utility is used by both apps and is pure TS, extract it. If it's React-based, each app implements its own version using shared types.
+Pure TypeScript utilities (zero React, zero platform imports) belong in `packages/shared/`. The shared packages (`packages/types`, `packages/db`, `packages/shared`) are platform-agnostic on purpose — even with the web app as the only consumer today, the cross-platform discipline keeps them reusable for scripts, edge functions, or any future client without rework.
 
 ## User Types and Dual-Role Model
 
@@ -210,22 +206,14 @@ Deterministic, transparent, no learned weights. Context-dependent defaults with 
 12. Shortlist cap is enforced at projection layer
 13. Permanent events use `PERMANENT.*` namespace — zero daywork handler modification
 
-### Mobile-specific
-
-14. Cold start to first screen in <500ms (no network dependency for shell)
-15. Swipe gesture runs at 60fps with spring physics and haptic feedback
-16. Chat messages arrive via Supabase Realtime in <1 second
-17. Push notifications deep-link to the correct screen
-18. Offline reads work for cached data (TanStack Query persistence)
-
 ---
 
 ## Pre-Commit Hook Requirements
 
 All must pass before any commit is accepted:
 
-- `turbo run type-check` — zero TypeScript errors across all workspaces (web, mobile, packages)
-- `turbo run lint` — ESLint zero warnings, zero errors across all workspaces (includes mobile import boundary rules)
+- `turbo run type-check` — zero TypeScript errors across all workspaces (web + packages)
+- `turbo run lint` — ESLint zero warnings, zero errors across all workspaces
 - All tests pass (`vitest run` in `apps/web/`)
 - No `console.log` in committed code (excluding test files)
 - No `TODO` comments in committed code (use Deferred Decisions in `BUILD_STATE.md`)
@@ -241,13 +229,9 @@ Tests use Vitest + Testing Library.
 
 **API layer** (`__tests__/api/`): Happy path, 401 unauth, 400 invalid input, edge cases.
 
-**Component layer** (`__tests__/components/`): Renders without error, critical interactions, mobile viewport.
+**Component layer** (`__tests__/components/`): Renders without error, critical interactions, narrow-viewport responsive checks.
 
 **Mocking strategy:** Mock `@/lib/supabase/server` with `vi.mock()`, call route handlers directly with mock `Request` objects.
-
-### Mobile (`apps/mobile/`)
-
-No unit test suite yet. Mobile correctness is validated by the planning agent's code review and device testing. Mobile test strategy (Jest for hooks, Detox for E2E) is deferred to post-Phase 7 — the priority is shipping to TestFlight first.
 
 ### E2E (`apps/web/e2e/`)
 
@@ -261,26 +245,25 @@ Claude Code MUST update documentation as part of every session's Close step.
 
 ### File Rules
 
-| File                             | Mode                                  | Update Trigger                                                                                                                  |
-| -------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `CLAUDE.md`                      | **Read-only**                         | Never edited by Claude Code. Human-edited only when architectural rules change.                                                 |
-| `dockwalker_mission.md`          | **Read-only**                         | Never edited by Claude Code. Human-edited only.                                                                                 |
-| `BUILD_STATE.md`                 | **Append + Edit**                     | Every session that changes code. Append completed work, update schema version, update migration table, move deferred decisions. |
-| `README.md` (root)               | **Edit when referenced code changes** | Monorepo structure changes, new packages, changed quick-start steps.                                                            |
-| `apps/web/README.md`             | **Edit when referenced code changes** | New/removed RPCs, new env vars, new scripts, changed setup steps.                                                               |
-| `packages/types/README.md`       | **Edit when referenced code changes** | New/changed/removed type exports.                                                                                               |
-| `packages/db/README.md`          | **Edit when referenced code changes** | New/changed/removed DB helpers or RPCs.                                                                                         |
-| `packages/shared/README.md`      | **Edit when referenced code changes** | New/changed/removed shared utilities.                                                                                           |
-| `supabase/README.md`             | **Edit when referenced code changes** | New migrations, changed RPCs, changed conventions.                                                                              |
-| `tasks/todo.md`                  | **Read + Write**                      | Every session. Read at Orient, write checklist at Plan, mark complete during Implement, clean up at Close.                      |
-| `tasks/lessons.md`               | **Read + Append**                     | Read at Orient. Append immediately after any user correction. Review and deduplicate periodically.                              |
-| `tasks/mobile-web-split-spec.md` | **Edit § Progress Tracker**           | When a mobile phase changes status (NOT STARTED → IN PROGRESS → DONE).                                                          |
+| File                        | Mode                                  | Update Trigger                                                                                                                  |
+| --------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `CLAUDE.md`                 | **Read-only**                         | Never edited by Claude Code. Human-edited only when architectural rules change.                                                 |
+| `dockwalker_mission.md`     | **Read-only**                         | Never edited by Claude Code. Human-edited only.                                                                                 |
+| `BUILD_STATE.md`            | **Append + Edit**                     | Every session that changes code. Append completed work, update schema version, update migration table, move deferred decisions. |
+| `README.md` (root)          | **Edit when referenced code changes** | Monorepo structure changes, new packages, changed quick-start steps.                                                            |
+| `apps/web/README.md`        | **Edit when referenced code changes** | New/removed RPCs, new env vars, new scripts, changed setup steps.                                                               |
+| `packages/types/README.md`  | **Edit when referenced code changes** | New/changed/removed type exports.                                                                                               |
+| `packages/db/README.md`     | **Edit when referenced code changes** | New/changed/removed DB helpers or RPCs.                                                                                         |
+| `packages/shared/README.md` | **Edit when referenced code changes** | New/changed/removed shared utilities.                                                                                           |
+| `supabase/README.md`        | **Edit when referenced code changes** | New migrations, changed RPCs, changed conventions.                                                                              |
+| `tasks/todo.md`             | **Read + Write**                      | Every session. Read at Orient, write checklist at Plan, mark complete during Implement, clean up at Close.                      |
+| `tasks/lessons.md`          | **Read + Append**                     | Read at Orient. Append immediately after any user correction. Review and deduplicate periodically.                              |
 
 ### Catch-All Rules
 
 - **New packages or top-level directories:** Create a `README.md` in the new directory and add it to the File Rules table above (human edit required — flag this in the Close step).
 - **Deleted or renamed packages:** Flag in the Close step that the File Rules table needs a human update to remove or rename the entry.
-- **Files not in the table** (e.g., auto-generated boilerplate like `apps/web/ios/App/CapApp-SPM/README.md`): No governance obligation unless they document project-specific behavior.
+- **Files not in the table** (e.g., auto-generated boilerplate): No governance obligation unless they document project-specific behavior.
 
 ### What Counts as "a Session That Changes Code"
 
@@ -305,7 +288,6 @@ Read these files in order:
 3. `dockwalker_mission.md` (product context and negative space)
 4. `tasks/lessons.md` (past mistakes and project-specific patterns — do not repeat these)
 5. `tasks/todo.md` (in-flight work from previous sessions)
-6. `tasks/mobile-web-split-spec.md` § Progress Tracker (which mobile phase is current)
 
 For `BUILD_STATE.md`, read only § Current Schema Version, § Deferred Decisions, § In Progress, and the last 5 entries in § Completed Stages. The full stage history is for audit, not for Orient.
 
@@ -327,9 +309,7 @@ Build end-to-end, marking checklist items in `tasks/todo.md` as complete (`[x]`)
 
 **Lessons check:** Before editing any file, verify the change does not repeat a pattern documented in `tasks/lessons.md`.
 
-**API-first rule (mobile):** Before writing any mobile code that calls a Vercel API route, read the route handler file in `apps/web/src/app/api/`. Match field names, required vs optional fields, and response shapes exactly. Do not guess. Do not use camelCase where the API expects snake_case. Before writing a mobile hook that queries Supabase directly, grep for `from('table_name')` in `apps/web/src/` and match the `.select()` pattern. This rule has prevented more bugs than any other single practice.
-
-A task is complete when: code implemented, tests written and passing (web tasks — mobile has no test suite yet), tsc + eslint pass, no console.log/TODO.
+A task is complete when: code implemented, tests written and passing, tsc + eslint pass, no console.log/TODO.
 
 ### 4. Present Changes
 
@@ -370,7 +350,6 @@ After ANY correction from the user — wrong assumption, missed edge case, repea
 3. Does this change auth or RLS? Who can access what?
 4. What input would make the new tests fail?
 5. Did anything regress in the existing test suite?
-6. Does this change an API route or DB query that mobile consumes? Check both frontends.
 
 ## Three-Agent Workflow
 
