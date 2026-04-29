@@ -24,6 +24,7 @@ import {
   handlePermanentSelectionReverted,
   handlePermanentCancelled,
   handlePermanentEngagementClosed,
+  handlePermanentInvited,
 } from './permanent-handlers';
 import { handleSupportThreadOpened, handleSupportMessageSent } from './support-handlers';
 import {
@@ -102,6 +103,8 @@ export async function resolveNotification(
       return handlePermanentCancelled(sc, payload);
     case 'PERMANENT.ENGAGEMENT_CLOSED':
       return handlePermanentEngagementClosed(sc, payload, actorPersonId);
+    case 'PERMANENT.INVITED':
+      return handlePermanentInvited(sc, payload, actorPersonId);
 
     case 'SUPPORT.THREAD_OPENED':
       return handleSupportThreadOpened(sc, payload);

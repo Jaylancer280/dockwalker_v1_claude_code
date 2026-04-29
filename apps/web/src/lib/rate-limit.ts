@@ -8,6 +8,7 @@ let _globalLimit: Ratelimit | null = null;
 let _writeLimit: Ratelimit | null = null;
 let _cvHandleAuthLimit: Ratelimit | null = null;
 let _cvHandleAnonLimit: Ratelimit | null = null;
+let _qrHireLimit: Ratelimit | null = null;
 
 function getRedis(): Redis | null {
   if (_redis !== undefined) return _redis;
@@ -71,6 +72,29 @@ export function getCvHandleAuthLimit(): Ratelimit | null {
     });
   }
   return _cvHandleAuthLimit;
+}
+
+/**
+ * Hire-from-QR rate limit (spec §6 abuse mitigation):
+ *   - 5 QR-flagged hire actions per hour per employer.
+ *
+ * Applies to both daywork (POST /api/daywork with inviteCrewPersonId)
+ * and permanent (POST /api/permanent/[id]/invite). Keyed by the
+ * employer's person_id, NOT by IP — a captain on a yacht and
+ * shoreside ops staff sharing the same WAN should not multiply each
+ * other's hire budget.
+ */
+export function getQrHireLimit(): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+  if (!_qrHireLimit) {
+    _qrHireLimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '60 m'),
+      prefix: 'rl:qr-hire',
+    });
+  }
+  return _qrHireLimit;
 }
 
 export function getCvHandleAnonLimit(): Ratelimit | null {

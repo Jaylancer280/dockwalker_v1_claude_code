@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
-import { appendEvent } from '@dockwalker/db';
+import { appendEvent, appendEvents } from '@dockwalker/db';
 import { notifyOnEvent } from '@/lib/push-triggers';
+import { getQrHireLimit } from '@/lib/rate-limit';
 import { randomUUID } from 'crypto';
 
 /**
@@ -44,6 +45,10 @@ export async function POST(request: Request) {
     notes,
     positionsAvailable,
     permanentOpportunity,
+    /** QR-hire (spec §6): when present, the route fires DAYWORK.POSTED +
+     * DAYWORK.INVITED atomically. The crew gets pre-shortlisted via the
+     * existing DAYWORK.APPLIED projection branch. */
+    inviteCrewPersonId,
   } = body;
 
   // Validate required fields
@@ -209,6 +214,120 @@ export async function POST(request: Request) {
 
     const dayworkId = randomUUID();
 
+    // QR-hire branch (spec §6): atomic DAYWORK.POSTED + DAYWORK.INVITED.
+    if (inviteCrewPersonId) {
+      if (typeof inviteCrewPersonId !== 'string') {
+        return NextResponse.json({ error: 'inviteCrewPersonId must be a string' }, { status: 400 });
+      }
+      // Rate limit: 5/hour per employer for QR-flagged posts. Captain
+      // hat-switches between accounts share the limit by person id —
+      // that's intended; a real captain doesn't legitimately fire 5+
+      // QR invites per hour.
+      const limiter = getQrHireLimit();
+      if (limiter) {
+        const { success, remaining, reset } = await limiter.limit(`employer:${user.id}`);
+        if (!success) {
+          return NextResponse.json(
+            { error: 'Hire limit reached. Try again in an hour.' },
+            {
+              status: 429,
+              headers: {
+                'Retry-After': String(Math.ceil((reset - Date.now()) / 1000)),
+                'X-RateLimit-Remaining': String(remaining),
+              },
+            },
+          );
+        }
+      }
+
+      // Sanity check: target crew exists + is in crew identity_type.
+      const { data: targetPerson } = await serviceClient
+        .from('persons')
+        .select('id, identity_type, deactivated_at, blocked_at')
+        .eq('id', inviteCrewPersonId)
+        .single();
+      if (
+        !targetPerson ||
+        targetPerson.identity_type !== 'crew' ||
+        targetPerson.deactivated_at ||
+        targetPerson.blocked_at
+      ) {
+        return NextResponse.json(
+          { error: 'Target crew not found or unavailable' },
+          { status: 404 },
+        );
+      }
+
+      try {
+        await appendEvents(serviceClient, [
+          {
+            eventType: 'DAYWORK.POSTED',
+            aggregateId: dayworkId,
+            aggregateType: 'daywork',
+            roleContext: person.current_hat,
+            payload: {
+              id: dayworkId,
+              vessel_id: vesselId,
+              role_id: roleId,
+              location_port_id: locationPortId,
+              start_date: startDate,
+              end_date: endDate,
+              working_days: resolvedWorkingDays,
+              ...(workingDayDates?.length ? { working_day_dates: workingDayDates } : {}),
+              required_certification_ids: requiredCertificationIds ?? [],
+              required_languages: requiredLanguages ?? [],
+              experience_bracket_id: experienceBracketId ?? null,
+              day_rate: parsedDayRate,
+              currency: resolvedCurrency,
+              meals: meals ?? [],
+              notes: notes ?? null,
+              positions_available: resolvedPositions,
+              permanent_opportunity: permanentOpportunity === true,
+            },
+            personId: user.id,
+          },
+          {
+            eventType: 'DAYWORK.INVITED',
+            aggregateId: dayworkId,
+            aggregateType: 'invitation',
+            roleContext: person.current_hat,
+            payload: {
+              daywork_id: dayworkId,
+              crew_person_id: inviteCrewPersonId,
+            },
+            personId: user.id,
+          },
+        ]);
+      } catch (e) {
+        // Map daywork_invitations UNIQUE(daywork_id, crew_person_id)
+        // violation to a 409 with the spec'd copy. v2.1 idempotency.
+        const msg = e instanceof Error ? e.message : '';
+        if (msg.includes('23505') || msg.toLowerCase().includes('unique')) {
+          return NextResponse.json(
+            { error: "You've already invited this crew to this posting." },
+            { status: 409 },
+          );
+        }
+        throw e;
+      }
+
+      notifyOnEvent(
+        serviceClient,
+        'DAYWORK.POSTED',
+        { id: dayworkId, location_port_id: locationPortId, role_id: roleId },
+        user.id,
+      );
+      notifyOnEvent(
+        serviceClient,
+        'DAYWORK.INVITED',
+        { daywork_id: dayworkId, crew_person_id: inviteCrewPersonId },
+        user.id,
+      );
+
+      return NextResponse.json({ id: dayworkId, invited: true }, { status: 201 });
+    }
+
+    // Standard daywork post (no invitation).
     await appendEvent(serviceClient, {
       eventType: 'DAYWORK.POSTED',
       aggregateId: dayworkId,

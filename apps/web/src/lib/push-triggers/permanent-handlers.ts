@@ -2,6 +2,63 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NotifyContext } from './types';
 import { getDisplayName, getEngagementParties, getPermanentPostingInfo } from './loaders';
 
+/**
+ * PERMANENT.INVITED — captain/agent invited a specific crew to apply.
+ *
+ * Notification body content-pass per spec v2.1:
+ *   "Captain James invited you to apply for Bosun on M/Y Serenity"
+ *
+ * Deep link drops the crew straight into the apply form with the
+ * invitation id pre-filled (the apply page reads `?from_invitation=`
+ * and renders the context banner).
+ */
+export async function handlePermanentInvited(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+  actorPersonId: string,
+): Promise<NotifyContext[]> {
+  const invitationId = payload.id as string;
+  const postingId = payload.permanent_posting_id as string;
+  const crewId = payload.crew_person_id as string;
+
+  const [posting, captainName] = await Promise.all([
+    getPermanentPostingInfo(sc, postingId),
+    getDisplayName(sc, actorPersonId),
+  ]);
+  if (!posting) return [];
+
+  // Vessel name is a separate query — getPermanentPostingInfo doesn't
+  // currently load it and adding it there would broaden the surface
+  // for other PERMANENT handlers that don't need it.
+  let vesselName: string | null = null;
+  const { data: postingRow } = await sc
+    .from('permanent_postings')
+    .select('vessels(name)')
+    .eq('id', postingId)
+    .single();
+  if (postingRow) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vesselName = (postingRow as any).vessels?.name ?? null;
+  }
+
+  const onVessel = vesselName ? ` on ${vesselName}` : '';
+  return [
+    {
+      recipientPersonId: crewId,
+      roleContext: 'crew',
+      notification: {
+        title: 'Invited to apply',
+        body: `${captainName} invited you to apply for ${posting.role_name}${onVessel}`,
+        data: {
+          screen: 'permanent-apply',
+          permanentPostingId: postingId,
+          fromInvitation: invitationId,
+        },
+      },
+    },
+  ];
+}
+
 export async function handlePermanentApplied(
   sc: SupabaseClient,
   payload: Record<string, unknown>,

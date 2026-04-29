@@ -28,6 +28,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = await request.json().catch(() => ({}));
     const message =
       body.message && typeof body.message === 'string' ? body.message.slice(0, 250) : undefined;
+    const fromInvitationIdRaw = body.fromInvitationId;
+    const fromInvitationId =
+      typeof fromInvitationIdRaw === 'string' && fromInvitationIdRaw.length > 0
+        ? fromInvitationIdRaw
+        : null;
 
     // Fetch posting
     const { data: posting } = await supabase
@@ -118,6 +123,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       );
     }
 
+    // Apply-after-invite (spec v2.1 §6): when the apply is arriving via
+    // the PERMANENT.INVITED deep link (?from_invitation=<id>), the client
+    // passes the invitation id through as `fromInvitationId`. Server-side
+    // validation: invitation exists, is in 'pending' status, and is
+    // addressed to *this* crew on *this* posting. If any check fails,
+    // we don't error out — we just drop the link and proceed as a normal
+    // apply. This makes the apply flow forgiving when the invitation has
+    // expired or been revoked between the deep-link click and the submit.
+    let validatedFromInvitationId: string | null = null;
+    if (fromInvitationId) {
+      const { data: inv } = await serviceClient
+        .from('permanent_invitations')
+        .select('id, permanent_posting_id, crew_person_id, status')
+        .eq('id', fromInvitationId)
+        .maybeSingle();
+      if (
+        inv &&
+        inv.status === 'pending' &&
+        inv.permanent_posting_id === postingId &&
+        inv.crew_person_id === user.id
+      ) {
+        validatedFromInvitationId = fromInvitationId;
+      }
+    }
+
     // Create application
     const applicationId = randomUUID();
 
@@ -131,6 +161,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         permanent_posting_id: postingId,
         crew_person_id: user.id,
         ...(message ? { message } : {}),
+        ...(validatedFromInvitationId ? { invited_from_id: validatedFromInvitationId } : {}),
       },
       personId: user.id,
     });
