@@ -47,11 +47,12 @@
 
 #### Phase 2 — Stage-1 plumbing (handle scaffolding, PDF deferred)
 
-- [ ] `npm install qrcode` only — `@react-pdf/renderer` and `pdf-lib` are Stage 2 (Phase 8)
-- [ ] `apps/web/src/app/api/cv/generate/route.ts` — POST stub, crew-only auth, returns `503 { error: "DockWalker CV — Coming Soon" }`. The route exists so the UI can call it; Stage 2 swaps the body to the real PDF render.
-- [ ] `apps/web/src/app/api/admin/cv/mint-handle/[personId]/route.ts` — POST, requireAdmin gate. Mints an 8-char alphanumeric `cv_handle` for the given person if null; fires `CV.HANDLE_REGENERATED` event with `old_handle=null, new_handle={minted}`. Used during Stage 1 for QA + stress-test setup. Stays as admin-only post-Stage 2 (operational rescue tool).
-- [ ] **Skip in Stage 1:** `cv-pdf.tsx`, `cv-data.ts`, `lockdown.ts`, `/api/cv/regenerate-handle` — all Phase 8.
-- [ ] Unit tests: 503 stub returns the expected payload for crew callers + 401/403 for unauthenticated/non-crew; admin mint-handle route mints exactly once per crew, returns 409 if handle already exists, fires the event correctly.
+- [x] `npm install qrcode` (Stage-2 PDF QR dep, staged in now to stabilise lockfile)
+- [x] `apps/web/src/app/api/cv/generate/route.ts` — POST stub, crew-only auth, returns `503 { error: "DockWalker CV — Coming Soon", message: ... }`
+- [x] `apps/web/src/app/api/admin/cv/mint-handle/[personId]/route.ts` — POST, requireAdmin, 404/409/201/500 per spec, fires `CV.HANDLE_REGENERATED` with `old_handle=null`
+- [x] `@dockwalker/types` extended with PERMANENT.INVITED, CV.GENERATED, CV.HANDLE_REGENERATED, optional invited_from_id on PERMANENT.APPLIED, `permanent_invitation` aggregate type
+- [x] **Skip in Stage 1:** `cv-pdf.tsx`, `cv-data.ts`, `lockdown.ts`, `/api/cv/regenerate-handle` — Phase 8
+- [x] Unit tests (9 new): 3 cv-generate (401 unauth, 403 non-crew, 503 crew); 6 admin mint-handle (403 non-admin, 404 missing profile, 409 existing, 201 success + event payload, 500 MintHandleError, 500 unknown error)
 
 #### Phase 3 — CV Builder UI (locked-entry)
 

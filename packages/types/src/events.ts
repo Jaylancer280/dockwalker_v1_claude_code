@@ -97,7 +97,12 @@ export type EventType =
   | 'REFERENCE.CONTACT_REQUESTED'
   | 'REFERENCE.CONTACT_ACCEPTED'
   | 'REFERENCE.CONTACT_DECLINED'
-  | 'REFERENCE.CONTACT_THREAD_CLOSED';
+  | 'REFERENCE.CONTACT_THREAD_CLOSED'
+  // Permanent invitation (captain invites a specific crew to apply)
+  | 'PERMANENT.INVITED'
+  // CV Builder (person aggregate)
+  | 'CV.GENERATED'
+  | 'CV.HANDLE_REGENERATED';
 
 /** Aggregate types that events reference */
 export type AggregateType =
@@ -115,7 +120,8 @@ export type AggregateType =
   | 'support'
   | 'shore_experience'
   | 'reference'
-  | 'reference_contact';
+  | 'reference_contact'
+  | 'permanent_invitation';
 
 /** Base event shape stored in the events table */
 export interface DomainEvent {
@@ -549,6 +555,12 @@ export interface EventPayloadMap {
     permanent_posting_id: string;
     crew_person_id: string;
     message?: string;
+    /** When the application was created in response to a PERMANENT.INVITED
+     * deep-link, this carries the invitation row id. The projection sets
+     * `applications.invited_from_id` and flips the linked invitation row
+     * to `applied` (race-guarded `AND status='pending'`). Omit for
+     * organic /discover applications. */
+    invited_from_id?: string;
   };
   'PERMANENT.APPLICATION_BLOCKED': {
     crew_person_id: string;
@@ -653,6 +665,30 @@ export interface EventPayloadMap {
   'REFERENCE.CONTACT_DECLINED': Record<string, never>;
   'REFERENCE.CONTACT_THREAD_CLOSED': {
     engagement_id: string;
+  };
+  // ── PERMANENT INVITATION (captain invites a specific crew to apply) ──
+  'PERMANENT.INVITED': {
+    id: string;
+    permanent_posting_id: string;
+    crew_person_id: string;
+    /** Optional captain-authored note shown alongside the invitation
+     * notification + apply-page banner. Max 500 chars. */
+    message?: string | null;
+  };
+  // ── CV BUILDER (person aggregate) ────────────────────────────────────
+  'CV.GENERATED': {
+    /** The cv_handle minted/used for this generation. Projection lazily
+     * back-fills `profiles.cv_handle` if currently null (coalesce on OLD).
+     * For Stage-1 admin mint, the route also fires CV.HANDLE_REGENERATED
+     * separately so this event isn't required for first-mint. */
+    handle: string;
+    format: 'pdf';
+  };
+  'CV.HANDLE_REGENERATED': {
+    /** Null on first mint (admin route or Stage-2 first generation),
+     * non-null on Crew-Pro regenerate. */
+    old_handle: string | null;
+    new_handle: string;
   };
 }
 
