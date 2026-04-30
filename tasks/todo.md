@@ -66,13 +66,10 @@
 - [x] **Migration 00132 — combined fixes** built; pushed to main; CI deploy-migrations job auto-applies to live remote. Includes: PERMANENT.INVITED state guard (P1-D1), PERMANENT.SHORTLISTED tightened to `status='applied'` only (P1-D3), permanent_invitations FK changed to `on delete restrict` (P1-D4), NDA reveal RPCs widened to employer-side IMO + ('active','completed','closed') status filter (P1-M1, P1-M2), partial index on persons(deactivated_at) (P1-P4). Self-contained rollback restores 00131's apply_projection body + 00122's RPC bodies + cascade FK + drops the index.
 - [x] **Migration 00133 — admin_action_log table** (P1-S6). Table with 8-value action CHECK, FKs to persons (admin + target), 3 indexes (by admin, by target person partial, by action + time), service-role-only RLS. Documented as event-sourcing exception. Pushed to main → CI green → auto-deployed to live remote. UI/route wiring deferred to a follow-up commit (P0/P1 unblocks the audit-log page; the table exists and is ready to populate).
 
-#### Phase H — User external action (handed off, not done by me)
+#### Phase H — User external action (handed off via tasks/handoff-pre-launch.md) ✅
 
-- [ ] **P0-3 rotate Supabase service-role + OpenAI + Anthropic keys.** Set new values in Vercel Production env. Delete `apps/web/.env.production.local`. Audit ~/Dropbox, ~/OneDrive, IDE caches, shell history.
-- [ ] **P0-6 create Sentry project**, copy DSN + ORG + PROJECT + AUTH_TOKEN to Vercel Production env (Sensitive). Verify on preview deploy.
-- [ ] **P1-I1 GitHub Environment** "production-database" with required reviewer on `deploy-migrations` job. (Repo Settings → Environments.)
-- [ ] **P1-I5 Stripe webhook URL verification.** `curl -I https://dockwalker.io/api/webhooks/stripe` should not return 307. Confirm both test + live mode webhooks point at `www.`.
-- [ ] **P1-Doc7 MEMORY.md** decision: create `tasks/launch-readiness.md` or remove the MEMORY reference. (User-owned memory.)
+- [x] **Handoff checklist written** at `tasks/handoff-pre-launch.md` covering all 5 user-only audit items (P0-3 key rotation + `.env.production.local` delete, P0-6 Sentry DSN, P1-I1 GitHub Environment, P1-I5 Stripe webhook URL, P1-Doc7 MEMORY.md decision). Ordered by risk × ease. Includes copy-paste commands for every verification step.
+- [ ] **(blocked on user)** Execute the handoff checklist.
 
 #### Phase I — CI infrastructure (mostly code, some user) ✅
 
