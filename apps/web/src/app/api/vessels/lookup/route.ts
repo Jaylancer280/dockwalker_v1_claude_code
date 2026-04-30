@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuthSession } from '@/lib/auth/require-auth-session';
+import { getVesselPrefixLimit } from '@/lib/rate-limit';
 
 interface PublicVesselRow {
   id: string;
@@ -35,7 +36,7 @@ interface PublicVesselRow {
 export async function GET(request: Request) {
   const guard = await requireAuthSession();
   if (!guard.ok) return guard.response;
-  const { supabase, serviceClient } = guard.value;
+  const { user, supabase, serviceClient } = guard.value;
 
   const { searchParams } = new URL(request.url);
   const imo = searchParams.get('imo');
@@ -50,6 +51,29 @@ export async function GET(request: Request) {
       { error: 'IMO number must be between 4 and 7 digits' },
       { status: 400 },
     );
+  }
+
+  // Per-user rate limit on partial-prefix branch (audit P1-S7). The
+  // exact-IMO branch (7-digit) doesn't enumerate, so we don't bother
+  // limiting it. Keyed on user id so a captain on the same WAN as their
+  // crew doesn't cap out from shared usage.
+  if (imoClean.length < 7) {
+    const limiter = getVesselPrefixLimit();
+    if (limiter) {
+      const { success, remaining, reset } = await limiter.limit(`user:${user.id}`);
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Too many partial searches. Try the full 7-digit IMO or wait.' },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil((reset - Date.now()) / 1000)),
+              'X-RateLimit-Remaining': String(remaining),
+            },
+          },
+        );
+      }
+    }
   }
 
   // Step 1 — IDs by IMO match. Service-role to bypass RLS so we don't
@@ -80,7 +104,11 @@ export async function GET(request: Request) {
   }
   const visible = (rpcRows ?? []) as PublicVesselRow[];
 
-  // Partial search — return up to 5 visible results
+  // Partial search — return up to 5 visible results. IMO stripped from
+  // the partial branch (audit P1-S7) so the response only confirms
+  // vessel existence by id+name; the caller types the remaining digits
+  // to disambiguate. Exact search (below) returns full IMO since the
+  // caller already provided it.
   if (imoClean.length < 7) {
     return NextResponse.json({
       results: visible.slice(0, 5).map((v) => ({
@@ -88,7 +116,6 @@ export async function GET(request: Request) {
         name: v.name,
         vessel_type: v.vessel_type,
         loa_meters: v.loa_meters,
-        imo_number: v.imo_number,
       })),
     });
   }

@@ -2,6 +2,7 @@ import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 
 let _redis: Redis | null | undefined = undefined;
 let _globalLimit: Ratelimit | null = null;
@@ -9,10 +10,25 @@ let _writeLimit: Ratelimit | null = null;
 let _cvHandleAuthLimit: Ratelimit | null = null;
 let _cvHandleAnonLimit: Ratelimit | null = null;
 let _qrHireLimit: Ratelimit | null = null;
+let _redisDownWarned = false;
 
 function getRedis(): Redis | null {
   if (_redis !== undefined) return _redis;
   if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    if (!_redisDownWarned) {
+      // Fail-open is intentional during dev / when Upstash is intentionally
+      // unset, but in production this means rate limiting is silently OFF.
+      // Log once at first miss so it surfaces in Sentry / Vercel logs rather
+      // than disappearing into the void.
+      console.error(
+        '[rate-limit] Upstash credentials missing — rate limiting DISABLED for this process. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in Vercel env.',
+      );
+      Sentry.captureMessage('Rate limiting disabled (Upstash credentials missing)', {
+        level: 'error',
+        tags: { module: 'rate-limit' },
+      });
+      _redisDownWarned = true;
+    }
     _redis = null;
     return null;
   }
@@ -21,6 +37,14 @@ function getRedis(): Redis | null {
     token: process.env.UPSTASH_REDIS_REST_TOKEN,
   });
   return _redis;
+}
+
+/**
+ * Health-check helper — used by /api/health to surface rate-limit
+ * configuration state without exposing the Upstash creds.
+ */
+export function isRateLimitingActive(): boolean {
+  return getRedis() !== null;
 }
 
 // Global: 100 requests per 60 seconds per IP
@@ -95,6 +119,56 @@ export function getQrHireLimit(): Ratelimit | null {
     });
   }
   return _qrHireLimit;
+}
+
+let _reactivateLimit: Ratelimit | null = null;
+
+/**
+ * Reactivate route rate limit:
+ *   - 5 reactivation attempts per hour per IP.
+ *
+ * Defensive depth. The route already gates on authenticated session
+ * (post-password-reset), so the enumeration surface is small, but
+ * legitimate users only ever hit this once. 5/hour leaves headroom
+ * for accidental retries while shutting down any session-stuffing
+ * probe attempt.
+ */
+export function getReactivateLimit(): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+  if (!_reactivateLimit) {
+    _reactivateLimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '60 m'),
+      prefix: 'rl:reactivate',
+    });
+  }
+  return _reactivateLimit;
+}
+
+let _vesselPrefixLimit: Ratelimit | null = null;
+
+/**
+ * Vessel-lookup partial-prefix rate limit (audit P1-S7):
+ *   - 10 prefix searches per hour per user.
+ *
+ * The lookup route is onboarding-friendly so we can't gate to onboarded-only.
+ * The exact-IMO branch (7-digit) doesn't enumerate (caller already knows the
+ * IMO) — only the 4-6 digit prefix branch is interesting to an attacker.
+ * 10/hour is generous for legitimate "I'm not sure of the last digit" cases
+ * but expensive enough to make brute enumeration uneconomic at scale.
+ */
+export function getVesselPrefixLimit(): Ratelimit | null {
+  const redis = getRedis();
+  if (!redis) return null;
+  if (!_vesselPrefixLimit) {
+    _vesselPrefixLimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(10, '60 m'),
+      prefix: 'rl:vessel-prefix',
+    });
+  }
+  return _vesselPrefixLimit;
 }
 
 export function getCvHandleAnonLimit(): Ratelimit | null {

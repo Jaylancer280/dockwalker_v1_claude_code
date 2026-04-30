@@ -7,15 +7,21 @@ export async function POST(
 ) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
-  const { serviceClient } = guard.value;
-  const { threadId } = await params;
 
-  const { error } = await serviceClient
-    .from('support_threads')
-    .update({ status: 'closed', updated_at: new Date().toISOString() })
-    .eq('id', threadId)
-    .eq('status', 'open');
+  try {
+    const { serviceClient } = guard.value;
+    const { threadId } = await params;
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+    const { error } = await serviceClient
+      .from('support_threads')
+      .update({ status: 'closed', updated_at: new Date().toISOString() })
+      .eq('id', threadId)
+      .eq('status', 'open');
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to close support thread';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

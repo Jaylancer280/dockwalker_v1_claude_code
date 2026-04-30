@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { timingSafeEqual } from 'node:crypto';
 
 const API_BASE = 'https://api.telegram.org';
 
@@ -22,7 +23,14 @@ export function verifyTelegramWebhookSecret(headerValue: string | null): boolean
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!expected) return false;
   if (!headerValue) return false;
-  return headerValue === expected;
+  // Constant-time comparison closes the timing-leak side channel. Telegram
+  // doesn't HMAC-sign update payloads — the X-Telegram-Bot-Api-Secret-Token
+  // header is the documented mechanism, but a string-equality compare leaks
+  // the secret one byte at a time under repeated probes.
+  const a = Buffer.from(headerValue);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 /**

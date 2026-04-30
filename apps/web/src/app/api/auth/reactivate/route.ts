@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { createServiceClient } from '@/lib/supabase/server';
 import { appendEvent } from '@dockwalker/db';
+import { getReactivateLimit } from '@/lib/rate-limit';
 
 /**
  * POST /api/auth/reactivate
@@ -17,8 +18,34 @@ import { appendEvent } from '@dockwalker/db';
  *
  * Returns { reactivated: true } if the account was restored, or
  * { reactivated: false } if no deactivation flag was set (no-op).
+ *
+ * Rate-limited at 5/hour/IP (audit P1-S5 — defensive depth on top of the
+ * auth-session gate; legitimate users only hit this once).
  */
 export async function POST() {
+  // Per-route rate limit (defensive depth on top of the global+write limits).
+  const limiter = getReactivateLimit();
+  if (limiter) {
+    const headerList = await headers();
+    const ip =
+      headerList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      headerList.get('x-real-ip') ??
+      'unknown';
+    const { success, remaining, reset } = await limiter.limit(ip);
+    if (!success) {
+      return NextResponse.json(
+        { error: 'Too many reactivation attempts. Try again in an hour.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((reset - Date.now()) / 1000)),
+            'X-RateLimit-Remaining': String(remaining),
+          },
+        },
+      );
+    }
+  }
+
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -156,6 +156,9 @@ describe('POST /api/permanent/[id]/invite', () => {
   it('fires PERMANENT.INVITED with all required payload fields and 201s', async () => {
     mockSupabaseFrom.mockReturnValueOnce(singleChain(POSTING));
     mockServiceFrom.mockReturnValueOnce(singleChain(ACTIVE_CREW));
+    // Lookup-after-appendEvent: returns the row that the projection just inserted.
+    const CANONICAL_ID = '11111111-2222-3333-4444-555555555555';
+    mockServiceFrom.mockReturnValueOnce(singleChain({ id: CANONICAL_ID }));
 
     const res = await POST(
       makeRequest({ crewPersonId: 'crew-1', message: 'Hi Sophie' }),
@@ -163,7 +166,7 @@ describe('POST /api/permanent/[id]/invite', () => {
     );
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.invitation.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(body.invitation.id).toBe(CANONICAL_ID);
 
     expect(mockAppendEvent).toHaveBeenCalledTimes(1);
     const args = mockAppendEvent.mock.calls[0]![1];
@@ -173,25 +176,33 @@ describe('POST /api/permanent/[id]/invite', () => {
     expect(args.payload.crew_person_id).toBe('crew-1');
     expect(args.payload.message).toBe('Hi Sophie');
     expect(args.personId).toBe('employer-1');
+    // Idempotency key is deterministic on (postingId, crewPersonId) so
+    // network retries dedupe at the append_event RPC layer.
+    expect(args.idempotencyKey).toBe('PERMANENT.INVITED:post-1:crew-1');
   });
 
   it('omits message from payload when empty string', async () => {
     mockSupabaseFrom.mockReturnValueOnce(singleChain(POSTING));
     mockServiceFrom.mockReturnValueOnce(singleChain(ACTIVE_CREW));
+    mockServiceFrom.mockReturnValueOnce(singleChain({ id: 'inv-1' }));
 
     await POST(makeRequest({ crewPersonId: 'crew-1', message: '' }), makeParams('post-1'));
     const args = mockAppendEvent.mock.calls[0]![1];
     expect(args.payload.message).toBeUndefined();
   });
 
-  it('maps unique_violation (23505) to 409 with spec copy', async () => {
+  it('returns the canonical invitation_id from the row lookup (idempotent retry)', async () => {
     mockSupabaseFrom.mockReturnValueOnce(singleChain(POSTING));
     mockServiceFrom.mockReturnValueOnce(singleChain(ACTIVE_CREW));
-    mockAppendEvent.mockRejectedValueOnce(new Error('append_event failed: 23505 unique_violation'));
+    // On idempotent retry, append_event returns the original event_id silently
+    // and the projection doesn't re-run. The row lookup returns the row inserted
+    // by the original call — its id, not the locally-generated newInvitationId.
+    const ORIGINAL_INV_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    mockServiceFrom.mockReturnValueOnce(singleChain({ id: ORIGINAL_INV_ID }));
 
     const res = await POST(makeRequest({ crewPersonId: 'crew-1' }), makeParams('post-1'));
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.error).toMatch(/already invited/i);
+    expect(body.invitation.id).toBe(ORIGINAL_INV_ID);
   });
 });

@@ -150,8 +150,11 @@ describe('GET /api/vessels/lookup', () => {
     const body = await res.json();
     expect(body.results).toHaveLength(2);
     expect(body.results[0].name).toBe('Alpha');
-    expect(body.results[0].imo_number).toBe('1234567');
+    // Audit P1-S7: imo_number is stripped from partial-prefix responses to
+    // avoid confirming exact IMO existence by prefix probing.
+    expect(body.results[0].imo_number).toBeUndefined();
     expect(body.results[1].name).toBe('Beta');
+    expect(body.results[1].imo_number).toBeUndefined();
   });
 
   it('returns empty results array for partial with no matches', async () => {

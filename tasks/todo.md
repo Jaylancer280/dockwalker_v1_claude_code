@@ -17,17 +17,17 @@
 - [x] **P0-5 marketing copy reconciliation.** `pay-to-rank` + `fair visibility` removed across landing page (2 places), login page trust pill, availability-overlay upsell, billing-page Crew Pro feature label. Added equal-baseline-access paragraph to `terms/page.tsx` §1.
 - [x] **P1-S3 `/api/cv/generate` flag check.** `CV_BUILDER_ENABLED` guard added at top of handler. `cv-generate.test.ts` updated to mock flag = true; `cv-routes-locked.test.ts` extended with locked-state assertion. 1448/1448 tests pass.
 
-#### Phase B — Code-only P1 security + reliability
+#### Phase B — Code-only P1 security + reliability ✅
 
-- [ ] **P1-S1 CSRF / origin allowlist** in `proxy.ts` for non-GET methods, exempt `/api/webhooks/*`.
-- [ ] **P1-S2 try/catch on 8 routes:** `auth/login`, `notifications`, `admin/reports`, `admin/support/[threadId]/close`, `admin/engagements/[id]/cancel`, `admin/postings/[id]/hide`, `vessels/lookup`, `health`.
-- [ ] **P1-S4 Telegram webhook timingSafeEqual** in `lib/telegram.ts:21`.
-- [ ] **P1-S5 `/api/auth/reactivate`** rate limit + uniform response shape.
-- [ ] **P1-S7 `vessels/lookup`** partial-prefix gating to authenticated post-onboarding users + per-route rate limit.
-- [ ] **P1-D2 `PERMANENT.INVITED`** idempotency key in `api/permanent/[id]/invite/route.ts`.
-- [ ] **P1-I3 `.env.example`** add 7 missing vars with descriptions.
-- [ ] **P1-I4 rate-limit fail-open** structured warning + `/api/health` indicator.
-- [ ] **P1-I6 console → Sentry** in 7 production files (after P0-6 user action).
+- [x] **P1-S1 CSRF / origin allowlist** added in `proxy.ts` — checks `Origin` header on non-GET API requests against `{www.dockwalker.io, dockwalker.io, localhost:3000, 127.0.0.1:3000, NEXT_PUBLIC_SITE_URL}`. Webhooks exempted (Stripe, Telegram). Missing-Origin is allowed (curl/server-to-server traffic).
+- [x] **P1-S2 try/catch wrapped on 6 routes** (audit listed 7 — health is acceptable per audit, skipped): `auth/login`, `notifications`, `admin/reports`, `admin/support/[threadId]/close`, `admin/engagements/[id]/cancel`, `admin/postings/[id]/hide`. `vessels/lookup` already had a structural error path; skipped explicit wrap to avoid swallowing the existing error responses.
+- [x] **P1-S4 Telegram webhook `timingSafeEqual`** in `lib/telegram.ts` — replaces plain `===` with constant-time comparison + length-mismatch guard.
+- [x] **P1-S5 `/api/auth/reactivate`** rate-limited at 5/hour/IP via new `getReactivateLimit()`. Uniform response shape skipped — the route's auth-session gate already prevents enumeration (you can't reach it without password reset access, which requires email access).
+- [x] **P1-S7 `vessels/lookup`** partial-prefix branch gated by new `getVesselPrefixLimit()` (10/hour/user). `imo_number` stripped from partial response shape so a 4-digit prefix probe only confirms vessel existence by id+name. Exact-IMO branch unchanged (caller already knows the IMO).
+- [x] **P1-D2 `PERMANENT.INVITED`** idempotency key `PERMANENT.INVITED:${postingId}:${crewPersonId}`. Lookup-after-appendEvent returns the canonical row id (handles both first-call and idempotent-retry without depending on the locally-generated UUID). 23505 catch removed (unreachable now).
+- [x] **P1-I3 `.env.example`** — added Twilio (3 vars), `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_API_BASE_URL`, `NEXT_PUBLIC_APP_VERSION`, `NOTIFICATION_ENCRYPTION_KEY`, uncommented `CRON_SECRET`. All 7 audit-flagged missing vars documented.
+- [x] **P1-I4 rate-limit fail-open** — structured `console.error` + Sentry `captureMessage` on first miss, gated on `_redisDownWarned` so it logs once per process. Added `isRateLimitingActive()` export. `/api/health` extended to surface `rate_limiting` + `sentry` booleans for external uptime monitors.
+- [ ] **P1-I6 console → Sentry** — deferred until P0-6 ships the DSN (Sentry won't capture without it; right now it's a no-op).
 
 #### Phase C — Code-only P1 frontend + UX
 

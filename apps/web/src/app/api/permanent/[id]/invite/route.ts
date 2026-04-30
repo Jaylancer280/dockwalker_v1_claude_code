@@ -23,9 +23,15 @@ import { randomUUID } from 'crypto';
  * Rate limit: 5/hour per employer (shared bucket with daywork QR-hire
  * via getQrHireLimit).
  *
- * Idempotency: permanent_invitations carries
- * UNIQUE(permanent_posting_id, crew_person_id). Re-invitation of the
- * same crew on the same posting returns 409 with the spec'd copy.
+ * Idempotency: D-1 idempotency key (`PERMANENT.INVITED:${postingId}:${crewPersonId}`)
+ * makes network retries silent — the append_event RPC dedupes via the
+ * partial unique index on (person_id, idempotency_key) and returns the
+ * original event_id without re-running the projection. After
+ * appendEvent we look up the actual row to return the canonical
+ * invitation_id (the locally-generated UUID is discarded on a deduped
+ * call). Re-invitation of the same crew on the same posting therefore
+ * resolves to a 201 with the original invitation_id (no extra
+ * notification fires because the projection didn't run).
  *
  * Fires: PERMANENT.INVITED. The push-trigger handler fans out the
  * notification to the invited crew with a deep link to
@@ -124,32 +130,37 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
     }
 
-    const invitationId = randomUUID();
+    const newInvitationId = randomUUID();
+    const idempotencyKey = `PERMANENT.INVITED:${postingId}:${crewPersonId}`;
 
-    try {
-      await appendEvent(serviceClient, {
-        eventType: 'PERMANENT.INVITED',
-        aggregateId: invitationId,
-        aggregateType: 'permanent_invitation',
-        roleContext: person.current_hat,
-        payload: {
-          id: invitationId,
-          permanent_posting_id: postingId,
-          crew_person_id: crewPersonId,
-          ...(typeof message === 'string' && message.length > 0 ? { message } : {}),
-        },
-        personId: user.id,
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : '';
-      if (msg.includes('23505') || msg.toLowerCase().includes('unique')) {
-        return NextResponse.json(
-          { error: "You've already invited this crew to this posting." },
-          { status: 409 },
-        );
-      }
-      throw e;
-    }
+    await appendEvent(serviceClient, {
+      eventType: 'PERMANENT.INVITED',
+      aggregateId: newInvitationId,
+      aggregateType: 'permanent_invitation',
+      roleContext: person.current_hat,
+      payload: {
+        id: newInvitationId,
+        permanent_posting_id: postingId,
+        crew_person_id: crewPersonId,
+        ...(typeof message === 'string' && message.length > 0 ? { message } : {}),
+      },
+      personId: user.id,
+      idempotencyKey,
+    });
+
+    // Look up the canonical invitation row. On first call this equals
+    // newInvitationId. On idempotent retry (same key) the append_event
+    // RPC silently returned the original event_id without re-running
+    // the projection — the row was inserted by the original call, so
+    // its id is what we return to the client.
+    const { data: invitation } = await serviceClient
+      .from('permanent_invitations')
+      .select('id')
+      .eq('permanent_posting_id', postingId)
+      .eq('crew_person_id', crewPersonId)
+      .single();
+
+    const invitationId = invitation?.id ?? newInvitationId;
 
     notifyOnEvent(
       serviceClient,
