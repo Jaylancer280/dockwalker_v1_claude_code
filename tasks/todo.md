@@ -38,12 +38,12 @@
 - [x] **P1-F5 cv/[handle]** handle regex check at top of page component — invalid handles short-circuit to `notFound()` before any flag check, fetch, or Coming-Soon render.
 - [x] **P1-F6 Settings → CV Builder Lock pill** added next to the H1 (amber pill with Lock icon, only renders when `CV_BUILDER_ENABLED=false`). Visual cue matches the locked-state vocabulary.
 
-#### Phase D — Code-only P1 performance
+#### Phase D — Code-only P1 performance ✅
 
-- [ ] **P1-P1 CV route NDA bypass:** route `cv/[handle]/route.ts:183, 236` through `get_vessels_public_batch`.
-- [ ] **P1-P2 CV route 3 sequential clients:** fold tombstone check into profile select via `persons!inner(...)` join.
-- [ ] **P1-P3 CV route parallelization:** restructure references/experiences/lookups into 2 `Promise.all` tiers.
-- [ ] **P1-P5 CV settings** `nda_only` filter on `/api/experiences` to skip `resolveHistoricalVesselNames` for non-NDA.
+- [x] **P1-P1 CV route admin moderation mask** — added `source` + `hidden_at` to the vessel select; new `isVesselModerationMasked` helper masks admin-hidden + pending-curation vessels regardless of `cv_show_full_vessel`. Audit recommended routing through `get_vessels_public_batch` but that's the wrong primitive here: the RPC's NDA mask is for anonymous vessel reads, whereas the CV owner has explicitly opted in via `cv_show_full_vessel`. The new `Vessel unavailable` mask label distinguishes "admin-hidden" from the existing `NDA Vessel` label.
+- [x] **P1-P2 CV route tombstone fold-in** — `persons!inner(deactivated_at, blocked_at, current_hat)` embedded in the profile select. One round-trip per QR scan instead of two. Tests updated to embed `persons` in profile fixtures.
+- [x] **P1-P3 CV route parallelization** — experiences + references run in `Promise.all` tier 1; `resolveHistoricalVesselNames` + cert/nationality/entry_rights lookups run in tier 2. The lookups previously waited for experiences to finish, then for `resolveHistoricalVesselNames`, then ran in parallel — now they all start as soon as experiences arrive.
+- [x] **P1-P5 `/api/experiences?nda_only=true`** — filters at SQL level via `vessels!inner` + `.eq('vessels.nda_flag', true)`, skips historical-name resolution + references-active-count + subscription-plan lookup. CV settings page passes the param and drops the client-side filter.
 
 #### Phase E — Code-only P1 testing
 

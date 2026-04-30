@@ -89,7 +89,11 @@ export default function CvBuilderSettingsPage() {
     const [profileRes, refsRes, expsRes] = await Promise.all([
       safeFetch<ProfileResponse>('/api/profile'),
       safeFetch<{ outbound: ReferenceRow[] }>('/api/references/mine'),
-      safeFetch<{ experiences: ExperienceRow[] }>('/api/experiences'),
+      // Audit P1-P5: nda_only=true filters at SQL level + skips historical-
+      // name resolution / reference counts / subscription-plan lookup that
+      // this page doesn't render. NDA vessel names get masked anyway, so
+      // historical resolution is wasted work for this caller.
+      safeFetch<{ experiences: ExperienceRow[] }>('/api/experiences?nda_only=true'),
     ]);
 
     if (profileRes.ok) {
@@ -100,7 +104,8 @@ export default function CvBuilderSettingsPage() {
       setRefs(refsRes.data.outbound.filter((r) => r.status === 'accepted'));
     }
     if (expsRes.ok) {
-      setNdaExperiences(expsRes.data.experiences.filter((e) => e.vessels?.nda_flag === true));
+      // The API already filtered to nda_flag=true; no client-side filter needed.
+      setNdaExperiences(expsRes.data.experiences);
     }
     setLoading(false);
   }, []);

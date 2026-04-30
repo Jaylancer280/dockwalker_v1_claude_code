@@ -156,7 +156,7 @@ describe('GET /api/experiences', () => {
       response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     });
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/experiences"));
     expect(res.status).toBe(401);
   });
 
@@ -214,7 +214,7 @@ describe('GET /api/experiences', () => {
       }),
     });
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/experiences"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.experiences).toHaveLength(1);
@@ -299,7 +299,7 @@ describe('GET /api/experiences', () => {
       }),
     });
 
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/experiences"));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.experiences[0].historical_vessel_name).toBe('Sea Wolf');

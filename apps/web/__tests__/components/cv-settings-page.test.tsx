@@ -168,11 +168,14 @@ describe('CV Builder settings page', () => {
     expect(screen.queryByText('Captain Other')).not.toBeInTheDocument();
   });
 
-  it('renders only NDA-flagged experiences', async () => {
+  it('requests NDA-filtered experiences from the server and renders them', async () => {
     mockSafeFetch
       .mockResolvedValueOnce(profileResponse('crew'))
       .mockResolvedValueOnce(refsResponse([]))
       .mockResolvedValueOnce(
+        // Server-side filter (audit P1-P5) — the API returns only NDA-flagged
+        // rows when called with ?nda_only=true. The page no longer filters
+        // client-side; it trusts the filtered response.
         expsResponse([
           {
             id: 'exp-nda',
@@ -183,15 +186,6 @@ describe('CV Builder settings page', () => {
             vessels: { id: 'v1', name: 'M/Y NDA Boat', nda_flag: true },
             yacht_roles: { name: 'Bosun' },
           },
-          {
-            id: 'exp-non-nda',
-            start_date: '2023-01-01',
-            end_date: null,
-            is_current: true,
-            cv_show_full_vessel: true,
-            vessels: { id: 'v2', name: 'M/Y Public', nda_flag: false },
-            yacht_roles: { name: 'Deckhand' },
-          },
         ]),
       );
 
@@ -199,6 +193,11 @@ describe('CV Builder settings page', () => {
     await waitFor(() => {
       expect(screen.getByText('M/Y NDA Boat')).toBeInTheDocument();
     });
-    expect(screen.queryByText('M/Y Public')).not.toBeInTheDocument();
+    // Page must pass nda_only=true to the API so the server filters at the
+    // SQL layer and skips historical-name resolution.
+    const expsFetchCall = mockSafeFetch.mock.calls.find((c) =>
+      String(c[0]).includes('/api/experiences'),
+    );
+    expect(expsFetchCall?.[0]).toContain('nda_only=true');
   });
 });

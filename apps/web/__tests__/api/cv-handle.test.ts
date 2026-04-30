@@ -99,6 +99,10 @@ const ACTIVE_PROFILE = {
   yacht_roles: { id: 'r1', name: 'Bosun', department: 'Deck' },
   ports: null,
   location_cities: null,
+  // persons is embedded via persons!inner in the route's profile select
+  // (audit P1-P2: folds tombstone check into a single round-trip).
+  // Tombstone tests override this field per case.
+  persons: { deactivated_at: null, blocked_at: null, current_hat: 'crew' },
 };
 
 describe('GET /api/cv/[handle]', () => {
@@ -127,11 +131,6 @@ describe('GET /api/cv/[handle]', () => {
       // profile lookup
       .mockReturnValueOnce(chain({ data: ACTIVE_PROFILE }))
       // person lookup
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
-        }),
-      )
       // experiences
       .mockReturnValueOnce(chain({ data: [] }))
       // references
@@ -151,18 +150,18 @@ describe('GET /api/cv/[handle]', () => {
   });
 
   it('returns tombstone payload for deactivated crew', async () => {
-    mockServiceFrom
-      .mockReturnValueOnce(chain({ data: ACTIVE_PROFILE }))
-      .mockReturnValueOnce(
-        chain({
-          data: {
-            id: 'p1',
-            current_hat: 'crew',
+    mockServiceFrom.mockReturnValueOnce(
+      chain({
+        data: {
+          ...ACTIVE_PROFILE,
+          persons: {
             deactivated_at: '2026-03-01T00:00:00Z',
             blocked_at: null,
+            current_hat: 'crew',
           },
-        }),
-      );
+        },
+      }),
+    );
 
     const res = await GET(makeRequest(), makeParams('AbCd1234'));
     expect(res.status).toBe(200);
@@ -171,13 +170,14 @@ describe('GET /api/cv/[handle]', () => {
   });
 
   it('returns tombstone for scrubbed crew (current_hat is null after PERSON.DATA_SCRUBBED)', async () => {
-    mockServiceFrom
-      .mockReturnValueOnce(chain({ data: ACTIVE_PROFILE }))
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: null, deactivated_at: null, blocked_at: null },
-        }),
-      );
+    mockServiceFrom.mockReturnValueOnce(
+      chain({
+        data: {
+          ...ACTIVE_PROFILE,
+          persons: { deactivated_at: null, blocked_at: null, current_hat: null },
+        },
+      }),
+    );
 
     const res = await GET(makeRequest(), makeParams('AbCd1234'));
     const body = await res.json();
@@ -187,11 +187,6 @@ describe('GET /api/cv/[handle]', () => {
   it('NDA-masks experience name + IMO when cv_show_full_vessel is false', async () => {
     mockServiceFrom
       .mockReturnValueOnce(chain({ data: ACTIVE_PROFILE }))
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
-        }),
-      )
       .mockReturnValueOnce(
         chain({
           data: [
@@ -238,11 +233,6 @@ describe('GET /api/cv/[handle]', () => {
       .mockReturnValueOnce(chain({ data: ACTIVE_PROFILE }))
       .mockReturnValueOnce(
         chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
-        }),
-      )
-      .mockReturnValueOnce(
-        chain({
           data: [
             {
               id: 'e1',
@@ -283,11 +273,6 @@ describe('GET /api/cv/[handle]', () => {
   it('only includes references with status=accepted AND include_on_cv=true (route-layer eq filters)', async () => {
     mockServiceFrom
       .mockReturnValueOnce(chain({ data: ACTIVE_PROFILE }))
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
-        }),
-      )
       .mockReturnValueOnce(chain({ data: [] }));
     const refsChain = chain({ data: [] });
     mockServiceFrom.mockReturnValueOnce(refsChain);
@@ -300,11 +285,6 @@ describe('GET /api/cv/[handle]', () => {
   it('omits sea_time when cv_include_sea_time is false (default privacy)', async () => {
     mockServiceFrom
       .mockReturnValueOnce(chain({ data: ACTIVE_PROFILE }))
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
-        }),
-      )
       .mockReturnValueOnce(chain({ data: [] }))
       .mockReturnValueOnce(chain({ data: [] }));
 
@@ -316,11 +296,6 @@ describe('GET /api/cv/[handle]', () => {
   it('sums sea_time totals when cv_include_sea_time is true', async () => {
     mockServiceFrom
       .mockReturnValueOnce(chain({ data: { ...ACTIVE_PROFILE, cv_include_sea_time: true } }))
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
-        }),
-      )
       .mockReturnValueOnce(
         chain({
           data: [
@@ -381,11 +356,6 @@ describe('GET /api/cv/[handle]', () => {
           },
         }),
       )
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
-        }),
-      )
       .mockReturnValueOnce(chain({ data: [] }))
       .mockReturnValueOnce(chain({ data: [] }));
 
@@ -405,11 +375,6 @@ describe('GET /api/cv/[handle]', () => {
             cv_generated_at: tenDaysAgo,
             updated_at: new Date(now).toISOString(),
           },
-        }),
-      )
-      .mockReturnValueOnce(
-        chain({
-          data: { id: 'p1', current_hat: 'crew', deactivated_at: null, blocked_at: null },
         }),
       )
       .mockReturnValueOnce(chain({ data: [] }))

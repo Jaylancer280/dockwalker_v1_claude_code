@@ -60,6 +60,8 @@ interface ExperienceRow {
     name: string | null;
     vessel_type: string | null;
     nda_flag: boolean | null;
+    source: string | null;
+    hidden_at: string | null;
   } | null;
   yacht_roles: { id: string; name: string; department: string } | null;
 }
@@ -130,7 +132,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
     const serviceClient = await createServiceClient();
 
     // 1. Find the profile by handle. Service role bypasses RLS — fine, the
-    //    response is built from CV-publishable columns only.
+    //    response is built from CV-publishable columns only. Audit P1-P2:
+    //    fold the tombstone check into this query via persons!inner so we
+    //    save one round-trip per QR scan.
     const { data: profile, error: profileErr } = await serviceClient
       .from('profiles')
       .select(
@@ -142,6 +146,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
         location_port_id, location_city_id,
         nationality_ids, entry_right_ids, languages,
         smoker, visible_tattoos, updated_at,
+        persons!inner(deactivated_at, blocked_at, current_hat),
         yacht_roles!profiles_primary_role_id_fkey(id, name, department),
         ports(id, name, cities(name, regions(name))),
         location_cities:cities!profiles_location_city_id_fkey(id, name, regions(name))
@@ -159,140 +164,80 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
 
     // 2. Tombstone check. A deactivated person hasn't been scrubbed yet but
     //    has explicitly turned off their account; a scrubbed person has had
-    //    PII wiped (current_hat=null after 00108).
-    const { data: person } = await serviceClient
-      .from('persons')
-      .select('id, current_hat, deactivated_at, blocked_at')
-      .eq('id', profile.person_id)
-      .single();
+    //    PII wiped (current_hat=null after 00108). Read off the embedded
+    //    persons row from step 1 — no extra round-trip.
+    const personEmbedded = (
+      profile as unknown as {
+        persons:
+          | { deactivated_at: string | null; blocked_at: string | null; current_hat: string | null }
+          | {
+              deactivated_at: string | null;
+              blocked_at: string | null;
+              current_hat: string | null;
+            }[]
+          | null;
+      }
+    ).persons;
+    const personRow = Array.isArray(personEmbedded) ? personEmbedded[0] : personEmbedded;
 
-    if (!person || person.deactivated_at || person.blocked_at || person.current_hat === null) {
+    if (
+      !personRow ||
+      personRow.deactivated_at ||
+      personRow.blocked_at ||
+      personRow.current_hat === null
+    ) {
       return NextResponse.json({ tombstone: true });
     }
 
-    // 3. Fetch experiences + vessels + roles. The service-role client lets
-    //    us read all crew_experiences regardless of ownership; we resolve
-    //    period-correct names and apply the NDA mask in user-space below.
-    const { data: experiencesRaw } = await serviceClient
-      .from('crew_experiences')
-      .select(
-        `
-        id, vessel_id, start_date, end_date, is_current,
-        vessel_operation, flag_state, contract_type, contract_details, description,
-        sea_time_days, sea_time_nautical_miles, cv_show_full_vessel,
-        vessels(id, imo_number, name, vessel_type, nda_flag),
-        yacht_roles(id, name, department)
-      `,
-      )
-      .eq('person_id', profile.person_id)
-      .order('start_date', { ascending: false });
+    // 3. Audit P1-P3: fetch experiences + references in parallel —
+    //    they're independent reads, no reason to serialise.
+    const [experiencesRes, referencesRes] = await Promise.all([
+      serviceClient
+        .from('crew_experiences')
+        .select(
+          `
+          id, vessel_id, start_date, end_date, is_current,
+          vessel_operation, flag_state, contract_type, contract_details, description,
+          sea_time_days, sea_time_nautical_miles, cv_show_full_vessel,
+          vessels(id, imo_number, name, vessel_type, nda_flag, source, hidden_at),
+          yacht_roles(id, name, department)
+        `,
+        )
+        .eq('person_id', profile.person_id)
+        .order('start_date', { ascending: false }),
+      serviceClient
+        .from('references')
+        .select(
+          `
+          id, experience_id, vessel_id,
+          claimed_referee_name, claimed_referee_role, comment, comment_updated_at,
+          consented_at, snapshot_vessel_imo, snapshot_vessel_name,
+          snapshot_start_date, snapshot_end_date, include_on_cv
+        `,
+        )
+        .eq('requester_person_id', profile.person_id)
+        .eq('status', 'accepted')
+        .eq('include_on_cv', true)
+        .order('consented_at', { ascending: false }),
+    ]);
 
-    const experienceRows = (experiencesRaw ?? []) as unknown as ExperienceRow[];
+    const experienceRows = (experiencesRes.data ?? []) as unknown as ExperienceRow[];
+    const referenceRows = (referencesRes.data ?? []) as unknown as ReferenceRow[];
 
-    const historicalNames = await resolveHistoricalVesselNames(
-      serviceClient,
-      experienceRows
-        .filter((e) => e.vessel_id)
-        .map((e) => ({ vessel_id: e.vessel_id as string, start_date: e.start_date })),
-    );
-
-    const experiences = experienceRows.map((e) => {
-      const vessel = e.vessels;
-      // NDA mask: respects per-experience toggle. Default-mask when toggle
-      // is null (privacy-safe backstop per spec §8). When the vessel is
-      // NOT NDA, the toggle has no effect — we always show the name.
-      const ndaMasked = vessel?.nda_flag === true && e.cv_show_full_vessel !== true;
-      const historicalName = e.vessel_id
-        ? historicalNames.get(`${e.vessel_id}|${e.start_date}`)
-        : undefined;
-      const renderedName = ndaMasked ? 'NDA Vessel' : (historicalName ?? vessel?.name ?? null);
-      const renderedImo = ndaMasked ? null : (vessel?.imo_number ?? null);
-      return {
-        id: e.id,
-        vessel_name: renderedName,
-        vessel_imo: renderedImo,
-        vessel_type: ndaMasked ? null : (vessel?.vessel_type ?? null),
-        nda_masked: ndaMasked,
-        role: e.yacht_roles
-          ? {
-              id: e.yacht_roles.id,
-              name: e.yacht_roles.name,
-              department: e.yacht_roles.department,
-            }
-          : null,
-        start_date: e.start_date,
-        end_date: e.end_date,
-        is_current: e.is_current,
-        vessel_operation: e.vessel_operation,
-        flag_state: ndaMasked ? null : e.flag_state,
-        contract_type: e.contract_type,
-        contract_details: e.contract_details,
-        description: e.description,
-      };
-    });
-
-    // 4. Fetch opted-in accepted references. Each reference is bound to an
-    //    experience — we inherit that experience's NDA mask when present.
-    const { data: referencesRaw } = await serviceClient
-      .from('references')
-      .select(
-        `
-        id, experience_id, vessel_id,
-        claimed_referee_name, claimed_referee_role, comment, comment_updated_at,
-        consented_at, snapshot_vessel_imo, snapshot_vessel_name,
-        snapshot_start_date, snapshot_end_date, include_on_cv
-      `,
-      )
-      .eq('requester_person_id', profile.person_id)
-      .eq('status', 'accepted')
-      .eq('include_on_cv', true)
-      .order('consented_at', { ascending: false });
-
-    const referenceRows = (referencesRaw ?? []) as unknown as ReferenceRow[];
-
-    // Build a quick lookup: experience_id → cv_show_full_vessel + nda_flag
-    const experienceMaskById = new Map<string, { ndaMasked: boolean }>();
-    for (const e of experienceRows) {
-      const ndaMasked = e.vessels?.nda_flag === true && e.cv_show_full_vessel !== true;
-      experienceMaskById.set(e.id, { ndaMasked });
-    }
-
-    const references = referenceRows.map((r) => {
-      const expMask = r.experience_id ? experienceMaskById.get(r.experience_id) : undefined;
-      // If the underlying experience is gone (FK was nulled by EXPERIENCE.REMOVED
-      // soft-revoke per migration 00126), the snapshot fields are all we have
-      // to render — privacy-safe backstop is to mask.
-      const ndaMasked = expMask ? expMask.ndaMasked : true;
-      return {
-        id: r.id,
-        claimed_referee_name: r.claimed_referee_name,
-        claimed_referee_role: r.claimed_referee_role,
-        comment: r.comment,
-        consented_at: r.consented_at,
-        snapshot_vessel_name: ndaMasked ? 'NDA Vessel' : r.snapshot_vessel_name,
-        snapshot_vessel_imo: ndaMasked ? null : r.snapshot_vessel_imo,
-        snapshot_start_date: r.snapshot_start_date,
-        snapshot_end_date: r.snapshot_end_date,
-        nda_masked: ndaMasked,
-      };
-    });
-
-    // 5. Sea time totals (only when opted in)
-    let seaTime: { days: number; nautical_miles: number } | null = null;
-    if (profile.cv_include_sea_time === true) {
-      const days = experienceRows.reduce((sum, e) => sum + (e.sea_time_days ?? 0), 0);
-      const miles = experienceRows.reduce((sum, e) => sum + (e.sea_time_nautical_miles ?? 0), 0);
-      seaTime = { days, nautical_miles: miles };
-    }
-
-    // 6. Lookups: certifications + nationalities + entry_rights. These are
-    //    canonical reference data with simple ID arrays on the profile —
-    //    cheaper to batch-resolve here than to roundtrip per cert/nation.
+    // 4. Audit P1-P3: tier 3 — historical-name resolution depends on
+    //    experiences but is independent of the lookup queries, so kick
+    //    them all off in parallel.
     const certIds = (profile.certification_ids as string[] | null) ?? [];
     const natIds = (profile.nationality_ids as string[] | null) ?? [];
     const erIds = (profile.entry_right_ids as string[] | null) ?? [];
 
-    const [certsRes, natsRes, ersRes] = await Promise.all([
+    const [historicalNames, certsRes, natsRes, ersRes] = await Promise.all([
+      resolveHistoricalVesselNames(
+        serviceClient,
+        experienceRows
+          .filter((e) => e.vessel_id)
+          .map((e) => ({ vessel_id: e.vessel_id as string, start_date: e.start_date })),
+      ),
       certIds.length
         ? serviceClient
             .from('certifications')
@@ -310,7 +255,95 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
         : Promise.resolve({ data: [] }),
     ]);
 
-    // 7. Stale flag — true when the profile was meaningfully updated AFTER
+    // 5. Compute the per-experience render with NDA + admin-moderation
+    //    mask. Audit P1-P1: if a vessel is admin-hidden (`hidden_at` set)
+    //    or pending curation (`source = 'pending'`), mask it regardless
+    //    of the CV owner's `cv_show_full_vessel` toggle. Admin moderation
+    //    overrides the user-level opt-in.
+    const isVesselModerationMasked = (vessel: ExperienceRow['vessels'] | null): boolean => {
+      if (!vessel) return false;
+      // Loose null check to also catch undefined (older test fixtures + the
+      // case where source/hidden_at columns aren't selected by some other
+      // caller). Admin-hidden or pending-curation vessels are masked
+      // regardless of the CV owner's `cv_show_full_vessel` opt-in.
+      if (vessel.hidden_at != null) return true;
+      if (vessel.source === 'pending') return true;
+      return false;
+    };
+
+    const experiences = experienceRows.map((e) => {
+      const vessel = e.vessels;
+      const ndaToggleMasked = vessel?.nda_flag === true && e.cv_show_full_vessel !== true;
+      const moderationMasked = isVesselModerationMasked(vessel);
+      const masked = ndaToggleMasked || moderationMasked;
+      const historicalName = e.vessel_id
+        ? historicalNames.get(`${e.vessel_id}|${e.start_date}`)
+        : undefined;
+      const renderedName = masked
+        ? moderationMasked && !ndaToggleMasked
+          ? 'Vessel unavailable'
+          : 'NDA Vessel'
+        : (historicalName ?? vessel?.name ?? null);
+      const renderedImo = masked ? null : (vessel?.imo_number ?? null);
+      return {
+        id: e.id,
+        vessel_name: renderedName,
+        vessel_imo: renderedImo,
+        vessel_type: masked ? null : (vessel?.vessel_type ?? null),
+        nda_masked: masked,
+        role: e.yacht_roles
+          ? {
+              id: e.yacht_roles.id,
+              name: e.yacht_roles.name,
+              department: e.yacht_roles.department,
+            }
+          : null,
+        start_date: e.start_date,
+        end_date: e.end_date,
+        is_current: e.is_current,
+        vessel_operation: e.vessel_operation,
+        flag_state: masked ? null : e.flag_state,
+        contract_type: e.contract_type,
+        contract_details: e.contract_details,
+        description: e.description,
+      };
+    });
+
+    // 6. References inherit the bound experience's mask. If the
+    //    experience FK was nulled by EXPERIENCE.REMOVED, default-mask.
+    const experienceMaskById = new Map<string, { masked: boolean }>();
+    for (const e of experienceRows) {
+      const ndaToggleMasked = e.vessels?.nda_flag === true && e.cv_show_full_vessel !== true;
+      const moderationMasked = isVesselModerationMasked(e.vessels);
+      experienceMaskById.set(e.id, { masked: ndaToggleMasked || moderationMasked });
+    }
+
+    const references = referenceRows.map((r) => {
+      const expMask = r.experience_id ? experienceMaskById.get(r.experience_id) : undefined;
+      const masked = expMask ? expMask.masked : true;
+      return {
+        id: r.id,
+        claimed_referee_name: r.claimed_referee_name,
+        claimed_referee_role: r.claimed_referee_role,
+        comment: r.comment,
+        consented_at: r.consented_at,
+        snapshot_vessel_name: masked ? 'NDA Vessel' : r.snapshot_vessel_name,
+        snapshot_vessel_imo: masked ? null : r.snapshot_vessel_imo,
+        snapshot_start_date: r.snapshot_start_date,
+        snapshot_end_date: r.snapshot_end_date,
+        nda_masked: masked,
+      };
+    });
+
+    // 7. Sea time totals (only when opted in)
+    let seaTime: { days: number; nautical_miles: number } | null = null;
+    if (profile.cv_include_sea_time === true) {
+      const days = experienceRows.reduce((sum, e) => sum + (e.sea_time_days ?? 0), 0);
+      const miles = experienceRows.reduce((sum, e) => sum + (e.sea_time_nautical_miles ?? 0), 0);
+      seaTime = { days, nautical_miles: miles };
+    }
+
+    // 8. Stale flag — true when the profile was meaningfully updated AFTER
     //    the CV was generated. STALE_DAYS grace period prevents the banner
     //    from flashing for routine touches near the same instant.
     let stale = false;

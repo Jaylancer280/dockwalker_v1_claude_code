@@ -20,15 +20,24 @@ const VALID_CONTRACT_TYPES = [
  * GET /api/experiences
  * Returns the authenticated user's crew experiences with vessel + role data.
  * Salary + sea time fields returned to owner only (RLS-scoped, never exposed via view-only profile API).
+ *
+ * Query params:
+ *   `nda_only=true` — restricts the result to experiences whose vessel has
+ *     `nda_flag = true`, and skips the historical-name resolution + references
+ *     active-count + subscription-plan lookups (audit P1-P5). Used by the
+ *     CV settings page which only renders the NDA-flagged experiences and
+ *     doesn't need the rest. NDA names get masked anyway, so historical
+ *     resolution is wasted work for this caller.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
 
   try {
     const { user, supabase } = guard.value;
+    const ndaOnly = new URL(request.url).searchParams.get('nda_only') === 'true';
 
-    const { data: experiences, error } = await supabase
+    let query = supabase
       .from('crew_experiences')
       .select(
         `
@@ -38,12 +47,22 @@ export async function GET() {
         salary_amount, salary_currency, salary_period,
         cv_show_full_vessel,
         created_at, updated_at,
-        vessels(id, imo_number, name, vessel_type, size_band_id, loa_meters, nda_flag, source, hidden_at, vessel_size_bands(label)),
+        vessels!inner(id, imo_number, name, vessel_type, size_band_id, loa_meters, nda_flag, source, hidden_at, vessel_size_bands(label)),
         yacht_roles(id, name, department)
       `,
       )
       .eq('person_id', user.id)
       .order('start_date', { ascending: false });
+
+    if (ndaOnly) {
+      // Filter at SQL level via the embedded vessels join. `vessels!inner`
+      // (above) ensures rows without a vessel are excluded — necessary
+      // because the inner-join + .eq('vessels.nda_flag', true) filter pair
+      // is the only PostgREST way to filter by an embedded column.
+      query = query.eq('vessels.nda_flag', true);
+    }
+
+    const { data: experiences, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -56,6 +75,14 @@ export async function GET() {
         vessels: { name: string } | null;
       } & Record<string, unknown>
     >;
+
+    // Audit P1-P5: NDA-only callers skip historical-name resolution +
+    // references-active-count + subscription-plan lookup. NDA names get
+    // masked anyway and the settings page doesn't render the other fields.
+    if (ndaOnly) {
+      return NextResponse.json({ experiences: rows, subscription_plan: 'free' });
+    }
+
     const historicalMap = await resolveHistoricalVesselNames(
       supabase,
       rows
