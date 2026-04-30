@@ -57,6 +57,12 @@ function record(name: string, ok: boolean, detail?: string) {
 }
 
 async function main() {
+  // Audit P1-T2 (2026-04-30): D-2 deliberately fires events with random
+  // non-existent UUIDs to test the NULL guards in apply_projection. No
+  // projection rows are written (the handlers raise before INSERT/UPDATE).
+  // The events themselves DO get written to the events table — they are
+  // append-only and intentionally retained as audit data. There are no
+  // mutable rows to clean up, so no try/finally cleanup pattern needed.
   const { url, key } = loadEnv();
   const sb = createClient(url, key);
   console.log(`▶ D-2 null-safety stress test against ${url}\n`);

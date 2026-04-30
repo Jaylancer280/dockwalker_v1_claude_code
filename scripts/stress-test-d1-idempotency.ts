@@ -58,11 +58,26 @@ function record(name: string, ok: boolean, detail?: string) {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`);
 }
 
+/**
+ * Sentinel-based cleanup. Sweeps any leaked fixture rows from a prior
+ * crashed run before starting, AND in finally after a clean run.
+ * Safe to call repeatedly — uses LIKE on the fixture marker so no real
+ * user dayworks are ever touched.
+ */
+async function cleanupFixtures(sb: ReturnType<typeof createClient>): Promise<void> {
+  await sb.from('dayworks').delete().like('notes', '__d1_stress_fixture%');
+}
+
 async function main() {
   const { url, key } = loadEnv();
   const sb = createClient(url, key);
   console.log(`▶ D-1 idempotency stress test against ${url}\n`);
 
+  // Pre-run defensive cleanup — clears any leak from a prior crashed
+  // run so this run starts from a known-clean state.
+  await cleanupFixtures(sb);
+
+  try {
   // Pick fixtures: any person, any vessel, any role, any port.
   const { data: poster } = await sb
     .from('persons')
@@ -250,12 +265,15 @@ async function main() {
     `positions_filled=${dayworkAfter2?.positions_filled}`,
   );
 
-  console.log('\nCleanup: drop both fixture dayworks');
-  await sb.from('dayworks').delete().in('id', [dayworkId, dayworkId2]);
-
   const passed = results.filter((r) => r.ok).length;
   console.log(`\n${passed}/${results.length} checks passed`);
   if (passed !== results.length) process.exit(1);
+  } finally {
+    // Audit P1-T2 (2026-04-30): cleanup wrapped in try/finally so a
+    // mid-run crash doesn't leak fixtures into the live remote.
+    console.log('\nCleanup: drop fixture dayworks (sentinel sweep)');
+    await cleanupFixtures(sb);
+  }
 }
 
 main().catch((err) => {

@@ -45,10 +45,22 @@ function record(name: string, ok: boolean, detail?: string) {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`);
 }
 
+/**
+ * Audit P1-T2 (2026-04-30): sentinel-based cleanup. Sweeps any leaked
+ * fixture vessels from a prior crashed run.
+ */
+async function cleanupFixtures(sb: ReturnType<typeof createClient>): Promise<void> {
+  await sb.from('vessels').delete().like('name', '__stress_v2b_%');
+}
+
 async function main() {
   const { url, key } = loadEnv();
   const sb = createClient(url, key);
   console.log(`▶ Vessels V2 Wave B stress test against ${url}\n`);
+
+  await cleanupFixtures(sb);
+
+  try {
 
   // Find an owner + a size band + a flag state to use as fixtures.
   const { data: anyPerson } = await sb
@@ -328,6 +340,12 @@ async function main() {
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\n▶ ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
+  } finally {
+    // Audit P1-T2: defensive sentinel cleanup outside the by-id delete
+    // above, in case main() exited via process.exit before the by-id
+    // delete ran (or the by-id delete failed).
+    await cleanupFixtures(sb);
+  }
 }
 
 main().catch((err) => {

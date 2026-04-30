@@ -38,10 +38,24 @@ function record(name: string, ok: boolean, detail?: string) {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`);
 }
 
+/**
+ * Audit P1-T2 (2026-04-30): sentinel-based cleanup. Sweeps any leaked
+ * fixture vessels from a prior crashed run.
+ */
+async function cleanupFixtures(sb: ReturnType<typeof createClient>): Promise<void> {
+  await sb.from('vessels').delete().like('name', '__stress_curated%');
+  await sb.from('vessels').delete().like('name', '__stress_pending%');
+  await sb.from('vessels').delete().like('name', '__stress_hidden%');
+}
+
 async function main() {
   const { url, key } = loadEnv();
   const sb = createClient(url, key);
   console.log(`▶ Vessels V2 Wave F (RPC) stress test against ${url}\n`);
+
+  await cleanupFixtures(sb);
+
+  try {
 
   // Pick three sentinel IMOs that don't collide with seed data.
   const baseImo = 8000000 + Math.floor(Math.random() * 1000000);
@@ -146,12 +160,17 @@ async function main() {
     record('batch with only hidden vessel returns empty', (data ?? []).length === 0);
   }
 
-  // Cleanup.
+  // Cleanup (by id — exact match, faster than the sentinel sweep below).
   await sb.from('vessels').delete().in('id', [vCurated.id, vPending.id, vHidden.id]);
 
   const passed = results.filter((r) => r.ok).length;
   console.log(`\n${passed}/${results.length} checks passed`);
   if (passed !== results.length) process.exit(1);
+  } finally {
+    // Audit P1-T2: defensive sentinel sweep so a mid-run crash still
+    // leaves the live remote clean.
+    await cleanupFixtures(sb);
+  }
 }
 
 main().catch((err) => {

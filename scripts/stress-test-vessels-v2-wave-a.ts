@@ -46,11 +46,28 @@ function record(name: string, ok: boolean, detail?: string) {
 const SENTINEL_NAME = `__stress_vessel_${Date.now()}`;
 const SENTINEL_HIST = `__stress_history_${Date.now()}`;
 
+/**
+ * Audit P1-T2 (2026-04-30): sentinel-based cleanup of any rows this
+ * test created. Uses LIKE on the persistent prefix so a leak from a
+ * prior crashed run also gets swept.
+ */
+async function cleanupFixtures(sb: ReturnType<typeof createClient>): Promise<void> {
+  // History rows reference vessel_id (CASCADE on vessel delete); deleting
+  // vessels first cascades. But for safety on partial-state crashes,
+  // delete history first by name LIKE, then vessels by name LIKE.
+  await sb.from('vessel_names').delete().like('name', '__stress_history_%');
+  await sb.from('vessel_names').delete().like('name', '__stress_vessel_%');
+  await sb.from('vessels').delete().like('name', '__stress_vessel_%');
+}
+
 async function main() {
   const { url, key } = loadEnv();
   const sb = createClient(url, key);
   console.log(`▶ Vessels V2 Wave A stress test against ${url}\n`);
 
+  await cleanupFixtures(sb);
+
+  try {
   console.log('Schema (vessels new columns):');
   const newCols = [
     'gross_tonnage',
@@ -289,6 +306,12 @@ async function main() {
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\n▶ ${passed} passed, ${failed} failed`);
   if (failed > 0) process.exit(1);
+  } finally {
+    // Audit P1-T2: cleanup wrapped in try/finally so a mid-run crash
+    // doesn't leak fixtures into the live remote.
+    console.log('\nCleanup: drop fixture vessels (sentinel sweep)');
+    await cleanupFixtures(sb);
+  }
 }
 
 main().catch((err) => {
