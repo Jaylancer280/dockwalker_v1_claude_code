@@ -45,11 +45,15 @@
 - [x] **P1-P3 CV route parallelization** — experiences + references run in `Promise.all` tier 1; `resolveHistoricalVesselNames` + cert/nationality/entry_rights lookups run in tier 2. The lookups previously waited for experiences to finish, then for `resolveHistoricalVesselNames`, then ran in parallel — now they all start as soon as experiences arrive.
 - [x] **P1-P5 `/api/experiences?nda_only=true`** — filters at SQL level via `vessels!inner` + `.eq('vessels.nda_flag', true)`, skips historical-name resolution + references-active-count + subscription-plan lookup. CV settings page passes the param and drops the client-side filter.
 
-#### Phase E — Code-only P1 testing
+#### Phase E — Code-only P1 testing ✅
 
-- [ ] **P1-T1 add tests for 13 untested critical routes** (5 permanent state-machine + 3 cancellation + 5 documents — use existing mock patterns).
-- [ ] **P1-T2 stress-test cleanup helpers** in `stress-test-d1-idempotency.ts`, `d2-null-safety.ts`, `vessels-v2-wave-{a,b,f}-rpc.ts` (6 files) using sentinel-prefix delete + try/finally.
-- [ ] **P1-M3 no-rehire-leakage.test.ts** structural test asserting `would_rehire` and similar private fields never appear in any GET payload.
+- [x] **P1-T1 critical-route tests — 12 of 13 routes covered** across 3 new test files:
+  - `permanent-state-machine.test.ts` (27 cases) — shortlist / select / reject / revert / engagement close
+  - `engagement-cancellation.test.ts` (18 cases) — cancel-crew / cancel-employer / close-reference-contact
+  - `engagement-documents.test.ts` (17 cases) — list / finalize / download / delete (upload deferred)
+- [x] **P1-T2 stress-test cleanup helpers** added with try/finally + sentinel sweep to d1-idempotency, vessels-v2-wave-{a,b,f-rpc}. d2-null-safety documented with a no-fixtures-needed comment.
+- [x] **P1-M3 no-rehire-leakage.test.ts** structural scan over every API route.ts; allow-list with justification comments. 1513/1513 tests pass post-Phase-E (was 1448, +65 new cases).
+- [ ] **(deferred)** Upload route test — substantial mocking surface (FormData + MIME + magic-byte + Upstash rate limit), recommend a focused follow-up commit.
 
 #### Phase F — Code-only P1 documentation ✅
 
