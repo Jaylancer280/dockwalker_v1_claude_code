@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { MapPin, Briefcase, Award, Calendar, Users, Ship, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -91,11 +92,17 @@ export function PermanentJobCard({
   crewLangs,
   applying,
 }: PermanentJobCardProps) {
+  // crewCertIds arrives pre-expanded through the bundle map (see
+  // useDiscoverCrewProfile) — a holder of STCW 95 has the bundle id
+  // plus every component id in the array, so direct .has() coverage
+  // checks Just Work without per-render bundle expansion.
   const missingCerts = (() => {
     if (!crewCertIds || posting.required_certification_ids.length === 0) return [];
     const crewSet = new Set(crewCertIds);
     return posting.cert_names.filter((_, i) => !crewSet.has(posting.required_certification_ids[i]));
   })();
+  const [certsExpanded, setCertsExpanded] = useState(false);
+  const visibleCertCount = certsExpanded ? posting.cert_names.length : 3;
   const canApply = missingCerts.length === 0;
   const vesselPrefix =
     posting.vessel_type === 'sail' ? 'S/Y' : posting.vessel_type === 'motor' ? 'M/Y' : '';
@@ -194,7 +201,7 @@ export function PermanentJobCard({
             </Badge>
           )}
           {posting.experience_label && <Badge variant="outline">{posting.experience_label}</Badge>}
-          {posting.cert_names.slice(0, 3).map((name, i) => {
+          {posting.cert_names.slice(0, visibleCertCount).map((name, i) => {
             const certId = posting.required_certification_ids[i];
             const held = crewCertIds ? crewCertIds.includes(certId) : undefined;
             return (
@@ -215,9 +222,22 @@ export function PermanentJobCard({
             );
           })}
           {posting.cert_names.length > 3 && (
-            <Badge variant="outline" className="text-xs">
-              +{posting.cert_names.length - 3} more
-            </Badge>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCertsExpanded((prev) => !prev);
+              }}
+              className="inline-flex items-center rounded-full border border-muted-foreground/30 px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted-foreground/10"
+              aria-expanded={certsExpanded}
+              aria-label={
+                certsExpanded
+                  ? 'Show fewer certifications'
+                  : `Show ${posting.cert_names.length - 3} more certifications`
+              }
+            >
+              {certsExpanded ? 'Show less' : `+${posting.cert_names.length - 3} more`}
+            </button>
           )}
           {(posting.required_languages ?? []).slice(0, 2).map((code) => {
             const held = crewLangs ? crewLangs.includes(code) : undefined;

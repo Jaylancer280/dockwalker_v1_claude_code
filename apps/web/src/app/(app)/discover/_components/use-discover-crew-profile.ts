@@ -1,7 +1,9 @@
 'use client';
 
-import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { expandCertCoverage } from '@dockwalker/shared';
 import { safeFetch } from '@/lib/safe-fetch';
+import { useLookups } from '@/hooks/use-lookups';
 
 /**
  * Loads crew certs / languages (used by Browse cards for pill
@@ -13,9 +15,20 @@ import { safeFetch } from '@/lib/safe-fetch';
  * window/document APIs and uses startTransition for the initial
  * deferred fetch — keeping it as a hook lets the page mount the
  * provider above its own redirect short-circuit.
+ *
+ * Returns crewCertIds **expanded through the bundle map** — if the
+ * crew holds a bundle cert (e.g. STCW 95), the returned array also
+ * includes every component cert id the bundle covers. Cards can then
+ * check `crewCertIds.includes(requiredId)` directly without re-doing
+ * bundle expansion at every render site.
  */
 export function useDiscoverCrewProfile() {
-  const [crewCertIds, setCrewCertIds] = useState<string[] | null>(null);
+  const [crewCertIdsRaw, setCrewCertIdsRaw] = useState<string[] | null>(null);
+  const { bundleMap } = useLookups();
+  const crewCertIds = useMemo(() => {
+    if (crewCertIdsRaw === null) return null;
+    return Array.from(expandCertCoverage(crewCertIdsRaw, bundleMap));
+  }, [crewCertIdsRaw, bundleMap]);
   const [crewLangs, setCrewLangs] = useState<string[] | null>(null);
   const [redirecting, setRedirecting] = useState(false);
 
@@ -47,9 +60,9 @@ export function useDiscoverCrewProfile() {
       email?: string;
     }>('/api/profile');
     if (result.ok && result.data.profile?.certification_ids) {
-      setCrewCertIds(result.data.profile.certification_ids);
+      setCrewCertIdsRaw(result.data.profile.certification_ids);
     } else if (result.ok) {
-      setCrewCertIds([]);
+      setCrewCertIdsRaw([]);
     }
     if (result.ok) {
       setCrewLangs(result.data.profile?.languages ?? []);

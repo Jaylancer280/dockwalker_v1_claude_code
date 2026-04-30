@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
 import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide-react';
@@ -74,6 +74,8 @@ export function JobCard({
   crewLangs,
 }: JobCardProps) {
   const bgGradient = getDepartmentGradient(card.yacht_roles?.department, card.id);
+  const [certsExpanded, setCertsExpanded] = useState(false);
+  const visibleCertCount = certsExpanded ? (card.cert_names?.length ?? 0) : 3;
 
   return (
     <div
@@ -182,7 +184,7 @@ export function JobCard({
           {/* Cert pills */}
           {card.cert_names && card.cert_names.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1">
-              {card.cert_names.slice(0, 3).map((certName, idx) => {
+              {card.cert_names.slice(0, visibleCertCount).map((certName, idx) => {
                 const certId = card.required_certification_ids?.[idx];
                 const held = crewCertIds != null && certId != null && crewCertIds.includes(certId);
                 const missing =
@@ -203,9 +205,22 @@ export function JobCard({
                 );
               })}
               {card.cert_names.length > 3 && (
-                <span className="inline-flex items-center rounded-full border border-muted-foreground/30 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                  +{card.cert_names.length - 3} more
-                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCertsExpanded((prev) => !prev);
+                  }}
+                  className="inline-flex items-center rounded-full border border-muted-foreground/30 px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-muted-foreground/10"
+                  aria-expanded={certsExpanded}
+                  aria-label={
+                    certsExpanded
+                      ? 'Show fewer certifications'
+                      : `Show ${card.cert_names.length - 3} more certifications`
+                  }
+                >
+                  {certsExpanded ? 'Show less' : `+${card.cert_names.length - 3} more`}
+                </button>
               )}
             </div>
           )}

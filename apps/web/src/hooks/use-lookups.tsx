@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { LANGUAGES } from '@dockwalker/shared';
+import { LANGUAGES, type BundleMap } from '@dockwalker/shared';
 
 export interface RoleLookup {
   id: string;
@@ -51,6 +51,11 @@ export interface LookupsData {
   nationalities: NationalityLookup[];
   entryRights: EntryRightLookup[];
   languages: { code: string; label: string }[];
+  /** Map from bundle cert id → array of component cert ids it covers
+   *  (per migration 00115's `certification_components` table). Used by
+   *  discover cards to colour cert pills as "covered" when the crew
+   *  holds a bundle that includes the required component. */
+  bundleMap: BundleMap;
   loading: boolean;
 }
 
@@ -64,6 +69,7 @@ const defaultLookups: LookupsData = {
   nationalities: [],
   entryRights: [],
   languages: LANGUAGES_LIST,
+  bundleMap: {},
   loading: true,
 };
 
@@ -71,7 +77,8 @@ const LookupsContext = createContext<LookupsData>(defaultLookups);
 
 // Bump cache version when the lookup shape changes so stale clients drop the
 // old payload cleanly. v3 renames visaTypes → entryRights (category-aware).
-const CACHE_KEY = 'dw-lookups-v4';
+// v5 adds bundleMap (cert bundle expansion for discover cards).
+const CACHE_KEY = 'dw-lookups-v5';
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CachedLookups {
@@ -82,6 +89,7 @@ interface CachedLookups {
   sizeBands: SizeBandLookup[];
   nationalities: NationalityLookup[];
   entryRights: EntryRightLookup[];
+  bundleMap: BundleMap;
 }
 
 function readCache(): (CachedLookups & { stale?: boolean }) | null {
@@ -114,6 +122,7 @@ function buildLookupsData(
   sizeBands: SizeBandLookup[],
   nationalities: NationalityLookup[],
   entryRights: EntryRightLookup[],
+  bundleMap: BundleMap,
 ): LookupsData {
   return {
     roles,
@@ -123,8 +132,19 @@ function buildLookupsData(
     nationalities,
     entryRights,
     languages: LANGUAGES_LIST,
+    bundleMap,
     loading: false,
   };
+}
+
+/** Build a {bundle_id → component_id[]} map from junction-table rows. */
+function buildBundleMap(rows: { bundle_cert_id: string; component_cert_id: string }[]): BundleMap {
+  const map: BundleMap = {};
+  for (const r of rows) {
+    if (!map[r.bundle_cert_id]) map[r.bundle_cert_id] = [];
+    map[r.bundle_cert_id].push(r.component_cert_id);
+  }
+  return map;
 }
 
 export function LookupsProvider({ children }: { children: ReactNode }) {
@@ -139,6 +159,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         cached.sizeBands,
         cached.nationalities,
         cached.entryRights,
+        cached.bundleMap ?? {},
       );
     }
     return defaultLookups;
@@ -157,26 +178,28 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
 
   const load = useCallback(async () => {
     const supabase = createClient();
-    const [rolesRes, certsRes, bracketsRes, bandsRes, natRes, entryRightsRes] = await Promise.all([
-      supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
-      supabase
-        .from('certifications')
-        .select('id, name, category, subcategory, sort_order')
-        .order('category')
-        .order('subcategory')
-        .order('sort_order'),
-      supabase.from('experience_brackets').select('id, label').order('min_months'),
-      supabase
-        .from('vessel_size_bands')
-        .select('id, label, min_meters, max_meters')
-        .order('min_meters'),
-      supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
-      supabase
-        .from('entry_rights')
-        .select('id, name, category, sort_order')
-        .order('category')
-        .order('sort_order'),
-    ]);
+    const [rolesRes, certsRes, bracketsRes, bandsRes, natRes, entryRightsRes, componentsRes] =
+      await Promise.all([
+        supabase.from('yacht_roles').select('id, name, department').order('sort_order'),
+        supabase
+          .from('certifications')
+          .select('id, name, category, subcategory, sort_order')
+          .order('category')
+          .order('subcategory')
+          .order('sort_order'),
+        supabase.from('experience_brackets').select('id, label').order('min_months'),
+        supabase
+          .from('vessel_size_bands')
+          .select('id, label, min_meters, max_meters')
+          .order('min_meters'),
+        supabase.from('nationalities').select('id, name, flag_emoji').order('sort_order'),
+        supabase
+          .from('entry_rights')
+          .select('id, name, category, sort_order')
+          .order('category')
+          .order('sort_order'),
+        supabase.from('certification_components').select('bundle_cert_id, component_cert_id'),
+      ]);
 
     const roles = (rolesRes.data ?? []) as RoleLookup[];
     const certifications = (certsRes.data ?? []) as CertLookup[];
@@ -184,6 +207,9 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
     const sizeBands = (bandsRes.data ?? []) as SizeBandLookup[];
     const nationalities = (natRes.data ?? []) as NationalityLookup[];
     const entryRights = (entryRightsRes.data ?? []) as EntryRightLookup[];
+    const bundleMap = buildBundleMap(
+      (componentsRes.data ?? []) as { bundle_cert_id: string; component_cert_id: string }[],
+    );
 
     setData(
       buildLookupsData(
@@ -193,6 +219,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         sizeBands,
         nationalities,
         entryRights,
+        bundleMap,
       ),
     );
     setFetchedAt(Date.now());
@@ -203,6 +230,7 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
       sizeBands,
       nationalities,
       entryRights,
+      bundleMap,
     });
   }, []);
 
@@ -231,34 +259,45 @@ export function LookupsProvider({ children }: { children: ReactNode }) {
         .select('id, name, category, sort_order')
         .order('category')
         .order('sort_order'),
-    ]).then(([rolesRes, certsRes, bracketsRes, bandsRes, natRes, entryRightsRes]) => {
-      if (cancelled) return;
-      const roles = (rolesRes.data ?? []) as RoleLookup[];
-      const certifications = (certsRes.data ?? []) as CertLookup[];
-      const experienceBrackets = (bracketsRes.data ?? []) as ExperienceBracketLookup[];
-      const sizeBands = (bandsRes.data ?? []) as SizeBandLookup[];
-      const nationalities = (natRes.data ?? []) as NationalityLookup[];
-      const entryRights = (entryRightsRes.data ?? []) as EntryRightLookup[];
-      setData(
-        buildLookupsData(
+      supabase.from('certification_components').select('bundle_cert_id, component_cert_id'),
+    ]).then(
+      ([rolesRes, certsRes, bracketsRes, bandsRes, natRes, entryRightsRes, componentsRes]) => {
+        if (cancelled) return;
+        const roles = (rolesRes.data ?? []) as RoleLookup[];
+        const certifications = (certsRes.data ?? []) as CertLookup[];
+        const experienceBrackets = (bracketsRes.data ?? []) as ExperienceBracketLookup[];
+        const sizeBands = (bandsRes.data ?? []) as SizeBandLookup[];
+        const nationalities = (natRes.data ?? []) as NationalityLookup[];
+        const entryRights = (entryRightsRes.data ?? []) as EntryRightLookup[];
+        const bundleMap = buildBundleMap(
+          (componentsRes.data ?? []) as {
+            bundle_cert_id: string;
+            component_cert_id: string;
+          }[],
+        );
+        setData(
+          buildLookupsData(
+            roles,
+            certifications,
+            experienceBrackets,
+            sizeBands,
+            nationalities,
+            entryRights,
+            bundleMap,
+          ),
+        );
+        setFetchedAt(Date.now());
+        writeCache({
           roles,
           certifications,
           experienceBrackets,
           sizeBands,
           nationalities,
           entryRights,
-        ),
-      );
-      setFetchedAt(Date.now());
-      writeCache({
-        roles,
-        certifications,
-        experienceBrackets,
-        sizeBands,
-        nationalities,
-        entryRights,
-      });
-    });
+          bundleMap,
+        });
+      },
+    );
     return () => {
       cancelled = true;
     };
