@@ -63,14 +63,8 @@
 
 - [x] **P0-1 inline `apply_projection` body** into 8 rollbacks: 00121, 00122, 00123, 00126, 00128, 00129, 00130, 00131. Each prior version's CREATE OR REPLACE block extracted from the corresponding forward migration via `awk` and prepended to the rollback (replacing the NOTICE-only stub). 00122 restores `get_vessel_public` + `get_vessels_public_batch` to 00083 form (RPC, not apply_projection). All 8 files: `$$` count=2 (or 4 for 00122), handler progression sane (no CV/PERMANENT/REFERENCE handler leakage to pre-feature versions).
 - [x] **P0-2 patch `tests/verify_rollback_cycle.sh`** — smoke check fires CV.GENERATED + PERSON.HAT_CHANGED via direct `apply_projection` call after each rollback. CV.GENERATED catches the audit's specific "function references dropped CV columns" bug; PERSON.HAT_CHANGED is a universal dispatchability sanity check. Both use a non-existent person id so UPDATE WHERE matches 0 rows — no constraint violations.
-- [ ] **Migration 00132 — combined fixes** (single migration with self-contained rollback inlining the new `apply_projection` body):
-  - PERMANENT.INVITED state guard (P1-D1)
-  - PERMANENT.SHORTLISTED tightened to `status='applied'` (P1-D3)
-  - permanent_invitations FK to permanent_postings → `on delete restrict` (P1-D4)
-  - NDA reveal employer side + completed/closed status (P1-M1, P1-M2) — 4 branches × 2 functions (`get_vessel_public`, `get_vessels_public_batch`)
-  - Index on `persons(deactivated_at) where not null` (P1-P4)
+- [x] **Migration 00132 — combined fixes** built; pushed to main; CI deploy-migrations job auto-applies to live remote. Includes: PERMANENT.INVITED state guard (P1-D1), PERMANENT.SHORTLISTED tightened to `status='applied'` only (P1-D3), permanent_invitations FK changed to `on delete restrict` (P1-D4), NDA reveal RPCs widened to employer-side IMO + ('active','completed','closed') status filter (P1-M1, P1-M2), partial index on persons(deactivated_at) (P1-P4). Self-contained rollback restores 00131's apply_projection body + 00122's RPC bodies + cascade FK + drops the index.
 - [ ] **Migration 00133 — admin_action_log table** (P1-S6) with 3 indexes + RLS service-role only.
-- [ ] **`npx supabase db push`** after user approval. Verify `apply_projection` handler count 85 → 86 (or as expected post-edits).
 
 #### Phase H — User external action (handed off, not done by me)
 
