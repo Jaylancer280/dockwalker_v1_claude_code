@@ -74,11 +74,11 @@
 - [ ] **P1-I5 Stripe webhook URL verification.** `curl -I https://dockwalker.io/api/webhooks/stripe` should not return 307. Confirm both test + live mode webhooks point at `www.`.
 - [ ] **P1-Doc7 MEMORY.md** decision: create `tasks/launch-readiness.md` or remove the MEMORY reference. (User-owned memory.)
 
-#### Phase I — CI infrastructure (mostly code, some user)
+#### Phase I — CI infrastructure (mostly code, some user) ✅
 
-- [ ] **P1-I1 `tasks/runbook.md`** — emergency rollback playbook + Stripe outage + Sentry triage + key rotation checklist + DB recovery RTO/RPO.
-- [ ] **P1-I2 Playwright in CI.** Edit `.github/workflows/ci.yml` to add `playwright` job. (User: confirm test Supabase project exists or skip browser DB-dependent specs.) Block enabling as required check until baseline refresh run produces clean artifact.
-- [ ] **P1-I7 (P2) CI parity** with pre-commit — add job mirroring husky checks.
+- [x] **P1-I1 `tasks/runbook.md`** — written. Sections: emergency database rollback (with detection signals, decision criteria, commands, verification, last-resort rollback-of-rollback), Stripe webhook outage (apex 307 + Workbench mode mismatch — both prior incidents), Sentry alert spike triage decision tree, per-key rotation checklist (Supabase service-role + Anthropic + OpenAI + Stripe + Telegram + NOTIFICATION_ENCRYPTION_KEY), DB backups + RTO/RPO (Supabase Pro PITR ~2 min RPO / 30-60 min RTO + restore-to-new-project pattern), Vercel deploy rollback, post-incident template.
+- [x] **P1-I2 Playwright in CI** — new `playwright` job in `.github/workflows/ci.yml`. Starts local Supabase, applies migrations + seed, builds Next.js, starts it, waits on `/api/health`, runs `npx playwright test --retries=1`. Uploads HTML report + test-results on failure (14-day retention). `continue-on-error: true` while the visual baselines are stale (last full registry run was 5 weeks + 11 schema versions ago); flip to required once a clean baseline run lands and registry is refreshed.
+- [x] **P1-I7 (P2) CI parity** — new `pre-commit-parity` job runs whole-tree equivalents of the staged-only husky checks (console.log scan, TODO scan, merge-conflict-marker scan, aggregate_type check). Wired into `deploy-migrations` `needs:` so a force-push or admin bypass can't skip them server-side.
 
 #### Phase J — P2 cleanup batch (deferred to launch-week)
 

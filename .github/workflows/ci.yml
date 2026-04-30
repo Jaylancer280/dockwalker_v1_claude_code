@@ -38,6 +38,62 @@ jobs:
       - name: Check schema version matches migration count
         run: bash .husky/check-schema-version.sh
 
+  pre-commit-parity:
+    # Audit P2-4: pre-commit hooks fire on `git commit`, but a force-push
+    # or admin bypass skips them. This job runs the whole-tree
+    # equivalents of the husky-only checks so direct pushes can't bypass.
+    name: Pre-commit Parity Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No console.log in production source
+        run: |
+          MATCHES=$(grep -rn 'console\.log' apps/web/src \
+            --include='*.ts' --include='*.tsx' \
+            --exclude-dir=__tests__ \
+            | grep -v '\.test\.' \
+            | grep -v 'e2e/' || true)
+          if [ -n "$MATCHES" ]; then
+            echo "ERROR: console.log found in production source files:"
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "No console.log in production source."
+
+      - name: No TODO comments in production source
+        run: |
+          # Match `// TODO`, `/* TODO`, but NOT phrases like "TODO list"
+          # in markdown or string literals.
+          MATCHES=$(grep -rnE '(^|[^A-Za-z0-9])(// ?TODO|/\* ?TODO)' apps/web/src \
+            --include='*.ts' --include='*.tsx' \
+            --exclude-dir=__tests__ \
+            | grep -v '\.test\.' \
+            | grep -v 'e2e/' || true)
+          if [ -n "$MATCHES" ]; then
+            echo "ERROR: TODO comments found in production source files:"
+            echo "$MATCHES"
+            echo ""
+            echo "Use 'Deferred:' prefix instead, or add to Deferred Decisions in BUILD_STATE.md."
+            exit 1
+          fi
+          echo "No TODO comments in production source."
+
+      - name: No merge conflict markers
+        run: |
+          MATCHES=$(grep -rnE '^<{7}|^={7}|^>{7}' apps/web/src packages \
+            --include='*.ts' --include='*.tsx' --include='*.md' --include='*.sql' \
+            2>/dev/null || true)
+          if [ -n "$MATCHES" ]; then
+            echo "ERROR: Merge conflict markers found:"
+            echo "$MATCHES"
+            exit 1
+          fi
+          echo "No merge conflict markers."
+
+      - name: Aggregate type CHECK constraint covers all code values
+        run: bash scripts/check-aggregate-types.sh
+
   test:
     name: Tests
     runs-on: ubuntu-latest
@@ -100,10 +156,101 @@ jobs:
         if: always()
         run: supabase stop
 
+  playwright:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Audit P1-I2 (T-1): Playwright job runs on every push but currently
+    # does NOT block deploy-migrations. The baseline screenshots + spec
+    # auth flows haven't been refreshed since the testing-agent's last
+    # full run on 2026-03-27 (schema v122; we're now at v133), so
+    # initial runs will surface stale snapshots, not real regressions.
+    # Once a clean baseline run lands and the registry is current, flip
+    # `continue-on-error` off and add `playwright` to deploy-migrations
+    # `needs:`.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase
+        run: supabase start -x realtime,storage,imgproxy,edge-runtime,logflare,vector,pgbouncer
+
+      - name: Apply migrations + seed (db reset)
+        run: supabase db reset
+
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Next.js app
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          # Local Supabase ships with these well-known dev defaults — safe to hardcode.
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: npm run build
+
+      - name: Start Next.js + run Playwright
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: |
+          npm start &
+          NEXT_PID=$!
+          for i in {1..30}; do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "Next.js up after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          npx playwright test --retries=1
+          STATUS=$?
+          kill $NEXT_PID 2>/dev/null || true
+          exit $STATUS
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 14
+
+      - name: Upload Playwright snapshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: apps/web/test-results/
+          retention-days: 14
+
+      - name: Stop Supabase
+        if: always()
+        run: supabase stop
+
   deploy-migrations:
     name: Deploy Migrations to Production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [quality, docs, test, database]
+    # `playwright` is intentionally NOT a blocker — it runs with
+    # continue-on-error until the registry is refreshed (see job comment).
+    needs: [quality, docs, pre-commit-parity, test, database]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
