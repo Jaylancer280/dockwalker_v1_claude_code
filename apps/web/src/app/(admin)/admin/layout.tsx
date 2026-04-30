@@ -1,4 +1,4 @@
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AdminSidebar } from '@/components/admin/admin-sidebar';
 import { ToastWrapper } from '@/components/toast-wrapper';
@@ -11,9 +11,25 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) redirect('/auth/login');
 
-  const { data } = await supabase.from('persons').select('is_admin').eq('id', user.id).single();
+  // Audit P1-F4: distinguish "not admin" (notFound — clean Forbidden UX
+  // via the dedicated 404 page) from "RLS / network / DB error" (throw
+  // so the (admin)/admin/error.tsx boundary catches and shows a real
+  // error). Previously both paths silently redirected to '/', which
+  // bounced non-admins without explanation and masked transient
+  // failures as "you're not admin".
+  const { data, error } = await supabase
+    .from('persons')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single();
 
-  if (!data?.is_admin) redirect('/');
+  if (error) {
+    throw new Error(`Could not verify admin status: ${error.message}`);
+  }
+
+  if (!data?.is_admin) {
+    notFound();
+  }
 
   return (
     <ToastWrapper>

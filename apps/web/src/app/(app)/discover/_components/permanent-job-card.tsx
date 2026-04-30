@@ -41,7 +41,12 @@ export interface PermanentPosting {
   description: string | null;
   meals: string[];
   positions_available: number;
-  positions_filled: number;
+  // positions_filled DELIBERATELY NOT TYPED on the crew-facing card.
+  // Mission §12 prohibits surfacing fill counts to crew (creates
+  // competitive anxiety — "candidates ahead of you" pattern). Audit
+  // P1-F1 caught this stale field that tempted future renders. The
+  // employer-facing /api/permanent/mine API returns it; this card
+  // never should.
   poster_name: string | null;
   poster_is_agent: boolean;
   poster_person_id: string | null;

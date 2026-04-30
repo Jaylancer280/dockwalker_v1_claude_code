@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import {
   Anchor,
   ArrowRightLeft,
@@ -184,29 +184,25 @@ function ComingSoon() {
   );
 }
 
-function NotFound() {
-  return (
-    <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="page-width-narrow flex max-w-md flex-col items-center gap-4 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-8 text-center">
-        <h1 className="text-xl font-semibold">CV not found</h1>
-        <p className="text-sm text-muted-foreground">
-          The link may be broken, or this CV has been regenerated. Ask the crew member for an
-          updated link.
-        </p>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/">Back to DockWalker</Link>
-        </Button>
-      </div>
-    </main>
-  );
-}
+// 8-char alphanumeric handle (matches /api/cv/[handle] route validation
+// and the partial unique index defined in migration 00131).
+const HANDLE_REGEX = /^[A-Za-z0-9]{8}$/;
 
 export default function CvLandingPage() {
   const params = useParams<{ handle: string }>();
   const handle = params.handle;
 
+  // Audit P1-F5: malformed handle short-circuits to the dedicated
+  // not-found.tsx before any flag check, fetch, or Coming-Soon render.
+  // Lockdown still wins for valid-format handles via the
+  // CV_BUILDER_ENABLED check below; this only catches obviously-bogus
+  // URLs like /cv/abc or /cv/not-a-handle so they return a real 404.
+  if (!HANDLE_REGEX.test(handle ?? '')) {
+    notFound();
+  }
+
   const [data, setData] = useState<Response | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const [isNotFound, setIsNotFound] = useState(false);
   // Start non-loading when the feature is locked — the useEffect bails
   // out without fetching, and the render path returns the Coming-Soon
   // screen above the loading guard. Avoids the
@@ -247,7 +243,7 @@ export default function CvLandingPage() {
       const res = await safeFetch<Response>(`/api/cv/${handle}`);
       if (!res.ok) {
         if (res.status === 404) {
-          setNotFound(true);
+          setIsNotFound(true);
         }
         setLoading(false);
         return;
@@ -274,8 +270,12 @@ export default function CvLandingPage() {
     );
   }
 
-  if (notFound) return <NotFound />;
-  if (!data) return <NotFound />;
+  // Audit P1-F3: route to the dedicated not-found.tsx so Next.js returns
+  // a real 404 status to crawlers (search engines, link previews) instead
+  // of a soft 200 with the in-component NotFound. Tombstone stays as an
+  // in-page render — it's a 200 with structured data per spec §5 B-5.
+  if (isNotFound) notFound();
+  if (!data) notFound();
   if (data.tombstone) return <Tombstone />;
 
   const cv = data;

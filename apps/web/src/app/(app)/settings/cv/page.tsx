@@ -203,7 +203,15 @@ export default function CvBuilderSettingsPage() {
           <Button variant="ghost" size="sm" onClick={() => router.push('/settings')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-[24px] font-bold tracking-[-0.5px]">CV Builder</h1>
+          <h1 className="flex items-center gap-2 text-[24px] font-bold tracking-[-0.5px]">
+            CV Builder
+            {!CV_BUILDER_ENABLED && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-900">
+                <Lock className="h-3 w-3" aria-hidden />
+                Coming Soon
+              </span>
+            )}
+          </h1>
         </div>
       </header>
 

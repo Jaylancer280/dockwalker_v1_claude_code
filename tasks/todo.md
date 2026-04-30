@@ -29,14 +29,14 @@
 - [x] **P1-I4 rate-limit fail-open** — structured `console.error` + Sentry `captureMessage` on first miss, gated on `_redisDownWarned` so it logs once per process. Added `isRateLimitingActive()` export. `/api/health` extended to surface `rate_limiting` + `sentry` booleans for external uptime monitors.
 - [ ] **P1-I6 console → Sentry** — deferred until P0-6 ships the DSN (Sentry won't capture without it; right now it's a no-op).
 
-#### Phase C — Code-only P1 frontend + UX
+#### Phase C — Code-only P1 frontend + UX ✅
 
-- [ ] **P1-F1 strip `positions_filled`** from `PermanentJobCard` interface + `/api/permanent/discover` + `/api/permanent/mine` responses.
-- [ ] **P1-F2 four error.tsx boundaries:** `(admin)/error.tsx`, `(app)/messages/[engagementId]/error.tsx`, `(app)/permanent/[id]/apply/error.tsx`, `cv/[handle]/error.tsx`.
-- [ ] **P1-F3 cv/[handle]/not-found.tsx** + replace in-component NotFound with `notFound()`.
-- [ ] **P1-F4 admin layout** error handling — replace silent redirect with `notFound()` for non-admins, throw on RLS error.
-- [ ] **P1-F5 cv/[handle]** handle-regex check via `notFound()` before render.
-- [ ] **P1-F6 Settings → CV Builder** Lock pill on H1.
+- [x] **P1-F1 `positions_filled` removed from PermanentJobCard interface** with a deliberate comment marking why (mission §12 violation if surfaced to crew). `/api/permanent/discover` already doesn't return it; `/api/permanent/mine` correctly keeps it (employer view).
+- [x] **P1-F2 four error.tsx boundaries** created at `(admin)/admin/error.tsx`, `(app)/messages/[engagementId]/error.tsx`, `(app)/permanent/[id]/apply/error.tsx`, `cv/[handle]/error.tsx`. All use the existing pattern (Sentry capture + reset button + scoped fallback link) with `area:` Sentry tags for filterable error breakdowns.
+- [x] **P1-F3 `cv/[handle]/not-found.tsx`** created. Page now calls Next's `notFound()` instead of rendering a local NotFound component — proper 404 status to crawlers + link previewers. Local NotFound function deleted.
+- [x] **P1-F4 admin layout error handling** — `(admin)/admin/layout.tsx` now distinguishes "not admin" (`notFound()` → 404 page) from "DB/RLS error" (throw → admin error.tsx). Previously both silently redirected to `/`.
+- [x] **P1-F5 cv/[handle]** handle regex check at top of page component — invalid handles short-circuit to `notFound()` before any flag check, fetch, or Coming-Soon render.
+- [x] **P1-F6 Settings → CV Builder Lock pill** added next to the H1 (amber pill with Lock icon, only renders when `CV_BUILDER_ENABLED=false`). Visual cue matches the locked-state vocabulary.
 
 #### Phase D — Code-only P1 performance
 
