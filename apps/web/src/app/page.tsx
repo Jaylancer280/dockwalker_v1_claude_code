@@ -31,7 +31,7 @@ export default function LandingPage() {
             </p>
             <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-[var(--muted-foreground)] md:max-w-md md:text-[16px]">
               Swipe through live daywork postings. Apply for permanent roles. Connect directly with
-              vessels — no hidden ranking, no pay-to-rank.
+              vessels — every job is publicly applyable, sorted by recency.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center md:justify-start">
               <Button asChild size="lg" className="rounded-full px-8">
@@ -141,11 +141,11 @@ export default function LandingPage() {
             </div>
             <div>
               <h2 className="text-[15px] font-semibold text-foreground">
-                Smart features, fair visibility
+                Smart features, structured hiring
               </h2>
               <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-                AI career advisor, crew invitations, and pre-arrival checklists — with no hidden
-                algorithms or pay-to-rank.
+                AI career advisor, crew invitations, and pre-arrival checklists. Free crew can apply
+                to any posted job.
               </p>
             </div>
           </div>

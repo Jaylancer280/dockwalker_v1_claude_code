@@ -5,181 +5,90 @@
 
 ## Current Task
 
-### CV Builder v1
+### Pre-launch audit fixes (2026-04-30)
 
-> Spec: [`tasks/cv-builder-spec.md`](./cv-builder-spec.md) (v2.1). Sign-off received 2026-04-28 on tier model, QR-landing UX, hire-from-QR primitives, lockdown approach, and 11 stress-test calls. Staged rollout decision 2026-04-29: PDF rendering deferred to Stage 2 to decouple from design iteration; rest of the wiring ships in Stage 1 with locked entry points (WhatsApp Coming-Soon pattern). v2.1 (2026-04-29) closed six gap-fill items (daywork idempotency UNIQUE constraint, permanent invitation lifecycle with applications.invited_from_id backlink, `not_looking` warning, apply-after-invite UX, mint-on-conflict retry, expired-status daily cron) and three deferred items (agent CVs out of scope, notification copy as content-pass, existing-posting invite as v2).
->
-> Schema v130 → v131. Stage 1 scope: ~5–6 focused sessions across Phases 1–7. Stage 2 (Phase 8): PDF render + lockdown + unlock, sized when PDF design is ready.
+> Source: `tasks/pre-launch-audit-2026-04-30` (chat-only synthesis from 8 parallel agent reports). All findings have file:line refs in the audit chat output. P2 items deferred to launch-week polish; this task tracks P0 + P1.
 
-**Pre-flight checks (every session):**
+**Done condition:** all P0 closed, all P1 code-only items closed, P1 migrations pushed and verified, user-action items handed off with documented checklists.
 
-- Read CLAUDE.md invariants: append-only ledger, IMO truth anchor, RLS on every table, migrations reversible, TS strict.
-- Confirm spec section being implemented — not drift.
-- Re-check `MEMORY.md` for project patterns (no Docker, `npx supabase db push` only).
+#### Phase A — Code-only P0 (no migrations, no external action) ✅
 
----
+- [x] **P0-4 voice-calling rip-out.** 6 source files + 2 test files deleted; `(app)/layout.tsx` and `messages/[engagementId]/page.tsx` unwired; `chat-header.tsx` comment updated. 1447/1447 tests pass post-rip (down from 1456 — matches 9 specs in deleted test files).
+- [x] **P0-5 marketing copy reconciliation.** `pay-to-rank` + `fair visibility` removed across landing page (2 places), login page trust pill, availability-overlay upsell, billing-page Crew Pro feature label. Added equal-baseline-access paragraph to `terms/page.tsx` §1.
+- [x] **P1-S3 `/api/cv/generate` flag check.** `CV_BUILDER_ENABLED` guard added at top of handler. `cv-generate.test.ts` updated to mock flag = true; `cv-routes-locked.test.ts` extended with locked-state assertion. 1448/1448 tests pass.
 
-#### Phase 1 — Schema + flags + permanent_invitations
+#### Phase B — Code-only P1 security + reliability
 
-- [x] Migration `00131_cv_builder_v1.sql` — applied to live remote 2026-04-29:
-  - [x] `profiles` add: `cv_handle text unique`, `cv_handle_updated_at timestamptz`, `cv_include_sea_time boolean not null default false`, `cv_generated_at timestamptz`
-  - [x] Partial index `idx_profiles_cv_handle on profiles(cv_handle) where cv_handle is not null`
-  - [x] `crew_experiences` add: `cv_show_full_vessel boolean not null default true`
-  - [x] `references` add: `include_on_cv boolean not null default false`
-  - [x] **(v2.1)** `daywork_invitations` UNIQUE — already exists from 00030 (`daywork_invitations_unique_crew_daywork`), no-op confirmed
-  - [x] **(v2.1)** `applications` add: `invited_from_id uuid references public.permanent_invitations(id) on delete set null` + partial index `idx_applications_invited_from(invited_from_id) where invited_from_id is not null`
-  - [x] New table `permanent_invitations` (id, permanent_posting_id FK, crew_person_id FK, status CHECK including `'expired'`, invited_by_person_id FK ON DELETE SET NULL, message ≤500, created_at, responded_at, UNIQUE(posting, crew))
-  - [x] Indexes: `idx_permanent_invitations_crew(crew_person_id, status)`, `idx_permanent_invitations_posting(permanent_posting_id)`, `idx_permanent_invitations_pending_expiry(created_at) where status='pending'`
-  - [x] Enable RLS + policy: invited_by OR crew OR posting employer can SELECT (note: permanent_postings has no `agent_person_id` column — agents post via `employer_person_id`, so policy uses that single check)
-  - [x] Drop+recreate `events_aggregate_type_check` to add `'permanent_invitation'`
-  - [x] `apply_projection` handlers: `PERMANENT.INVITED`, `CV.GENERATED` (lazy-mint cv_handle from payload via coalesce on OLD), `CV.HANDLE_REGENERATED`. CV handlers deliberately don't bump `profiles.updated_at` (preserves staleness signal for spec §11)
-  - [x] **(v2.1)** Extended existing `PERMANENT.APPLIED` handler: optional `invited_from_id` branch with race-guarded `AND status='pending'` flip
-- [x] Rollback `00131_*.down.sql` — schema fully reversed (drops invited_from_id + index, permanent_invitations CASCADE, references/crew_experiences/profiles columns + index, restores prior aggregate_type CHECK); apply_projection NOTICE points at re-applying 00130
-- [x] **(v2.1)** `apps/web/src/lib/cv/mint-handle.ts` helper + 8 unit tests
-- [x] Lessons-mandated apply_projection replacement protocol verified — `$$` count = 2, file ends `end case; end; $$;`, handler count 82 → 85
-- [x] Run typecheck + tests — 1362 tests pass (+8 new mint-handle), web lint 0 errors, aggregate_type audit pass
-- [x] Apply to remote: `npx supabase db push` — applied successfully (one fix-and-retry: removed reference to nonexistent `permanent_postings.agent_person_id` column)
-- [x] Stress test `scripts/stress-test-cv-builder-phase1.ts` — 19/19 pass against live remote (schema columns exist, CV.GENERATED back-fills handle on first call + preserves on second, CV.HANDLE_REGENERATED rotates correctly). PERMANENT.INVITED + PERMANENT.APPLIED invited_from_id branch deferred to Phase 5 stress test (route exists then; full posting fixture too heavy for Phase 1)
+- [ ] **P1-S1 CSRF / origin allowlist** in `proxy.ts` for non-GET methods, exempt `/api/webhooks/*`.
+- [ ] **P1-S2 try/catch on 8 routes:** `auth/login`, `notifications`, `admin/reports`, `admin/support/[threadId]/close`, `admin/engagements/[id]/cancel`, `admin/postings/[id]/hide`, `vessels/lookup`, `health`.
+- [ ] **P1-S4 Telegram webhook timingSafeEqual** in `lib/telegram.ts:21`.
+- [ ] **P1-S5 `/api/auth/reactivate`** rate limit + uniform response shape.
+- [ ] **P1-S7 `vessels/lookup`** partial-prefix gating to authenticated post-onboarding users + per-route rate limit.
+- [ ] **P1-D2 `PERMANENT.INVITED`** idempotency key in `api/permanent/[id]/invite/route.ts`.
+- [ ] **P1-I3 `.env.example`** add 7 missing vars with descriptions.
+- [ ] **P1-I4 rate-limit fail-open** structured warning + `/api/health` indicator.
+- [ ] **P1-I6 console → Sentry** in 7 production files (after P0-6 user action).
 
----
+#### Phase C — Code-only P1 frontend + UX
 
-> **Stage 1 — Locked-entry MVP (Phases 1–7).** PDF rendering deferred to Stage 2; everything else ships with Generate / Build CV buttons greyed-out + "Coming Soon" toast. Phase 1 above is shared with Stage 1 (schema enables both stages).
+- [ ] **P1-F1 strip `positions_filled`** from `PermanentJobCard` interface + `/api/permanent/discover` + `/api/permanent/mine` responses.
+- [ ] **P1-F2 four error.tsx boundaries:** `(admin)/error.tsx`, `(app)/messages/[engagementId]/error.tsx`, `(app)/permanent/[id]/apply/error.tsx`, `cv/[handle]/error.tsx`.
+- [ ] **P1-F3 cv/[handle]/not-found.tsx** + replace in-component NotFound with `notFound()`.
+- [ ] **P1-F4 admin layout** error handling — replace silent redirect with `notFound()` for non-admins, throw on RLS error.
+- [ ] **P1-F5 cv/[handle]** handle-regex check via `notFound()` before render.
+- [ ] **P1-F6 Settings → CV Builder** Lock pill on H1.
 
-#### Phase 2 — Stage-1 plumbing (handle scaffolding, PDF deferred)
+#### Phase D — Code-only P1 performance
 
-- [x] `npm install qrcode` (Stage-2 PDF QR dep, staged in now to stabilise lockfile)
-- [x] `apps/web/src/app/api/cv/generate/route.ts` — POST stub, crew-only auth, returns `503 { error: "DockWalker CV — Coming Soon", message: ... }`
-- [x] `apps/web/src/app/api/admin/cv/mint-handle/[personId]/route.ts` — POST, requireAdmin, 404/409/201/500 per spec, fires `CV.HANDLE_REGENERATED` with `old_handle=null`
-- [x] `@dockwalker/types` extended with PERMANENT.INVITED, CV.GENERATED, CV.HANDLE_REGENERATED, optional invited_from_id on PERMANENT.APPLIED, `permanent_invitation` aggregate type
-- [x] **Skip in Stage 1:** `cv-pdf.tsx`, `cv-data.ts`, `lockdown.ts`, `/api/cv/regenerate-handle` — Phase 8
-- [x] Unit tests (9 new): 3 cv-generate (401 unauth, 403 non-crew, 503 crew); 6 admin mint-handle (403 non-admin, 404 missing profile, 409 existing, 201 success + event payload, 500 MintHandleError, 500 unknown error)
+- [ ] **P1-P1 CV route NDA bypass:** route `cv/[handle]/route.ts:183, 236` through `get_vessels_public_batch`.
+- [ ] **P1-P2 CV route 3 sequential clients:** fold tombstone check into profile select via `persons!inner(...)` join.
+- [ ] **P1-P3 CV route parallelization:** restructure references/experiences/lookups into 2 `Promise.all` tiers.
+- [ ] **P1-P5 CV settings** `nda_only` filter on `/api/experiences` to skip `resolveHistoricalVesselNames` for non-NDA.
 
-#### Phase 3 — CV Builder UI (locked-entry)
+#### Phase E — Code-only P1 testing
 
-- [x] New route: `apps/web/src/app/(app)/settings/cv/page.tsx`
-- [x] **(v2.1) Hat gate**: agent hat → `router.replace('/settings')` and render null while redirect is in flight
-- [x] **Stage-1 Coming-Soon banner card** at top of section per spec §12.1 wording
-- [x] **Generate CV button**: locked with `aria-disabled="true"` + Coming-Soon toast on click (matches `chat-header.tsx` Fix 222d pattern). Does NOT call `/api/cv/generate`.
-- [x] Section: sea time toggle — PATCH /api/cv/settings with `{ cvIncludeSeaTime }`
-- [x] Section: references list (filtered to `status='accepted'`) with per-row toggle — PATCH /api/cv/settings with `{ referenceId, includeOnCv }`. Helper text re: referee consent inheritance.
-- [x] Section: NDA experiences list (filtered to `vessels.nda_flag = true`); per-row toggle — PATCH /api/cv/settings with `{ experienceId, cvShowFullVessel }`. Banner above per spec wording.
-- [x] **Skipped in Stage 1**: Regenerate-handle button (Phase 8)
-- [x] Profile page hot button: locked card just below the avatar block, crew-hat + crew-identity gated. Greyed-out + Coming-Soon toast on tap. Stage 2 unlocks.
-- [x] Settings nav link: added "CV Builder" entry to `account-section.tsx` so users can find the new page from `/settings`.
-- [x] **API surface (Phase 3 additions):**
-  - GET /api/profile extended with `cv_handle, cv_handle_updated_at, cv_include_sea_time, cv_generated_at`
-  - GET /api/references/mine REF_COLUMNS extended with `include_on_cv`
-  - GET /api/experiences SELECT extended with `cv_show_full_vessel`
-  - **New** PATCH /api/cv/settings — single endpoint, polymorphic body, owner-scoped. Justified as direct UPDATE (not event-sourced) because these are per-row UI display preferences with no projection cascade or temporal semantics.
-- [x] Component tests (15 new): 9 PATCH endpoint tests (401/403/400/200×3/500/404×2) + 6 page tests (banner renders, locked Generate fires toast and does NOT call /api/cv/generate, agent hat redirects, sea-time toggle PATCHes correctly, accepted-only references render, NDA-only experiences render)
+- [ ] **P1-T1 add tests for 13 untested critical routes** (5 permanent state-machine + 3 cancellation + 5 documents — use existing mock patterns).
+- [ ] **P1-T2 stress-test cleanup helpers** in `stress-test-d1-idempotency.ts`, `d2-null-safety.ts`, `vessels-v2-wave-{a,b,f}-rpc.ts` (6 files) using sentinel-prefix delete + try/finally.
+- [ ] **P1-M3 no-rehire-leakage.test.ts** structural test asserting `would_rehire` and similar private fields never appear in any GET payload.
 
-#### Phase 4 — QR-landing route + page
+#### Phase F — Code-only P1 documentation
 
-- [x] `apps/web/src/app/api/cv/[handle]/route.ts` — GET, full crew profile + period-correct experiences + opted-in accepted references + sea-time totals (when `cv_include_sea_time=true`) + canonical lookups (certs, nationalities, entry rights). Two new Upstash limiters in `lib/rate-limit.ts`: 20/hr per IP for unauth callers, 100/hr per `auth:<userId>` for authed callers. NDA mask respects per-experience `cv_show_full_vessel`; reference snapshots inherit the toggle from their bound experience and default-mask when the experience is missing (FK auto-nulled by EXPERIENCE.REMOVED soft-revoke).
-- [x] Tombstone state: deactivated_at OR blocked_at OR current_hat=null (post-PERSON.DATA_SCRUBBED) → 200 `{ tombstone: true }` per B-5
-- [x] `apps/web/src/app/cv/[handle]/page.tsx` — public route, registered as `/cv/` in `lib/supabase/middleware.ts` publicRoutes
-- [x] Three render states: signed-out teaser + sign-up CTA with `?redirect=/cv/{handle}`; signed-in employer/agent → full profile with inert hire-action bar (Phase 5 wires it); signed-in crew → hat-switch hint card + full data fallback
-- [x] Stale notice: amber banner when `profiles.updated_at > cv_generated_at + 30d` (constant `STALE_DAYS = 30` in route)
-- [x] Tombstone state: NotFound + Tombstone components — soft handoff with sign-up + browse-crew CTAs
-- [x] **(deferred to Phase 6):** sign-up `?redirect=` consumption + hat-switcher CTA wiring
-- [x] **(deferred to Phase 5):** sticky hire-action bar buttons are present but inert (`disabled` + `title` hint) — Phase 5 wires the wizards
-- [x] Unit tests (13 new): handle format validation; anon rate-limit fires; auth limiter used for signed-in callers (key = `auth:<userId>`); 404 when profile missing; tombstone for deactivated_at; tombstone for scrubbed (current_hat=null); NDA mask applies when toggle false; non-NDA never masked; references filtered to `accepted` + `include_on_cv=true`; sea-time omitted when toggle false; sea-time totals when toggle true; stale=true at >30d gap; stale=false within grace window
+- [ ] **P1-Doc1 BUILD_STATE.md** add migration rows for 00077, 00127.
+- [ ] **P1-Doc2 packages/shared/README.md** rewrite line 3, add cert-matching row.
+- [ ] **P1-Doc3 packages/db/README.md** verify `createMobileClient` status, repurpose or delete.
+- [ ] **P1-Doc4 tasks/founder-todo.md** strip §1a stale migration count, §1e Capacitor block, §2e iOS section, §2f App Store section.
+- [ ] **P1-Doc5 tasks/device-testing.md** scrub Capacitor on line 21, add §7c CV Builder lockdown verification.
 
-#### Phase 5 — Hire-from-QR wizards
+#### Phase G — Migration P0 + P1 (BLOCKED on user push approval)
 
-- [x] Daywork wizard — pragmatic wiring: action-bar button on /cv/[handle] navigates to existing `/daywork/post?invite=<personId>` page. Page reads the param + threads `inviteCrewPersonId` to `POST /api/daywork`. QR-hire banner renders at top.
-- [ ] **(deferred to a polish phase)** Vessel pre-step inline component for first-time captains. Today the captain navigates to /vessels first if they have none. Inline pre-step is UX polish, not a blocker.
-- [x] `POST /api/daywork` extended with `inviteCrewPersonId` — atomic `appendEvents([DAYWORK.POSTED, DAYWORK.INVITED])`, 5/hr per-employer rate limit (`getQrHireLimit`), 23505→409 spec'd copy.
-- [x] Permanent invite wizard — pragmatic wiring: action-bar "Hire permanent" navigates to `/daywork/post?invite=<personId>&type=permanent`. The permanent-post-form reads `?invite=`, after the POST creates the posting it fires `POST /api/permanent/[id]/invite`. QR-hire banner renders at top.
-- [ ] **(deferred to a polish phase)** Inline `not_looking` warning subsection. Server route already accepts the invitation; warning UX requires fetching target crew's `permanent_availability` before submit. Defer until Phase 6 polish.
-- [x] `POST /api/permanent/[id]/invite` — employer/agent hat, fires PERMANENT.INVITED, 5/hr/employer rate-limited, 23505→409.
-- [x] Notification trigger: `handlePermanentInvited` in `lib/push-triggers/permanent-handlers.ts` wired into `event-router.ts` with body "Captain X invited you to apply for {role} on {vessel}". `resolveDeepLinkUrl` extended with `permanent-apply` mapping → `/permanent/[id]/apply?from_invitation=<id>`.
-- [x] **(v2.1)** Apply-after-invite wiring: new `/permanent/[id]/apply` page reads `?from_invitation`, calls `GET /api/permanent/[id]?from_invitation=<id>` (validates: exists, pending, posting matches, caller matches), renders context banner with captain name + message. No message pre-fill. Submit threads `fromInvitationId` to `POST /api/permanent/[id]/apply` which validates server-side and threads as `invited_from_id` in the PERMANENT.APPLIED payload. Projection (Phase 1) flips the invitation row.
-- [x] **(v2.1)** Captain review queue: ✉ Invited badge on application cards (review route returns `invited` boolean derived from `applications.invited_from_id IS NOT NULL`).
-- [x] Sticky action bar on `/cv/[handle]` wired — Hire daywork / Hire permanent navigate to the post pages; Contact reference still inert pending Phase 6.
-- [ ] **(deferred)** Agent placement-vessel selector variant. Agents already use `/post/permanent` with their existing vessel selector pattern; per-cv-context tweaks are polish.
-- [x] Unit tests (34 new across Phase 5a + 5b): 7 daywork QR-hire (atomic event ordering, rate limit, 404 paths, 23505→409, fall-through); 12 permanent invite (auth, validation, posting/crew checks, rate limit, 201 happy path, 23505→409); 6 apply-after-invite server-side (forgiving validation drops mismatched/expired/missing invitations, threads `invited_from_id` on valid match); 6 GET /api/permanent/[id] (404, optional invitation context, mismatched-posting/crew/status/missing → null); 3 push-deep-link mapping for `permanent-apply` screen.
+- [ ] **P0-1 inline `apply_projection` body** into 8 rollbacks: 00121, 00122, 00123, 00126, 00128, 00129, 00130, 00131. After each, verify `grep -c '^\$\$' <file>` returns 2 and file ends `end case; end; $$;`. Run `tests/verify_rollback_cycle.sh` after each fix.
+- [ ] **P0-2 patch `tests/verify_rollback_cycle.sh`** with smoke event between reverse pass and `db reset`.
+- [ ] **Migration 00132 — combined fixes** (single migration with self-contained rollback inlining the new `apply_projection` body):
+  - PERMANENT.INVITED state guard (P1-D1)
+  - PERMANENT.SHORTLISTED tightened to `status='applied'` (P1-D3)
+  - permanent_invitations FK to permanent_postings → `on delete restrict` (P1-D4)
+  - NDA reveal employer side + completed/closed status (P1-M1, P1-M2) — 4 branches × 2 functions (`get_vessel_public`, `get_vessels_public_batch`)
+  - Index on `persons(deactivated_at) where not null` (P1-P4)
+- [ ] **Migration 00133 — admin_action_log table** (P1-S6) with 3 indexes + RLS service-role only.
+- [ ] **`npx supabase db push`** after user approval. Verify `apply_projection` handler count 85 → 86 (or as expected post-edits).
 
-#### Phase 6 — Auth flow polish + abuse mitigations
+#### Phase H — User external action (handed off, not done by me)
 
-- [x] `?next=` parameter handling end-to-end (sign-up → email confirm → middleware → onboarding → destination). New `safeRedirectPath` helper in `lib/auth/safe-redirect-path.ts` allowlists relative paths (rejects `//`, `..`, `:`, > 256 chars). Onboarding page reads `?next=` and routes there on completion (default `/profile`). Middleware preserves original path as `?next=<path>` on `/onboarding` redirect. Sign-up polling threads through. `/cv/[handle]` CTAs migrated from `?redirect=` to canonical `?next=`.
-- [x] Hat-switch CTA on `/cv/[handle]` crew-hat banner — calls existing `POST /api/hat` and reloads. Hidden for agents (they don't switch hats).
-- [x] Rate-limit configs verified: `/api/cv/[handle]` 20/hr unauth + 100/hr auth (Phase 4), QR-hire 5/hr per employer (Phase 5a). Regen 1/7d will land in Stage 2 (Phase 8) alongside the regenerate route itself.
-- [ ] **(deferred to a polish phase)** Admin abuse review surface — sprawling; recommend a /admin/postings filter for high-invitation-count posters rather than a new page. Defer until QR-hire usage data is available to inform threshold choices.
-- [x] **(v2.1)** Daily expiry cron at `GET /api/cron/invitation-expiry` (Vercel cron `0 3 * * *`, CRON_SECRET-gated). Direct UPDATE flips `pending → expired` for invitations past 30 days. Justified as direct UPDATE (no event) because nothing in the domain reacts to expiry — the apply-after-invite server validator already drops non-pending invitations silently. Powered by `idx_permanent_invitations_pending_expiry` partial index from migration 00131. 6 unit tests cover auth (401 missing/wrong/no-env-secret), happy path with cutoff assertion, idempotent re-run, error path.
+- [ ] **P0-3 rotate Supabase service-role + OpenAI + Anthropic keys.** Set new values in Vercel Production env. Delete `apps/web/.env.production.local`. Audit ~/Dropbox, ~/OneDrive, IDE caches, shell history.
+- [ ] **P0-6 create Sentry project**, copy DSN + ORG + PROJECT + AUTH_TOKEN to Vercel Production env (Sensitive). Verify on preview deploy.
+- [ ] **P1-I1 GitHub Environment** "production-database" with required reviewer on `deploy-migrations` job. (Repo Settings → Environments.)
+- [ ] **P1-I5 Stripe webhook URL verification.** `curl -I https://dockwalker.io/api/webhooks/stripe` should not return 307. Confirm both test + live mode webhooks point at `www.`.
+- [ ] **P1-Doc7 MEMORY.md** decision: create `tasks/launch-readiness.md` or remove the MEMORY reference. (User-owned memory.)
 
-#### Phase 7 — Stress test + device-test additions (Stage 1 scope)
+#### Phase I — CI infrastructure (mostly code, some user)
 
-- [x] `scripts/stress-test-cv-builder.ts` — live-DB E2E. 30/30 pass against live remote (schema sanity 13, CV.GENERATED + coalesce-on-OLD + CV.HANDLE_REGENERATED 6, PERMANENT.INVITED projection 3, apply-after-invite chain + race-guard 5, invitation-expiry cron path 2, daywork-invitations UNIQUE 1). Random handles avoid cross-run collisions. Superseded `stress-test-cv-builder-phase1.ts` deleted.
-- [x] `tasks/device-testing.md` §7b — full Stage 1 surface: settings toggles + locked Generate, profile hot-button toast, /cv/[handle] three states + tombstone + stale banner + NDA mask + availability badge, hire-from-QR daywork + permanent flows, hat-switch CTA, apply-after-invite UX, ✉ Invited badge, cron smoke.
+- [ ] **P1-I1 `tasks/runbook.md`** — emergency rollback playbook + Stripe outage + Sentry triage + key rotation checklist + DB recovery RTO/RPO.
+- [ ] **P1-I2 Playwright in CI.** Edit `.github/workflows/ci.yml` to add `playwright` job. (User: confirm test Supabase project exists or skip browser DB-dependent specs.) Block enabling as required check until baseline refresh run produces clean artifact.
+- [ ] **P1-I7 (P2) CI parity** with pre-commit — add job mirroring husky checks.
 
-##### Coverage map — original Phase 7 case list mapped to where each case landed:
+#### Phase J — P2 cleanup batch (deferred to launch-week)
 
-| Original case                                                    | Where covered                                                                                                  |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| Admin mint-handle exactly-once                                   | Unit test `__tests__/api/admin-cv-mint-handle.test.ts` (Phase 2)                                               |
-| `/api/cv/[handle]` profile + NDA mask                            | Unit test `__tests__/api/cv-handle.test.ts` (Phase 4)                                                          |
-| Rate limit `/api/cv/[handle]` 429                                | Unit test `__tests__/api/cv-handle.test.ts` (Phase 4) — Upstash state isn't reliably testable in a stress test |
-| QR-hire daywork atomic POST+INVITE                               | Unit test `__tests__/api/daywork-qr-hire.test.ts` (Phase 5a) + stress test D1a/D1b                             |
-| Daywork idempotency 409                                          | Unit test (Phase 5a) + stress test D1b                                                                         |
-| QR-hire permanent + cert hard-gate                               | Unit test `__tests__/api/permanent-invite.test.ts` + `permanent-apply.test.ts` (Phase 5a)                      |
-| Permanent invitation lifecycle (pending → applied)               | Stress test I1 + A1 (live remote)                                                                              |
-| Apply-after-invite race-guard                                    | Stress test A2 (PERMANENT.APPLIED with non-pending invitation no-op)                                           |
-| Pending → declined / revoked                                     | Routes not yet shipped — deferred                                                                              |
-| Pending → expired (30-day cron)                                  | Stress test E1 + E2 + cron unit tests `__tests__/api/cron-invitation-expiry.test.ts`                           |
-| `not_looking` warning UX                                         | Component-test territory; UX deferred to a polish phase                                                        |
-| ✉ Invited badge                                                  | Phase 5b page test + visible in `tasks/device-testing.md` §7b                                                  |
-| Mint retry helper                                                | Unit test `__tests__/lib/mint-handle.test.ts` (Phase 1)                                                        |
-| Tombstone for deactivated crew                                   | Unit test `__tests__/api/cv-handle.test.ts` + device-testing §7b                                               |
-| PDF rendering / regen rate-limit                                 | Skipped in Stage 1 — Phase 8                                                                                   |
-| Device-testing additions                                         | `tasks/device-testing.md` §7b                                                                                  |
-| BUILD_STATE.md / supabase/README.md / apps/web/README.md updates | Done across Phases 1–6                                                                                         |
-
-**Acceptance (Stage 1):**
-
-- Migration 00131 applied; schema at v131; all toggles writable.
-- `/settings/cv` renders Coming-Soon banner + working toggles + locked Generate button.
-- Profile hot button locked + shows Coming-Soon toast.
-- `/api/cv/[handle]` works for any admin-minted handle; `/cv/[handle]` page renders all three states + tombstone correctly.
-- Hire-from-QR wizards (daywork + permanent) function end-to-end with admin-minted handles; rate limits fire as expected.
-- All Stage-1 stress-test cases pass; device-testing additions cover the locked-entry surface.
-- Stage-2 entry points (PDF render) clearly identified as deferred in BUILD_STATE.
-
----
-
----
-
-> **Stage 2 — Unlock (deferred work stream, design-iteration-driven).** Triggered when PDF visual design is signed off. Single deploy unlocks the whole feature surface.
-
-#### Phase 8 — PDF render + lockdown + unlock entry points
-
-- [ ] Confirm PDF visual design is signed off (mockups / Figma / agreement on layout, typography, colour, opt-in section rendering)
-- [ ] `npm install @react-pdf/renderer pdf-lib`
-- [ ] `apps/web/src/lib/cv/cv-pdf.tsx` — React component tree (two-column A4, photo top-left, navy header, Geist typography, neutral footer with name + date, optional QR section for Pro)
-- [ ] `apps/web/src/lib/cv/cv-data.ts` — server-side data assembly: profile + experiences (with period-correct vessel names via existing `lib/vessels/historical-names.ts`) + opted-in references + sea time totals if toggle on
-- [ ] `apps/web/src/lib/cv/lockdown.ts` — pdf-lib post-processing: modifying false, copying false, documentAssembly false, contentAccessibility true; render footer + QR as vector graphics; stamp `Producer` metadata
-- [ ] Replace 503 stub at `/api/cv/generate` with real PDF return: crew-only, fires CV.GENERATED, mints `cv_handle` if null on first call, returns PDF blob with `Content-Type: application/pdf`. Pro adds QR section to render tree; Free omits.
-- [ ] `apps/web/src/app/api/cv/regenerate-handle/route.ts` — POST, Crew Pro only, 7-day rate limit (Upstash), explicit confirmation header, fires CV.HANDLE_REGENERATED. Wire into the previously-skipped Settings-CV "Regenerate my CV link" button (Phase 3 carve-out).
-- [ ] **Un-grey Generate / Build CV buttons** in Settings + profile hot button. Remove the Stage-1 Coming-Soon banner card from `/settings/cv`.
-- [ ] Unit tests: cv-data assembly per tier (Free no QR, Pro with QR, NDA toggle respected, sea time toggle respected); render-tree shape; lockdown permissions applied; regen rate-limit fires 429.
-- [ ] Extend `scripts/stress-test-cv-builder.ts` with PDF cases:
-  - Generate PDF for Free crew (no QR, no salary, references included only if opt-in)
-  - Generate PDF for Pro crew (QR present, all opt-ins respected, NDA toggle respected)
-  - Regenerate handle within 7d → 429; after 7d → success; old `/cv/{old_handle}` returns tombstone
-- [ ] Extend `tasks/device-testing.md` §11 with PDF flow:
-  - Generate (Free → no QR), preview download, regenerate handle (Pro), verify old QR resolves to "no longer valid" tombstone, lockdown verified by attempting to edit in Acrobat / Preview
-- [ ] BUILD_STATE.md: stage entry for CV Builder Stage 2 unlock; remove Phase 8 from Deferred Decisions
-- [ ] apps/web/README.md: update CV section to reflect PDF generator live; remove Stage-1 locked-entry note
-
-**Acceptance (Stage 2 — full feature live):**
-
-- Free crew generates a beautiful, branded CV PDF with no QR. Footer reads "Generated by DockWalker · dockwalker.io · {Name} · {date}".
-- Crew Pro generates the same CV with a working QR code that resolves to `/cv/{handle}` with a sticky action bar.
-- Captain scanning a Pro CV → signs up (redirect preserved) → hires for daywork (atomic post+invite) or invites for permanent (invite-to-apply, cert gate fires on apply) or contacts a reference (subject to Employer Free 5/30d cap).
-- Agent scanning a Pro CV → can do all the above with their placement vessel selector.
-- All abuse mitigations (rate limits) fire under stress test. NDA respects per-experience toggle on both PDF and QR-landing surfaces.
-- Stress test 100% pass against remote (Stage 1 + Stage 2 cases).
-- BUILD_STATE.md, apps/web/README.md, supabase/README.md, device-testing.md all updated to reflect feature-complete state.
+> 25+ items consolidated. Defer until P0 + P1 are clean. Listed in audit chat output for reference.
 
 ---
 
@@ -239,18 +148,6 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
   **Acceptance:** every non-owner-scoped vessel read goes through one of the two RPCs; lint rule prevents regression.
 
-- [ ] **P1 — S-2: Automate `PERSON.DATA_SCRUBBED` 30 days after `PERSON.DEACTIVATED`.**
-
-  **Problem:** Deactivation flow (`/api/account/deactivate`) appends `PERSON.DEACTIVATED`, sets `deactivated_at`, and bans the auth user. The follow-up `PERSON.DATA_SCRUBBED` event (which actually wipes PII per migration 00108 — 22 profile fields nulled, experiences deleted, structure preserved) is documented but currently a manual admin process. If admin process slips, PII persists past the documented 30-day retention period — a GDPR exposure.
-
-  **Why it matters:** Right-to-erasure under GDPR Article 17 has compliance teeth. EU crew (Antibes, Palma, Monaco) are the bulk of the Med-season audience. Manual processes break under load. The architecture for automation is already there (cron infrastructure exists for availability expiry + engagement-starts).
-
-  **Suggested fix:** New cron at `/api/cron/data-scrub` running daily (recommend `0 4 * * *` to avoid clashing with existing crons at 07:00 and 08:00). Query: persons where `deactivated_at <= now() - interval '30 days'` AND `(scrubbed_at IS NULL OR scrubbed_at IS NOT YET SET)`. For each: append `PERSON.DATA_SCRUBBED` event. Projection (already in 00108) wipes fields. Add to `vercel.json` crons array. Add unit test that sets `deactivated_at` to a date >30d ago, runs the cron handler, asserts the scrub event was appended.
-
-  **Files to touch:** new `apps/web/src/app/api/cron/data-scrub/route.ts`. `vercel.json` crons addition. New unit test in `apps/web/__tests__/api/`.
-
-  **Acceptance:** cron runs daily; deactivated users' PII is scrubbed at 30d + 1 day; ledger event records the scrub.
-
 - [ ] **P1 — I-1: Configure Sentry DSN in Vercel environment variables and verify error capture.**
 
   **Problem:** `@sentry/nextjs` SDK is integrated in `next.config.ts`, but the DSN is conditional (no-op if `NEXT_PUBLIC_SENTRY_DSN` is unset). The infrastructure agent flagged that the DSN may not be configured in production — meaning production errors live only in Vercel's per-deployment log dashboard, are not aggregated, are not searchable across deploys, and are not alertable.
@@ -289,7 +186,11 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
 ---
 
-## BLOCKED — external/lawyer
+## BLOCKED — external
+
+### CV Builder v1 Phase 8 (PDF render + unlock)
+
+- [ ] **Phase 8 — gated on PDF visual design sign-off.** Stage 1 (Phases 1–7) shipped in Stages 223–230 then user-locked in Stage 231 (`CV_BUILDER_ENABLED = false` in `apps/web/src/lib/cv/feature-flag.ts`). Stage 2 unlock = single flag flip + replace 503 stub at `/api/cv/generate` with real PDF return + add `/api/cv/regenerate-handle`. See git history (Stage 223–231) for the full Stage 1 build record.
 
 ### Legal pages go-live
 
@@ -374,7 +275,7 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
 ### Deferred post-launch
 
-- **Voice calling — replace Twilio + browser QA before unmute.** Phone button in chat header is gated behind a "Coming soon" toast (Fix 222d); `IncomingCallListener` unmounted from the app layout. `use-voice-call.ts`, `voice-call-context.tsx`, `call-bar.tsx`, `incoming-call-listener.tsx`, `turn-credentials` route, `call-ended` route all retained as dead code. When unmuting: (1) decide on managed RTC provider — LiveKit Cloud is the preferred replacement over Twilio TURN+Supabase-Realtime-signaling (SFU routing, call history, recording capability); (2) swap the hand-rolled `RTCPeerConnection` stack in `use-voice-call.ts` for the provider's SDK; (3) restore phone button's real `onClick` wiring to `voiceCall.startCall` + gate on `isPermanent && status === 'active'`; (4) re-mount `IncomingCallListener` in `(app)/layout.tsx`; (5) run browser QA matrix (Chrome/Firefox/Safari on desktop, glare resolution, network drops, backgrounded tab, multi-tab, offline user). Audit-trail gap: currently only `MESSAGE.SENT` records a call; add `CALL.STARTED`/`CALL.ENDED` events in the ledger at the same time.
+- **Voice calling — green-field re-add when prioritised.** Subsystem deleted 2026-04-30 per audit P0-4 (the dead-code stance was a launch-day liability — `pendingOffer` from another tab could flip a chat into ringing state with no decline path). Phone button in chat header keeps its Coming-Soon toast. When re-adding: (1) managed RTC provider, LiveKit Cloud preferred over hand-rolled WebRTC (SFU routing, call history, recording); (2) build behind a feature flag mirroring `CV_BUILDER_ENABLED`; (3) add `CALL.STARTED`/`CALL.ENDED` events to the ledger at the same time as the UI (the prior implementation only recorded `MESSAGE.SENT` — audit-trail gap); (4) browser QA matrix (Chrome/Firefox/Safari, glare resolution, network drops, backgrounded tab, multi-tab, offline user); (5) gate on `isPermanent && status === 'active'` for the call button.
 
 ### Business logic / server-side
 

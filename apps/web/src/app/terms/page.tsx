@@ -112,6 +112,11 @@ export default function TermsPage() {
             daywork and permanent positions with employers and agencies posting those roles.
             DockWalker is not an employment agency and does not employ crew or guarantee placements.
           </p>
+          <p className="mt-2 text-muted-foreground">
+            Crew may apply to any posted job at no cost. Crew Pro is an optional subscription for
+            additional features (proactive employer discovery, expanded Docky usage, more templates
+            and references); it is not required to apply for or be hired into any role.
+          </p>
         </section>
 
         <section id="eligibility" className="mt-10 scroll-mt-20">

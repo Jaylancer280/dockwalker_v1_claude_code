@@ -90,10 +90,11 @@ export function ChatHeader({
         </div>
         {/* Voice calls deferred post-launch. Button always visible but inert
             so users see the feature is planned; aria-disabled keeps the click
-            firing so mobile taps still surface the "coming soon" toast
-            (native disabled buttons swallow pointer events). When voice ships
-            via a managed RTC provider, swap the onClick for the real handler
-            and restore the voiceCallEnabled gate. */}
+            firing so taps still surface the "coming soon" toast (native
+            disabled buttons swallow pointer events). Voice subsystem was
+            ripped out 2026-04-30; re-add as a green-field LiveKit Cloud
+            integration when prioritised, then swap the onClick for the real
+            handler. */}
         <Button
           variant="ghost"
           size="sm"

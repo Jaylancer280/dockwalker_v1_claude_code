@@ -404,11 +404,11 @@ export function AvailabilityOverlay({
             </p>
             {isPro === false && !notAvailable && (
               <p className="mt-2 text-[11px] text-muted-foreground">
+                Free crew can apply to every posted job.{' '}
                 <a href="/billing" className="text-[var(--accent)] underline">
-                  Upgrade to Crew Pro
+                  Crew Pro
                 </a>{' '}
-                to appear in employer searches. Free crew can apply to jobs but are not shown in the
-                Available Crew tab.
+                adds proactive discovery — employers can also find and invite you directly.
               </p>
             )}
           </section>

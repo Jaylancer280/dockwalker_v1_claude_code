@@ -41,6 +41,7 @@ vi.mock('@/lib/supabase/server', () => ({
 import { PATCH as cvSettingsPatch } from '@/app/api/cv/settings/route';
 import { GET as cvHandleGet } from '@/app/api/cv/[handle]/route';
 import { POST as permanentInvitePost } from '@/app/api/permanent/[id]/invite/route';
+import { POST as cvGeneratePost } from '@/app/api/cv/generate/route';
 
 function jsonRequest(url: string, body: unknown = {}, method = 'POST'): Request {
   return new Request(url, {
@@ -86,6 +87,14 @@ describe('CV Builder routes — locked-state (CV_BUILDER_ENABLED = false)', () =
       jsonRequest('http://localhost/api/permanent/p-1/invite', { crewPersonId: 'c-1' }),
       { params: Promise.resolve({ id: 'p-1' }) },
     );
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toMatch(/Coming Soon/);
+    expect(mockRequireDomainUser).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/cv/generate → 503 with Coming-Soon payload (flag fires before auth)', async () => {
+    const res = await cvGeneratePost();
     expect(res.status).toBe(503);
     const body = await res.json();
     expect(body.error).toMatch(/Coming Soon/);

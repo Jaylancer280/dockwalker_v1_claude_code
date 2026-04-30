@@ -6,7 +6,6 @@ import { ToastWrapper } from '@/components/toast-wrapper';
 import { OfflineBanner } from '@/components/offline-banner';
 import { LookupsProvider } from '@/hooks/use-lookups';
 import { NotificationCountsProvider } from '@/hooks/use-notification-counts';
-import { VoiceCallProvider } from '@/contexts/voice-call-context';
 
 export default async function AppLayout({
   children,
@@ -56,16 +55,14 @@ export default async function AppLayout({
 
   return (
     <ToastWrapper>
-      <VoiceCallProvider>
-        <LookupsProvider>
-          <NotificationCountsProvider>
-            <OfflineBanner />
-            <SidebarNav currentHat={currentHat} identityType={identityType} isAdmin={isAdmin} />
-            <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
-            <BottomNav currentHat={currentHat} identityType={identityType} isAdmin={isAdmin} />
-          </NotificationCountsProvider>
-        </LookupsProvider>
-      </VoiceCallProvider>
+      <LookupsProvider>
+        <NotificationCountsProvider>
+          <OfflineBanner />
+          <SidebarNav currentHat={currentHat} identityType={identityType} isAdmin={isAdmin} />
+          <div className="pb-nav md:ml-[var(--sidebar-width)] md:pb-0">{children}</div>
+          <BottomNav currentHat={currentHat} identityType={identityType} isAdmin={isAdmin} />
+        </NotificationCountsProvider>
+      </LookupsProvider>
     </ToastWrapper>
   );
 }

@@ -32,8 +32,6 @@ import { Button } from '@/components/ui/button';
 import { ChatSidebarActions } from './_components/chat-sidebar-actions';
 import { DayworkSummaryCard } from './_components/daywork-summary-card';
 import { PermanentSummaryCard } from './_components/permanent-summary-card';
-import { useVoiceCall } from '@/hooks/use-voice-call';
-import { CallBar } from '@/components/call-bar';
 import { useNotificationCounts } from '@/hooks/use-notification-counts';
 
 export default function ChatPage() {
@@ -531,25 +529,6 @@ export default function ChatPage() {
   const isPermanent = context?.type === 'permanent';
   const permPostingId = context?.permanent_postings?.id ?? null;
 
-  // Voice call — entry point gated behind a "Coming soon" button in ChatHeader
-  // (Fix 222d). Hook stays so CallBar keeps rendering inert state if we ever
-  // hand-trigger a call; no UI can currently invoke startCall().
-  const voiceCall = useVoiceCall({
-    engagementId: engagementId ?? '',
-    personId: userId ?? '',
-    remoteName: context?.other_name ?? '',
-  });
-
-  // Post system message when call ends
-  useEffect(() => {
-    if (voiceCall.callState === 'ended' && voiceCall.duration > 0) {
-      safeFetch(`/api/messages/${engagementId}/call-ended`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ duration: voiceCall.duration }),
-      });
-    }
-  }, [voiceCall.callState, voiceCall.duration, engagementId]);
   const permPostingStatus = context?.permanent_postings?.status ?? null;
   const closedIsRatable =
     context?.status === 'closed' &&
@@ -576,16 +555,6 @@ export default function ChatPage() {
   return (
     <main className="fixed inset-x-0 top-0 bottom-0 z-10 flex flex-col bg-background pb-[calc(var(--nav-height)+env(safe-area-inset-bottom))] md:static md:inset-auto md:bottom-auto md:z-auto md:h-dvh md:pb-0 lg:flex-row">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <CallBar
-          callState={voiceCall.callState}
-          remoteName={context?.other_name ?? ''}
-          duration={voiceCall.duration}
-          isMuted={voiceCall.isMuted}
-          onToggleMute={voiceCall.toggleMute}
-          onHangUp={() => voiceCall.hangUp()}
-          onAccept={voiceCall.acceptCall}
-          onDecline={voiceCall.declineCall}
-        />
         {context?.reference_context ? (
           <ReferenceContactHeader
             engagementId={engagementId}

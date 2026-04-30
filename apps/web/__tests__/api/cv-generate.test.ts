@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextResponse } from 'next/server';
 
+// Mock flag to true so the underlying-behavior tests below exercise
+// the route body (auth + crew-hat + 503 stub). The locked-state path
+// (flag = false) is asserted in cv-routes-locked.test.ts.
+vi.mock('@/lib/cv/feature-flag', () => ({
+  CV_BUILDER_ENABLED: true,
+  CV_BUILDER_LOCKED_PAYLOAD: {
+    error: 'DockWalker CV — Coming Soon',
+    message: 'CV Builder is currently disabled while we finalise the experience.',
+  },
+}));
+
 const mockRequireDomainUser = vi.fn();
 vi.mock('@/lib/auth/require-domain-user', () => ({
   requireDomainUser: () => mockRequireDomainUser(),

@@ -34,7 +34,7 @@ const CREW_TIER: TierConfig = {
   proFeatures: [
     '500 Docky questions/month',
     'Personalised career advice — Docky reads your profile',
-    'Appear in employer searches for daywork invitations',
+    'Get discovered by employers — appear in proactive search alongside applying directly',
     '5 daywork + 2 permanent templates',
     'Up to 3 references per experience',
   ],

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { CV_BUILDER_ENABLED, CV_BUILDER_LOCKED_PAYLOAD } from '@/lib/cv/feature-flag';
 
 /**
  * POST /api/cv/generate
@@ -9,11 +10,17 @@ import { requireDomainUser } from '@/lib/auth/require-domain-user';
  * null, fires `CV.GENERATED`, returns the PDF blob with
  * `Content-Type: application/pdf`. Pro adds the QR code; Free omits.
  *
- * Auth + crew-hat gate live here so the route surface contract is
- * stable across the Stage 1 → Stage 2 transition — only the body
- * changes.
+ * The `CV_BUILDER_ENABLED` flag is the lockdown contract — when Stage 2
+ * swaps the body for the real PDF generator, the flag check stays so the
+ * lockdown can be re-applied without code changes if needed. Auth +
+ * crew-hat gate live here so the route surface contract is stable across
+ * the Stage 1 → Stage 2 transition — only the body changes.
  */
 export async function POST() {
+  if (!CV_BUILDER_ENABLED) {
+    return NextResponse.json(CV_BUILDER_LOCKED_PAYLOAD, { status: 503 });
+  }
+
   const guard = await requireDomainUser();
   if (!guard.ok) return guard.response;
 
