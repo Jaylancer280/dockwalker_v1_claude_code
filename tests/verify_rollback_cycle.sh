@@ -49,7 +49,11 @@ for rollback in $ROLLBACKS; do
   # Both probes use a non-existent person id so the UPDATE WHERE
   # affects 0 rows — no constraint violations possible.
 
-  PROC_EXISTS=$(psql "$DB_URL" -tA -c "SELECT EXISTS(SELECT 1 FROM pg_proc WHERE proname='apply_projection');" 2>/dev/null | tr -d ' ')
+  # Check for the 6-arg signature specifically — rollback 00014 creates a
+  # 0-arg trigger version (legacy state from the dual-function era) that
+  # would shadow proname-only checks. We only smoke-test the 6-arg
+  # apply_projection that 00005's rollback drops.
+  PROC_EXISTS=$(psql "$DB_URL" -tA -c "SELECT EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname='public' AND p.proname='apply_projection' AND p.pronargs=6);" 2>/dev/null | tr -d ' ')
   if [ "$PROC_EXISTS" = "t" ]; then
     PROFILES_EXISTS=$(psql "$DB_URL" -tA -c "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles');" 2>/dev/null | tr -d ' ')
     PERSONS_EXISTS=$(psql "$DB_URL" -tA -c "SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='persons');" 2>/dev/null | tr -d ' ')
