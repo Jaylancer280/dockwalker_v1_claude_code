@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
+import { logAdminAction } from '@/lib/admin/log-action';
 
 const VALID_STATUSES = ['open', 'reviewing', 'dismissed', 'actioned'] as const;
 const VALID_RESOLUTIONS = ['dismissed', 'warned', 'actioned'] as const;
@@ -126,11 +127,28 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .from('reports')
     .update(updates)
     .eq('id', id)
-    .select('id, status, resolution, admin_notes, admin_person_id, resolved_at')
+    .select('id, status, resolution, admin_notes, admin_person_id, resolved_at, reported_person_id')
     .single();
 
   if (error || !data) {
     return NextResponse.json({ error: error?.message ?? 'Report not found' }, { status: 404 });
+  }
+
+  // Only log when the report transitions to a terminal state (the same
+  // condition that stamps admin_person_id + resolved_at). Open → reviewing
+  // updates don't merit an audit row.
+  if (isTerminal) {
+    await logAdminAction(serviceClient, {
+      adminPersonId: adminPerson.id,
+      action: 'resolve_report',
+      targetPersonId: data.reported_person_id ?? null,
+      targetId: data.id,
+      reason: typeof adminNotes === 'string' ? adminNotes : null,
+      metadata: {
+        status: data.status,
+        resolution: data.resolution,
+      },
+    });
   }
 
   return NextResponse.json({ report: data });

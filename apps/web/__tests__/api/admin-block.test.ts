@@ -8,6 +8,10 @@ vi.mock('@/lib/auth/require-admin', () => ({
   requireAdmin: () => mockRequireAdmin(),
 }));
 
+vi.mock('@/lib/admin/log-action', () => ({
+  logAdminAction: vi.fn().mockResolvedValue(undefined),
+}));
+
 const mockCascadeBlock = vi.fn().mockResolvedValue({
   engagements_cancelled: 0,
   postings_hidden: 0,

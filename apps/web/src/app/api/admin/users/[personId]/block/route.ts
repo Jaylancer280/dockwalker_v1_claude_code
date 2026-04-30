@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { cascadeBlock } from '@/lib/admin/cascade-block';
+import { logAdminAction } from '@/lib/admin/log-action';
 
 const REASON_CATEGORIES = [
   'harassment',
@@ -57,6 +58,14 @@ export async function POST(
     const cascade = await cascadeBlock(serviceClient, personId, adminPerson.id, {
       reasonCategory: reason_category,
       reasonText: reason_text,
+    });
+
+    await logAdminAction(serviceClient, {
+      adminPersonId: adminPerson.id,
+      action: 'block_user',
+      targetPersonId: personId,
+      reason: reason_text,
+      metadata: { reason_category, cascade },
     });
 
     return NextResponse.json({ success: true, cascade });

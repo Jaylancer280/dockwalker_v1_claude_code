@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvent } from '@dockwalker/db';
+import { logAdminAction } from '@/lib/admin/log-action';
 
 /**
  * POST /api/admin/postings/:id/hide
@@ -75,6 +76,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         admin_person_id: adminPerson.id,
       },
       personId: adminPerson.id,
+    });
+
+    await logAdminAction(serviceClient, {
+      adminPersonId: adminPerson.id,
+      action: 'hide_posting',
+      targetId: postingId,
+      reason: reason.trim(),
+      metadata: { posting_type: postingType },
     });
 
     return NextResponse.json({ success: true });

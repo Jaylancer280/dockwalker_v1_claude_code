@@ -7,6 +7,10 @@ vi.mock('@/lib/auth/require-admin', () => ({
   requireAdmin: () => mockRequireAdmin(),
 }));
 
+vi.mock('@/lib/admin/log-action', () => ({
+  logAdminAction: vi.fn().mockResolvedValue(undefined),
+}));
+
 const mockAppendEvent = vi.fn().mockResolvedValue('evt-1');
 vi.mock('@dockwalker/db', () => ({
   appendEvent: (...args: unknown[]) => mockAppendEvent(...args),

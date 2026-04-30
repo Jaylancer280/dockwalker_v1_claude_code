@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvent } from '@dockwalker/db';
+import { logAdminAction } from '@/lib/admin/log-action';
 
 const REASON_CATEGORIES = [
   'safety_concern',
@@ -87,6 +88,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         admin_person_id: adminPerson.id,
       },
       personId: adminPerson.id,
+    });
+
+    await logAdminAction(serviceClient, {
+      adminPersonId: adminPerson.id,
+      action: 'cancel_engagement',
+      targetId: engagementId,
+      reason: reasonText.trim(),
+      metadata: {
+        reason_category: reasonCategory,
+        posting_type: postingType,
+        daywork_id: engagement.daywork_id ?? null,
+        permanent_posting_id: engagement.permanent_posting_id ?? null,
+      },
     });
 
     return NextResponse.json({ success: true });

@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvents, type AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
 import { cascadeBlock } from '@/lib/admin/cascade-block';
+import { logAdminAction } from '@/lib/admin/log-action';
 
 /**
  * DELETE /api/admin/users/:personId
@@ -74,6 +75,14 @@ export async function DELETE(
         { status: 500 },
       );
     }
+
+    await logAdminAction(serviceClient, {
+      adminPersonId: adminPerson.id,
+      action: 'delete_user',
+      targetPersonId: personId,
+      reason: 'Account deleted by DockWalker',
+      metadata: { previously_blocked: !!target.blocked_at },
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

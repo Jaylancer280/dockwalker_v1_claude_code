@@ -11,6 +11,10 @@ vi.mock('@/lib/auth/require-admin', () => ({
   requireAdmin: () => mockRequireAdmin(),
 }));
 
+vi.mock('@/lib/admin/log-action', () => ({
+  logAdminAction: vi.fn().mockResolvedValue(undefined),
+}));
+
 const mockServiceFrom = vi.fn();
 
 function adminGuard() {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvent } from '@dockwalker/db';
+import { logAdminAction } from '@/lib/admin/log-action';
 
 export async function POST(
   request: Request,
@@ -43,6 +44,13 @@ export async function POST(
         admin_person_id: adminPerson.id,
       },
       personId: adminPerson.id,
+    });
+
+    await logAdminAction(serviceClient, {
+      adminPersonId: adminPerson.id,
+      action: 'unblock_user',
+      targetPersonId: personId,
+      reason: reason_text,
     });
 
     return NextResponse.json({ success: true });

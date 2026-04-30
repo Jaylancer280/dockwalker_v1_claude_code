@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvents, type AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
+import { logAdminAction } from '@/lib/admin/log-action';
 
 export async function POST(
   request: Request,
@@ -77,6 +78,17 @@ export async function POST(
         { status: 500 },
       );
     }
+
+    await logAdminAction(serviceClient, {
+      adminPersonId: adminPerson.id,
+      action: 'restore_user',
+      targetPersonId: personId,
+      reason: reason_text,
+      metadata: {
+        unblocked: !!target.blocked_at,
+        reactivated: !!target.deactivated_at,
+      },
+    });
 
     return NextResponse.json({
       success: true,
