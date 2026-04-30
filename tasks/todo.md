@@ -59,10 +59,10 @@
 - [x] **P1-Doc4 tasks/founder-todo.md** updated migration count 77 → 131; gutted §1e Mobile App, §2e Deep Links, §2f App Store sections; bumped Last reviewed to 2026-04-30.
 - [x] **P1-Doc5 tasks/device-testing.md** scrubbed Capacitor reference on line 21; reframed §7b for the post-Stage-231 lockdown (Stage 1 prior tests left as a marker for re-add at Stage 2 unlock).
 
-#### Phase G — Migration P0 + P1 (BLOCKED on user push approval)
+#### Phase G — Migration P0 + P1 (in progress)
 
-- [ ] **P0-1 inline `apply_projection` body** into 8 rollbacks: 00121, 00122, 00123, 00126, 00128, 00129, 00130, 00131. After each, verify `grep -c '^\$\$' <file>` returns 2 and file ends `end case; end; $$;`. Run `tests/verify_rollback_cycle.sh` after each fix.
-- [ ] **P0-2 patch `tests/verify_rollback_cycle.sh`** with smoke event between reverse pass and `db reset`.
+- [x] **P0-1 inline `apply_projection` body** into 8 rollbacks: 00121, 00122, 00123, 00126, 00128, 00129, 00130, 00131. Each prior version's CREATE OR REPLACE block extracted from the corresponding forward migration via `awk` and prepended to the rollback (replacing the NOTICE-only stub). 00122 restores `get_vessel_public` + `get_vessels_public_batch` to 00083 form (RPC, not apply_projection). All 8 files: `$$` count=2 (or 4 for 00122), handler progression sane (no CV/PERMANENT/REFERENCE handler leakage to pre-feature versions).
+- [x] **P0-2 patch `tests/verify_rollback_cycle.sh`** — smoke check fires CV.GENERATED + PERSON.HAT_CHANGED via direct `apply_projection` call after each rollback. CV.GENERATED catches the audit's specific "function references dropped CV columns" bug; PERSON.HAT_CHANGED is a universal dispatchability sanity check. Both use a non-existent person id so UPDATE WHERE matches 0 rows — no constraint violations.
 - [ ] **Migration 00132 — combined fixes** (single migration with self-contained rollback inlining the new `apply_projection` body):
   - PERMANENT.INVITED state guard (P1-D1)
   - PERMANENT.SHORTLISTED tightened to `status='applied'` (P1-D3)
