@@ -14,29 +14,6 @@ export function createClient(): SupabaseClient {
   return supabaseCreateClient(supabaseUrl, supabaseAnonKey);
 }
 
-/**
- * Mobile Supabase client — accepts explicit params and a storage adapter
- * for session persistence (e.g. expo-secure-store or AsyncStorage).
- */
-export function createMobileClient(
-  url: string,
-  anonKey: string,
-  storage: {
-    getItem: (key: string) => string | null | Promise<string | null>;
-    setItem: (key: string, value: string) => void | Promise<void>;
-    removeItem: (key: string) => void | Promise<void>;
-  }
-): SupabaseClient {
-  return supabaseCreateClient(url, anonKey, {
-    auth: {
-      storage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
-  });
-}
-
 /** Server-side Supabase client (uses service role key for projection writes) */
 export function createServiceClient(): SupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

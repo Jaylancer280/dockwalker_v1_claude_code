@@ -7,7 +7,7 @@
 > They live in Vercel environment variables (scoped per environment)
 > and Supabase project settings. The codebase reads them from `process.env`.
 >
-> Last reviewed: 2026-03-28
+> Last reviewed: 2026-04-30 (post mobile-archive cleanup)
 
 ---
 
@@ -28,11 +28,10 @@
 - [x] Create Supabase project `dockwalker-staging` (EU Central)
   - Project ref: `hwpcuehqawullzqbmcdv`
   - URL: `https://hwpcuehqawullzqbmcdv.supabase.co`
-- [x] 77 migrations pushed (through 00077)
+- [x] 131 migrations pushed (through 00131; verify against `BUILD_STATE.md` § Current Schema Version on each session)
 - [x] Canonical data seeded (ports, roles, certs)
 - [x] Avatars storage bucket created
 - [x] RLS active (auto-enabled + migration policies)
-- [ ] Push migration 00076 (experience brackets) + 00077 (permanent post fields) to staging
 
 ### 1b. Supabase SMTP (Staging Auth Emails)
 
@@ -66,17 +65,13 @@
 - Anthropic/OpenAI — Docky works but costs money; defer until production
 - Resend transactional emails — auth emails work via Supabase built-in
 
-### 1e. Mobile App (Architecture Split)
+### 1e. Mobile App — DELETED
 
-> **Capacitor webview wrapper is being replaced with a native Expo/React Native app.**
-> See `tasks/` for the mobile architecture planning doc (forthcoming).
-> The current Codemagic pipeline (remote webview to Vercel) continues working for
-> existing testers until the Expo app replaces it.
-
-- [x] Codemagic CI/CD pipeline — auto-builds iOS on push to main, submits to TestFlight
-- [x] Bundle ID: `io.dockwalker.app`
-- [x] Signing configured in Codemagic
-- [ ] **NEW:** Expo/React Native app (`apps/mobile/`) — planning in progress, replaces Capacitor
+> Both the Capacitor webview shell and the partial Expo/React Native app
+> (`apps/mobile/`) were deleted on 2026-04-29. See
+> `docs/archive/mobile-web-split-spec.md` for the full record.
+> DockWalker is web-only at launch. Do not scaffold mobile code without
+> explicit user instruction.
 
 ### 1f. Web App Testing Checklist
 
@@ -174,30 +169,19 @@ Only set this up after staging is validated. Your real users go here.
 - [ ] Set `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*` in Vercel (Production)
 - [ ] Configure webhook endpoint: `https://yourdomain.com/api/webhooks/stripe`
 
-### 2e. Deep Links (before App Store submission)
+### 2e. Deep Links — N/A (web-only)
 
-- [ ] Replace placeholder values:
-  - `apps/web/public/.well-known/apple-app-site-association` → real Team ID
-  - `apps/web/public/.well-known/assetlinks.json` → real SHA256 fingerprint
-  - `apps/web/ios/App/App/App.entitlements` → real domain (if still using Capacitor shell)
-- [ ] Verify after deploy:
-  - iOS: `https://app-site-association.cdn-apple.com/a/v1/yourdomain.com`
-  - Android: `https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://yourdomain.com`
+> Deleted along with the mobile target on 2026-04-29. The
+> `apple-app-site-association` + `assetlinks.json` placeholder files in
+> `apps/web/public/.well-known/` and the corresponding Vercel header rule
+> in `vercel.json` should be removed; they are launch-day dead config
+> per the 2026-04-30 audit (P2 in security section).
 
-> **Note:** Deep link config will need updating when the Expo app replaces Capacitor.
-> Expo has its own deep linking setup. These placeholder files serve the web and
-> the current Capacitor shell.
+### 2f. App Store Submissions — N/A (web-only)
 
-### 2f. App Store Submissions
-
-- [ ] iOS App Store Connect:
-  - Create listing, screenshots (6.7" + 6.1"), description (see `founder-drafts.md` § 6)
-  - Privacy policy URL (host the doc from `founder-drafts.md` § 2 on your domain)
-  - Build with Expo EAS (replaces Capacitor archive)
-- [ ] Google Play Console:
-  - Create listing, screenshots, description
-  - Sign release AAB with keystore
-  - Upload
+> No iOS / Google Play submission is in scope at launch. Re-add this
+> section if a native target is reintroduced (see
+> `docs/archive/mobile-web-split-spec.md` for prior context).
 
 ---
 

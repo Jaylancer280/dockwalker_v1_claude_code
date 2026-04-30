@@ -51,13 +51,13 @@
 - [ ] **P1-T2 stress-test cleanup helpers** in `stress-test-d1-idempotency.ts`, `d2-null-safety.ts`, `vessels-v2-wave-{a,b,f}-rpc.ts` (6 files) using sentinel-prefix delete + try/finally.
 - [ ] **P1-M3 no-rehire-leakage.test.ts** structural test asserting `would_rehire` and similar private fields never appear in any GET payload.
 
-#### Phase F — Code-only P1 documentation
+#### Phase F — Code-only P1 documentation ✅
 
-- [ ] **P1-Doc1 BUILD_STATE.md** add migration rows for 00077, 00127.
-- [ ] **P1-Doc2 packages/shared/README.md** rewrite line 3, add cert-matching row.
-- [ ] **P1-Doc3 packages/db/README.md** verify `createMobileClient` status, repurpose or delete.
-- [ ] **P1-Doc4 tasks/founder-todo.md** strip §1a stale migration count, §1e Capacitor block, §2e iOS section, §2f App Store section.
-- [ ] **P1-Doc5 tasks/device-testing.md** scrub Capacitor on line 21, add §7c CV Builder lockdown verification.
+- [x] **P1-Doc1 BUILD_STATE.md** added rows for `00077_permanent_post_fields.sql` and `00127_find_person_by_email.sql`.
+- [x] **P1-Doc2 packages/shared/README.md** rewrote line 3 (web-only with platform-agnostic intent); added `cert-matching` and `vessel-size` rows to exports table (both modules existed in `src/` but were undocumented).
+- [x] **P1-Doc3 packages/db/README.md** + `client.ts` + `index.ts` — `createMobileClient` had zero non-doc callers; deleted the function entirely + removed the export per CLAUDE.md "delete unused code" guidance.
+- [x] **P1-Doc4 tasks/founder-todo.md** updated migration count 77 → 131; gutted §1e Mobile App, §2e Deep Links, §2f App Store sections; bumped Last reviewed to 2026-04-30.
+- [x] **P1-Doc5 tasks/device-testing.md** scrubbed Capacitor reference on line 21; reframed §7b for the post-Stage-231 lockdown (Stage 1 prior tests left as a marker for re-add at Stage 2 unlock).
 
 #### Phase G — Migration P0 + P1 (BLOCKED on user push approval)
 
