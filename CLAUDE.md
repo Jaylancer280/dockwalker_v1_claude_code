@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-DockWalker is a two-sided hiring app for the superyacht industry covering daywork (1-14 day engagements via swipe mechanic) and permanent positions (structured hiring with shortlisting and negotiation). Daywork brings users in. Permanent makes them stay.
+DockWalker is a two-sided hiring app for the superyacht industry covering daywork (1-14 day engagements, browsed one card at a time on the crew side and reviewed Tinder-style on the employer side) and permanent positions (structured hiring with shortlisting and negotiation). Daywork brings users in. Permanent makes them stay.
 
 **Out of scope:** generic cross-industry job board, reputation scoring, social network, vessel management, gamified career app, AI recommendation feeds.
 

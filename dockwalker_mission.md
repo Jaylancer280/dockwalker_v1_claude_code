@@ -12,7 +12,7 @@ DockWalker is a hyper-focused, two-sided hiring app for the superyacht industry.
 
 Two modes, one app:
 
-- **Daywork** — short-term engagements (1-14 days). Fast, instinctive, swipe-to-hire. For when someone needs cover Monday.
+- **Daywork** — short-term engagements (1-14 days). Fast, instinctive, one-card-at-a-time. Crew tap Apply or Show next; employers review applicants Tinder-style. For when someone needs cover Monday.
 - **Permanent** — long-term positions. Deliberate, structured, shortlist-to-placement. For when someone needs a Chief Stew for the season.
 
 Daywork brings them. Permanent makes them stay.
@@ -87,7 +87,7 @@ CURRENT STATE:
 
 TARGET STATE:
 
-- Structured daywork posting with swipe-to-hire
+- Structured daywork posting with one-card-at-a-time discovery (crew taps Apply / Show next; employer reviews applicants Tinder-style)
 - Structured permanent posting with shortlist-to-placement
 - Cert-enforced applications (hard gate for permanent, soft for daywork)
 - One-tap/easy apply for both types
@@ -127,13 +127,13 @@ FOR EMPLOYERS:
 
 ---
 
-DAYWORK — CREW SIDE (TINDER-LIKE MECHANIC)
+DAYWORK — CREW SIDE
 
 A. Job Discovery:
 
-- One job shown at a time in a swipe card stack.
-- Swipe Right = Apply.
-- Swipe Left = Pass.
+- One job shown at a time in a card stack with the next card peeking underneath.
+- Green "Apply" button = Apply.
+- Red "Show next" button = Pass.
 - Tap = View full structured details.
 - Optional message with application (250 chars).
 
@@ -153,7 +153,7 @@ Job Card Fields:
 
 B. Apply:
 
-- Single tap or swipe confirmation.
+- Single tap on the Apply button.
 - Structured profile auto-attached.
 - Optional 250-char message.
 - No CV uploads required.
