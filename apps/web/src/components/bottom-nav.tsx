@@ -50,14 +50,19 @@ export function BottomNav({ currentHat, isAdmin }: BottomNavProps) {
               key={item.href}
               href={item.href}
               prefetch={true}
+              aria-label={item.label}
+              aria-current={isActive ? 'page' : undefined}
               className={`flex flex-1 flex-col items-center gap-0.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
                 isActive ? 'text-[var(--accent)] font-medium' : 'text-[var(--muted-foreground)]'
               }`}
             >
               <div className="relative">
-                <item.icon className="h-5 w-5" />
+                <item.icon className="h-5 w-5" aria-hidden="true" />
                 {showBadge && (
-                  <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-[var(--accent)] px-0.5 font-mono text-[10px] font-bold text-white">
+                  <span
+                    className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-[var(--accent)] px-0.5 font-mono text-[10px] font-bold text-white"
+                    aria-label={`${messageCount} unread message${messageCount === 1 ? '' : 's'}`}
+                  >
                     {messageCount > 99 ? '99+' : messageCount}
                   </span>
                 )}

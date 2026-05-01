@@ -44,6 +44,10 @@ scripts/marina-extraction/data/
 # temporary files
 tmp/
 
+# python (marina-extraction scripts)
+__pycache__/
+*.pyc
+
 # turbo
 .turbo
 

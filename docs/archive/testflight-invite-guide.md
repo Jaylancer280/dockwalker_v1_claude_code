@@ -1,5 +1,10 @@
 # TestFlight — How to Invite Testers
 
+> ARCHIVED 2026-04-30. The native mobile app (`apps/mobile/`) was deleted
+> on 2026-04-29 — see `docs/archive/mobile-web-split-spec.md`. There is no
+> TestFlight build to invite testers to. Kept as historical reference for
+> when/if a native target is reintroduced.
+
 > For the founder. How to add testers to DockWalker on TestFlight.
 
 ## Option 1: Public Link (Easiest)

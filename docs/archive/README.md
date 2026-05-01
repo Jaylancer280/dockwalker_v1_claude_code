@@ -11,6 +11,9 @@ code it produced has been removed.
   2026-04-29. See the spec's archive header for deletion rationale.
 - **`testflight-tester-guide.md`** — installation guide for the (now
   non-existent) TestFlight build. Archived alongside the mobile delete.
+- **`testflight-invite-guide.md`** — operator guide for inviting testers
+  to the (now non-existent) TestFlight build. Archived alongside the
+  mobile delete.
 
 ## Adding to this directory
 
