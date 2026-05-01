@@ -1,7 +1,6 @@
 'use client';
 
 import { Textarea } from '@/components/ui/textarea';
-import { type RefObject } from 'react';
 import { Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,7 +18,7 @@ import { LocationPicker } from '@/components/location-picker';
 import { HierarchicalPills, rolesToGroups } from '@/components/hierarchical-pills';
 import { convertSizeBandLabel } from '@dockwalker/shared';
 import { usePreferences } from '@/hooks/use-preferences';
-import { type DayworkCard, type SwipeableCardHandle, JobCard, SwipeableCard } from './daywork-card';
+import { type DayworkCard, JobCard } from './daywork-card';
 
 interface LookupItem {
   id: string;
@@ -46,8 +45,6 @@ interface DayworkBrowseProps {
   composingMessage: boolean;
   messageText: string;
   showFilters: boolean;
-  hasAvailability: boolean | null;
-  swipeRef: RefObject<SwipeableCardHandle | null>;
   // Filter state
   filterRoleId: string;
   filterPortId: string;
@@ -79,7 +76,6 @@ interface DayworkBrowseProps {
   onCancelMessage: () => void;
   onMessageSubmit: () => void;
   onMessageTextChange: (text: string) => void;
-  onAvailabilityGate: () => void;
   onViewProfile: (personId: string) => void;
   onLoadCards: () => void;
   requireAvailability: () => boolean;
@@ -96,8 +92,6 @@ export function DayworkBrowse({
   composingMessage,
   messageText,
   showFilters,
-  hasAvailability,
-  swipeRef,
   filterRoleId,
   filterPortId,
   filterStartDate,
@@ -124,7 +118,6 @@ export function DayworkBrowse({
   onCancelMessage,
   onMessageSubmit,
   onMessageTextChange,
-  onAvailabilityGate,
   onViewProfile,
   onLoadCards,
   requireAvailability,
@@ -283,35 +276,30 @@ export function DayworkBrowse({
                   </div>
                 )}
 
-                {/* Top card (swipeable) */}
                 {topCard && (
-                  <SwipeableCard
-                    ref={swipeRef}
-                    key={topCard.id}
-                    card={topCard}
-                    onApply={() => {
-                      if (requireAvailability()) onApply(topCard.id);
-                    }}
-                    onPass={() => onPass(topCard.id)}
-                    onComposeMessage={() => {
-                      if (!requireAvailability()) return;
-                      onComposeMessage();
-                    }}
-                    canApply={!!hasAvailability}
-                    onAvailabilityGate={onAvailabilityGate}
-                    composing={composingMessage}
-                    disabled={applying}
-                    lengthUnit={lengthUnit}
-                    onViewProfile={onViewProfile}
-                    crewCertIds={crewCertIds}
-                    crewLangs={crewLangs}
-                  />
+                  <div key={topCard.id} className="absolute inset-0 z-10">
+                    <JobCard
+                      card={topCard}
+                      onComposeMessage={
+                        composingMessage
+                          ? undefined
+                          : () => {
+                              if (!requireAvailability()) return;
+                              onComposeMessage();
+                            }
+                      }
+                      lengthUnit={lengthUnit}
+                      onViewProfile={onViewProfile}
+                      crewCertIds={crewCertIds}
+                      crewLangs={crewLangs}
+                    />
+                  </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Action row: counter + buttons (always visible, swipe still works on the card) */}
+          {/* Action row: counter + Show next / Apply buttons */}
           {!loading && topCard && (
             <div className="mx-auto flex w-full max-w-md flex-col gap-2 pb-2">
               {cards.length > 0 && (

@@ -1,8 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
-import { hapticMedium, hapticLight } from '@/lib/haptics';
+import { useState } from 'react';
 import { MapPin, Calendar, DollarSign, Award, MessageSquare, User } from 'lucide-react';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Badge } from '@/components/ui/badge';
@@ -45,13 +43,6 @@ export interface DayworkCard {
   poster_is_agent: boolean;
   positions_available: number;
   permanent_opportunity: boolean;
-}
-
-const SWIPE_THRESHOLD_RATIO = 0.33;
-const EXIT_RATIO = 1.3;
-
-export interface SwipeableCardHandle {
-  triggerApplySwipe: () => void;
 }
 
 interface JobCardProps {
@@ -311,113 +302,3 @@ export function JobCard({
     </div>
   );
 }
-
-export const SwipeableCard = forwardRef<
-  SwipeableCardHandle,
-  {
-    card: DayworkCard;
-    onApply: () => void;
-    onPass: () => void;
-    onComposeMessage: () => void;
-    canApply: boolean;
-    onAvailabilityGate: () => void;
-    composing: boolean;
-    disabled: boolean;
-    lengthUnit?: 'm' | 'ft';
-    onViewProfile?: (personId: string) => void;
-    crewCertIds: string[] | null;
-    crewLangs: string[] | null;
-  }
->(function SwipeableCard(
-  {
-    card,
-    onApply,
-    onPass,
-    onComposeMessage,
-    canApply,
-    onAvailabilityGate,
-    composing,
-    disabled,
-    lengthUnit = 'm',
-    onViewProfile,
-    crewCertIds,
-    crewLangs,
-  },
-  ref,
-) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const x = useMotionValue(0);
-  const getWidth = () => containerRef.current?.offsetWidth ?? 300;
-  const getThreshold = () => getWidth() * SWIPE_THRESHOLD_RATIO;
-  const getExit = () => getWidth() * EXIT_RATIO;
-  const rotate = useTransform(x, [-200, 200], [-15, 15]);
-  const applyOpacity = useTransform(x, [0, 100], [0, 1]);
-  const passOpacity = useTransform(x, [-100, 0], [1, 0]);
-
-  useImperativeHandle(ref, () => ({
-    triggerApplySwipe() {
-      hapticMedium();
-      animate(x, getExit(), { duration: 0.3 });
-    },
-  }));
-
-  function handleDragEnd(_: unknown, info: PanInfo) {
-    if (disabled || composing) return;
-    const threshold = getThreshold();
-    const exit = getExit();
-
-    if (info.offset.x > threshold) {
-      // Right swipe = apply — check availability first
-      if (!canApply) {
-        // Snap back and show availability gate
-        animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-        onAvailabilityGate();
-        return;
-      }
-      hapticMedium();
-      animate(x, exit, { duration: 0.3 });
-      setTimeout(onApply, 300);
-    } else if (info.offset.x < -threshold) {
-      hapticLight();
-      animate(x, -exit, { duration: 0.3 });
-      setTimeout(onPass, 300);
-    } else {
-      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
-    }
-  }
-
-  return (
-    <motion.div
-      ref={containerRef}
-      className="absolute inset-0 z-10 cursor-grab active:cursor-grabbing"
-      style={{ x, rotate }}
-      drag={composing ? false : 'x'}
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.8}
-      onDragEnd={handleDragEnd}
-    >
-      {/* Swipe indicators */}
-      <motion.div
-        className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border-2 border-success bg-success/10 px-3 py-1 text-sm font-bold text-success"
-        style={{ opacity: applyOpacity }}
-      >
-        APPLY
-      </motion.div>
-      <motion.div
-        className="pointer-events-none absolute right-4 top-4 z-20 rounded-lg border-2 border-destructive bg-destructive/10 px-3 py-1 text-sm font-bold text-destructive"
-        style={{ opacity: passOpacity }}
-      >
-        PASS
-      </motion.div>
-
-      <JobCard
-        card={card}
-        onComposeMessage={composing ? undefined : onComposeMessage}
-        onViewProfile={onViewProfile}
-        lengthUnit={lengthUnit}
-        crewCertIds={crewCertIds}
-        crewLangs={crewLangs}
-      />
-    </motion.div>
-  );
-});

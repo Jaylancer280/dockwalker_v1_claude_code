@@ -173,9 +173,7 @@ function DiscoverPageInner() {
           ref={browseRef}
           browseMode={browseMode}
           showFilters={showFilters}
-          hasAvailability={hasAvailability}
           requireAvailability={requireAvailability}
-          onAvailabilityGate={() => setShowAvailDialog(true)}
           onViewProfile={setViewProfileId}
           onActiveFiltersChange={setHasActiveFilters}
           crewCertIds={crewCertIds}

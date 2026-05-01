@@ -1,11 +1,11 @@
 'use client';
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { safeFetch } from '@/lib/safe-fetch';
 import { useToast } from '@/hooks/use-toast';
 import { DayworkBrowse } from './daywork-browse';
-import { type DayworkCard, type SwipeableCardHandle } from './daywork-card';
+import { type DayworkCard } from './daywork-card';
 import { useDiscoverData } from './discover-data-context';
 
 const PermanentJobFeed = dynamic(
@@ -38,9 +38,7 @@ export interface DiscoverBrowseHandle {
 interface DiscoverBrowseProps {
   browseMode: 'daywork' | 'permanent';
   showFilters: boolean;
-  hasAvailability: boolean | null;
   requireAvailability: () => boolean;
-  onAvailabilityGate: () => void;
   onViewProfile: (personId: string) => void;
   /** Called whenever `hasActiveFilters` changes for the current
    *  browseMode. The page uses this to show/hide the "Clear" button
@@ -72,9 +70,7 @@ export const DiscoverBrowse = forwardRef<DiscoverBrowseHandle, DiscoverBrowsePro
     {
       browseMode,
       showFilters,
-      hasAvailability,
       requireAvailability,
-      onAvailabilityGate,
       onViewProfile,
       onActiveFiltersChange,
       crewCertIds,
@@ -101,7 +97,6 @@ export const DiscoverBrowse = forwardRef<DiscoverBrowseHandle, DiscoverBrowsePro
     const [applying, setApplying] = useState(false);
     const [composingMessage, setComposingMessage] = useState(false);
     const [messageText, setMessageText] = useState('');
-    const swipeRef = useRef<SwipeableCardHandle | null>(null);
 
     // Daywork filter state
     const [filterRoleId, setFilterRoleId] = useState('');
@@ -304,12 +299,8 @@ export const DiscoverBrowse = forwardRef<DiscoverBrowseHandle, DiscoverBrowsePro
       const topCard = cards[0] ?? null;
       if (!topCard || applying) return;
       if (!requireAvailability()) return;
-      // Trigger swipe-right animation, then apply with message
-      if (swipeRef.current) {
-        swipeRef.current.triggerApplySwipe();
-      }
       const msg = messageText.trim();
-      setTimeout(() => handleApply(topCard.id, msg || undefined), 300);
+      handleApply(topCard.id, msg || undefined);
     }
 
     function handleCancelMessage() {
@@ -326,8 +317,6 @@ export const DiscoverBrowse = forwardRef<DiscoverBrowseHandle, DiscoverBrowsePro
         composingMessage={composingMessage}
         messageText={messageText}
         showFilters={showFilters}
-        hasAvailability={hasAvailability}
-        swipeRef={swipeRef}
         filterRoleId={filterRoleId}
         filterPortId={filterPortId}
         filterStartDate={filterStartDate}
@@ -358,7 +347,6 @@ export const DiscoverBrowse = forwardRef<DiscoverBrowseHandle, DiscoverBrowsePro
         onCancelMessage={handleCancelMessage}
         onMessageSubmit={handleMessageSubmit}
         onMessageTextChange={setMessageText}
-        onAvailabilityGate={onAvailabilityGate}
         onViewProfile={onViewProfile}
         onLoadCards={loadCards}
         requireAvailability={requireAvailability}
