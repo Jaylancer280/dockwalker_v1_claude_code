@@ -163,11 +163,61 @@ function ApplicationCard({
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const dw = application.daywork;
-  if (!dw) return null;
-
   const statusInfo = STATUS_LABELS[application.status] ?? STATUS_LABELS.applied;
-  const symbol = currencySymbol(dw.currency);
   const canWithdraw = ['applied', 'viewed', 'shortlisted'].includes(application.status);
+
+  // Tombstone — joined daywork is null (cancelled, completed, or otherwise hidden).
+  // Application history preserved per the append-only ledger principle (B-008).
+  if (!dw) {
+    return (
+      <Card className="border-dashed opacity-75">
+        <CardContent className="flex flex-col gap-2 pt-4">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-[15px] font-semibold tracking-[-0.3px] text-muted-foreground">
+              Posting no longer available
+            </h3>
+            <Badge className="shrink-0 bg-[var(--card)] text-[10px] text-muted-foreground">
+              {statusInfo.label}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            The employer cancelled or closed this posting. Your application is kept here for your
+            records.
+          </p>
+          {application.message && (
+            <ExpandableText
+              text={`“${application.message}”`}
+              maxLines={2}
+              className="rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic"
+            />
+          )}
+          <div className="flex items-center justify-between pt-1">
+            <span className="font-mono text-[11px] text-[var(--tertiary)]">
+              Applied {new Date(application.applied_at).toLocaleDateString()}
+            </span>
+            {canWithdraw && application.daywork_id && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                disabled={withdrawing}
+                onClick={onWithdraw}
+              >
+                {withdrawing ? (
+                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                ) : (
+                  <X className="mr-1 h-3 w-3" />
+                )}
+                Withdraw
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const symbol = currencySymbol(dw.currency);
   const isShortlisted = application.status === 'shortlisted';
 
   return (

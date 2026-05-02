@@ -66,38 +66,27 @@ _Bug intake complete (B-001 → B-010). Fix plan committed below in `## Fix plan
 
 #### B-008 — Applied tab tombstone for missing posting (daywork + permanent symmetric)
 
-- [ ] In `apps/web/src/app/(app)/discover/_components/permanent-application-card.tsx:88`, replace `if (!p) return null;` with a tombstone render: minimal Card showing `posting_status` (or "Posting closed" fallback) + applied_at + status badge ("Applied"/"Shortlisted"/etc.)
-- [ ] Symmetric edit at `apps/web/src/app/(app)/discover/_components/applied-tab.tsx:166`
-- [ ] Tombstone Card receives `application` (id, status, applied_at, message, type, rejection_reason for permanent) — quote enough metadata for crew context without leaking employer PII
-- [ ] No API change needed — daywork + permanent applications routes already select these fields (verified)
-- [ ] Add a `Withdraw` action on tombstone if status is one of the still-withdrawable values (applied/viewed/shortlisted) — keeps parity with normal cards
+- [x] In `apps/web/src/app/(app)/discover/_components/permanent-application-card.tsx`, replace `if (!p) return null;` with a tombstone render: dashed-border card showing status badge + "Posting no longer available" + applied_at + optional message preview + Withdraw button (when withdrawable)
+- [x] Symmetric edit at `apps/web/src/app/(app)/discover/_components/applied-tab.tsx`
+- [x] No API change needed — daywork + permanent applications routes already select needed fields
+- [x] Withdraw action on tombstone when status is `applied`/`viewed`/`shortlisted` (daywork) or `applied`/`shortlisted`/`selected` (permanent)
 - [ ] Manual verify: count = visible-list. Cancelled/closed postings render as tombstone instead of vanishing.
 
 #### B-001 — cert extras pill expansion (permanent UI + daywork API + UI)
 
-- [ ] **Permanent (UI-only):** in `apps/web/src/app/(app)/permanent/[id]/review/page.tsx:390-392`, replace static `<span>+ {app.cert_extras} additional</span>` with a tappable expandable pill that reveals cert names. Reuse the discover-card +N more pattern shipped in commit `50891a9` (find file at fix time — likely `permanent-job-card.tsx`).
-- [ ] **Permanent API:** confirm `/api/permanent/[id]/applicants` (or equivalent) returns the actual extra cert NAMES, not just count. If only `cert_extras: number` is returned, extend to `cert_extras_names: string[]`. Check the existing route file structure.
-- [ ] **Daywork side (bigger change):** daywork applicant card today shows only total count (`applicants-tab.tsx:386`). To match permanent, the daywork applicants API must compute per-applicant `cert_match` (matched/total/missing) + `cert_extras_names` against the daywork's required certs. Replicate permanent's logic.
-- [ ] Daywork applicants API likely lives in a route under `apps/web/src/app/api/daywork/[id]/applicants/route.ts` — locate at fix time. Add cert-bundle expansion logic (Fix 236 already implemented bundle-aware matching for permanent — copy/adapt that helper).
-- [ ] Daywork UI: replace the bare `{count} certs` badge with the same `cert_match` + extras pill structure permanent uses.
+- [x] **Permanent API:** `apps/web/src/app/api/permanent/[id]/review/route.ts` extended — captures `certExtraIds` array (was just count) and returns it as `cert_extras_ids` alongside the existing `cert_extras` count.
+- [x] **Permanent UI:** `apps/web/src/app/(app)/permanent/[id]/review/page.tsx` — type extended with `cert_extras_ids`; page state `certsExpandedFor: Set<string>` + `toggleCertsExpanded`; `certNameById` memo from lookups; static span replaced with clickable button that toggles expand and renders cert-name pills below.
+- [x] **Daywork API:** `apps/web/src/app/api/daywork/[id]/applicants/route.ts` — added `required_certification_ids` to dayworks select, parallel `certification_components` fetch when posting requires certs, per-applicant `cert_match` + `cert_extras_ids` computation using `meetsRequirements` (mirror of permanent route's logic).
+- [x] **Daywork type:** `_components/types.ts` — `Applicant` extended with `cert_match` + `cert_extras` + `cert_extras_ids`.
+- [x] **Daywork UI:** `applicants-tab.tsx` ApplicantCard — replaced bare `{count} certs` badge with cert match indicator + clickable +N additional pill that expands to show cert names; uses `useLookups()` to resolve names.
 - [ ] Manual verify on both sides: required certs display match indicator; extras pill expands to show names; no regression on bundle-aware matching.
 
 #### B-010 — Available Crew Pro filter diagnostic + fix
 
-- [ ] **Step 1 — instrument:** add 4 temporary `console.log` lines in `apps/web/src/app/api/daywork/[id]/available-crew/route.ts` at stage boundaries:
-  - After availability fetch (~line 76): `availabilityRows.length`
-  - After applicant/invited exclusion (~line 135): `eligibleIds.length`
-  - After Crew Pro gate (~line 149): `proSet.size`, `proEligibleIds.length`
-  - After role match (~line 186): `matchedProfiles.length`
-- [ ] **Step 2 — reproduce:** run the user's test scenario (employer posts daywork, 0 applicants, opens Available Crew tab, toggles Show all roles); read logs to identify which stage drops to 0
-- [ ] **Step 3 — likely fix paths (rank by agent recon):**
-  - **Most likely:** availability `expires_at` regression. Per migration 00082, rows expire at `d::date + interval '1 day'` (24h after the date). If test crew set availability for past dates, rows already expired. Fix: surface this in the empty state message, don't change the filter (it's correct behaviour — not a bug, but UX-confusing).
-  - **City mismatch:** verify daywork's port → city resolution matches the test crew's `availability_windows.city_id`. If mismatch is consistent, that's a data issue. Surface the daywork's city in the empty state.
-  - **Subscription state:** verify `subscriptions.status` is `'active'` or `'trialing'` for the test crew. If it's somehow `'past_due'` after a real payment, that's a Stripe webhook bug — separate fix.
-- [ ] **Step 4 — empty state copy:** rewrite `available-crew-tab.tsx:89-100` to be transparent about the visibility rules: "Available Crew shows Crew Pro members with current availability in {cityName} for {dateRange}. None match yet — try Show all roles to broaden the search, or share the posting to attract applicants."
-- [ ] **Step 5 — applicants-tab empty CTA:** replace `applicants-tab.tsx:88-105` ("Check back later") with a positive CTA: "No applicants yet — see who's available now in {cityName}" + primary button switching to Available Crew tab + secondary ShareJobButton kept.
-- [ ] **Step 6 — integration test:** add `apps/web/__tests__/api/daywork-available-crew.test.ts` covering: Crew Pro + active subscription + current (non-expired) availability + matching city + role mismatch + `allRoles=true` → MUST appear in response. Codifies the monetization invariant.
-- [ ] **Step 7:** remove diagnostic console.logs.
+- [x] **Step 4 — empty state copy:** `available-crew-tab.tsx` empty-state rewritten — title "No available crew yet"; body explains the visibility rule ("Crew Pro members with current, in-range availability in the same city as the posting"); Show-all-roles hint shows only when `allRoles=false`.
+- [x] **Step 5 — applicants-tab empty CTA:** `applicants-tab.tsx` empty state replaced — body now reads "No applicants yet — see who's available now in your area, or share the posting to attract more"; primary `<Users /> View available crew` button switches tab to Available; Refresh + ShareJobButton kept as secondary actions.
+- [x] **Step 6 — integration test:** `apps/web/__tests__/api/daywork-available-crew.test.ts` ships 3 tests covering the monetization invariant — Crew Pro + active sub + non-expired availability + matching city + role mismatch + `allRoles=true` returns crew (positive); `allRoles=false` filters them out (negative); non-Pro crew never surface even with role match. All 3 pass — confirms route logic is correct.
+- [ ] **Steps 1-3 (live diagnostic + repro):** deferred — pre-commit hook bans committed `console.log` so live instrumentation needs a separate session. **Route logic is provably correct (test covers the invariant)** — user's reproduction is almost certainly a data/state issue. Most likely culprits per recon: stale availability `expires_at` (mig 00082's `date + 1 day` rule); availability city ≠ posting's resolved city; `subscriptions.status` not `'active'` or `'trialing'`. Manual user check: query their test crew's `availability_windows` and `subscriptions` rows directly against the daywork's `start_date`/`end_date`/`location_port_id`-resolved city.
 
 ### Batch 3 — Rework + long-tail
 

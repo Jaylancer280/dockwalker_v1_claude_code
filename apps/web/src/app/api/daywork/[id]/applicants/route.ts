@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireDomainUser } from '@/lib/auth/require-domain-user';
+import { meetsRequirements, type BundleMap } from '@dockwalker/shared';
 
 /**
  * GET /api/daywork/:id/applicants
@@ -20,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const { data: daywork } = await supabase
       .from('dayworks')
       .select(
-        'id, poster_person_id, start_date, end_date, positions_available, positions_filled, permanent_opportunity',
+        'id, poster_person_id, start_date, end_date, positions_available, positions_filled, permanent_opportunity, required_certification_ids',
       )
       .eq('id', dayworkId)
       .single();
@@ -75,8 +76,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const engagementCountMap: Record<string, number> = {};
     const shoreCategoryMap: Record<string, string[]> = {};
 
+    const requiredCerts = (daywork.required_certification_ids as string[]) ?? [];
+    const bundles: BundleMap = {};
+
     if (crewIds.length > 0) {
-      const [availResult, engResult, shoreResult] = await Promise.all([
+      const [availResult, engResult, shoreResult, bundlesResult] = await Promise.all([
         serviceClient
           .from('availability_windows')
           .select('person_id, date, city_id, not_available')
@@ -91,7 +95,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           .from('shore_experiences')
           .select('person_id, shore_experience_categories(name)')
           .in('person_id', crewIds),
+        // Bundles only matter when the posting requires certs — skip the
+        // junction table fetch otherwise. Mirrors the permanent review route.
+        requiredCerts.length > 0
+          ? serviceClient
+              .from('certification_components')
+              .select('bundle_cert_id, component_cert_id')
+          : Promise.resolve({
+              data: [] as { bundle_cert_id: string; component_cert_id: string }[],
+            }),
       ]);
+
+      for (const row of (bundlesResult.data as
+        | { bundle_cert_id: string; component_cert_id: string }[]
+        | null) ?? []) {
+        if (!bundles[row.bundle_cert_id]) bundles[row.bundle_cert_id] = [];
+        bundles[row.bundle_cert_id].push(row.component_cert_id);
+      }
 
       const availWindows = availResult.data ?? [];
       const cityIds = new Set<string>();
@@ -141,14 +161,54 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
-    let enriched = (applications ?? []).map((app) => ({
-      ...app,
-      available_days: availabilityMap[app.crew_person_id] ?? 0,
-      availability_city: availabilityCityMap[app.crew_person_id] ?? null,
-      availability_not_available: notAvailableSet.has(app.crew_person_id),
-      past_daywork_count: engagementCountMap[app.crew_person_id] ?? 0,
-      shore_experience_categories: shoreCategoryMap[app.crew_person_id] ?? [],
-    }));
+    const requiredSet = new Set(requiredCerts);
+
+    let enriched = (applications ?? []).map((app) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const profile = (app.profiles as any) ?? null;
+      const candidateCerts = (profile?.certification_ids as string[]) ?? [];
+      const certMatch =
+        requiredCerts.length > 0 ? meetsRequirements(candidateCerts, requiredCerts, bundles) : null;
+
+      // Bundle-aware extras: a cert that covers a required slot (directly or
+      // via a bundle) doesn't count as extra. Mirror of permanent review
+      // route's logic so the daywork applicant card can render the same
+      // expandable +N more pill (B-001).
+      let certExtraIds: string[] = [];
+      if (candidateCerts.length > 0) {
+        const usedForRequired = new Set<string>();
+        for (const c of candidateCerts) {
+          if (requiredSet.has(c)) {
+            usedForRequired.add(c);
+            continue;
+          }
+          const components = bundles[c];
+          if (components && components.some((comp) => requiredSet.has(comp))) {
+            usedForRequired.add(c);
+          }
+        }
+        certExtraIds = candidateCerts.filter((c) => !usedForRequired.has(c));
+      }
+
+      return {
+        ...app,
+        available_days: availabilityMap[app.crew_person_id] ?? 0,
+        availability_city: availabilityCityMap[app.crew_person_id] ?? null,
+        availability_not_available: notAvailableSet.has(app.crew_person_id),
+        past_daywork_count: engagementCountMap[app.crew_person_id] ?? 0,
+        shore_experience_categories: shoreCategoryMap[app.crew_person_id] ?? [],
+        cert_match: certMatch
+          ? {
+              ok: certMatch.ok,
+              matched: requiredCerts.length - certMatch.missing.length,
+              total: requiredCerts.length,
+              missing_count: certMatch.missing.length,
+            }
+          : null,
+        cert_extras: certExtraIds.length,
+        cert_extras_ids: certExtraIds,
+      };
+    });
 
     // Post-enrichment filters
     if (filterCertificationId) {

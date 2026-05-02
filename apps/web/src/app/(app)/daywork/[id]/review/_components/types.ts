@@ -30,6 +30,14 @@ export interface Applicant {
   past_daywork_count: number;
   source: string | null;
   shore_experience_categories: string[];
+  cert_match: {
+    ok: boolean;
+    matched: number;
+    total: number;
+    missing_count: number;
+  } | null;
+  cert_extras: number;
+  cert_extras_ids: string[];
 }
 
 export interface AvailableCrew {

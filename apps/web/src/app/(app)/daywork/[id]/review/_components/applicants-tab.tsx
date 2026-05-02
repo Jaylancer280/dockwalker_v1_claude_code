@@ -1,15 +1,16 @@
 'use client';
 
-import { useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
-import { MapPin, Award, Briefcase, Calendar, Check, X, User, Star } from 'lucide-react';
+import { MapPin, Award, Briefcase, Calendar, Check, X, User, Star, Users } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { useLookups } from '@/hooks/use-lookups';
 import type { Applicant, TabView } from './types';
 import { ExpandableText } from '@/components/expandable-text';
 import { ShareJobButton } from '@/components/share-job-button';
@@ -86,11 +87,15 @@ export function ApplicantsTab({
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 {tab === 'applicants'
-                  ? 'No new applications to review. Check back later or view your shortlist.'
+                  ? 'No applicants yet — see who’s available now in your area, or share the posting to attract more.'
                   : 'Shortlist crew from the Applicants tab to compare them here.'}
               </p>
               {tab === 'applicants' && (
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setTab('available')}>
+                    <Users className="mr-1.5 h-4 w-4" />
+                    View available crew
+                  </Button>
                   <Button variant="outline" size="sm" onClick={loadApplicants}>
                     Refresh
                   </Button>
@@ -290,6 +295,15 @@ export function ApplicantCard({
   onViewProfile?: (personId: string) => void;
 }) {
   const profile = applicant.profiles;
+  const [certsExpanded, setCertsExpanded] = useState(false);
+  const lookups = useLookups();
+  const certNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of lookups.certifications as { id: string; name: string }[]) {
+      map.set(c.id, c.name);
+    }
+    return map;
+  }, [lookups.certifications]);
 
   return (
     <div
@@ -389,14 +403,59 @@ export function ApplicantCard({
           </div>
         </div>
 
+        {/* Cert match indicator (when posting requires certs) +
+            expandable extras pill (B-001). Bundle-aware via the
+            shared meetsRequirements helper — same logic as permanent. */}
+        {(applicant.cert_match || applicant.cert_extras > 0) && (
+          <div className="mt-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium">
+              {applicant.cert_match && (
+                <span
+                  className={
+                    applicant.cert_match.ok ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                  }
+                >
+                  {applicant.cert_match.ok
+                    ? `✓ All ${applicant.cert_match.total} required certs`
+                    : `⚠ ${applicant.cert_match.matched}/${applicant.cert_match.total} certs · ${applicant.cert_match.missing_count} missing`}
+                </span>
+              )}
+              {applicant.cert_extras > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCertsExpanded((prev) => !prev);
+                  }}
+                  className="text-[var(--primary)] hover:underline"
+                  aria-expanded={certsExpanded}
+                  aria-label={
+                    certsExpanded
+                      ? 'Hide additional certifications'
+                      : `Show ${applicant.cert_extras} additional certifications`
+                  }
+                >
+                  {certsExpanded ? 'Hide additional' : `+ ${applicant.cert_extras} additional`}
+                </button>
+              )}
+            </div>
+            {applicant.cert_extras > 0 && certsExpanded && (
+              <div className="mt-1.5 flex flex-wrap gap-1">
+                {applicant.cert_extras_ids.map((id) => (
+                  <span
+                    key={id}
+                    className="inline-flex items-center rounded-full border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-2 py-0.5 text-[11px] text-[var(--primary)]"
+                  >
+                    {certNameById.get(id) ?? id}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Badges */}
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {(profile?.certification_ids?.length ?? 0) > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {profile!.certification_ids.length} cert
-              {profile!.certification_ids.length !== 1 ? 's' : ''}
-            </Badge>
-          )}
           {(profile?.vessel_size_exposure_ids?.length ?? 0) > 0 && (
             <Badge variant="secondary" className="text-xs">
               {profile!.vessel_size_exposure_ids.length} vessel size

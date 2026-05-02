@@ -163,7 +163,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       // required cert, directly or via bundle. Surfaces over-qualification
       // on the card. Always computed (independent of cert_match) so a
       // posting with zero required certs still shows a candidate's bonus.
-      let certExtras = 0;
+      // Returns IDs (not names) — UI resolves names via the lookups context
+      // for the expandable +N more pill (B-001).
+      let certExtraIds: string[] = [];
       if (candidateCerts.length > 0) {
         const usedForRequired = new Set<string>();
         for (const c of candidateCerts) {
@@ -176,7 +178,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
             usedForRequired.add(c);
           }
         }
-        certExtras = candidateCerts.filter((c) => !usedForRequired.has(c)).length;
+        certExtraIds = candidateCerts.filter((c) => !usedForRequired.has(c));
       }
 
       return {
@@ -228,7 +230,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
               missing_count: certMatch.missing.length,
             }
           : null,
-        cert_extras: certExtras,
+        cert_extras: certExtraIds.length,
+        cert_extras_ids: certExtraIds,
       };
     });
 

@@ -57,6 +57,7 @@ interface Applicant {
     missing_count: number;
   } | null;
   cert_extras: number;
+  cert_extras_ids: string[];
   /** v2.1: true when the application carries an `invited_from_id`.
    * Drives the ✉ Invited badge so the captain sees at a glance which
    * applicants came in via a PERMANENT.INVITED deep link. */
@@ -101,6 +102,24 @@ export default function PermanentReviewPage() {
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [selectConfirm, setSelectConfirm] = useState<Applicant | null>(null);
+  const [certsExpandedFor, setCertsExpandedFor] = useState<Set<string>>(new Set());
+
+  const certNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of lookups.certifications as { id: string; name: string }[]) {
+      map.set(c.id, c.name);
+    }
+    return map;
+  }, [lookups.certifications]);
+
+  function toggleCertsExpanded(applicantId: string) {
+    setCertsExpandedFor((prev) => {
+      const next = new Set(prev);
+      if (next.has(applicantId)) next.delete(applicantId);
+      else next.add(applicantId);
+      return next;
+    });
+  }
 
   // Client-side hat guard: redirect crew away from employer review page
   useEffect(() => {
@@ -377,22 +396,51 @@ export default function PermanentReviewPage() {
                     counts as having AEC 1 and AEC 2 individually. The
                     extras pill renders alongside whenever the candidate
                     holds bonus certs not contributing to any requirement
-                    — even when requiredCerts is empty (cert_match null). */}
+                    — even when requiredCerts is empty (cert_match null).
+                    Tap +N additional to expand the cert names inline (B-001). */}
                 {(app.cert_match || app.cert_extras > 0) && (
-                  <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium">
-                    {app.cert_match && (
-                      <span
-                        className={
-                          app.cert_match.ok ? 'text-[var(--success)]' : 'text-[var(--warning)]'
-                        }
-                      >
-                        {app.cert_match.ok
-                          ? `✓ All ${app.cert_match.total} required certs`
-                          : `⚠ ${app.cert_match.matched}/${app.cert_match.total} certs · ${app.cert_match.missing_count} missing`}
-                      </span>
-                    )}
-                    {app.cert_extras > 0 && (
-                      <span className="text-[var(--primary)]">+ {app.cert_extras} additional</span>
+                  <div className="mb-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-medium">
+                      {app.cert_match && (
+                        <span
+                          className={
+                            app.cert_match.ok ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+                          }
+                        >
+                          {app.cert_match.ok
+                            ? `✓ All ${app.cert_match.total} required certs`
+                            : `⚠ ${app.cert_match.matched}/${app.cert_match.total} certs · ${app.cert_match.missing_count} missing`}
+                        </span>
+                      )}
+                      {app.cert_extras > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => toggleCertsExpanded(app.id)}
+                          className="text-[var(--primary)] hover:underline"
+                          aria-expanded={certsExpandedFor.has(app.id)}
+                          aria-label={
+                            certsExpandedFor.has(app.id)
+                              ? 'Hide additional certifications'
+                              : `Show ${app.cert_extras} additional certifications`
+                          }
+                        >
+                          {certsExpandedFor.has(app.id)
+                            ? 'Hide additional'
+                            : `+ ${app.cert_extras} additional`}
+                        </button>
+                      )}
+                    </div>
+                    {app.cert_extras > 0 && certsExpandedFor.has(app.id) && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {app.cert_extras_ids.map((id) => (
+                          <span
+                            key={id}
+                            className="inline-flex items-center rounded-full border border-[var(--primary)]/30 bg-[var(--primary)]/5 px-2 py-0.5 text-[11px] text-[var(--primary)]"
+                          >
+                            {certNameById.get(id) ?? id}
+                          </span>
+                        ))}
+                      </div>
                     )}
                   </div>
                 )}

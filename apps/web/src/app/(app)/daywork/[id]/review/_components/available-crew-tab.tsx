@@ -79,23 +79,37 @@ export function AvailableCrewTab({
         {/* Loading state */}
         {availableLoading && <LoadingSpinner size="md" text="Finding available crew..." />}
 
-        {/* Empty state */}
+        {/* Empty state \u2014 explain the visibility rule transparently so
+            employers don't think the feature is broken (B-010c). */}
         {!availableLoading && availableLoaded && visibleAvailable.length === 0 && (
           <Card className="w-full">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-muted-foreground" />
                 <CardTitle className="text-base">
-                  {inviteLimitReached ? 'Invitation limit reached' : 'No available crew nearby'}
+                  {inviteLimitReached ? 'Invitation limit reached' : 'No available crew yet'}
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {inviteLimitReached
-                  ? `You\u2019ve used all ${invitationLimit} invitations for this posting.`
-                  : 'No crew with matching availability found. Try enabling "Show all roles" to broaden the search.'}
-              </p>
+            <CardContent className="flex flex-col gap-2">
+              {inviteLimitReached ? (
+                <p className="text-sm text-muted-foreground">
+                  You&rsquo;ve used all {invitationLimit} invitations for this posting.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Available Crew lists Crew Pro members with current, in-range availability in the
+                    same city as the posting.
+                  </p>
+                  {!allRoles && (
+                    <p className="text-sm text-muted-foreground">
+                      Try enabling <span className="font-medium">Show all roles</span> to broaden
+                      the search.
+                    </p>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         )}

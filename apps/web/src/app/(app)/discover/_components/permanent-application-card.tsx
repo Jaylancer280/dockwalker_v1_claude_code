@@ -85,13 +85,56 @@ export function PermanentApplicationCard({
 }: PermanentApplicationCardProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const p = application.posting;
-  if (!p) return null;
-
   const statusInfo = STATUS_LABELS[application.status] ?? {
     label: application.status,
     variant: 'outline' as const,
   };
   const canWithdraw = ['applied', 'shortlisted', 'selected'].includes(application.status);
+
+  // Tombstone — joined posting is null (cancelled, closed, or otherwise hidden by RLS).
+  // Application history is preserved per the append-only ledger principle (B-008): crew
+  // get closure on what happened rather than the row silently disappearing from the list.
+  if (!p) {
+    return (
+      <div className="rounded-[14px] border border-dashed border-[var(--border)] bg-[var(--card)] p-4 opacity-75">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <p className="min-w-0 flex-1 text-[15px] font-semibold tracking-[-0.3px] text-muted-foreground">
+            Posting no longer available
+          </p>
+          <Badge variant="outline" className="shrink-0">
+            {statusInfo.label}
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          The employer cancelled or closed this posting. Your application is kept here for your
+          records.
+        </p>
+        {application.message && (
+          <ExpandableText
+            text={`"${application.message}"`}
+            maxLines={2}
+            className="mt-2 rounded-md bg-[var(--surface)] px-2.5 py-1.5 text-xs text-[var(--foreground)] italic"
+          />
+        )}
+        <div className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3">
+          <span className="font-mono text-[11px] text-[var(--tertiary)]">
+            Applied {new Date(application.applied_at).toLocaleDateString()}
+          </span>
+          {canWithdraw && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={withdrawing}
+              onClick={() => onWithdraw(application.permanent_posting_id)}
+            >
+              {withdrawing ? 'Withdrawing...' : 'Withdraw'}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   const vesselPrefix = p.vessel_type === 'sail' ? 'S/Y' : p.vessel_type === 'motor' ? 'M/Y' : '';
   const vesselDisplay = p.vessel_name ? `${vesselPrefix} ${p.vessel_name}`.trim() : 'Unknown';
 
