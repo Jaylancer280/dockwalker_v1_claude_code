@@ -185,10 +185,14 @@ async function resolveBody(
         .single();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const roleName = (dw as any)?.yacht_roles?.name ?? 'a role';
+      // B-002: warmer copy. Avoids the red ❌ + "rejected" framing that
+      // landed harshly on green crew. Matches the celebratory positive
+      // templates in tone (emoji + bold header — role name) and pushes
+      // forward to the next opportunity rather than dwelling on closure.
       return {
         text:
-          `❌ <b>Application not selected</b>\n` +
-          `${escapeHtml(roleName)} · ${escapeHtml(jobNumber)}` +
+          `📈 <b>On to the next — ${escapeHtml(roleName)}</b>\n` +
+          `${escapeHtml(jobNumber)} found a different fit. Plenty of new daywork live today.` +
           cta(`${SITE_URL}/discover`, 'Browse more daywork'),
       };
     }
@@ -421,11 +425,12 @@ async function resolveBody(
       if (!postingId) return null;
       const info = await getPermanentPostingInfo(sc, postingId);
       if (!info) return null;
+      // B-002: warmer copy — same forward-looking treatment as DAYWORK.REJECTED.
       return {
         text:
-          `❌ <b>Permanent application not selected</b>\n` +
-          `${escapeHtml(info.role_name)} · ${escapeHtml(info.job_number)}` +
-          cta(`${SITE_URL}/discover`),
+          `🔍 <b>Keep exploring — ${escapeHtml(info.role_name)}</b>\n` +
+          `${escapeHtml(info.job_number)} closed for now. Fresh permanent postings match your profile every week.` +
+          cta(`${SITE_URL}/discover`, 'Browse permanent roles'),
       };
     }
 
@@ -434,11 +439,13 @@ async function resolveBody(
       const info = await getPermanentPostingInfo(sc, postingId);
       if (!info) return null;
       if (ctx.notification.title === 'Position Filled') {
+        // B-002: same audience as PERMANENT.REJECTED (rejected applicants).
+        // Reframe from "Position filled" closure to a forward-looking nudge.
         return {
           text:
-            `ℹ️ <b>Position filled</b>\n` +
-            `${escapeHtml(info.role_name)} · ${escapeHtml(info.job_number)}` +
-            cta(`${SITE_URL}/discover`),
+            `🌟 <b>Role filled — ${escapeHtml(info.role_name)}</b>\n` +
+            `${escapeHtml(info.job_number)} went to another crew. New permanent postings live this week — keep applying.` +
+            cta(`${SITE_URL}/discover`, 'Browse permanent roles'),
         };
       }
       return {

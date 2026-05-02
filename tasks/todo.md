@@ -144,16 +144,16 @@ _Bug intake complete (B-001 → B-010). Fix plan committed below in `## Fix plan
 
 #### B-002 — Rejection notification tone (Telegram + in-app/push only; WhatsApp dispatcher edits DROPPED — deferred per project notes)
 
-- [ ] **Telegram dispatcher** (`apps/web/src/lib/push-triggers/telegram-dispatcher.ts`) — edit 3 branches:
-  - Line 190 `DAYWORK.REJECTED`: replace `❌ <b>Application not selected</b>` with warmer copy. Default candidate: `📈 <b>On to the next — {roleName}</b>\nThe captain went a different way for {jobNumber}. Plenty of new daywork posted today.\n[Browse more]`
-  - Line 426 `PERMANENT.REJECTED`: replace `❌ <b>Permanent application not selected</b>` with: `🔍 <b>Keep exploring — {roleName}</b>\n{jobNumber} found a different fit, but new permanent roles match your profile every week.\n[Browse]`
-  - Line 436+ `PERMANENT.PLACEMENT_CONFIRMED` "Position Filled" branch: replace `ℹ️ <b>Position filled</b>` with: `🌟 <b>Role filled — {roleName}</b>\nThis seat went to another crew. Fresh permanent postings live this week.\n[Browse]`
-  - Final copy locked at fix time; agent picks from drafted candidates per intake report.
-- [ ] **In-app handlers** — soften title-only:
-  - `apps/web/src/lib/push-triggers/daywork-handlers.ts:60-64`: title `"Application Update"` is already neutral; body `"Update on your application for {jobNumber}"` already soft. Optional: tweak body to `"Update on your {jobNumber} application — see what's open in your area."`
-  - `apps/web/src/lib/push-triggers/permanent-handlers.ts:139-143`: same treatment.
-- [ ] **WhatsApp dispatcher (`whatsapp-dispatcher.ts:91, 238`):** **DROP from this fix scope** — WhatsApp migration is deferred, no Meta template re-approval needed. Leave existing `dw_rejected` / `pm_rejected` template references in code. Add an inline comment marking that the templates need re-submission with warmer copy when WhatsApp goes live.
-- [ ] **Tests:** existing dispatcher tests pass with new copy; snapshot tests if they exist.
+- [x] **Telegram dispatcher** (`apps/web/src/lib/push-triggers/telegram-dispatcher.ts`) — edited 3 branches:
+  - `DAYWORK.REJECTED`: was `❌ <b>Application not selected</b>` → now `📈 <b>On to the next — {roleName}</b>\n{jobNumber} found a different fit. Plenty of new daywork live today.`
+  - `PERMANENT.REJECTED`: was `❌ <b>Permanent application not selected</b>` → now `🔍 <b>Keep exploring — {roleName}</b>\n{jobNumber} closed for now. Fresh permanent postings match your profile every week.`
+  - `PERMANENT.PLACEMENT_CONFIRMED` "Position Filled" branch: was `ℹ️ <b>Position filled</b>` → now `🌟 <b>Role filled — {roleName}</b>\n{jobNumber} went to another crew. New permanent postings live this week — keep applying.`
+- [x] **In-app handlers** — body softened:
+  - `daywork-handlers.ts` `handleDayworkRejected`: body now reads `"{jobNumber} went a different way — see what's open in your area"` (was `"Update on your application for {jobNumber}"`).
+  - `permanent-handlers.ts` `handlePermanentRejected`: body now reads `"{role} went a different way — keep exploring permanent roles"` (was `"Update on your {role} application"`).
+  - Titles unchanged ("Application Update") — already neutral.
+- [x] **WhatsApp dispatcher** — DROPPED from scope per project notes (WhatsApp migration is deferred). Inline comments added on `dw_rejected` / `pm_rejected` / `pm_position_filled` template branches noting that warmer copy mirroring the Telegram body should be re-submitted to Meta as `_v2` templates when WhatsApp launches.
+- [ ] **Tests:** existing dispatcher tests still pass (1516/1516, no regressions). No new tests added — copy changes only.
 
 ### Open at fix-time (not blocking)
 

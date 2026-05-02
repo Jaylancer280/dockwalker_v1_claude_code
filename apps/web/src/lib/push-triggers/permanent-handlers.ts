@@ -132,13 +132,16 @@ export async function handlePermanentRejected(
   const crewId = payload.crew_person_id as string;
   const info = await getPermanentPostingInfo(sc, postingId);
   if (!info) return [];
+  // B-002: forward-looking body. Title stays neutral so the in-app badge
+  // doesn't broadcast rejection. Telegram + WhatsApp have warmer copy in
+  // their respective dispatchers.
   return [
     {
       recipientPersonId: crewId,
       roleContext: 'crew',
       notification: {
         title: 'Application Update',
-        body: `Update on your ${info.role_name} application`,
+        body: `${info.role_name} went a different way — keep exploring permanent roles`,
         data: { screen: 'discover' },
       },
     },

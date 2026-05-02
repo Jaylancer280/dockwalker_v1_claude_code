@@ -87,6 +87,13 @@ async function resolveTemplate(
         : { data: null };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const roleName = (dw as any)?.yacht_roles?.name ?? 'a role';
+      // B-002: WhatsApp dispatcher edits deferred per project notes
+      // (WhatsApp migration is a v2 feature; Telegram covers crew/employer
+      // notifications today). When WhatsApp goes live, submit a NEW
+      // template (e.g. `dw_rejected_v2`) to Meta with copy that mirrors
+      // the warmer Telegram body in this commit — forward-looking, no
+      // "rejected" framing — and swap the templateName below. Variable
+      // order [roleName, jobNumber] should stay consistent.
       return {
         templateName: 'dw_rejected',
         variables: [roleName, jobNumber],
@@ -234,6 +241,9 @@ async function resolveTemplate(
       if (!postingId) return null;
       const info = await getPermanentPostingInfo(sc, postingId);
       if (!info) return null;
+      // B-002: same WhatsApp deferral as DAYWORK.REJECTED. Re-submit a
+      // `pm_rejected_v2` template to Meta with warmer copy mirroring the
+      // Telegram body when WhatsApp launches.
       return {
         templateName: 'pm_rejected',
         variables: [info.role_name, info.job_number],
@@ -247,6 +257,8 @@ async function resolveTemplate(
       if (!info) return null;
       // Distinguish placed crew vs not-selected applicants by notification title
       if (ctx.notification.title === 'Position Filled') {
+        // B-002: same audience as PERMANENT.REJECTED (rejected applicants).
+        // Re-submit `pm_position_filled_v2` to Meta with warmer copy.
         return {
           templateName: 'pm_position_filled',
           variables: [info.role_name, info.job_number],

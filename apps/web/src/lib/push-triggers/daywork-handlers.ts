@@ -53,13 +53,17 @@ export async function handleDayworkRejected(
   const crewId = payload.crew_person_id as string;
   const dayworkId = payload.daywork_id as string;
   const jobNumber = await getJobNumber(sc, dayworkId);
+  // B-002: title stays neutral ("Application Update") so the badge doesn't
+  // pre-load a negative emotion. Body leans forward toward the next role
+  // rather than dwelling on closure. Telegram + WhatsApp surfaces have
+  // their own warmer copy in their respective dispatchers.
   return [
     {
       recipientPersonId: crewId,
       roleContext: 'crew',
       notification: {
         title: 'Application Update',
-        body: `Update on your application for ${jobNumber}`,
+        body: `${jobNumber} went a different way — see what's open in your area`,
         data: { screen: 'discover' },
       },
     },
