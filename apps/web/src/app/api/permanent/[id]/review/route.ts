@@ -261,6 +261,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       }
     }
 
+    // B-011: surface the shortlist-phase engagement id (if one exists) so the
+    // shortlist tab can render "Continue chat" instead of "Open chat" without
+    // an extra round-trip per card. One row per (posting, crew) by virtue of
+    // ON CONFLICT (application_id) DO NOTHING in the projection.
+    const shortlistChatByCrew: Record<string, string> = {};
+    if (shortlistedCrewIds.length > 0) {
+      const { data: chatRows } = await serviceClient
+        .from('active_engagements')
+        .select('id, crew_person_id')
+        .eq('permanent_posting_id', postingId)
+        .eq('phase', 'shortlist')
+        .in('crew_person_id', shortlistedCrewIds);
+      for (const c of (chatRows ?? []) as { id: string; crew_person_id: string }[]) {
+        shortlistChatByCrew[c.crew_person_id] = c.id;
+      }
+    }
+
     const applicants = rows.map((app) => {
       const profile = app.profiles;
       const candidateCerts = (profile?.certification_ids as string[]) ?? [];
@@ -345,6 +362,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         // B-003 Phase 2: empty array for non-shortlisted applicants — the
         // contact-API shortlist gate would 403 there anyway.
         references: referencesByCrew[app.crew_person_id] ?? [],
+        // B-011: present only for shortlisted candidates with an open chat.
+        // null on shortlisted-without-chat (employer hasn't opted in yet);
+        // null on applied/selected (state machine doesn't permit).
+        shortlist_chat_engagement_id: shortlistChatByCrew[app.crew_person_id] ?? null,
       };
     });
 

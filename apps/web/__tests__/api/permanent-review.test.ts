@@ -182,6 +182,18 @@ describe('GET /api/permanent/:id/review', () => {
         }),
       }),
     });
+    // B-011: shortlist_chat_engagement_id lookup — empty rows means no
+    // open shortlist chats, so applicants[*].shortlist_chat_engagement_id
+    // resolves to null.
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            in: vi.fn().mockResolvedValue({ data: [] }),
+          }),
+        }),
+      }),
+    });
 
     const res = await GET(req, { params });
     const data = await res.json();
