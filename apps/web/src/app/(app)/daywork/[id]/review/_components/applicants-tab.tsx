@@ -3,7 +3,19 @@
 import { useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
-import { MapPin, Award, Briefcase, Calendar, Check, X, User, Star, Users } from 'lucide-react';
+import {
+  MapPin,
+  Award,
+  Briefcase,
+  Calendar,
+  Check,
+  X,
+  User,
+  Star,
+  Users,
+  MessageSquarePlus,
+} from 'lucide-react';
+import { ContactReferencesButton } from '@/components/references/contact-references-button';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -469,6 +481,23 @@ export function ApplicantCard({
             </Badge>
           )}
         </div>
+
+        {/* B-003 Phase 2: contact references trigger. The API only populates
+            applicant.references for shortlisted-or-downstream applicants
+            (matches the contact-API shortlist gate), so this naturally
+            disappears on pre-shortlist cards without a per-tab check. */}
+        {!isPreview && applicant.references && applicant.references.length > 0 && (
+          <div className="mt-2 flex justify-end">
+            <ContactReferencesButton
+              references={applicant.references}
+              className="h-7 gap-1 text-xs"
+              size="sm"
+            >
+              <MessageSquarePlus className="h-3 w-3" />
+              References ({applicant.references.length})
+            </ContactReferencesButton>
+          </div>
+        )}
 
         {/* Shore experience categories */}
         {applicant.shore_experience_categories?.length > 0 && (

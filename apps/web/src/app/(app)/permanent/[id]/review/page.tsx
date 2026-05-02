@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLookups } from '@/hooks/use-lookups';
 import { vesselSizeRange } from '@dockwalker/shared';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, User, AlertCircle, Star, X } from 'lucide-react';
+import { ChevronLeft, Loader2, User, AlertCircle, Star, X, MessageSquarePlus } from 'lucide-react';
+import { ContactReferencesButton } from '@/components/references/contact-references-button';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { UnderlineTabs } from '@/components/ui/underline-tabs';
@@ -58,6 +59,18 @@ interface Applicant {
   } | null;
   cert_extras: number;
   cert_extras_ids: string[];
+  /** B-003 Phase 2: accepted references for shortlisted-or-downstream
+   *  applicants (empty array for pre-shortlist). Hydrated server-side. */
+  references: {
+    id: string;
+    referee_person_id: string;
+    claimed_referee_name: string;
+    claimed_referee_role: string | null;
+    snapshot_vessel_name: string | null;
+    referee_display_name: string | null;
+    referee_role_name: string | null;
+    referee_role_department: string | null;
+  }[];
   /** v2.1: true when the application carries an `invited_from_id`.
    * Drives the ✉ Invited badge so the captain sees at a glance which
    * applicants came in via a PERMANENT.INVITED deep link. */
@@ -461,6 +474,22 @@ export default function PermanentReviewPage() {
                         +{app.shore_experience_categories.length - 3}
                       </span>
                     )}
+                  </div>
+                )}
+
+                {/* B-003 Phase 2: contact references trigger. The API only
+                    populates app.references for shortlisted-or-downstream
+                    applicants (matches the contact-API shortlist gate). */}
+                {app.references && app.references.length > 0 && (
+                  <div className="mb-2">
+                    <ContactReferencesButton
+                      references={app.references}
+                      className="h-7 gap-1 text-xs"
+                      size="sm"
+                    >
+                      <MessageSquarePlus className="h-3 w-3" />
+                      References ({app.references.length})
+                    </ContactReferencesButton>
                   </div>
                 )}
 

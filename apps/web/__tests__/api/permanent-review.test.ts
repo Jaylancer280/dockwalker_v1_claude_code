@@ -168,6 +168,20 @@ describe('GET /api/permanent/:id/review', () => {
         in: vi.fn().mockResolvedValue({ data: [] }),
       }),
     });
+    // B-003 Phase 2: shortlisted+selected applicants trigger a references
+    // fetch. Empty rows here so the route skips downstream profile/role
+    // resolution.
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            not: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [] }),
+            }),
+          }),
+        }),
+      }),
+    });
 
     const res = await GET(req, { params });
     const data = await res.json();

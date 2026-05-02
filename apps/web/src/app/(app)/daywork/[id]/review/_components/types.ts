@@ -38,6 +38,18 @@ export interface Applicant {
   } | null;
   cert_extras: number;
   cert_extras_ids: string[];
+  /** B-003 Phase 2: accepted references for shortlisted applicants. Empty
+   *  array for pre-shortlist applicants (contact API would 403 there). */
+  references: {
+    id: string;
+    referee_person_id: string;
+    claimed_referee_name: string;
+    claimed_referee_role: string | null;
+    snapshot_vessel_name: string | null;
+    referee_display_name: string | null;
+    referee_role_name: string | null;
+    referee_role_department: string | null;
+  }[];
 }
 
 export interface AvailableCrew {

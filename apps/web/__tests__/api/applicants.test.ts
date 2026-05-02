@@ -252,6 +252,20 @@ describe('GET /api/daywork/:id/applicants', () => {
         in: vi.fn().mockResolvedValue({ data: [] }),
       }),
     });
+    // B-003 Phase 2: shortlisted applicants trigger a references fetch.
+    // Empty rows here so the route skips the downstream profiles + roles
+    // resolution and proceeds with referencesByCrew = {}.
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            not: vi.fn().mockReturnValue({
+              order: vi.fn().mockResolvedValue({ data: [] }),
+            }),
+          }),
+        }),
+      }),
+    });
 
     const res = await GET(
       new Request('http://localhost?certificationId=cert-123'),

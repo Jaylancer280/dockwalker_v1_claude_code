@@ -161,6 +161,114 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       }
     }
 
+    // B-003 Phase 2: hydrate accepted references for shortlisted applicants
+    // so the shortlist tab can render a Contact references button without an
+    // extra round-trip. Only shortlisted (and downstream) crew get this — the
+    // contact API's shortlist gate would reject pre-shortlist anyway, and we
+    // don't want to dangle a button that 403s. Service client bypasses the
+    // owner-scoped RLS on `references` (mig 00125); the application-status
+    // filter is the access control here.
+    const shortlistedCrewIds = (applications ?? [])
+      .filter(
+        (a) => a.status === 'shortlisted' || a.status === 'accepted' || a.status === 'selected',
+      )
+      .map((a) => a.crew_person_id);
+    const referencesByCrew: Record<
+      string,
+      Array<{
+        id: string;
+        referee_person_id: string;
+        claimed_referee_name: string;
+        claimed_referee_role: string | null;
+        snapshot_vessel_name: string | null;
+        referee_display_name: string | null;
+        referee_role_name: string | null;
+        referee_role_department: string | null;
+      }>
+    > = {};
+    if (shortlistedCrewIds.length > 0) {
+      const { data: refRows } = await serviceClient
+        .from('references')
+        .select(
+          `id, requester_person_id, referee_person_id, claimed_referee_role,
+           claimed_referee_name, snapshot_vessel_name, consented_at`,
+        )
+        .in('requester_person_id', shortlistedCrewIds)
+        .eq('status', 'accepted')
+        .not('referee_person_id', 'is', null)
+        .order('consented_at', { ascending: false });
+
+      const refereeIds = Array.from(
+        new Set(
+          ((refRows ?? []) as { referee_person_id: string | null }[])
+            .map((r) => r.referee_person_id)
+            .filter((id): id is string => !!id),
+        ),
+      );
+      const profileMap = new Map<
+        string,
+        { display_name: string | null; primary_role_id: string | null }
+      >();
+      const roleMap = new Map<string, { id: string; name: string; department: string }>();
+      if (refereeIds.length > 0) {
+        const { data: profileRows } = await serviceClient
+          .from('profiles')
+          .select('person_id, display_name, primary_role_id')
+          .in('person_id', refereeIds);
+        for (const p of (profileRows ?? []) as {
+          person_id: string;
+          display_name: string | null;
+          primary_role_id: string | null;
+        }[]) {
+          profileMap.set(p.person_id, {
+            display_name: p.display_name,
+            primary_role_id: p.primary_role_id,
+          });
+        }
+        const roleIds = Array.from(
+          new Set(
+            Array.from(profileMap.values())
+              .map((p) => p.primary_role_id)
+              .filter((id): id is string => !!id),
+          ),
+        );
+        if (roleIds.length > 0) {
+          const { data: roleRows } = await serviceClient
+            .from('yacht_roles')
+            .select('id, name, department')
+            .in('id', roleIds);
+          for (const r of (roleRows ?? []) as { id: string; name: string; department: string }[]) {
+            roleMap.set(r.id, r);
+          }
+        }
+      }
+
+      for (const r of (refRows ?? []) as {
+        id: string;
+        requester_person_id: string;
+        referee_person_id: string;
+        claimed_referee_role: string;
+        claimed_referee_name: string;
+        snapshot_vessel_name: string | null;
+      }[]) {
+        const profile = profileMap.get(r.referee_person_id);
+        const role = profile?.primary_role_id ? roleMap.get(profile.primary_role_id) : undefined;
+        if (!referencesByCrew[r.requester_person_id]) {
+          referencesByCrew[r.requester_person_id] = [];
+        }
+        referencesByCrew[r.requester_person_id].push({
+          id: r.id,
+          referee_person_id: r.referee_person_id,
+          claimed_referee_name: r.claimed_referee_name,
+          claimed_referee_role: r.claimed_referee_role ?? null,
+          snapshot_vessel_name: r.snapshot_vessel_name ?? null,
+          referee_display_name: profile?.display_name ?? null,
+          referee_role_name: role?.name ?? null,
+          referee_role_department: role?.department ?? null,
+        });
+      }
+    }
+
     const requiredSet = new Set(requiredCerts);
 
     let enriched = (applications ?? []).map((app) => {
@@ -197,6 +305,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         availability_not_available: notAvailableSet.has(app.crew_person_id),
         past_daywork_count: engagementCountMap[app.crew_person_id] ?? 0,
         shore_experience_categories: shoreCategoryMap[app.crew_person_id] ?? [],
+        // B-003 Phase 2: empty array for non-shortlisted applicants — the
+        // shortlist gate would reject contact attempts on them anyway.
+        references: referencesByCrew[app.crew_person_id] ?? [],
         cert_match: certMatch
           ? {
               ok: certMatch.ok,
