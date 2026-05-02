@@ -15,6 +15,8 @@ interface ChatSidebarActionsProps {
   isCrew: boolean;
   isEmployer: boolean;
   isPermanent: boolean;
+  /** B-011: see chat-header.tsx for the rationale. */
+  isShortlistPhase: boolean;
   permPostingStatus: string | null;
   cancelLabel: string;
   completing: boolean;
@@ -39,6 +41,7 @@ export function ChatSidebarActions({
   isCrew,
   isEmployer,
   isPermanent,
+  isShortlistPhase,
   permPostingStatus,
   cancelLabel,
   completing,
@@ -78,148 +81,155 @@ export function ChatSidebarActions({
         Report user
       </Button>
 
-      {/* Permanent-specific actions */}
-      {isPermanent && permPostingStatus === 'in_negotiation' && isEmployer && (
+      {/* B-011: shortlist-phase chats hide all lifecycle actions; only
+          View profile + Report user remain. Shortlist-specific actions
+          (Select, Reject, Withdraw) live on the review tab + chat footer. */}
+      {!isShortlistPhase && (
         <>
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-start"
-            onClick={onShowConfirmPlacement}
-          >
-            Confirm placement
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-start"
-            onClick={onShowRevertSelection}
-          >
-            Not proceeding
-          </Button>
-        </>
-      )}
-      {isPermanent && permPostingStatus === 'filled' && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="justify-start"
-          onClick={onShowCloseConversation}
-        >
-          Close conversation
-        </Button>
-      )}
-      {isPermanent && isCrew && permPostingStatus === 'in_negotiation' && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="justify-start text-destructive"
-          onClick={onCrewWithdraw}
-        >
-          Withdraw
-        </Button>
-      )}
-      {isPermanent && isEmployer && permPostingId && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="justify-start text-destructive"
-          onClick={() => onCancelPosting(permPostingId)}
-        >
-          Cancel posting
-        </Button>
-      )}
+          {/* Permanent-specific actions */}
+          {isPermanent && permPostingStatus === 'in_negotiation' && isEmployer && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start"
+                onClick={onShowConfirmPlacement}
+              >
+                Confirm placement
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start"
+                onClick={onShowRevertSelection}
+              >
+                Not proceeding
+              </Button>
+            </>
+          )}
+          {isPermanent && permPostingStatus === 'filled' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-start"
+              onClick={onShowCloseConversation}
+            >
+              Close conversation
+            </Button>
+          )}
+          {isPermanent && isCrew && permPostingStatus === 'in_negotiation' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-start text-destructive"
+              onClick={onCrewWithdraw}
+            >
+              Withdraw
+            </Button>
+          )}
+          {isPermanent && isEmployer && permPostingId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-start text-destructive"
+              onClick={() => onCancelPosting(permPostingId)}
+            >
+              Cancel posting
+            </Button>
+          )}
 
-      {/* Daywork-specific actions */}
-      {!isPermanent && context.work_started_status === null && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="justify-start gap-2"
-          onClick={() => onWorkStarted('initiate')}
-          disabled={workStarting}
-        >
-          <CheckCircle className="h-4 w-4" />
-          {workStarting ? 'Updating...' : 'Confirm work started'}
-        </Button>
-      )}
-      {!isPermanent && context.work_started_status === 'confirmed' && (
-        <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground/50">
-          <CheckCircle className="h-4 w-4" />
-          <span>Work started (confirmed)</span>
-        </div>
-      )}
-
-      {!isPermanent && isEmployer && (
-        <>
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-start gap-2"
-            onClick={onShowChecklistForm}
-          >
-            <ClipboardList className="h-4 w-4" />
-            {context.checklist ? 'Edit checklist' : 'Pre-arrival checklist'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-start gap-2"
-            onClick={onShowCompleteConfirm}
-            disabled={completing}
-          >
-            <ClipboardCheck className="h-4 w-4" />
-            {completing ? 'Completing...' : 'Mark complete'}
-          </Button>
-          {context.work_started_status === 'confirmed' ? (
-            <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground/50">
-              <Clock className="h-4 w-4" />
-              <span className="flex flex-col">
-                <span>Propose date change</span>
-                <span className="text-[10px]">Work has already started</span>
-              </span>
-            </div>
-          ) : context.postponement_status === null ? (
+          {/* Daywork-specific actions */}
+          {!isPermanent && context.work_started_status === null && (
             <Button
               variant="outline"
               size="sm"
               className="justify-start gap-2"
-              onClick={onShowPostponementForm}
+              onClick={() => onWorkStarted('initiate')}
+              disabled={workStarting}
             >
-              <Clock className="h-4 w-4" />
-              Propose date change
+              <CheckCircle className="h-4 w-4" />
+              {workStarting ? 'Updating...' : 'Confirm work started'}
             </Button>
-          ) : (
+          )}
+          {!isPermanent && context.work_started_status === 'confirmed' && (
             <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground/50">
-              <Clock className="h-4 w-4" />
-              <span className="flex flex-col">
-                <span>Propose date change</span>
-                <span className="text-[10px]">One-time only — already used</span>
-              </span>
+              <CheckCircle className="h-4 w-4" />
+              <span>Work started (confirmed)</span>
             </div>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-start gap-2 text-destructive"
-            onClick={onShowCancelForm}
-          >
-            <XCircle className="h-4 w-4" />
-            {cancelLabel}
-          </Button>
-        </>
-      )}
 
-      {!isPermanent && isCrew && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="justify-start gap-2 text-destructive"
-          onClick={onShowCrewCancelForm}
-        >
-          <XCircle className="h-4 w-4" />
-          {cancelLabel}
-        </Button>
+          {!isPermanent && isEmployer && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start gap-2"
+                onClick={onShowChecklistForm}
+              >
+                <ClipboardList className="h-4 w-4" />
+                {context.checklist ? 'Edit checklist' : 'Pre-arrival checklist'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start gap-2"
+                onClick={onShowCompleteConfirm}
+                disabled={completing}
+              >
+                <ClipboardCheck className="h-4 w-4" />
+                {completing ? 'Completing...' : 'Mark complete'}
+              </Button>
+              {context.work_started_status === 'confirmed' ? (
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground/50">
+                  <Clock className="h-4 w-4" />
+                  <span className="flex flex-col">
+                    <span>Propose date change</span>
+                    <span className="text-[10px]">Work has already started</span>
+                  </span>
+                </div>
+              ) : context.postponement_status === null ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="justify-start gap-2"
+                  onClick={onShowPostponementForm}
+                >
+                  <Clock className="h-4 w-4" />
+                  Propose date change
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground/50">
+                  <Clock className="h-4 w-4" />
+                  <span className="flex flex-col">
+                    <span>Propose date change</span>
+                    <span className="text-[10px]">One-time only — already used</span>
+                  </span>
+                </div>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="justify-start gap-2 text-destructive"
+                onClick={onShowCancelForm}
+              >
+                <XCircle className="h-4 w-4" />
+                {cancelLabel}
+              </Button>
+            </>
+          )}
+
+          {!isPermanent && isCrew && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="justify-start gap-2 text-destructive"
+              onClick={onShowCrewCancelForm}
+            >
+              <XCircle className="h-4 w-4" />
+              {cancelLabel}
+            </Button>
+          )}
+        </>
       )}
     </div>
   );

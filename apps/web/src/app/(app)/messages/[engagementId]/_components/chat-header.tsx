@@ -22,6 +22,12 @@ interface ChatHeaderProps {
   isCrew: boolean;
   isEmployer: boolean;
   isPermanent: boolean;
+  /** B-011: when true, the engagement is a phase='shortlist' pre-selection
+   *  chat. Lifecycle actions (work-started, postponement, complete, rate,
+   *  checklist, cancel-engagement) are suppressed; only View profile +
+   *  Report user remain. The new shortlist-specific actions (Select,
+   *  Reject, Withdraw) live on the review tab and the chat footer. */
+  isShortlistPhase: boolean;
   permPostingStatus: string | null;
   cancelLabel: string;
   showActionMenu: boolean;
@@ -51,6 +57,7 @@ export function ChatHeader({
   isCrew,
   isEmployer,
   isPermanent,
+  isShortlistPhase,
   permPostingStatus,
   cancelLabel,
   showActionMenu,
@@ -139,164 +146,172 @@ export function ChatHeader({
                   Report user
                 </button>
 
-                {/* ── Permanent-specific actions ── */}
-                {isPermanent && permPostingStatus === 'in_negotiation' && isEmployer && (
+                {/* B-011: shortlist-phase chats suppress all lifecycle
+                    actions. View profile + Report user above this block
+                    remain. Shortlist-specific actions (Select, Reject,
+                    Withdraw, Open chat) live on the review tab + footer. */}
+                {!isShortlistPhase && (
                   <>
-                    <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
-                      onClick={() => {
-                        setShowActionMenu(false);
-                        onShowConfirmPlacement();
-                      }}
-                    >
-                      Confirm placement
-                    </button>
-                    <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
-                      onClick={() => {
-                        setShowActionMenu(false);
-                        onShowRevertSelection();
-                      }}
-                    >
-                      Not proceeding
-                    </button>
-                  </>
-                )}
-                {isPermanent && permPostingStatus === 'filled' && (
-                  <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      onShowCloseConversation();
-                    }}
-                  >
-                    Close conversation
-                  </button>
-                )}
-                {isPermanent && isCrew && permPostingStatus === 'in_negotiation' && (
-                  <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      onCrewWithdraw();
-                    }}
-                  >
-                    Withdraw
-                  </button>
-                )}
-                {isPermanent && isEmployer && (
-                  <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      if (permPostingId) onCancelPosting(permPostingId);
-                    }}
-                  >
-                    Cancel posting
-                  </button>
-                )}
-
-                {/* ── Daywork-specific actions ── */}
-                {!isPermanent && context.work_started_status === null && (
-                  <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      onWorkStarted('initiate');
-                    }}
-                    disabled={workStarting}
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    {workStarting ? 'Updating...' : 'Confirm work started'}
-                  </button>
-                )}
-                {!isPermanent && context.work_started_status === 'confirmed' && (
-                  <div className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground/50 cursor-not-allowed">
-                    <CheckCircle className="h-4 w-4" />
-                    <span className="flex flex-col">
-                      <span>Work started</span>
-                      <span className="text-[10px]">Confirmed by both parties</span>
-                    </span>
-                  </div>
-                )}
-
-                {/* Employer-only actions */}
-                {!isPermanent && isEmployer && (
-                  <>
-                    <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
-                      onClick={() => {
-                        setShowActionMenu(false);
-                        onShowChecklistForm();
-                      }}
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      {context.checklist ? 'Edit checklist' : 'Pre-arrival checklist'}
-                    </button>
-                    <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
-                      onClick={() => {
-                        setShowActionMenu(false);
-                        onShowCompleteConfirm();
-                      }}
-                      disabled={completing}
-                    >
-                      <ClipboardCheck className="h-4 w-4" />
-                      {completing ? 'Completing...' : 'Mark complete'}
-                    </button>
-                    {context.work_started_status === 'confirmed' ? (
-                      <div className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground/50 cursor-not-allowed">
-                        <Clock className="h-4 w-4" />
-                        <span className="flex flex-col">
-                          <span>Propose date change</span>
-                          <span className="text-[10px]">Work has already started</span>
-                        </span>
-                      </div>
-                    ) : context.postponement_status === null ? (
+                    {/* ── Permanent-specific actions ── */}
+                    {isPermanent && permPostingStatus === 'in_negotiation' && isEmployer && (
+                      <>
+                        <button
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                          onClick={() => {
+                            setShowActionMenu(false);
+                            onShowConfirmPlacement();
+                          }}
+                        >
+                          Confirm placement
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                          onClick={() => {
+                            setShowActionMenu(false);
+                            onShowRevertSelection();
+                          }}
+                        >
+                          Not proceeding
+                        </button>
+                      </>
+                    )}
+                    {isPermanent && permPostingStatus === 'filled' && (
                       <button
                         className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
                         onClick={() => {
                           setShowActionMenu(false);
-                          onShowPostponementForm();
+                          onShowCloseConversation();
                         }}
                       >
-                        <Clock className="h-4 w-4" />
-                        Propose date change
+                        Close conversation
                       </button>
-                    ) : (
+                    )}
+                    {isPermanent && isCrew && permPostingStatus === 'in_negotiation' && (
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
+                        onClick={() => {
+                          setShowActionMenu(false);
+                          onCrewWithdraw();
+                        }}
+                      >
+                        Withdraw
+                      </button>
+                    )}
+                    {isPermanent && isEmployer && (
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
+                        onClick={() => {
+                          setShowActionMenu(false);
+                          if (permPostingId) onCancelPosting(permPostingId);
+                        }}
+                      >
+                        Cancel posting
+                      </button>
+                    )}
+
+                    {/* ── Daywork-specific actions ── */}
+                    {!isPermanent && context.work_started_status === null && (
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                        onClick={() => {
+                          setShowActionMenu(false);
+                          onWorkStarted('initiate');
+                        }}
+                        disabled={workStarting}
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        {workStarting ? 'Updating...' : 'Confirm work started'}
+                      </button>
+                    )}
+                    {!isPermanent && context.work_started_status === 'confirmed' && (
                       <div className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground/50 cursor-not-allowed">
-                        <Clock className="h-4 w-4" />
+                        <CheckCircle className="h-4 w-4" />
                         <span className="flex flex-col">
-                          <span>Propose date change</span>
-                          <span className="text-[10px]">One-time only — already used</span>
+                          <span>Work started</span>
+                          <span className="text-[10px]">Confirmed by both parties</span>
                         </span>
                       </div>
                     )}
-                    <button
-                      className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
-                      onClick={() => {
-                        setShowActionMenu(false);
-                        onShowCancelForm();
-                      }}
-                    >
-                      <XCircle className="h-4 w-4" />
-                      {cancelLabel}
-                    </button>
-                  </>
-                )}
 
-                {/* Crew-only actions */}
-                {!isPermanent && isCrew && (
-                  <button
-                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
-                    onClick={() => {
-                      setShowActionMenu(false);
-                      onShowCrewCancelForm();
-                    }}
-                  >
-                    <XCircle className="h-4 w-4" />
-                    {cancelLabel}
-                  </button>
+                    {/* Employer-only actions */}
+                    {!isPermanent && isEmployer && (
+                      <>
+                        <button
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                          onClick={() => {
+                            setShowActionMenu(false);
+                            onShowChecklistForm();
+                          }}
+                        >
+                          <ClipboardList className="h-4 w-4" />
+                          {context.checklist ? 'Edit checklist' : 'Pre-arrival checklist'}
+                        </button>
+                        <button
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                          onClick={() => {
+                            setShowActionMenu(false);
+                            onShowCompleteConfirm();
+                          }}
+                          disabled={completing}
+                        >
+                          <ClipboardCheck className="h-4 w-4" />
+                          {completing ? 'Completing...' : 'Mark complete'}
+                        </button>
+                        {context.work_started_status === 'confirmed' ? (
+                          <div className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground/50 cursor-not-allowed">
+                            <Clock className="h-4 w-4" />
+                            <span className="flex flex-col">
+                              <span>Propose date change</span>
+                              <span className="text-[10px]">Work has already started</span>
+                            </span>
+                          </div>
+                        ) : context.postponement_status === null ? (
+                          <button
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                            onClick={() => {
+                              setShowActionMenu(false);
+                              onShowPostponementForm();
+                            }}
+                          >
+                            <Clock className="h-4 w-4" />
+                            Propose date change
+                          </button>
+                        ) : (
+                          <div className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground/50 cursor-not-allowed">
+                            <Clock className="h-4 w-4" />
+                            <span className="flex flex-col">
+                              <span>Propose date change</span>
+                              <span className="text-[10px]">One-time only — already used</span>
+                            </span>
+                          </div>
+                        )}
+                        <button
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
+                          onClick={() => {
+                            setShowActionMenu(false);
+                            onShowCancelForm();
+                          }}
+                        >
+                          <XCircle className="h-4 w-4" />
+                          {cancelLabel}
+                        </button>
+                      </>
+                    )}
+
+                    {/* Crew-only actions */}
+                    {!isPermanent && isCrew && (
+                      <button
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive hover:bg-[var(--accent-lo)]"
+                        onClick={() => {
+                          setShowActionMenu(false);
+                          onShowCrewCancelForm();
+                        }}
+                      >
+                        <XCircle className="h-4 w-4" />
+                        {cancelLabel}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}

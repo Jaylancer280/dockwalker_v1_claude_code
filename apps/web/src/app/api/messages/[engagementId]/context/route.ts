@@ -24,7 +24,7 @@ export async function GET(
       crew_person_id, employer_person_id, start_date, end_date, status, outcome, crew_completion_status,
       cancelled_by, cancellation_reason_category, cancellation_reason_text,
       postponement_status, proposed_start_date, proposed_end_date, proposed_working_days,
-      work_started_status, work_started_at,
+      work_started_status, work_started_at, phase,
       dayworks(
         job_number, working_days, day_rate, currency, meals, notes, permanent_opportunity,
         yacht_roles(name),

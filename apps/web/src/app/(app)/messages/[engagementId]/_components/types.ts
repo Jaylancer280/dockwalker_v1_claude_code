@@ -52,6 +52,17 @@ export interface EngagementContext {
   start_date: string;
   end_date: string;
   status: string;
+  /**
+   * B-011: phase of the engagement. `'shortlist'` is an employer-initiated
+   * pre-selection chat for permanent postings — most state-machine actions
+   * (work-started, postponement, completion, ratings, checklist) are
+   * suppressed at the UI level so the chat acts as a vetting conversation
+   * rather than a post-acceptance lifecycle. `'active'` is the post-
+   * SELECTED (permanent) or post-ACCEPTED (daywork) full lifecycle.
+   * `'completed'` and `'closed'` are terminal phases. Defaulted to
+   * `'active'` by migration 00135 so legacy rows remain unchanged.
+   */
+  phase: 'shortlist' | 'active' | 'completed' | 'closed';
   crew_completion_status: string | null;
   cancelled_by: string | null;
   cancellation_reason_category: string | null;

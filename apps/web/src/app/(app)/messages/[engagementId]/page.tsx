@@ -528,6 +528,11 @@ export default function ChatPage() {
   const isEmployer = context?.employer_person_id === userId;
   const isPermanent = context?.type === 'permanent';
   const permPostingId = context?.permanent_postings?.id ?? null;
+  // B-011: phase='shortlist' is the employer-initiated pre-selection chat.
+  // Its presence suppresses all lifecycle actions across the chat surface
+  // (header menu + sidebar) so the chat reads as a vetting conversation,
+  // not a post-acceptance lifecycle.
+  const isShortlistPhase = context?.phase === 'shortlist';
 
   const permPostingStatus = context?.permanent_postings?.status ?? null;
   const closedIsRatable =
@@ -568,6 +573,7 @@ export default function ChatPage() {
             isCrew={isCrew ?? false}
             isEmployer={isEmployer ?? false}
             isPermanent={isPermanent ?? false}
+            isShortlistPhase={isShortlistPhase}
             permPostingStatus={permPostingStatus}
             cancelLabel={cancelLabel}
             showActionMenu={showActionMenu}
@@ -628,6 +634,7 @@ export default function ChatPage() {
           userId={userId}
           isCrew={isCrew ?? false}
           isEmployer={isEmployer ?? false}
+          isShortlistPhase={isShortlistPhase}
           canRate={canRate ?? false}
           input={input}
           sending={sending}
@@ -664,6 +671,7 @@ export default function ChatPage() {
               isCrew={isCrew ?? false}
               isEmployer={isEmployer ?? false}
               isPermanent={isPermanent ?? false}
+              isShortlistPhase={isShortlistPhase}
               permPostingStatus={permPostingStatus}
               cancelLabel={cancelLabel}
               completing={completing}

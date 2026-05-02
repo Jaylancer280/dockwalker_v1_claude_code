@@ -21,6 +21,10 @@ interface ChatFooterProps {
   userId: string | null;
   isCrew: boolean;
   isEmployer: boolean;
+  /** B-011: shortlist-phase chats hide the document-upload button.
+   *  Document sharing belongs to the post-selection lifecycle (contracts,
+   *  certs, vessel docs); pre-selection chats are conversational only. */
+  isShortlistPhase: boolean;
   canRate: boolean;
   input: string;
   sending: boolean;
@@ -46,6 +50,7 @@ export function ChatFooter({
   userId,
   isCrew,
   isEmployer,
+  isShortlistPhase,
   canRate,
   input,
   sending,
@@ -177,7 +182,7 @@ export function ChatFooter({
 
         {/* Message input */}
         <form onSubmit={onSend} className="flex items-center gap-2">
-          {context?.status === 'active' && (
+          {context?.status === 'active' && !isShortlistPhase && (
             <>
               <input
                 ref={fileInputRef}
