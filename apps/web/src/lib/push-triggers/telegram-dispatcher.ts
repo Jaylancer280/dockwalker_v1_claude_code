@@ -421,6 +421,22 @@ async function resolveBody(
       };
     }
 
+    case 'PERMANENT.SHORTLIST_CHAT_OPENED': {
+      // B-011: pre-selection chat opt-in. Body stays neutral — chat is a
+      // vetting conversation, not a placement signal — but encouraging
+      // enough to prompt a reply.
+      if (!postingId) return null;
+      const info = await getPermanentPostingInfo(sc, postingId);
+      if (!info) return null;
+      return {
+        text:
+          `💬 <b>Captain wants to chat — ${escapeHtml(info.role_name)}</b>\n\n` +
+          `The captain hiring for this role would like to ask a few questions before deciding.\n\n` +
+          `Ref: ${escapeHtml(info.job_number)}` +
+          cta(`${SITE_URL}/messages/${engagementId ?? ''}`, 'Open chat'),
+      };
+    }
+
     case 'PERMANENT.REJECTED': {
       if (!postingId) return null;
       const info = await getPermanentPostingInfo(sc, postingId);

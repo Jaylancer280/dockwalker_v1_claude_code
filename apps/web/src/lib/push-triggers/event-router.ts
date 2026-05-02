@@ -25,6 +25,7 @@ import {
   handlePermanentCancelled,
   handlePermanentEngagementClosed,
   handlePermanentInvited,
+  handlePermanentShortlistChatOpened,
 } from './permanent-handlers';
 import { handleSupportThreadOpened, handleSupportMessageSent } from './support-handlers';
 import {
@@ -105,6 +106,8 @@ export async function resolveNotification(
       return handlePermanentEngagementClosed(sc, payload, actorPersonId);
     case 'PERMANENT.INVITED':
       return handlePermanentInvited(sc, payload, actorPersonId);
+    case 'PERMANENT.SHORTLIST_CHAT_OPENED':
+      return handlePermanentShortlistChatOpened(sc, payload);
 
     case 'SUPPORT.THREAD_OPENED':
       return handleSupportThreadOpened(sc, payload);

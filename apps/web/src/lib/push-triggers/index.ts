@@ -30,6 +30,7 @@ function getPushPreferenceKey(
     case 'PERMANENT.REJECTED':
     case 'PERMANENT.PLACEMENT_CONFIRMED':
     case 'PERMANENT.SELECTION_REVERTED':
+    case 'PERMANENT.SHORTLIST_CHAT_OPENED':
       return 'push_applications';
     case 'MESSAGE.SENT':
       return 'push_messages';

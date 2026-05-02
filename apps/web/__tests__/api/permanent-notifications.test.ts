@@ -98,6 +98,19 @@ describe('Permanent notification triggers', () => {
 
   it('PERMANENT.SELECTED notifies crew with engagement deep link', async () => {
     mockFromImpl.mockReturnValueOnce(chain({ employer_person_id: 'emp1', job_number: 3, yacht_roles: { name: 'Engineer' } }));
+    // B-011: handler now also queries active_engagements for sibling
+    // shortlist chats that the projection cascade just closed (so it
+    // can fan out a "Position Filled" notification per affected crew).
+    // Empty array here — no other shortlist chats existed.
+    mockFromImpl.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ data: [] }),
+          }),
+        }),
+      }),
+    });
 
 
     notifyOnEvent(makeSc(), 'PERMANENT.SELECTED', { permanent_posting_id: 'pp1', crew_person_id: 'c1', engagement_id: 'eng1' }, 'emp1');

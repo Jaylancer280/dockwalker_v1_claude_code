@@ -111,13 +111,70 @@ export async function handlePermanentSelected(
   const engagementId = payload.engagement_id as string | undefined;
   const info = await getPermanentPostingInfo(sc, postingId);
   if (!info) return [];
-  return [
+
+  const results: NotifyContext[] = [
     {
       recipientPersonId: crewId,
       roleContext: 'crew',
       notification: {
         title: `You've been selected`,
         body: `You've been selected for ${info.role_name} — check your messages`,
+        data: { screen: 'chat', ...(engagementId ? { engagementId } : {}) },
+      },
+    },
+  ];
+
+  // B-011: notify other crew whose shortlist chat just got auto-closed
+  // by the projection cascade (phase='shortlist' → phase='closed',
+  // outcome='role_filled'). We query AFTER appendEvent so the cascade
+  // has already completed in the same transaction. Skip the selected
+  // crew themselves — their shortlist chat was promoted to phase='active',
+  // not closed, and they get the louder selection notification above.
+  const { data: closedChats } = await sc
+    .from('active_engagements')
+    .select('crew_person_id')
+    .eq('permanent_posting_id', postingId)
+    .eq('phase', 'closed')
+    .eq('outcome', 'role_filled');
+  for (const chat of (closedChats ?? []) as { crew_person_id: string }[]) {
+    if (chat.crew_person_id === crewId) continue;
+    results.push({
+      recipientPersonId: chat.crew_person_id,
+      roleContext: 'crew',
+      notification: {
+        title: 'Position Filled',
+        body: `The ${info.role_name} position went to another candidate — keep exploring permanent roles`,
+        data: { screen: 'discover' },
+      },
+    });
+  }
+
+  return results;
+}
+
+/**
+ * B-011: PERMANENT.SHORTLIST_CHAT_OPENED — captain/agent opted to open
+ * a pre-selection chat with a shortlisted candidate. Body is
+ * forward-looking — chat is a vetting conversation, not a guaranteed
+ * placement signal — so language stays neutral ("wants to chat", not
+ * "you got the role").
+ */
+export async function handlePermanentShortlistChatOpened(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const postingId = payload.permanent_posting_id as string;
+  const crewId = payload.crew_person_id as string;
+  const engagementId = payload.engagement_id as string | undefined;
+  const info = await getPermanentPostingInfo(sc, postingId);
+  if (!info) return [];
+  return [
+    {
+      recipientPersonId: crewId,
+      roleContext: 'crew',
+      notification: {
+        title: 'Captain wants to chat',
+        body: `The captain hiring for ${info.role_name} would like to chat about your application`,
         data: { screen: 'chat', ...(engagementId ? { engagementId } : {}) },
       },
     },

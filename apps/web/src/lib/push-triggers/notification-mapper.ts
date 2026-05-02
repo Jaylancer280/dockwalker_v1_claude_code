@@ -23,6 +23,7 @@ export function mapEventToNotificationType(eventType: string): string | null {
     'PERMANENT.SELECTION_REVERTED': 'permanent_selection_reverted',
     'PERMANENT.CANCELLED_BY_EMPLOYER': 'permanent_posting_cancelled',
     'PERMANENT.ENGAGEMENT_CLOSED': 'permanent_conversation_closed',
+    'PERMANENT.SHORTLIST_CHAT_OPENED': 'permanent_shortlist_chat_opened',
     'SUPPORT.THREAD_OPENED': 'support_opened',
     'SUPPORT.MESSAGE_SENT': 'support_reply',
     'REFERENCE.REQUESTED': 'reference_request',
@@ -68,6 +69,8 @@ export function resolveDeepLink(
         : null;
     case 'PERMANENT.SELECTED':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
+    case 'PERMANENT.SHORTLIST_CHAT_OPENED':
+      return payload.engagement_id ? `/messages/${payload.engagement_id}` : '/messages';
     case 'PERMANENT.SHORTLISTED':
     case 'PERMANENT.REJECTED':
     case 'PERMANENT.PLACEMENT_CONFIRMED':
