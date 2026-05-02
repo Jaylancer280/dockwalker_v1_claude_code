@@ -1,7 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Ship, Pencil, Trash2, Plus, ChevronUp, ChevronDown, UserPlus } from 'lucide-react';
+import {
+  Ship,
+  Pencil,
+  Trash2,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  UserPlus,
+  Settings,
+} from 'lucide-react';
+import Link from 'next/link';
 import { EpauletteBadge } from '@/components/epaulette-badge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -233,18 +243,40 @@ export function ProfileExperienceSection({
                           const blocked = hiddenBlocked;
                           if (!blocked) {
                             return (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 gap-1 text-xs"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setAddRefDialogExpId(exp.id);
-                                }}
-                              >
-                                <UserPlus className="h-3 w-3" />
-                                Add reference ({refsActive}/{refsCap})
-                              </Button>
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 gap-1 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAddRefDialogExpId(exp.id);
+                                  }}
+                                >
+                                  <UserPlus className="h-3 w-3" />
+                                  Add reference ({refsActive}/{refsCap})
+                                </Button>
+                                {/* B-003c: sibling entry point routing to the
+                                    Settings references page (deep-linked to
+                                    this experience). The settings page is
+                                    the right place to manage references but
+                                    was hard to find — this anchor closes
+                                    the discoverability gap. */}
+                                {refsActive > 0 && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 gap-1 text-xs"
+                                    onClick={(e) => e.stopPropagation()}
+                                    asChild
+                                  >
+                                    <Link href={`/settings/references?exp=${exp.id}`}>
+                                      <Settings className="h-3 w-3" />
+                                      Manage
+                                    </Link>
+                                  </Button>
+                                )}
+                              </>
                             );
                           }
                           // Add is blocked — but the count is still useful

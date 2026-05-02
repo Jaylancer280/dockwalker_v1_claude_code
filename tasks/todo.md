@@ -115,8 +115,8 @@ _Bug intake complete (B-001 → B-010). Fix plan committed below in `## Fix plan
 
 #### B-003 — References: employer visibility + shortlist gate + multi-reference picker + crew Manage entry
 
-- [ ] **API fix at `apps/web/src/app/api/profile/[personId]/route.ts:289`** — switch `supabase` → `serviceClient` for the references query. Tier-cap visibility logic (lines 286-287) becomes the access control instead of RLS. No schema change — RLS for direct client access on `references` stays correct as-is (per migration 00125 design comment).
-- [ ] **API gate at `apps/web/src/app/api/references/[id]/contact/route.ts:32-62`** — add a server-side derivation block after the existing reference lookup:
+- [x] **API fix at `apps/web/src/app/api/profile/[personId]/route.ts:289`** — switched references query to `serviceClient`. `buildCrewProfile` signature extended to accept serviceClient as a separate param so the rest of the route still uses the regular client. Tier-cap visibility logic + upstream `checkRelationshipContext` are the access controls now.
+- [x] **API gate at `apps/web/src/app/api/references/[id]/contact/route.ts`** — added a server-side derivation that the calling employer has a shortlisted-or-downstream application from the reference's requester on one of their own postings. Runs AFTER the budget gates (semantically: budget is "stop everything" global, shortlist is per-request).
   ```
   // Verify employer has a shortlisted (or downstream) application from referee
   const { count } = await serviceClient
@@ -129,17 +129,12 @@ _Bug intake complete (B-001 → B-010). Fix plan committed below in `## Fix plan
   if ((count ?? 0) === 0) return 403 'Crew must be shortlisted before contacting references'
   ```
   Subqueries: select `dayworks.id where poster_person_id = user.id`, `permanent_postings.id where employer_person_id = user.id`. Cache in two batched fetches before the application count query.
-- [ ] **New shared component: `apps/web/src/components/references/reference-picker.tsx`** — takes `references: ReferenceRow[]`, opens as a bottom sheet/dialog listing each referee with name + role + vessel snapshot, on select fires onPick(referenceId). For multi-reference disambiguation.
-- [ ] **Daywork shortlist tab — applicant card extension** (`apps/web/src/app/(app)/daywork/[id]/review/_components/applicants-tab.tsx` ApplicantCard ~lines 273-462): when `tab === 'shortlist'` AND `applicant.references` is non-empty, render a "References (N)" pill. Tap opens ReferencePicker → on select opens `ContactReferenceDialog`.
-- [ ] **Permanent shortlist tab — same** (`apps/web/src/app/(app)/permanent/[id]/review/page.tsx` ~lines 288-486 within `activeTab === 'shortlisted'` branch).
-- [ ] **Applicant card data:** the shortlist applicant API needs `references` array on the response. Locate the applicant-list endpoints, extend the join (using `serviceClient` to bypass RLS) so each shortlisted applicant carries their references with `id, referee_display_name, referee_role_name, snapshot_*` fields.
-- [ ] **Crew self-profile "Manage references" button** — `apps/web/src/app/(app)/profile/_components/profile-experience-section.tsx:240-248`: add sibling Button next to the existing "Add reference (x/y)":
-  ```
-  <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs" asChild>
-    <Link href={`/settings/references?exp=${exp.id}`}><Settings className="h-3 w-3" />Manage references</Link>
-  </Button>
-  ```
-- [ ] **Settings references page deep-link** (`apps/web/src/app/(app)/settings/references/page.tsx`): read `exp` query param, scroll to / highlight the matching experience section.
+- [x] **New shared component: `apps/web/src/components/references/contact-references-button.tsx`** — drop-in trigger for the shortlist surfaces. 0 refs → renders nothing; 1 ref → opens `ContactReferenceDialog` directly; 2+ refs → opens an inline picker dialog (referee name + role + vessel snapshot per row), then opens the dialog for the chosen reference.
+- [ ] **Daywork shortlist tab — applicant card extension** — DEFERRED to B-003 Phase 2. Phase 1 covers the user's core complaint via ProfileOverlay (which now actually receives references for employer viewers thanks to the serviceClient swap). Direct shortlist-card surfacing requires API extension first.
+- [ ] **Permanent shortlist tab — same** — DEFERRED to B-003 Phase 2.
+- [ ] **Applicant card data** — DEFERRED to B-003 Phase 2: extend daywork + permanent applicants APIs to return `references[]` per applicant.
+- [x] **Crew self-profile "Manage references" button** — sibling Button next to "Add reference (x/y)" at `profile-experience-section.tsx`. Renders only when `refsActive > 0`. Routes to `/settings/references?exp={id}` deep-link.
+- [x] **Settings references page deep-link** (`apps/web/src/app/(app)/settings/references/page.tsx`): reads `?exp=` query param, finds the first matching reference row across status sections (accepted/pending/expired) in render order, scrolls it into view, applies a `ring-2 ring-[var(--accent)]` highlight.
 - [ ] **Pre-shortlist passive pill (optional, lower priority):** on the Applicants tab (pre-shortlist), show a passive `📎 N references` indicator (no button) so employers see the reference count exists. Encourages shortlist conversion. Default OFF unless trivial to add.
 - [ ] **Tests:**
   - Employer viewing shortlisted candidate sees their references

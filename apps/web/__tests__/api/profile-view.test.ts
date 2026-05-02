@@ -263,6 +263,10 @@ describe('GET /api/profile/[personId]', () => {
 
     // Engagement context (serviceClient)
     mockServiceFrom.mockReturnValueOnce(mockChain([{ id: 'e1' }]));
+    // References per experience (B-003: now uses serviceClient to bypass
+    // owner-scoped RLS; tier-cap visibility logic in the route is the
+    // access control). Empty array — no consented references on this exp.
+    mockServiceFrom.mockReturnValueOnce(mockChain([]));
 
     // Profile
     mockFrom.mockReturnValueOnce(
@@ -300,8 +304,6 @@ describe('GET /api/profile/[personId]', () => {
     );
     // Owner subscription lookup (Phase 5 visibility filter)
     mockFrom.mockReturnValueOnce(mockChain(null));
-    // References per experience (none accepted)
-    mockFrom.mockReturnValueOnce(mockChain([]));
     // Shore experiences
     mockFrom.mockReturnValueOnce(mockChain([]));
 

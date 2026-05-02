@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -89,6 +90,9 @@ function siteUrl(): string {
 
 export default function ReferencesSettingsPage() {
   const { showError, showSuccess } = useToast();
+  const searchParams = useSearchParams();
+  const expHighlight = searchParams.get('exp');
+  const highlightRef = useRef<HTMLLIElement | null>(null);
   const [data, setData] = useState<MineResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -177,6 +181,23 @@ export default function ReferencesSettingsPage() {
   const outboundPending = outbound.filter((r) => r.status === 'pending');
   const outboundAccepted = outbound.filter((r) => r.status === 'accepted');
   const outboundExpired = outbound.filter((r) => r.status === 'expired');
+
+  // B-003c: deep-link from the crew profile's "Manage references" button.
+  // When ?exp=<id> is in the URL, find the first matching reference row
+  // (across all status buckets, in render order) and attach the scroll
+  // anchor to it. Each row checks against `firstHighlightedRowId` directly
+  // so we don't mutate render-time state.
+  const firstHighlightedRowId = expHighlight
+    ? (outboundAccepted.find((r) => r.experience_id === expHighlight)?.id ??
+      outboundPending.find((r) => r.experience_id === expHighlight)?.id ??
+      outboundExpired.find((r) => r.experience_id === expHighlight)?.id)
+    : undefined;
+  useEffect(() => {
+    if (!firstHighlightedRowId) return;
+    requestAnimationFrame(() => {
+      highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [firstHighlightedRowId]);
   const outboundHistory = outbound.filter((r) =>
     ['revoked', 'declined', 'expired'].includes(r.status),
   );
@@ -263,7 +284,15 @@ export default function ReferencesSettingsPage() {
             ) : (
               <ul className="space-y-3">
                 {outboundAccepted.map((r) => (
-                  <li key={r.id} className="space-y-2 rounded-xl border bg-[var(--surface)] p-3">
+                  <li
+                    key={r.id}
+                    ref={r.id === firstHighlightedRowId ? highlightRef : undefined}
+                    className={`space-y-2 rounded-xl border bg-[var(--surface)] p-3 transition-shadow ${
+                      expHighlight && r.experience_id === expHighlight
+                        ? 'ring-2 ring-[var(--accent)]'
+                        : ''
+                    }`}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <p className="font-medium">{r.claimed_referee_name}</p>

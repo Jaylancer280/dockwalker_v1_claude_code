@@ -82,7 +82,7 @@ export async function GET(
 
     if (profile.identity_type === 'crew') {
       return NextResponse.json(
-        await buildCrewProfile(supabase, profileWithNats, personId, isSelfView),
+        await buildCrewProfile(supabase, serviceClient, profileWithNats, personId, isSelfView),
       );
     }
 
@@ -202,6 +202,15 @@ async function checkRelationshipContext(
 async function buildCrewProfile(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
+  // B-003: serviceClient is required for the references query specifically.
+  // RLS on `references` is owner-scoped (requester + referee per migration
+  // 00125), so an employer viewing a crew profile through `supabase` would
+  // get an empty array and the references section would silently disappear
+  // even when consented references exist. Tier-cap visibility logic below
+  // becomes the access control instead. Other queries here stay on
+  // `supabase` since they aren't RLS-restricted in problematic ways.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  serviceClient: any,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   profile: any,
   personId: string,
@@ -286,7 +295,10 @@ async function buildCrewProfile(
     const ownerPlan = (ownerSub?.plan as string | undefined) ?? 'free';
     const visibleCap = ownerPlan === 'crew_pro' ? 3 : 1;
 
-    const { data: refRows } = await supabase
+    // B-003: serviceClient bypasses RLS (owner-scoped per migration 00125).
+    // Tier-cap below + the upstream `checkRelationshipContext` access guard
+    // are the access controls now.
+    const { data: refRows } = await serviceClient
       .from('references')
       .select(
         `id, experience_id, referee_person_id, claimed_referee_role, claimed_referee_name,

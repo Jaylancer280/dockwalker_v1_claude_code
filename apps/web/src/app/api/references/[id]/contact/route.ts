@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const { data: ref } = await serviceClient
       .from('references')
-      .select('id, status, referee_person_id, snapshot_vessel_name')
+      .select('id, status, requester_person_id, referee_person_id, snapshot_vessel_name')
       .eq('id', referenceId)
       .maybeSingle();
     if (!ref) {
@@ -119,6 +119,60 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         );
       }
       remainingMonthly = EMPLOYER_FREE_ACCEPTED_30D_BUDGET - accepted;
+    }
+
+    // B-003 shortlist gate: contacting a reference is only allowed when the
+    // calling employer has a shortlisted-or-downstream application from the
+    // crew (the reference's requester) on one of the employer's own
+    // postings. Forces a shortlist→reference-contact mechanic, prevents
+    // fishing, limits referee burden. Runs AFTER the global budget gates
+    // because budget is a "stop everything" signal that's most useful to
+    // surface first; shortlist is per-request.
+    const requesterId = ref.requester_person_id as string | null;
+    if (!requesterId) {
+      return NextResponse.json(
+        { error: 'Reference is missing requester — cannot verify shortlist eligibility' },
+        { status: 409 },
+      );
+    }
+    const [{ data: ownDayworks }, { data: ownPostings }] = await Promise.all([
+      serviceClient.from('dayworks').select('id').eq('poster_person_id', user.id),
+      serviceClient.from('permanent_postings').select('id').eq('employer_person_id', user.id),
+    ]);
+    const dayworkIds = ((ownDayworks ?? []) as { id: string }[]).map((d) => d.id);
+    const postingIds = ((ownPostings ?? []) as { id: string }[]).map((p) => p.id);
+
+    if (dayworkIds.length === 0 && postingIds.length === 0) {
+      return NextResponse.json(
+        { error: 'Crew must be shortlisted on one of your postings before contacting references' },
+        { status: 403 },
+      );
+    }
+
+    // Allowed application statuses representing "shortlisted-or-downstream":
+    // shortlisted (both types), selected/placement_confirmed (permanent
+    // post-selection), accepted (daywork post-acceptance — engagement open).
+    const allowedStatuses = ['shortlisted', 'accepted', 'selected', 'placement_confirmed'];
+    let q = serviceClient
+      .from('applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('crew_person_id', requesterId)
+      .in('status', allowedStatuses);
+    const orConditions: string[] = [];
+    if (dayworkIds.length > 0) {
+      orConditions.push(`daywork_id.in.(${dayworkIds.join(',')})`);
+    }
+    if (postingIds.length > 0) {
+      orConditions.push(`permanent_posting_id.in.(${postingIds.join(',')})`);
+    }
+    q = q.or(orConditions.join(','));
+    const { count: shortlistCount } = await q;
+
+    if (!shortlistCount || shortlistCount === 0) {
+      return NextResponse.json(
+        { error: 'Crew must be shortlisted on one of your postings before contacting references' },
+        { status: 403 },
+      );
     }
 
     const contactId = randomUUID();
