@@ -101,23 +101,17 @@ _Bug intake complete (B-001 → B-010). Fix plan committed below in `## Fix plan
       to authenticated using (person_id = auth.uid()) with check (person_id = auth.uid());
     ```
   - Self-contained rollback: restore NOT NULL constraints (SET DEFAULT before re-applying), DROP the new RLS policy
-- [ ] **API: `POST /api/permanent/templates/route.ts`** — rewrite insert at lines 101-119 to write only fields the user supplied (no `|| null` coercion that violates NOT NULL). Strip `template_name` requirement to enforce client-side instead.
-- [ ] **API: `POST /api/daywork/templates/route.ts`** — already partial-friendly schema-wise; verify `name` validation and tier cap survive refactor.
-- [ ] **API: new `PATCH /api/daywork/templates/[id]/route.ts`** — mirror `permanent/templates/[id]/route.ts:45` pattern (selective field update + ownership check)
-- [ ] **UI: post-type selector** (`apps/web/src/app/(app)/daywork/post/_components/posting-type-selector.tsx`) — add third button "Post from a template — Reuse a saved configuration", routes to `/daywork/mine?tab=templates` (existing surface)
-- [ ] **UI: daywork post form** (`apps/web/src/app/(app)/daywork/post/page.tsx`) — move save-as-template checkbox from line 862-882 to TOP of form (above all field sections). When `saveAsTemplate=true`:
-  - Hide all required-field asterisks (toggleable styling on Label `*`)
-  - Bypass full-form validation in the submit guard (line 479-490) — only validate `templateName.trim().length > 0` + `templateName.length <= 100`
-  - Change submit button text from "Review and post" to "Review and create template"
-  - Skip the daywork POST API call; only call `POST /api/daywork/templates`
-  - Show counter: `templateName.length / 100`
-- [ ] **UI: permanent post form** (`apps/web/src/app/(app)/daywork/post/_components/permanent-post-form.tsx`) — same treatment, lines 481-501 → top, validation bypass, button reframe, max-len counter
-- [ ] **UI: templates tab in My Jobs**:
-  - `daywork-templates-section.tsx`: add `Edit` button alongside `Use` and `Delete`. Routes to `/daywork/post?templateId={id}&mode=edit` (post page reads `mode=edit`, loads template, runs in template-only mode with PATCH on submit)
-  - `permanent-mine-section.tsx`: same treatment for permanent
-  - Add a "+ Create template" button at the top of each templates tab — routes to `/daywork/post?mode=template` (or `/permanent` equivalent) with the template-mode toggle pre-checked
-- [ ] **UI: post page handles `mode=edit`** — reads `templateId` from query, loads template via GET, pre-fills, submits via PATCH instead of POST. New mode in addition to existing "load template" dropdown which is now redundant — remove the dropdowns from both forms (lines 575-603 daywork, 393-422 permanent) since the new entry points cover it.
-- [ ] **Tests:** save with partial fields succeeds (both types); save without name fails; edit existing template succeeds; tier cap enforced; "Use template" pre-fills post form; "Create template" lands in template mode.
+- [x] **API: `POST /api/permanent/templates/route.ts`** — rewritten to build the insert from only fields the user supplied (no `|| null` coercion that hit NOT NULL). Tier cap enforcement preserved.
+- [x] **API: `POST /api/daywork/templates/route.ts`** — same partial-friendly insert refactor + added missing `name` required-field validation.
+- [x] **API: new `PATCH /api/daywork/templates/[id]/route.ts`** — mirrors permanent's PATCH (selective field update + ownership check). Migration 00134 added the missing UPDATE RLS policy that this depends on.
+- [x] **UI: post-type selector** — added third option "Post from a template", routes to `/daywork/mine?tab=templates`.
+- [x] **UI: daywork post form** — `templateMode` state + `editingTemplateId` derived from search params; toggle moved to TOP; `?mode=template`/`?mode=edit` query routing; required-field asterisks wrapped in `{!templateMode && ...}`; submit-validation bypassed in template mode; submit button text reframed (`Review and create template` / `Save changes`); page header reframed; legacy "save AND post" path removed; bottom toggle + load-template dropdown removed.
+- [x] **UI: permanent post form** — same treatment via the search-param routing pattern; new top-of-form template-mode block; `handleSaveTemplate` with POST/PATCH branching; submit button + checklist + header all reframed; legacy "save AND post" + load-template dropdown removed.
+- [x] **UI: templates tab in My Jobs**:
+  - `daywork-templates-section.tsx`: added `Edit` button alongside `Use` + `Delete` (routes to `?type=daywork&mode=edit&templateId={id}`); `Create template` button at the top routes to `?type=daywork&mode=template`.
+  - `permanent-mine-section.tsx`: same treatment, routes prefixed with `?type=permanent`.
+- [x] **UI: post page handles `mode=edit`** — both forms read `mode` and `templateId` from search params, pre-fill on mount, PATCH on submit.
+- [ ] **Tests:** save with partial fields succeeds (both types); save without name fails; edit existing template succeeds; tier cap enforced; "Use template" pre-fills post form; "Create template" lands in template mode. (Existing tests still pass; full coverage tests deferred to next session — manual verification recommended once migration 00134 lands.)
 
 #### B-003 — References: employer visibility + shortlist gate + multi-reference picker + crew Manage entry
 

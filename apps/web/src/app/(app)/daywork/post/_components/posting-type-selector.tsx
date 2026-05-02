@@ -1,6 +1,7 @@
 'use client';
 
-import { Briefcase, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { Briefcase, Clock, FileText } from 'lucide-react';
 
 interface PostingTypeSelectorProps {
   onSelect: (type: 'daywork' | 'permanent') => void;
@@ -35,6 +36,21 @@ export function PostingTypeSelector({ onSelect }: PostingTypeSelectorProps) {
             </div>
           </div>
         </button>
+        {/* B-005: third entry point — re-use a saved template. Routes to the
+            existing templates tab inside My Jobs (no new manager page); each
+            template card already exposes "Use" which pre-fills the post form. */}
+        <Link
+          href="/daywork/mine?tab=templates"
+          className="flex items-center gap-4 rounded-[14px] border-2 border-dashed border-[var(--border)] bg-[var(--card)] p-6 text-left transition-colors hover:border-[var(--border-hi)]"
+        >
+          <FileText className="h-8 w-8 shrink-0 text-[var(--accent)]" />
+          <div>
+            <div className="text-lg font-semibold">Post from a template</div>
+            <div className="text-sm text-muted-foreground">
+              Reuse a saved configuration from My Jobs
+            </div>
+          </div>
+        </Link>
       </div>
     </div>
   );

@@ -86,38 +86,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid salary period' }, { status: 400 });
     }
 
-    if (!body.templateName) {
+    if (!body.templateName || typeof body.templateName !== 'string' || !body.templateName.trim()) {
       return NextResponse.json({ error: 'Template name is required' }, { status: 400 });
     }
 
+    // Build the insert payload with ONLY fields the user supplied. Templates
+    // are intentionally partial (B-005): "Deckhand €2500" with just role +
+    // salary is a valid template. The previous code coerced missing fields
+    // to 0 / '' / 'EUR' / today's date which both polluted the data and
+    // collided with NOT NULL constraints (relaxed in migration 00134).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insert: Record<string, any> = {
+      employer_person_id: user.id,
+      template_name: body.templateName.slice(0, 100),
+    };
+    if (body.vesselId) insert.vessel_id = body.vesselId;
+    if (body.roleId) insert.role_id = body.roleId;
+    if (body.locationPortId) insert.port_id = body.locationPortId;
+    if (body.startDate) insert.start_date = body.startDate;
+    if (typeof body.salaryMin === 'number') insert.salary_min = body.salaryMin;
+    if (typeof body.salaryMax === 'number') insert.salary_max = body.salaryMax;
+    if (body.salaryCurrency) insert.salary_currency = body.salaryCurrency;
+    if (body.salaryPeriod) insert.salary_period = body.salaryPeriod;
+    if (typeof body.liveAboard === 'boolean') insert.live_aboard = body.liveAboard;
+    if (Array.isArray(body.requiredCertificationIds))
+      insert.required_certification_ids = body.requiredCertificationIds;
+    if (Array.isArray(body.requiredLanguages)) insert.required_languages = body.requiredLanguages;
+    if (body.experienceBracketId) insert.experience_bracket_id = body.experienceBracketId;
+    if (typeof body.shortlistCap === 'number') insert.shortlist_cap = body.shortlistCap;
+    if (typeof body.notes === 'string') insert.notes = body.notes;
+    if (body.contractType) insert.contract_type = body.contractType;
+    if (body.contractDetails) insert.contract_details = body.contractDetails;
+    if (typeof body.description === 'string') insert.description = body.description;
+    if (Array.isArray(body.meals)) insert.meals = body.meals;
+    if (typeof body.positionsAvailable === 'number')
+      insert.positions_available = body.positionsAvailable;
+
     const { data, error } = await supabase
       .from('permanent_templates')
-      .insert({
-        employer_person_id: user.id,
-        template_name:
-          typeof body.templateName === 'string'
-            ? body.templateName.slice(0, 100)
-            : body.templateName,
-        vessel_id: body.vesselId || null,
-        role_id: body.roleId || null,
-        port_id: body.locationPortId || null,
-        start_date: body.startDate || new Date().toISOString().slice(0, 10),
-        salary_min: body.salaryMin || 0,
-        salary_max: body.salaryMax || 0,
-        salary_currency: body.salaryCurrency || 'EUR',
-        salary_period: body.salaryPeriod || 'monthly',
-        live_aboard: body.liveAboard === true,
-        required_certification_ids: body.requiredCertificationIds || [],
-        required_languages: body.requiredLanguages || [],
-        experience_bracket_id: body.experienceBracketId || null,
-        shortlist_cap: body.shortlistCap || 5,
-        notes: body.notes || null,
-        contract_type: body.contractType || null,
-        contract_details: body.contractDetails || null,
-        description: body.description || null,
-        meals: body.meals || [],
-        positions_available: body.positionsAvailable || 1,
-      })
+      .insert(insert)
       .select('id')
       .single();
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Briefcase, Ship, Trash2 } from 'lucide-react';
+import { MapPin, Briefcase, Ship, Trash2, Pencil, Plus } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -165,45 +165,75 @@ export function PermanentMineSection() {
 
       {/* Templates tab */}
       {tab === 'templates' && (
-        <div className="mt-4 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-          {templates.length === 0 && (
-            <p className="pt-8 text-center text-sm text-muted-foreground">
-              No saved templates. Save a template when posting a permanent job.
-            </p>
-          )}
-          {templates.map((t: Template) => (
-            <div
-              key={t.id}
-              className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
+        <>
+          {/* B-005: dedicated Create-template entry. Routes to the permanent
+              post form pre-toggled into template-mode. */}
+          <div className="mt-4 flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => router.push('/daywork/post?type=permanent&mode=template')}
             >
-              <p className="font-semibold">{t.template_name}</p>
-              <p className="text-xs text-muted-foreground">
-                {t.yacht_roles?.name} · {t.ports?.name}
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Create template
+            </Button>
+          </div>
+          <div className="mt-3 space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+            {templates.length === 0 && (
+              <p className="pt-8 text-center text-sm text-muted-foreground">
+                No saved templates. Tap Create template to build one.
               </p>
-              {t.salary_min != null && (
-                <p className="text-xs text-primary">
-                  {formatSalary(t.salary_min, t.salary_max, t.salary_currency, t.salary_period)}
+            )}
+            {templates.map((t: Template) => (
+              <div
+                key={t.id}
+                className="rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-4"
+              >
+                <p className="font-semibold">{t.template_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {[t.yacht_roles?.name, t.ports?.name].filter(Boolean).join(' · ') ||
+                    'Partial template — tap Edit to fill in more fields'}
                 </p>
-              )}
-              <div className="mt-2 flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => router.push(`/daywork/post?permanentTemplateId=${t.id}`)}
-                >
-                  Use
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={deletingId === t.id}
-                  onClick={() => setConfirmDeleteId(t.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                {t.salary_min != null && (
+                  <p className="text-xs text-primary">
+                    {formatSalary(t.salary_min, t.salary_max, t.salary_currency, t.salary_period)}
+                  </p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      router.push(`/daywork/post?type=permanent&permanentTemplateId=${t.id}`)
+                    }
+                  >
+                    Use
+                  </Button>
+                  {/* B-005: edit-in-place. PATCHes the template row on submit. */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      router.push(
+                        `/daywork/post?type=permanent&mode=edit&permanentTemplateId=${t.id}`,
+                      )
+                    }
+                  >
+                    <Pencil className="mr-1 h-3 w-3" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={deletingId === t.id}
+                    onClick={() => setConfirmDeleteId(t.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Posting tabs */}

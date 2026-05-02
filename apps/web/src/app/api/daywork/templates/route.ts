@@ -73,24 +73,39 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid currency' }, { status: 400 });
     }
 
+    if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
+      return NextResponse.json({ error: 'Template name is required' }, { status: 400 });
+    }
+
+    // Build the insert payload with ONLY fields the user supplied (B-005).
+    // Schema is already nullable on every column except `name`; coercing
+    // missing fields to '' / null / 0 polluted the data and made the saved
+    // template look like it had been configured when the user had only
+    // typed a name.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const insert: Record<string, any> = {
+      person_id: user.id,
+      name: body.name.slice(0, 100),
+    };
+    if (body.roleId) insert.role_id = body.roleId;
+    if (body.locationPortId) insert.location_port_id = body.locationPortId;
+    if (typeof body.workingDays === 'number') insert.working_days = body.workingDays;
+    if (Array.isArray(body.requiredCertificationIds))
+      insert.required_certification_ids = body.requiredCertificationIds;
+    if (Array.isArray(body.requiredLanguages)) insert.required_languages = body.requiredLanguages;
+    if (body.experienceBracketId) insert.experience_bracket_id = body.experienceBracketId;
+    if (typeof body.dayRate === 'number') insert.day_rate = body.dayRate;
+    if (body.currency) insert.currency = body.currency;
+    if (Array.isArray(body.meals)) insert.meals = body.meals;
+    if (typeof body.notes === 'string') insert.notes = body.notes;
+    if (typeof body.positionsAvailable === 'number')
+      insert.positions_available = body.positionsAvailable;
+    if (typeof body.permanentOpportunity === 'boolean')
+      insert.permanent_opportunity = body.permanentOpportunity;
+
     const { data, error } = await supabase
       .from('daywork_templates')
-      .insert({
-        person_id: user.id,
-        name: typeof body.name === 'string' ? body.name.slice(0, 100) : body.name,
-        role_id: body.roleId || null,
-        location_port_id: body.locationPortId || null,
-        working_days: body.workingDays || null,
-        required_certification_ids: body.requiredCertificationIds || [],
-        required_languages: body.requiredLanguages || [],
-        experience_bracket_id: body.experienceBracketId || null,
-        day_rate: body.dayRate || null,
-        currency: body.currency || 'EUR',
-        meals: body.meals || [],
-        notes: body.notes || null,
-        positions_available: body.positionsAvailable || 1,
-        permanent_opportunity: body.permanentOpportunity === true,
-      })
+      .insert(insert)
       .select('id')
       .single();
 

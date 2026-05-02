@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FileText, Play, Trash2 } from 'lucide-react';
+import { FileText, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/empty-state';
@@ -26,12 +26,24 @@ export function DayworkTemplatesSection({
 
   return (
     <>
+      {/* B-005: dedicated Create-template entry point. Routes to the post
+          form pre-toggled into template-mode (top checkbox checked). */}
+      <div className="mb-3 flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => router.push('/daywork/post?type=daywork&mode=template')}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          Create template
+        </Button>
+      </div>
       {loading && <LoadingSpinner size="md" />}
       {!loading && templates.length === 0 && (
         <EmptyState
           icon={FileText}
           title="No templates"
-          description="Save a template from the post form to reuse common configurations."
+          description="Templates let you save partial job configurations to reuse later. Tap Create template to build one."
         />
       )}
       {templates.map((t) => (
@@ -47,14 +59,29 @@ export function DayworkTemplatesSection({
                 t.working_days ? `${t.working_days}d` : null,
               ]
                 .filter(Boolean)
-                .join(' · ')}
+                .join(' · ') || 'Partial template — tap Edit to fill in more fields'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => router.push(`/daywork/post?templateId=${t.id}`)}>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={() => router.push(`/daywork/post?type=daywork&templateId=${t.id}`)}
+              >
                 <Play className="mr-1 h-3.5 w-3.5" />
                 Use
+              </Button>
+              {/* B-005: edit-in-place. Routes the post form into edit mode
+                  so the submit button PATCHes the template row. */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  router.push(`/daywork/post?type=daywork&mode=edit&templateId=${t.id}`)
+                }
+              >
+                <Pencil className="mr-1 h-3.5 w-3.5" />
+                Edit
               </Button>
               <Button
                 variant="outline"

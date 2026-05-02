@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Save, Trash2 } from 'lucide-react';
+import { ChevronLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,14 +18,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { VesselSelector } from '@/components/vessels/vessel-selector';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { LocationPicker } from '@/components/location-picker';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { currencySymbol } from '@dockwalker/shared';
@@ -322,15 +314,26 @@ function DayworkPostForm() {
     router.push('/vessels?returnTo=daywork-post');
   }
 
-  // Templates
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  // B-005: template-mode is now a top-of-form toggle that reframes the
+  // entire submit flow. `?mode=template` from the post-type chooser starts
+  // in create mode; `?mode=edit&templateId=...` from My Jobs Edit button
+  // starts in edit mode (PATCH on submit). When ON, required-field
+  // validation drops, the submit button becomes "Create/Save template",
+  // and the daywork POST is skipped — only the template API is called.
+  const initialMode = searchParams.get('mode');
+  const isEditingTemplate = initialMode === 'edit';
+  const editingTemplateId = isEditingTemplate ? (searchParams.get('templateId') ?? null) : null;
+  const [templateMode, setTemplateMode] = useState(initialMode === 'template' || isEditingTemplate);
   const [templateName, setTemplateName] = useState('');
 
   function applyTemplate(t: Template) {
     // Reset all fields to defaults first so switching from a fuller template
     // to a sparser one does not leave stale values in the form.
+    // B-005: when in edit mode, also seed templateName from the template's
+    // own name so the user can rename in place. For "Use template" (no
+    // edit mode) we don't pre-fill templateName — the user is creating a
+    // new posting, not editing the template's identity.
+    if (isEditingTemplate) setTemplateName(t.name ?? '');
     setRoleId(t.role_id ?? '');
     setLocationPortId(t.location_port_id ?? '');
     // Templates store working_days count but no specific dates — useEffect will
@@ -350,9 +353,10 @@ function DayworkPostForm() {
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const templatesResult = await safeFetch<{ templates?: Template[] }>('/api/daywork/templates');
-      if (templatesResult.ok && templatesResult.data.templates)
-        setTemplates(templatesResult.data.templates);
+
+      // B-005: list-of-templates fetch removed — the in-form dropdown is
+      // gone, so we no longer need the full list at mount. Specific template
+      // pre-fill via `?templateId=` still happens below.
 
       // Load template from search param
       const templateId = searchParams.get('templateId');
@@ -406,28 +410,9 @@ function DayworkPostForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleLoadTemplate(templateId: string) {
-    setSelectedTemplateId(templateId);
-    const t = templates.find((x) => x.id === templateId);
-    if (t) applyTemplate(t);
-  }
-
-  const [confirmDeleteTemplate, setConfirmDeleteTemplate] = useState(false);
-
-  async function handleDeleteTemplate() {
-    setConfirmDeleteTemplate(false);
-    if (!selectedTemplateId) return;
-    const result = await safeFetch(`/api/daywork/templates/${selectedTemplateId}`, {
-      method: 'DELETE',
-    });
-    if (result.ok) {
-      setTemplates((prev) => prev.filter((t) => t.id !== selectedTemplateId));
-      setSelectedTemplateId('');
-      showSuccess('Template deleted');
-    } else {
-      showErrorToast('Failed to delete template');
-    }
-  }
+  // B-005: in-form template delete + handleDeleteTemplate removed. The
+  // dedicated surface for managing templates is the My Jobs > Templates
+  // tab, which has its own Delete button per template card.
 
   function toggleMeal(meal: MealOption) {
     setMeals((prev) => (prev.includes(meal) ? prev.filter((m) => m !== meal) : [...prev, meal]));
@@ -436,46 +421,72 @@ function DayworkPostForm() {
   async function handleSaveTemplate() {
     if (!templateName.trim()) return;
 
-    const result = await safeFetch<{ error?: string }>('/api/daywork/templates', {
-      method: 'POST',
+    // B-005 partial-save: send ONLY fields the user actually filled. The
+    // API now writes only supplied fields (no NULL coercion), matching
+    // the relaxed `permanent_templates`/`daywork_templates` schema in
+    // migration 00134.
+    const payload: Record<string, unknown> = { name: templateName.trim() };
+    if (roleId) payload.roleId = roleId;
+    if (locationPortId) payload.locationPortId = locationPortId;
+    if (workingDayDates.length) payload.workingDays = workingDayDates.length;
+    if (requiredCertIds.length) payload.requiredCertificationIds = requiredCertIds;
+    if (requiredLangs.length) payload.requiredLanguages = requiredLangs;
+    if (experienceBracketId) payload.experienceBracketId = experienceBracketId;
+    if (dayRate) payload.dayRate = parseFloat(dayRate);
+    if (currency) payload.currency = currency;
+    if (meals.length) payload.meals = meals;
+    if (notes) payload.notes = notes;
+    const positionsInt = parseInt(positionsAvailable, 10);
+    if (Number.isFinite(positionsInt) && positionsInt > 1)
+      payload.positionsAvailable = positionsInt;
+    if (permanentOpportunity) payload.permanentOpportunity = true;
+
+    const url = editingTemplateId
+      ? `/api/daywork/templates/${editingTemplateId}`
+      : '/api/daywork/templates';
+    const method = editingTemplateId ? 'PATCH' : 'POST';
+
+    const result = await safeFetch<{ error?: string }>(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: templateName.trim(),
-        vesselId: vesselId || null,
-        roleId: roleId || null,
-        locationPortId: locationPortId || null,
-        workingDays: workingDayDates.length || null,
-        requiredCertificationIds: requiredCertIds,
-        requiredLanguages: requiredLangs,
-        experienceBracketId: experienceBracketId || null,
-        dayRate: dayRate || null,
-        currency,
-        meals,
-        notes: notes || null,
-        positionsAvailable: parseInt(positionsAvailable, 10) || 1,
-        permanentOpportunity: permanentOpportunity || undefined,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (result.ok) {
-      showSuccess('Template saved');
-      setSaveAsTemplate(false);
-      setTemplateName('');
-      const templatesResult = await safeFetch<{ templates?: Template[] }>('/api/daywork/templates');
-      if (templatesResult.ok && templatesResult.data.templates)
-        setTemplates(templatesResult.data.templates);
+      showSuccess(editingTemplateId ? 'Template updated' : 'Template saved');
+      // B-005: handleSaveTemplate is ONLY reached from template-mode now
+      // (the dual "save AND post" path was removed). Route the user back to
+      // the templates tab where they can see the result.
+      sessionStorage.removeItem('dockwalker:daywork-post-draft');
+      router.push('/daywork/mine?tab=templates');
+      return;
+    }
+    if (result.error === 'template_limit_reached') {
+      showErrorToast('Template limit reached — upgrade to Pro for more templates');
     } else {
-      if (result.error === 'template_limit_reached') {
-        showErrorToast('Template limit reached — upgrade to Pro for more templates');
-      } else {
-        showErrorToast(result.error);
-      }
+      showErrorToast(result.error);
     }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // B-005: template-mode short-circuit — validate name only, fire the
+    // template POST/PATCH directly. No post-confirm dialog (the user is
+    // saving a template, not posting a job).
+    if (templateMode) {
+      if (!templateName.trim()) {
+        setError('Please name the template');
+        return;
+      }
+      if (templateName.length > 100) {
+        setError('Template name must be 100 characters or less');
+        return;
+      }
+      handleSaveTemplate();
+      return;
+    }
 
     const errors: Record<string, string> = {};
     if (!vesselId) errors.vessel = 'Please select a vessel';
@@ -533,10 +544,9 @@ function DayworkPostForm() {
     });
 
     if (result.ok) {
-      // Save template alongside if checkbox is checked
-      if (saveAsTemplate && templateName.trim()) {
-        await handleSaveTemplate();
-      }
+      // Note: dual "save AND post" path was removed in B-005. Template
+      // creation is now a separate gesture (top-of-form toggle), and the
+      // posting form here is strictly for posting a job.
       sessionStorage.removeItem('dockwalker:daywork-post-draft');
       showSuccess(inviteCrewPersonId ? 'Daywork posted and crew invited' : 'Daywork posted');
       router.push('/daywork/mine');
@@ -554,7 +564,13 @@ function DayworkPostForm() {
           <Link href="/daywork/mine" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-[24px] font-bold tracking-[-0.5px]">Post daywork</h1>
+          <h1 className="text-[24px] font-bold tracking-[-0.5px]">
+            {templateMode
+              ? isEditingTemplate
+                ? 'Edit template'
+                : 'Create template'
+              : 'Post daywork'}
+          </h1>
         </div>
       </header>
 
@@ -572,42 +588,49 @@ function DayworkPostForm() {
             </p>
           </div>
         ) : null}
-        {/* Load template */}
-        {templates.length > 0 && (
-          <div className="flex flex-col gap-1.5">
-            <Label>Load template</Label>
-            <div className="flex gap-2">
-              <Select value={selectedTemplateId} onValueChange={handleLoadTemplate}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select a template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedTemplateId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0 text-destructive"
-                  onClick={() => setConfirmDeleteTemplate(true)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
+        {/* B-005: template-mode toggle at the TOP of the form. Reframes the
+            entire flow — required-field validation drops, submit button
+            becomes "Create/Save template", daywork POST is skipped. The old
+            in-form "Load template" dropdown was removed; the dedicated
+            entry point is the templates tab in My Jobs (Use button). */}
+        <div className="space-y-2 rounded-[14px] border-2 border-dashed border-[var(--border)] bg-[var(--card)] p-4">
+          <label htmlFor="templateMode" className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              id="templateMode"
+              checked={templateMode}
+              onCheckedChange={(v) => setTemplateMode(v === true)}
+              disabled={isEditingTemplate}
+            />
+            <Save className="h-4 w-4 text-[var(--accent)]" />
+            <span className="text-sm font-medium">
+              {isEditingTemplate ? 'Editing template' : 'Create a template instead'}
+            </span>
+          </label>
+          {!templateMode && (
+            <p className="pl-6 text-xs text-muted-foreground">
+              Toggle on to save a reusable configuration without posting a job. Required fields
+              become optional; only the template name is required.
+            </p>
+          )}
+          {templateMode && (
+            <div className="pl-6">
+              <Input
+                placeholder="Template name (e.g. Deckhand €2500)"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value.slice(0, 100))}
+                maxLength={100}
+                required
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {templateName.length}/100 characters
+              </p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Vessel */}
         <div className="flex flex-col gap-1.5">
-          <Label>
-            Vessel <span className="text-destructive">*</span>
-          </Label>
+          <Label>Vessel {!templateMode && <span className="text-destructive">*</span>}</Label>
           <VesselSelector
             value={vesselId}
             onValueChange={(v) => {
@@ -624,9 +647,7 @@ function DayworkPostForm() {
 
         {/* Role */}
         <div className="flex flex-col gap-1.5">
-          <Label>
-            Role needed <span className="text-destructive">*</span>
-          </Label>
+          <Label>Role needed {!templateMode && <span className="text-destructive">*</span>}</Label>
           <HierarchicalPills
             groups={rolesToGroups(
               roles.filter((r): r is typeof r & { department: string } => !!r.department),
@@ -644,9 +665,7 @@ function DayworkPostForm() {
 
         {/* Location */}
         <div className="flex flex-col gap-1.5">
-          <Label>
-            Location <span className="text-destructive">*</span>
-          </Label>
+          <Label>Location {!templateMode && <span className="text-destructive">*</span>}</Label>
           <LocationPicker
             mode="port-required"
             value={locationPortId ? { portId: locationPortId } : null}
@@ -665,7 +684,7 @@ function DayworkPostForm() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="startDate">
-              Start date <span className="text-destructive">*</span>
+              Start date {!templateMode && <span className="text-destructive">*</span>}
             </Label>
             <DateInput
               value={startDate}
@@ -683,7 +702,7 @@ function DayworkPostForm() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="endDate">
-              End date <span className="text-destructive">*</span>
+              End date {!templateMode && <span className="text-destructive">*</span>}
             </Label>
             <DateInput
               value={endDate}
@@ -788,7 +807,7 @@ function DayworkPostForm() {
         {/* Day rate + currency */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="dayRate">
-            Day rate <span className="text-destructive">*</span>
+            Day rate {!templateMode && <span className="text-destructive">*</span>}
           </Label>
           <div className="flex gap-2">
             <Select value={currency} onValueChange={setCurrency}>
@@ -862,60 +881,49 @@ function DayworkPostForm() {
           </p>
         </div>
 
-        {/* Save as template */}
-        <div className="space-y-2 rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="saveTemplate"
-              checked={saveAsTemplate}
-              onCheckedChange={(v) => setSaveAsTemplate(v === true)}
-            />
-            <Label htmlFor="saveTemplate" className="cursor-pointer">
-              <Save className="mr-1 inline h-4 w-4" />
-              Save as template
-            </Label>
-          </div>
-          {saveAsTemplate && (
-            <Input
-              placeholder="Template name"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-            />
-          )}
-        </div>
+        {/* B-005: bottom save-as-template block removed; toggle now lives at
+            the TOP of the form, reframing the entire flow when ON. */}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {/* Live requirements checklist */}
-        {(() => {
-          const missing: string[] = [];
-          if (!vesselId) missing.push('Vessel selection');
-          if (!roleId) missing.push('Role selection');
-          if (!locationPortId) missing.push('Location');
-          if (!startDate) missing.push('Start date');
-          if (!endDate) missing.push('End date');
-          if (!dayRate) missing.push('Day rate');
-          if (missing.length > 0) {
-            return (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
-                <p className="mb-1.5 text-xs font-semibold text-destructive">
-                  Complete before posting:
-                </p>
-                <ul className="flex flex-col gap-0.5">
-                  {missing.map((item) => (
-                    <li key={item} className="text-xs text-destructive/80">
-                      &bull; {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          }
-          return null;
-        })()}
+        {/* Live requirements checklist — only shown for posting, not template
+            mode (templates are intentionally partial). */}
+        {!templateMode &&
+          (() => {
+            const missing: string[] = [];
+            if (!vesselId) missing.push('Vessel selection');
+            if (!roleId) missing.push('Role selection');
+            if (!locationPortId) missing.push('Location');
+            if (!startDate) missing.push('Start date');
+            if (!endDate) missing.push('End date');
+            if (!dayRate) missing.push('Day rate');
+            if (missing.length > 0) {
+              return (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+                  <p className="mb-1.5 text-xs font-semibold text-destructive">
+                    Complete before posting:
+                  </p>
+                  <ul className="flex flex-col gap-0.5">
+                    {missing.map((item) => (
+                      <li key={item} className="text-xs text-destructive/80">
+                        &bull; {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
         <Button type="submit" disabled={loading} className="w-full">
-          {loading ? 'Posting...' : 'Post daywork'}
+          {templateMode
+            ? isEditingTemplate
+              ? 'Save changes'
+              : 'Review and create template'
+            : loading
+              ? 'Posting...'
+              : 'Post daywork'}
         </Button>
       </form>
 
@@ -987,22 +995,6 @@ function DayworkPostForm() {
           </div>
         </div>
       </BottomSheet>
-      <Dialog open={confirmDeleteTemplate} onOpenChange={setConfirmDeleteTemplate}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete template</DialogTitle>
-            <DialogDescription>Are you sure? This cannot be undone.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setConfirmDeleteTemplate(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteTemplate}>
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

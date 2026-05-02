@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Save, Trash2 } from 'lucide-react';
+import { ChevronLeft, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -116,10 +116,16 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     (draft?.positionsAvailable as string) ?? '1',
   );
 
-  // Template state
-  const [templates, setTemplates] = useState<PermanentTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState('');
-  const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  // B-005: template-mode is now a top-of-form toggle that reframes the
+  // entire submit flow. `?mode=template` from the post-type chooser starts
+  // in create mode; `?mode=edit&templateId=...` from My Jobs Edit button
+  // starts in edit mode (PATCH on submit). When ON, required-field
+  // validation drops, the submit button becomes "Create/Save template",
+  // and the permanent POST is skipped — only the template API is called.
+  const initialMode = searchParams.get('mode');
+  const isEditingTemplate = initialMode === 'edit';
+  const editingTemplateId = isEditingTemplate ? (searchParams.get('templateId') ?? null) : null;
+  const [templateMode, setTemplateMode] = useState(initialMode === 'template' || isEditingTemplate);
   const [templateName, setTemplateName] = useState('');
 
   // Save form state before navigating to vessel creation
@@ -170,75 +176,44 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
     })();
   }, []);
 
-  // Fetch templates on mount (lookups from context)
+  // B-005: pre-fill from a specific template when ?templateId= is present.
+  // The full templates-list fetch + in-form dropdown was removed; the
+  // dedicated entry point is My Jobs > Templates tab (Use / Edit buttons).
   useEffect(() => {
-    safeFetch<{ templates?: PermanentTemplate[] }>('/api/permanent/templates').then((result) => {
-      if (result.ok) {
-        const loaded = result.data.templates ?? [];
-        setTemplates(loaded);
-        if (initialTemplateId) {
-          const match = loaded.find((t) => t.id === initialTemplateId);
-          if (match) {
-            setSelectedTemplateId(match.id);
-            if (match.vessel_id) setVesselId(match.vessel_id);
-            if (match.role_id) setRoleId(match.role_id);
-            if (match.port_id) setLocationPortId(match.port_id);
-            if (match.start_date) setStartDate(match.start_date);
-            if (match.salary_min) setSalaryMin(String(match.salary_min));
-            if (match.salary_max) setSalaryMax(String(match.salary_max));
-            if (match.salary_currency) setSalaryCurrency(match.salary_currency as CurrencyCode);
-            if (match.salary_period) setSalaryPeriod(match.salary_period);
-            setLiveAboard(match.live_aboard);
-            setCertificationIds(match.required_certification_ids ?? []);
-            setRequiredLangs(match.required_languages ?? []);
-            if (match.experience_bracket_id) setExperienceBracketId(match.experience_bracket_id);
-            if (match.shortlist_cap) setShortlistCap(String(match.shortlist_cap));
-            if (match.notes) setNotes(match.notes);
-          }
-        }
-      }
+    if (!initialTemplateId) return;
+    safeFetch<{ template?: PermanentTemplate }>(
+      `/api/permanent/templates/${initialTemplateId}`,
+    ).then((result) => {
+      if (!result.ok || !result.data.template) return;
+      const match = result.data.template;
+      // In edit mode, also seed templateName so the user can rename in
+      // place. For "Use template" (no edit mode) we don't pre-fill the
+      // name — they're creating a new posting, not editing the template.
+      if (isEditingTemplate) setTemplateName(match.template_name ?? '');
+      if (match.vessel_id) setVesselId(match.vessel_id);
+      if (match.role_id) setRoleId(match.role_id);
+      if (match.port_id) setLocationPortId(match.port_id);
+      if (match.start_date) setStartDate(match.start_date);
+      if (match.salary_min) setSalaryMin(String(match.salary_min));
+      if (match.salary_max) setSalaryMax(String(match.salary_max));
+      if (match.salary_currency) setSalaryCurrency(match.salary_currency as CurrencyCode);
+      if (match.salary_period) setSalaryPeriod(match.salary_period);
+      setLiveAboard(match.live_aboard);
+      setCertificationIds(match.required_certification_ids ?? []);
+      setRequiredLangs(match.required_languages ?? []);
+      if (match.experience_bracket_id) setExperienceBracketId(match.experience_bracket_id);
+      if (match.shortlist_cap) setShortlistCap(String(match.shortlist_cap));
+      if (match.notes) setNotes(match.notes);
+      if (match.contract_type) setContractType(match.contract_type);
+      if (match.contract_details) setContractDetails(match.contract_details);
+      if (match.description) setDescription(match.description);
+      if (match.meals) setMeals(match.meals);
+      if (match.positions_available) setPositionsAvailable(String(match.positions_available));
     });
-  }, [initialTemplateId]);
+  }, [initialTemplateId, isEditingTemplate]);
 
-  // Load template into form
-  function loadTemplate(templateId: string) {
-    const t = templates.find((tpl) => tpl.id === templateId);
-    if (!t) return;
-    setSelectedTemplateId(templateId);
-    if (t.vessel_id) setVesselId(t.vessel_id);
-    if (t.role_id) setRoleId(t.role_id);
-    if (t.port_id) setLocationPortId(t.port_id);
-    if (t.start_date) setStartDate(t.start_date);
-    if (t.salary_min) setSalaryMin(String(t.salary_min));
-    if (t.salary_max) setSalaryMax(String(t.salary_max));
-    if (t.salary_currency) setSalaryCurrency(t.salary_currency as CurrencyCode);
-    if (t.salary_period) setSalaryPeriod(t.salary_period);
-    setLiveAboard(t.live_aboard);
-    setCertificationIds(t.required_certification_ids ?? []);
-    setRequiredLangs(t.required_languages ?? []);
-    if (t.experience_bracket_id) setExperienceBracketId(t.experience_bracket_id);
-    if (t.shortlist_cap) setShortlistCap(String(t.shortlist_cap));
-    setNotes(t.notes ?? '');
-    setContractType(t.contract_type ?? 'permanent');
-    setContractDetails(t.contract_details ?? '');
-    setDescription(t.description ?? '');
-    setMeals(t.meals ?? []);
-    if (t.positions_available) setPositionsAvailable(String(t.positions_available));
-  }
-
-  async function handleDeleteTemplate() {
-    if (!selectedTemplateId) return;
-    const result = await safeFetch(`/api/permanent/templates/${selectedTemplateId}`, {
-      method: 'DELETE',
-    });
-    if (result.ok) {
-      setTemplates((prev) => prev.filter((t) => t.id !== selectedTemplateId));
-      setSelectedTemplateId('');
-      showSuccess('Template deleted');
-    } else {
-      showErrorToast('Failed to delete template');
-    }
-  }
+  // B-005: in-form template delete + load-template-from-dropdown removed.
+  // Both are reachable from the My Jobs > Templates tab now.
 
   // Salary preview
   const salaryPreview = (() => {
@@ -257,6 +232,83 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
 
   const [showConfirm, setShowConfirm] = useState(false);
   const [vesselDisplayName, setVesselDisplayName] = useState('');
+
+  // B-005: build the partial-friendly template payload — only fields the
+  // user actually touched. Mirrors the API's accept-only-supplied-fields
+  // behaviour so a "Chief Stew €4k" minimal template doesn't pollute the
+  // saved row with zeros and "EUR" defaults the user never picked.
+  function buildTemplatePayload(name: string): Record<string, unknown> {
+    const payload: Record<string, unknown> = { templateName: name };
+    if (vesselId) payload.vesselId = vesselId;
+    if (roleId) payload.roleId = roleId;
+    if (locationPortId) payload.locationPortId = locationPortId;
+    if (startDate) payload.startDate = startDate;
+    const minNum = parseFloat(salaryMin);
+    if (Number.isFinite(minNum)) payload.salaryMin = minNum;
+    const maxNum = parseFloat(salaryMax);
+    if (Number.isFinite(maxNum)) payload.salaryMax = maxNum;
+    if (salaryCurrency) payload.salaryCurrency = salaryCurrency;
+    if (salaryPeriod) payload.salaryPeriod = salaryPeriod;
+    payload.liveAboard = liveAboard;
+    const realCerts = certificationIds.filter((id) => id !== '__none__');
+    if (realCerts.length) payload.requiredCertificationIds = realCerts;
+    if (requiredLangs.length) payload.requiredLanguages = requiredLangs;
+    if (experienceBracketId && experienceBracketId !== 'any')
+      payload.experienceBracketId = experienceBracketId;
+    const capNum = parseInt(shortlistCap, 10);
+    if (Number.isFinite(capNum)) payload.shortlistCap = capNum;
+    if (notes) payload.notes = notes;
+    if (contractType) payload.contractType = contractType;
+    if (contractDetails) payload.contractDetails = contractDetails;
+    if (description) payload.description = description;
+    if (meals.length) payload.meals = meals;
+    const positionsNum = parseInt(positionsAvailable, 10);
+    if (Number.isFinite(positionsNum) && positionsNum > 1)
+      payload.positionsAvailable = positionsNum;
+    return payload;
+  }
+
+  async function handleSaveTemplate() {
+    if (!templateName.trim()) {
+      setError('Please name the template');
+      return;
+    }
+    if (templateName.length > 100) {
+      setError('Template name must be 100 characters or less');
+      return;
+    }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setLoading(true);
+    setError(null);
+
+    const url = editingTemplateId
+      ? `/api/permanent/templates/${editingTemplateId}`
+      : '/api/permanent/templates';
+    const method = editingTemplateId ? 'PATCH' : 'POST';
+
+    const result = await safeFetch<{ error?: string }>(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildTemplatePayload(templateName.trim())),
+    });
+
+    if (!result.ok) {
+      if (result.error === 'template_limit_reached') {
+        showErrorToast('Template limit reached — upgrade to Pro for more templates');
+      } else {
+        showErrorToast(result.error);
+        setError(result.error);
+      }
+      setLoading(false);
+      submittingRef.current = false;
+      return;
+    }
+
+    showSuccess(editingTemplateId ? 'Template updated' : 'Template saved');
+    sessionStorage.removeItem('dockwalker:permanent-post-draft');
+    router.push('/daywork/mine?tab=templates');
+  }
 
   async function handleSubmit() {
     if (submittingRef.current) return;
@@ -327,38 +379,8 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
       }
     }
 
-    // Save template alongside if checked
-    if (saveAsTemplate && templateName.trim()) {
-      const tplResult = await safeFetch<{ error?: string }>('/api/permanent/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateName: templateName.trim(),
-          vesselId,
-          roleId,
-          locationPortId,
-          startDate,
-          salaryMin: parseFloat(salaryMin),
-          salaryMax: salaryMax ? parseFloat(salaryMax) : parseFloat(salaryMin),
-          salaryCurrency,
-          salaryPeriod,
-          liveAboard,
-          requiredCertificationIds: certificationIds.filter((id) => id !== '__none__'),
-          requiredLanguages: requiredLangs,
-          experienceBracketId: experienceBracketId === 'any' ? null : experienceBracketId || null,
-          shortlistCap: parseInt(shortlistCap, 10) || 5,
-          notes: notes || null,
-          contractType: contractType || null,
-          contractDetails: contractDetails || null,
-          description: description || null,
-          meals,
-          positionsAvailable: parseInt(positionsAvailable, 10) || 1,
-        }),
-      });
-      if (!tplResult.ok && tplResult.error === 'template_limit_reached') {
-        showErrorToast('Template limit reached — upgrade to Pro for more templates');
-      }
-    }
+    // B-005: dual "save AND post" path removed. Template creation is now
+    // a separate gesture (top-of-form toggle calling handleSaveTemplate).
 
     showSuccess('Permanent posting created');
     router.push('/daywork/mine');
@@ -373,7 +395,13 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         <button onClick={onBack} className="rounded-full p-2 hover:bg-muted">
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-[24px] font-bold tracking-[-0.5px]">Post Permanent Position</h1>
+        <h1 className="text-[24px] font-bold tracking-[-0.5px]">
+          {templateMode
+            ? isEditingTemplate
+              ? 'Edit template'
+              : 'Create template'
+            : 'Post Permanent Position'}
+        </h1>
       </div>
 
       {/* QR-hire banner (Phase 5b) — visible when arriving from
@@ -390,36 +418,45 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
         </div>
       ) : null}
 
-      {/* Load template */}
-      {templates.length > 0 && (
-        <div className="mb-6">
-          <Label>Load from template</Label>
-          <div className="flex gap-2">
-            <Select value={selectedTemplateId} onValueChange={loadTemplate}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select a template..." />
-              </SelectTrigger>
-              <SelectContent>
-                {templates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.template_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedTemplateId && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 text-destructive"
-                onClick={handleDeleteTemplate}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+      {/* B-005: template-mode toggle at the TOP of the form. Reframes the
+          flow when ON — required-field validation drops, the submit button
+          becomes "Create/Save template", and the permanent POST is skipped.
+          Old in-form "Load from template" dropdown was removed; the
+          dedicated entry point is the templates tab in My Jobs. */}
+      <div className="mb-6 space-y-2 rounded-[14px] border-2 border-dashed border-[var(--border)] bg-[var(--card)] p-4">
+        <label htmlFor="permTemplateMode" className="flex items-center gap-2 cursor-pointer">
+          <Checkbox
+            id="permTemplateMode"
+            checked={templateMode}
+            onCheckedChange={(v) => setTemplateMode(v === true)}
+            disabled={isEditingTemplate}
+          />
+          <Save className="h-4 w-4 text-[var(--accent)]" />
+          <span className="text-sm font-medium">
+            {isEditingTemplate ? 'Editing template' : 'Create a template instead'}
+          </span>
+        </label>
+        {!templateMode && (
+          <p className="pl-6 text-xs text-muted-foreground">
+            Toggle on to save a reusable configuration without posting a job. Required fields become
+            optional; only the template name is required.
+          </p>
+        )}
+        {templateMode && (
+          <div className="pl-6">
+            <Input
+              placeholder="Template name (e.g. Chief Stew €4500)"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value.slice(0, 100))}
+              maxLength={100}
+              required
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {templateName.length}/100 characters
+            </p>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="space-y-6">
         <RoleLocationSection
@@ -478,75 +515,72 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           setExperienceBracketId={setExperienceBracketId}
         />
 
-        {/* Save as template */}
-        <div className="space-y-2 rounded-lg border p-3">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="saveTemplate"
-              checked={saveAsTemplate}
-              onCheckedChange={(v) => setSaveAsTemplate(v === true)}
-            />
-            <Label htmlFor="saveTemplate" className="cursor-pointer">
-              <Save className="mr-1 inline h-4 w-4" />
-              Save as template
-            </Label>
-          </div>
-          {saveAsTemplate && (
-            <Input
-              placeholder="Template name"
-              value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
-            />
-          )}
-        </div>
+        {/* B-005: bottom save-as-template block removed; toggle now lives at
+            the TOP of the form, reframing the entire flow when ON. */}
 
         {/* Error */}
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {/* Live requirements checklist */}
-        {(() => {
-          const missing: string[] = [];
-          if (!vesselId) missing.push('Vessel selection');
-          if (!roleId) missing.push('Role selection');
-          if (!locationPortId) missing.push('Location');
-          if (!startDate) missing.push('Start date');
-          if (!salaryMin) missing.push('Salary');
-          if (certificationIds.length === 0)
-            missing.push('Certifications (select certs or "None required")');
-          if (missing.length > 0) {
-            return (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
-                <p className="mb-1.5 text-xs font-semibold text-destructive">
-                  Complete before posting:
-                </p>
-                <ul className="flex flex-col gap-0.5">
-                  {missing.map((item) => (
-                    <li key={item} className="text-xs text-destructive/80">
-                      &bull; {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          }
-          return null;
-        })()}
+        {/* Live requirements checklist — only shown for posting, not template
+            mode (templates are intentionally partial). */}
+        {!templateMode &&
+          (() => {
+            const missing: string[] = [];
+            if (!vesselId) missing.push('Vessel selection');
+            if (!roleId) missing.push('Role selection');
+            if (!locationPortId) missing.push('Location');
+            if (!startDate) missing.push('Start date');
+            if (!salaryMin) missing.push('Salary');
+            if (certificationIds.length === 0)
+              missing.push('Certifications (select certs or "None required")');
+            if (missing.length > 0) {
+              return (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+                  <p className="mb-1.5 text-xs font-semibold text-destructive">
+                    Complete before posting:
+                  </p>
+                  <ul className="flex flex-col gap-0.5">
+                    {missing.map((item) => (
+                      <li key={item} className="text-xs text-destructive/80">
+                        &bull; {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
-        {/* Submit */}
+        {/* Submit — switches between posting and template-save based on the
+            top-of-form toggle. Template mode skips the review-confirm
+            BottomSheet (the user is saving a partial template, not a job). */}
         <Button
           className="w-full"
           disabled={
-            loading ||
-            !vesselId ||
-            !roleId ||
-            !locationPortId ||
-            !startDate ||
-            !salaryMin ||
-            certificationIds.length === 0
+            templateMode
+              ? loading || !templateName.trim()
+              : loading ||
+                !vesselId ||
+                !roleId ||
+                !locationPortId ||
+                !startDate ||
+                !salaryMin ||
+                certificationIds.length === 0
           }
-          onClick={() => setShowConfirm(true)}
+          onClick={() => {
+            if (templateMode) {
+              handleSaveTemplate();
+            } else {
+              setShowConfirm(true);
+            }
+          }}
         >
-          Review & Post
+          {templateMode
+            ? isEditingTemplate
+              ? 'Save changes'
+              : 'Review and create template'
+            : 'Review & Post'}
         </Button>
       </div>
 
