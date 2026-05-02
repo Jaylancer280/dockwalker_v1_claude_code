@@ -75,6 +75,10 @@ interface Applicant {
    * Drives the ✉ Invited badge so the captain sees at a glance which
    * applicants came in via a PERMANENT.INVITED deep link. */
   invited?: boolean;
+  /** B-011: present when the employer has opened a shortlist-phase chat
+   *  with this candidate. Used to render "Continue chat" instead of
+   *  "Open chat" without an extra round-trip per card. */
+  shortlist_chat_engagement_id?: string | null;
 }
 
 function availabilityLabel(a: Applicant) {
@@ -257,6 +261,23 @@ export default function PermanentReviewPage() {
       }
     } else {
       showError('Failed to load applicants');
+    }
+    setActioningId(null);
+  }
+
+  // B-011: open or continue a shortlist-phase chat with a candidate.
+  // The route is idempotent on (posting × crew) — repeat clicks resolve
+  // to the same engagement, so this works for both "Open" and "Continue".
+  async function handleOpenChat(crewId: string) {
+    setActioningId(crewId);
+    const result = await safeFetch<{ engagementId?: string; error?: string }>(
+      `/api/permanent/${postingId}/applicants/${crewId}/open-chat`,
+      { method: 'POST' },
+    );
+    if (result.ok && result.data.engagementId) {
+      router.push(`/messages/${result.data.engagementId}`);
+    } else {
+      showError('Failed to open chat');
     }
     setActioningId(null);
   }
@@ -553,6 +574,22 @@ export default function PermanentReviewPage() {
                         <X className="mr-1 h-4 w-4" />
                         Show next
                       </Button>
+                      {/* B-011: opt-in shortlist chat. Lets the employer ask
+                          clarifying questions before the higher-stakes Select
+                          decision. Idempotent — second click on "Continue"
+                          resolves to the same engagement. Hidden once the
+                          posting reaches in_negotiation. */}
+                      {postingStatus === 'active' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={actioningId === app.crew_person_id}
+                          onClick={() => handleOpenChat(app.crew_person_id)}
+                        >
+                          <MessageSquarePlus className="mr-1 h-4 w-4" />
+                          {app.shortlist_chat_engagement_id ? 'Continue chat' : 'Open chat'}
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         disabled={
@@ -571,14 +608,40 @@ export default function PermanentReviewPage() {
         )}
       </div>
 
-      {/* Select confirmation dialog */}
+      {/* B-011: Select confirmation dialog. The dialog body warns the
+          employer about everything that fires on confirmation — moving
+          the posting into negotiation, auto-rejecting other shortlisted
+          candidates, and closing any sibling shortlist chats. Decisive
+          action; no easy undo path. */}
       <Dialog open={!!selectConfirm} onOpenChange={() => setSelectConfirm(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Select {selectConfirm?.display_name}?</DialogTitle>
-            <DialogDescription>
-              This will open a message thread to negotiate terms. Other shortlisted candidates
-              remain on the list.
+            <DialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>This is a major commitment. Selecting this candidate will:</p>
+                <ul className="list-disc space-y-1 pl-5">
+                  <li>Move the posting into negotiation</li>
+                  <li>Auto-reject other applicants and shortlisted candidates</li>
+                  {(() => {
+                    const otherShortlistChats = shortlisted.filter(
+                      (a) =>
+                        a.crew_person_id !== selectConfirm?.crew_person_id &&
+                        a.shortlist_chat_engagement_id,
+                    ).length;
+                    return otherShortlistChats > 0 ? (
+                      <li>
+                        Close {otherShortlistChats} other shortlist chat
+                        {otherShortlistChats === 1 ? '' : 's'} with a polite system message
+                      </li>
+                    ) : null;
+                  })()}
+                  <li>Open a private message thread with {selectConfirm?.display_name}</li>
+                </ul>
+                <p className="pt-1 text-foreground">
+                  You can revert from negotiation, but the cascade above is not undone.
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 sm:gap-0">
