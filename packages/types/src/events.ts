@@ -85,6 +85,10 @@ export type EventType =
   | 'PERMANENT.WITHDRAWN'
   | 'PERMANENT.CANCELLED_BY_EMPLOYER'
   | 'PERMANENT.ENGAGEMENT_CLOSED'
+  /** B-011: employer-initiated, opt-in shortlist chat. Creates an
+   *  active_engagements row with phase='shortlist' for the (posting × crew)
+   *  pair. Idempotent on retry via D-1 idempotency key. */
+  | 'PERMANENT.SHORTLIST_CHAT_OPENED'
   // Reference aggregate (consent-based references)
   | 'REFERENCE.REQUESTED'
   | 'REFERENCE.ACCEPTED'
@@ -599,6 +603,17 @@ export interface EventPayloadMap {
     engagement_id: string;
     outcome: 'successful_placement' | 'not_successful' | 'withdrew';
     closed_by: 'crew' | 'employer';
+  };
+  /** B-011: employer-initiated, opt-in shortlist chat for permanent
+   *  postings. The projection inserts a phase='shortlist' row in
+   *  `active_engagements` for the (posting × crew) pair if one doesn't
+   *  already exist. Idempotent on retry via the D-1 idempotency key
+   *  `PERMANENT.SHORTLIST_CHAT_OPENED:${permanent_posting_id}:${crew_person_id}`. */
+  'PERMANENT.SHORTLIST_CHAT_OPENED': {
+    engagement_id: string;
+    permanent_posting_id: string;
+    crew_person_id: string;
+    application_id: string;
   };
   'SHORE_EXPERIENCE.ADDED': {
     id: string;
