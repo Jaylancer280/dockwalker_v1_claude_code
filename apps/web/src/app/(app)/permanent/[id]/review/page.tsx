@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLookups } from '@/hooks/use-lookups';
 import { vesselSizeRange } from '@dockwalker/shared';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, User, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Loader2, User, AlertCircle, Star, X } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { UnderlineTabs } from '@/components/ui/underline-tabs';
@@ -232,7 +232,7 @@ export default function PermanentReviewPage() {
   return (
     <main className="flex min-h-svh flex-col bg-background pb-20">
       {/* Header */}
-      <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+      <div className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="page-width flex items-center gap-2">
           <Link href="/daywork/mine" className="rounded-full p-1 hover:bg-muted">
             <ChevronLeft className="h-5 w-5" />
@@ -260,7 +260,11 @@ export default function PermanentReviewPage() {
         <UnderlineTabs
           options={[
             { value: 'applicants', label: `Applicants (${applied.length})` },
-            { value: 'shortlisted', label: `Shortlisted (${shortlistCount}/${shortlistCap})` },
+            {
+              value: 'shortlisted',
+              label: `Shortlisted (${shortlistCount}/${shortlistCap})`,
+              icon: <Star className="h-3.5 w-3.5" />,
+            },
           ]}
           value={activeTab}
           onChange={(v) => setActiveTab(v as 'applicants' | 'shortlisted')}
@@ -442,10 +446,12 @@ export default function PermanentReviewPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="border-[var(--destructive)] text-[var(--destructive)] hover:bg-[var(--destructive)] hover:text-white"
                         disabled={actioningId === app.crew_person_id}
                         onClick={() => handleReject(app.crew_person_id)}
                       >
-                        Reject
+                        <X className="mr-1 h-4 w-4" />
+                        Show next
                       </Button>
                       <Button
                         size="sm"
@@ -463,10 +469,12 @@ export default function PermanentReviewPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="border-[var(--destructive)] text-[var(--destructive)] hover:bg-[var(--destructive)] hover:text-white"
                         disabled={actioningId === app.crew_person_id}
                         onClick={() => handleReject(app.crew_person_id)}
                       >
-                        Reject
+                        <X className="mr-1 h-4 w-4" />
+                        Show next
                       </Button>
                       <Button
                         size="sm"

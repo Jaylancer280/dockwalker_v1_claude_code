@@ -269,6 +269,37 @@ export async function updateSession(request: NextRequest) {
       url.pathname = '/discover';
       return NextResponse.redirect(url);
     }
+
+    // Crew cannot access employer-only job posting + management routes
+    // (CLAUDE.md role-gating invariant: crew hat cannot post jobs).
+    // The API rejects on POST too, but blocking at the page layer prevents
+    // the UX dead-end where the form renders for crew until they hit submit.
+    if (
+      currentHat === 'crew' &&
+      (/^\/daywork\/post(\/|$)/.test(path) ||
+        /^\/daywork\/mine(\/|$)/.test(path) ||
+        /^\/permanent\/mine(\/|$)/.test(path))
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/discover';
+      return NextResponse.redirect(url);
+    }
+
+    // Employer hat cannot access crew-only profile / settings routes
+    // (experience editors, CV builder, references manager are crew-side only).
+    if (
+      currentHat === 'employer' &&
+      (/^\/profile\/add-experience(\/|$)/.test(path) ||
+        /^\/profile\/edit-experience(\/|$)/.test(path) ||
+        /^\/profile\/add-shore-experience(\/|$)/.test(path) ||
+        /^\/profile\/edit-shore-experience(\/|$)/.test(path) ||
+        /^\/settings\/cv(\/|$)/.test(path) ||
+        /^\/settings\/references(\/|$)/.test(path))
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/daywork/mine';
+      return NextResponse.redirect(url);
+    }
   }
 
   // On onboarding page — check deactivated first, then redirect if already onboarded

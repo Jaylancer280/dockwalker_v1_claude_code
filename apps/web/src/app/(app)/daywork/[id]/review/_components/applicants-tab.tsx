@@ -144,30 +144,40 @@ export function ApplicantsTab({
 
       {/* Action buttons */}
       {!loading && topCard && (
-        <div className="mx-auto flex max-w-md items-center justify-center gap-6 pb-4">
-          <button
+        <div className="mx-auto flex w-full max-w-md gap-3 pb-4">
+          <Button
+            variant="destructive"
+            size="lg"
+            className="h-12 flex-1 text-sm"
             onClick={() => handleReject(topCard.crew_person_id)}
             disabled={acting}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--destructive)] text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)] hover:text-white disabled:opacity-50"
+            aria-label="Show next applicant"
           >
-            <X className="h-6 w-6" />
-          </button>
+            <X className="mr-1.5 h-4 w-4" />
+            Show next
+          </Button>
           {tab === 'applicants' && (
-            <button
+            <Button
+              size="lg"
+              className="h-12 flex-1 border-2 border-[var(--warning)] bg-transparent text-sm text-[var(--warning)] hover:bg-[var(--warning)] hover:text-white"
               onClick={() => handleShortlist(topCard.crew_person_id)}
               disabled={acting}
-              className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[var(--warning)] text-[var(--warning)] transition-colors hover:bg-[var(--warning)] hover:text-white disabled:opacity-50"
+              aria-label="Shortlist this applicant"
             >
-              <Star className="h-5 w-5" />
-            </button>
+              <Star className="mr-1.5 h-4 w-4" />
+              Shortlist
+            </Button>
           )}
-          <button
+          <Button
+            size="lg"
+            className="h-12 flex-1 bg-[var(--success)] text-sm text-white hover:brightness-[1.08]"
             onClick={() => requestAccept(topCard.crew_person_id)}
             disabled={acting}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--success)] text-[var(--success)] transition-colors hover:bg-[var(--success)] hover:text-white disabled:opacity-50"
+            aria-label="Hire this applicant"
           >
-            <Check className="h-6 w-6" />
-          </button>
+            <Check className="mr-1.5 h-4 w-4" />
+            Hire
+          </Button>
         </div>
       )}
 

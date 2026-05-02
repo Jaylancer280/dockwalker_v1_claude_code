@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { safeFetch } from '@/lib/safe-fetch';
 import Link from 'next/link';
-import { ChevronLeft, SlidersHorizontal, MessageSquare } from 'lucide-react';
+import { ChevronLeft, SlidersHorizontal, MessageSquare, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import {
@@ -322,7 +322,7 @@ export default function ReviewApplicantsPage() {
 
   return (
     <main className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div className="page-width flex items-center gap-3">
           <Link href="/daywork/mine" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="h-5 w-5" />
@@ -356,7 +356,12 @@ export default function ReviewApplicantsPage() {
         <UnderlineTabs
           options={[
             { value: 'applicants', label: 'Applicants', count: applicants.length },
-            { value: 'shortlist', label: 'Shortlist', count: shortlisted.length },
+            {
+              value: 'shortlist',
+              label: 'Shortlist',
+              count: shortlisted.length,
+              icon: <Star className="h-3.5 w-3.5" />,
+            },
             {
               value: 'available',
               label: 'Available',

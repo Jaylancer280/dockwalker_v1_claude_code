@@ -46,6 +46,11 @@ export function WorkingDayCalendar({
 }: WorkingDayCalendarProps) {
   const allDates = useMemo(() => dateRange(startDate, endDate), [startDate, endDate]);
   const selectedSet = useMemo(() => new Set(selectedDates), [selectedDates]);
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const selectableDates = useMemo(
+    () => allDates.filter((d) => d >= todayISO),
+    [allDates, todayISO],
+  );
 
   // Group dates by month for display
   const months = useMemo(() => {
@@ -70,15 +75,15 @@ export function WorkingDayCalendar({
   }
 
   function selectAll() {
-    onChange([...allDates]);
+    onChange([...selectableDates]);
   }
 
   function selectWeekdaysOnly() {
-    onChange(allDates.filter((d) => isoDow(d) < 5));
+    onChange(selectableDates.filter((d) => isoDow(d) < 5));
   }
 
   const selectedCount = selectedDates.length;
-  const totalCount = allDates.length;
+  const totalCount = selectableDates.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -110,15 +115,21 @@ export function WorkingDayCalendar({
               {/* Date cells */}
               {dates.map((date) => {
                 const isSelected = selectedSet.has(date);
+                const isPast = date < todayISO;
                 return (
                   <button
                     key={date}
                     type="button"
                     onClick={() => toggle(date)}
+                    disabled={isPast}
+                    aria-disabled={isPast}
+                    title={isPast ? 'Past date — not selectable' : undefined}
                     className={`flex h-9 w-full items-center justify-center rounded-md text-sm font-medium transition-colors ${
-                      isSelected
-                        ? 'bg-[var(--accent)] text-white'
-                        : 'bg-[var(--card)] text-[var(--muted-foreground)] border border-dashed border-[var(--border)] line-through'
+                      isPast
+                        ? 'bg-[var(--card)] text-[var(--muted-foreground)] opacity-40 cursor-not-allowed'
+                        : isSelected
+                          ? 'bg-[var(--accent)] text-white'
+                          : 'bg-[var(--card)] text-[var(--muted-foreground)] border border-dashed border-[var(--border)] line-through'
                     }`}
                   >
                     {formatDay(date)}

@@ -174,6 +174,7 @@ function DayworkPostForm() {
   const [locationPortId, setLocationPortId] = useState((draft?.locationPortId as string) ?? '');
   const [startDate, setStartDate] = useState((draft?.startDate as string) ?? '');
   const [endDate, setEndDate] = useState((draft?.endDate as string) ?? '');
+  const todayISO = new Date().toISOString().slice(0, 10);
   const [workingDayDates, setWorkingDayDates] = useState<string[]>(
     (draft?.workingDayDates as string[]) ?? [],
   );
@@ -673,6 +674,7 @@ function DayworkPostForm() {
                 clearFieldError('startDate');
               }}
               onBlur={() => validateRequired('startDate', startDate)}
+              min={todayISO}
               required
             />
             {fieldErrors.startDate && (
@@ -690,6 +692,7 @@ function DayworkPostForm() {
                 clearFieldError('endDate');
               }}
               onBlur={() => validateRequired('endDate', endDate)}
+              min={startDate || todayISO}
               required
             />
             {fieldErrors.endDate && (
