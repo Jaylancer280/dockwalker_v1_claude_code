@@ -5,7 +5,13 @@
 
 ## Current Task
 
-_Bug intake complete (B-001 → B-010). Fix plan committed below in `## Fix plan — Bug intake 2026-05-02`. Ready to start Batch 1._
+_B-011 (Permanent shortlist chat) shipped end-to-end across 7 commits. Migrations 00135 + 00136 land the schema column + apply_projection rewrite; API + UI + notifications + docs follow. Migration 00136 still needs `npx supabase db push` to the live remote. Bug-intake fix plan items B-001 → B-010 are still in flight per the section below._
+
+### B-011 follow-ups (not blocking)
+
+- [ ] True visual grouping of shortlist chats by posting in employer inbox (currently flat list with "Pre-selection" badge, sorted by recency). Spec called for grouped-by-job; flat-with-badge is the v1 implementation.
+- [ ] E2E Playwright coverage of the shortlist-chat happy path: shortlist → open chat → message exchange → SELECT → verify warm system message in other shortlist chats.
+- [ ] Stress test the SELECTED cascade with 5+ parallel shortlist chats to verify ON CONFLICT path on retries + race-guard behaviour.
 
 ## Fix plan — Bug intake 2026-05-02
 

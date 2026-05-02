@@ -41,6 +41,10 @@ interface Conversation {
   start_date: string;
   end_date: string | null;
   status: string;
+  /** B-011: phase distinguishes pre-selection shortlist chats from
+   *  post-acceptance lifecycle engagements. Drives the "Pre-selection
+   *  chat" badge in the inbox. */
+  phase?: 'shortlist' | 'active' | 'completed' | 'closed';
   cancelled_by?: string | null;
   type?: 'daywork' | 'permanent';
   has_rated: boolean;
@@ -234,6 +238,15 @@ export default function MessagesPage() {
                       {conv.profiles?.display_name ?? 'Unknown'}
                     </span>
                     <div className="flex shrink-0 items-center gap-1.5">
+                      {/* B-011: distinguish pre-selection chats so the
+                          inbox doesn't conflate them with active engagements.
+                          Sorting (last-message timestamp) keeps related
+                          shortlist chats clustered together by recency. */}
+                      {conv.phase === 'shortlist' && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          Pre-selection
+                        </Badge>
+                      )}
                       {((conv.status === 'completed' && !conv.has_rated) ||
                         (conv.status === 'cancelled' &&
                           !conv.has_rated &&

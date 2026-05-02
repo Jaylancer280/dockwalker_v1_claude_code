@@ -243,12 +243,17 @@ C. Permanent Application States (crew-visible):
 
 - Under review (applied, not yet shortlisted)
 - Shortlisted ("You've been shortlisted, 1 of 5")
-- Selected (in negotiation, chat open)
+- Pre-selection chat open (employer opted into a vetting conversation; status remains "Shortlisted")
+- Selected (in negotiation, full chat open)
 - Position filled (another candidate placed)
 - Position closed (posting cancelled)
 - Withdrawn (crew-initiated)
 
 No competition metrics visible to crew. No live shortlist counts. No "candidate under consideration." Crew see only their own state.
+
+C2. Shortlist Chats (employer-initiated, opt-in):
+
+The employer can open a private vetting conversation with any shortlisted candidate without committing to selection. The chat is conversational only — no document sharing, no work-started flow, no post-acceptance lifecycle actions — and lives on the same chat surface as full engagements with the lifecycle UI suppressed. When the employer eventually selects one candidate, the projection auto-closes every other shortlist chat on the same posting with a warm system message ("This role has now been filled. Thanks for your interest — wishing you the right vessel soon.") so candidates are never left without an explanation. Shortlist chats exist only for permanent postings — daywork is too low-stakes to justify parallel pre-acceptance threads.
 
 D. Permanent Availability (profile-level):
 

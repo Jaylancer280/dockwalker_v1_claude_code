@@ -103,7 +103,7 @@ PERMANENT.POSTED / PERMANENT.APPLIED / PERMANENT.APPLICATION_BLOCKED
 PERMANENT.SHORTLISTED / PERMANENT.REJECTED / PERMANENT.SELECTED
 PERMANENT.PLACEMENT_CONFIRMED / PERMANENT.SELECTION_REVERTED
 PERMANENT.WITHDRAWN / PERMANENT.CANCELLED_BY_EMPLOYER
-PERMANENT.ENGAGEMENT_CLOSED
+PERMANENT.ENGAGEMENT_CLOSED / PERMANENT.SHORTLIST_CHAT_OPENED
 ADMIN.ENGAGEMENT_COMPLETED / ADMIN.CANONICAL_ADDED / ADMIN.CANONICAL_UPDATED
 ```
 
@@ -123,6 +123,31 @@ Applied -> Rejected | Withdrawn | Not Selected
 Shortlisted -> Selected | Rejected | Withdrawn | Not Selected
 Selected -> Not Selected (reverted) | Withdrawn
 ```
+
+### Permanent Shortlist Chat (Engagement Phase)
+
+`active_engagements.phase` (added in migration 00135) splits a permanent
+engagement into `'shortlist'` (employer-initiated pre-selection chat) and
+`'active'` (post-`SELECTED` lifecycle). `'completed'` and `'closed'` are
+terminal.
+
+- `PERMANENT.SHORTLIST_CHAT_OPENED` — employer opts into a vetting chat with
+  a `shortlisted` candidate. Inserts an engagement row with `phase='shortlist'`,
+  idempotent on `(application_id) DO NOTHING`. The chat surface suppresses
+  every lifecycle action (work-started, postponement, complete, rate,
+  checklist, document upload, cancel) — only View profile + Report user
+  remain. Daywork is intentionally excluded; daywork stakes are too low for
+  parallel pre-acceptance chats.
+- `PERMANENT.SELECTED` cascade — promotes the selected candidate's shortlist
+  engagement to `phase='active'` (or inserts a new one if no chat existed),
+  inserts a warm system message into every other `phase='shortlist'` row on
+  the same posting, and bulk-closes them to `phase='closed'`,
+  `outcome='role_filled'`. Other applications flip to `'not_selected'`.
+- `PERMANENT.WITHDRAWN`/`REJECTED`/`CANCELLED_BY_EMPLOYER` also close the
+  associated shortlist chat with role-appropriate system messages.
+- `PERMANENT.SELECTION_REVERTED` reverts the selected application to
+  `'rejected'` (employer made an explicit decision; not the auto-fill
+  `'not_selected'` semantics).
 
 ### Cancellation Semantics
 
