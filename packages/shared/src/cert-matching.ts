@@ -8,13 +8,21 @@
  *
  * Without bundle awareness, a candidate holding the bundle cannot
  * apply to a job requiring the components separately — direct UUID
- * intersection fails. This module expands a candidate's bundles into
- * their covered components before matching.
+ * intersection fails. This module expands the candidate's holdings in
+ * BOTH directions before matching:
  *
- * v1 direction: bundle → components only. A candidate holding a bundle
- * satisfies any required component. A candidate holding only the
- * components separately does NOT automatically satisfy a required
- * bundle (strict). Symmetric expansion may be added later.
+ *   1. bundle → components: holding AEC 1+2 covers AEC 1 and AEC 2.
+ *   2. components → bundle: holding AEC 1 AND AEC 2 (every component)
+ *      covers the AEC 1+2 bundle. The check is strict — partial
+ *      coverage does not match. Holding 4 of 5 STCW 95 components
+ *      stays blocked; only the complete set flips the bundle on.
+ *
+ * Both AEC 1+2 and STCW 95 are administratively equivalent to their
+ * components in MCA's eyes (same audited courses, just packaged
+ * differently), so symmetric matching is correct for v1's two bundles.
+ * If a future bundle is genuinely more rigorous than the sum of its
+ * parts (e.g. an examination on top of the components), introduce a
+ * per-bundle directionality flag at that time.
  */
 
 export type BundleMap = Record<string, string[]>;
@@ -33,16 +41,35 @@ export interface MatchResult {
 
 /**
  * Build a Set of every cert id the candidate "covers" — their direct
- * holdings plus the components of any bundle they hold.
+ * holdings plus any cert reachable via either bundle direction:
+ *   1. bundle → components: holding a bundle covers all of its components
+ *   2. components → bundle: holding every component of a bundle covers
+ *      the bundle itself (all-or-nothing — partial coverage does not match)
  */
 export function expandCertCoverage(candidate: string[], bundles: BundleMap): Set<string> {
   const covered = new Set(candidate);
+
+  // Direction 1: bundle → components. Holding a bundle implicitly grants
+  // the individual components it covers.
   for (const certId of candidate) {
     const components = bundles[certId];
     if (components) {
       for (const c of components) covered.add(c);
     }
   }
+
+  // Direction 2: components → bundle. If the candidate holds every
+  // component of a bundle, they implicitly hold the bundle itself.
+  // `length > 0` guards against an empty/malformed bundle row, which
+  // would otherwise satisfy via `[].every() === true` and let zero-cert
+  // holders match. `every` enforces all-or-nothing — single or partial
+  // component holdings stay blocked.
+  for (const [bundleId, components] of Object.entries(bundles)) {
+    if (components.length > 0 && components.every((c) => covered.has(c))) {
+      covered.add(bundleId);
+    }
+  }
+
   return covered;
 }
 

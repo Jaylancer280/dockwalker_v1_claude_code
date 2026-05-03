@@ -278,12 +278,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const certMatch =
         requiredCerts.length > 0 ? meetsRequirements(candidateCerts, requiredCerts, bundles) : null;
 
-      // Bundle-aware extras: a cert that covers a required slot (directly or
-      // via a bundle) doesn't count as extra. Mirror of permanent review
-      // route's logic so the daywork applicant card can render the same
-      // expandable +N more pill (B-001).
+      // Bundle-aware extras: a cert that covers a required slot (directly,
+      // via bundle→component, or as a component of a required bundle whose
+      // full component set the candidate holds) doesn't count as extra.
+      // Mirror of permanent review route's logic so the daywork applicant
+      // card can render the same expandable +N more pill (B-001).
       let certExtraIds: string[] = [];
       if (candidateCerts.length > 0) {
+        const candidateSet = new Set(candidateCerts);
         const usedForRequired = new Set<string>();
         for (const c of candidateCerts) {
           if (requiredSet.has(c)) {
@@ -293,6 +295,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
           const components = bundles[c];
           if (components && components.some((comp) => requiredSet.has(comp))) {
             usedForRequired.add(c);
+            continue;
+          }
+          // Direction 2: c is a component of a required bundle that the
+          // candidate's full holdings satisfy (every other component held).
+          for (const r of requiredCerts) {
+            const reqComponents = bundles[r];
+            if (
+              reqComponents &&
+              reqComponents.length > 0 &&
+              reqComponents.includes(c) &&
+              reqComponents.every((rc) => candidateSet.has(rc))
+            ) {
+              usedForRequired.add(c);
+              break;
+            }
           }
         }
         certExtraIds = candidateCerts.filter((c) => !usedForRequired.has(c));

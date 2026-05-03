@@ -297,13 +297,14 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         requiredCerts.length > 0 ? meetsRequirements(candidateCerts, requiredCerts, bundles) : null;
 
       // "Extras" — certs the candidate holds that aren't contributing to a
-      // required cert, directly or via bundle. Surfaces over-qualification
-      // on the card. Always computed (independent of cert_match) so a
-      // posting with zero required certs still shows a candidate's bonus.
-      // Returns IDs (not names) — UI resolves names via the lookups context
-      // for the expandable +N more pill (B-001).
+      // required cert, directly or via bundle (either direction). Surfaces
+      // over-qualification on the card. Always computed (independent of
+      // cert_match) so a posting with zero required certs still shows a
+      // candidate's bonus. Returns IDs (not names) — UI resolves names via
+      // the lookups context for the expandable +N more pill (B-001).
       let certExtraIds: string[] = [];
       if (candidateCerts.length > 0) {
+        const candidateSet = new Set(candidateCerts);
         const usedForRequired = new Set<string>();
         for (const c of candidateCerts) {
           if (requiredSet.has(c)) {
@@ -313,6 +314,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           const components = bundles[c];
           if (components && components.some((comp) => requiredSet.has(comp))) {
             usedForRequired.add(c);
+            continue;
+          }
+          // Direction 2: c is a component of a required bundle that the
+          // candidate's full holdings satisfy (every other component held).
+          for (const r of requiredCerts) {
+            const reqComponents = bundles[r];
+            if (
+              reqComponents &&
+              reqComponents.length > 0 &&
+              reqComponents.includes(c) &&
+              reqComponents.every((rc) => candidateSet.has(rc))
+            ) {
+              usedForRequired.add(c);
+              break;
+            }
           }
         }
         certExtraIds = candidateCerts.filter((c) => !usedForRequired.has(c));
