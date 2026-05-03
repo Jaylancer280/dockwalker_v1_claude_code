@@ -70,11 +70,17 @@ export async function GET(
     // attach `nationalities_all` so the client renders multiple flags.
     const nationalityIds = ((profile as { nationality_ids?: string[] }).nationality_ids ??
       []) as string[];
-    let nationalitiesAll: { id: string; name: string; flag_emoji: string }[] = [];
+    // country_code added for the FlagIcon SVG renderer (Windows-safe).
+    let nationalitiesAll: {
+      id: string;
+      name: string;
+      country_code: string;
+      flag_emoji: string;
+    }[] = [];
     if (nationalityIds.length > 0) {
       const { data: natRows } = await supabase
         .from('nationalities')
-        .select('id, name, flag_emoji')
+        .select('id, name, country_code, flag_emoji')
         .in('id', nationalityIds);
       nationalitiesAll = (natRows as typeof nationalitiesAll) ?? [];
     }

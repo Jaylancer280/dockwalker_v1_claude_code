@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Settings, Pencil, X, Check, Ship, Briefcase, Eye, FileText, Lock } from 'lucide-react';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { FlagIcon } from '@/components/flag-icon';
 import { AvatarUpload } from '@/components/avatar-upload';
 import { EmptyState } from '@/components/empty-state';
 import { NotificationBell } from '@/components/notification-bell';
@@ -56,7 +57,12 @@ interface Profile {
   nationality_ids?: string[];
   entry_right_ids: string[];
   languages: string[];
-  nationalities: { id: string; name: string; flag_emoji: string } | null;
+  nationalities: {
+    id: string;
+    name: string;
+    country_code: string | null;
+    flag_emoji: string;
+  } | null;
   deck_name: string | null;
   smoker: boolean | null;
   visible_tattoos: boolean | null;
@@ -608,8 +614,13 @@ export default function ProfilePage() {
               <>
                 <div className="flex items-center gap-2">
                   <p className="text-lg font-semibold">{profile.display_name}</p>
-                  {profile.identity_type === 'crew' && profile.nationalities?.flag_emoji && (
-                    <span className="text-lg">{profile.nationalities.flag_emoji}</span>
+                  {profile.identity_type === 'crew' && profile.nationalities && (
+                    <FlagIcon
+                      code={profile.nationalities.country_code}
+                      name={profile.nationalities.name}
+                      emoji={profile.nationalities.flag_emoji}
+                      className="text-lg"
+                    />
                   )}
                   {profile.identity_type === 'crew' && profile.yacht_roles?.name && (
                     <EpauletteBadge

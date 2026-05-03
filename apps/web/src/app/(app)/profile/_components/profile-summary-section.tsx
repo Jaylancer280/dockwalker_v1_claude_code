@@ -1,4 +1,5 @@
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import { FlagIcon } from '@/components/flag-icon';
 import { computeTotalExperience, vesselSizeRange } from '@dockwalker/shared';
 
 interface Profile {
@@ -20,10 +21,22 @@ interface Profile {
   nationality_ids?: string[];
   entry_right_ids: string[];
   languages: string[];
-  nationalities: { id: string; name: string; flag_emoji: string } | null;
+  nationalities: {
+    id: string;
+    name: string;
+    country_code: string | null;
+    flag_emoji: string;
+  } | null;
   /** Multi-nationality batch lookup attached by /api/profile.
-   * Falls back to legacy single `nationalities` row when empty. */
-  nationalities_all?: { id: string; name: string; flag_emoji: string }[];
+   * Falls back to legacy single `nationalities` row when empty.
+   * `country_code` is added so the FlagIcon SVG renderer (Windows-safe)
+   * can paint each flag without relying on OS emoji fonts. */
+  nationalities_all?: {
+    id: string;
+    name: string;
+    country_code: string | null;
+    flag_emoji: string;
+  }[];
   deck_name: string | null;
   yacht_roles: { id: string; name: string; department: string } | null;
   desired_roles: { id: string; name: string } | null;
@@ -186,7 +199,12 @@ export function ProfileSummarySection({
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                   {all.map((n) => (
                     <span key={n.id} className="flex items-center gap-1">
-                      <span className="text-lg">{n.flag_emoji}</span>
+                      <FlagIcon
+                        code={n.country_code}
+                        name={n.name}
+                        emoji={n.flag_emoji}
+                        className="text-lg"
+                      />
                       <span className="text-sm">{n.name}</span>
                     </span>
                   ))}

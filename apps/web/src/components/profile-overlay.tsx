@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FlagIcon } from '@/components/flag-icon';
 import { languageLabel } from '@dockwalker/shared';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
@@ -389,7 +390,13 @@ function CrewProfileView({
         <div>
           <p className="font-semibold flex items-center gap-1.5">
             {profile.display_name}
-            {profile.nationality?.flag_emoji && <span>{profile.nationality.flag_emoji}</span>}
+            {profile.nationality && (
+              <FlagIcon
+                code={profile.nationality.country_code}
+                name={profile.nationality.name}
+                emoji={profile.nationality.flag_emoji}
+              />
+            )}
             {profile.primary_role && (
               <EpauletteBadge
                 roleName={profile.primary_role.name}

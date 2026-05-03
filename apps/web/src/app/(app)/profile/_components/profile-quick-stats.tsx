@@ -1,12 +1,18 @@
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { FlagIcon } from '@/components/flag-icon';
 import { Badge } from '@/components/ui/badge';
 
 interface Profile {
   display_name: string;
   avatar_url: string | null;
   nationality_id: string | null;
-  nationalities: { id: string; name: string; flag_emoji: string } | null;
+  nationalities: {
+    id: string;
+    name: string;
+    country_code: string | null;
+    flag_emoji: string;
+  } | null;
   yacht_roles: { id: string; name: string; department: string } | null;
   location_port_id: string | null;
   location_city_id: string | null;
@@ -58,8 +64,13 @@ export function ProfileQuickStats({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <p className="truncate text-sm font-semibold">{profile.display_name}</p>
-              {profile.nationalities?.flag_emoji && (
-                <span className="text-sm">{profile.nationalities.flag_emoji}</span>
+              {profile.nationalities && (
+                <FlagIcon
+                  code={profile.nationalities.country_code}
+                  name={profile.nationalities.name}
+                  emoji={profile.nationalities.flag_emoji}
+                  className="text-sm"
+                />
               )}
             </div>
             {profile.yacht_roles?.name && (

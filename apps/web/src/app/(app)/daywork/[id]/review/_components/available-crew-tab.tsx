@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { FlagIcon } from '@/components/flag-icon';
 import type { AvailableCrew } from './types';
 import { ExpandableText } from '@/components/expandable-text';
 
@@ -255,8 +256,13 @@ export function AvailableCrewCard({
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-[15px] font-semibold tracking-[-0.3px]">
-                {crew.nationalities?.flag_emoji && (
-                  <span className="mr-1">{crew.nationalities.flag_emoji}</span>
+                {crew.nationalities && (
+                  <FlagIcon
+                    code={crew.nationalities.country_code}
+                    name={crew.nationalities.name}
+                    emoji={crew.nationalities.flag_emoji}
+                    className="mr-1"
+                  />
                 )}
                 {crew.display_name ?? 'Unknown'}
               </h3>

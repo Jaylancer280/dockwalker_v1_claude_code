@@ -12,6 +12,7 @@ import { UnderlineTabs } from '@/components/ui/underline-tabs';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { FlagIcon } from '@/components/flag-icon';
 import { ProfileOverlay } from '@/components/profile-overlay';
 import {
   Dialog,
@@ -42,7 +43,9 @@ interface Applicant {
   languages: string[];
   nationality_name: string | null;
   nationality_flag: string | null;
+  nationality_code: string | null;
   nationality_flags: string[];
+  nationality_codes: string[];
   permanent_availability: string | null;
   notice_period_days: number | null;
   currently_employed: boolean;
@@ -386,14 +389,37 @@ export default function PermanentReviewPage() {
                         );
                         return sizeRange ? <span>· {sizeRange}</span> : null;
                       })()}
-                      {(app.nationality_flags?.length > 0
-                        ? app.nationality_flags
-                        : app.nationality_flag
-                          ? [app.nationality_flag]
-                          : []
-                      ).map((flag, i) => (
-                        <span key={i}>{flag}</span>
-                      ))}
+                      {(() => {
+                        // Multi-nationality: prefer the codes array (drives
+                        // FlagIcon SVG); fall back to single-code legacy field;
+                        // last-resort emoji for legacy data without country
+                        // codes (FlagIcon's emoji prop handles it).
+                        const codes =
+                          app.nationality_codes?.length > 0
+                            ? app.nationality_codes
+                            : app.nationality_code
+                              ? [app.nationality_code]
+                              : [];
+                        if (codes.length > 0) {
+                          return codes.map((cc, i) => (
+                            <FlagIcon key={`${cc}-${i}`} code={cc} name={app.nationality_name} />
+                          ));
+                        }
+                        const emojis =
+                          app.nationality_flags?.length > 0
+                            ? app.nationality_flags
+                            : app.nationality_flag
+                              ? [app.nationality_flag]
+                              : [];
+                        return emojis.map((flag, i) => (
+                          <FlagIcon
+                            key={`emoji-${i}`}
+                            code={null}
+                            emoji={flag}
+                            name={app.nationality_name}
+                          />
+                        ));
+                      })()}
                       {app.languages.length > 0 && (
                         <span>
                           {app.languages.length} language{app.languages.length !== 1 ? 's' : ''}

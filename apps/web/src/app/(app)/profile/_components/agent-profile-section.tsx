@@ -1,6 +1,7 @@
 import { Ship, ChevronUp, ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ExpandableText } from '@/components/expandable-text';
+import { FlagIcon } from '@/components/flag-icon';
 import { languageLabel } from '@dockwalker/shared';
 import { ProfileExperienceSection } from './profile-experience-section';
 
@@ -10,7 +11,12 @@ interface Profile {
   bio: string | null;
   deck_name: string | null;
   nationality_id: string | null;
-  nationalities: { id: string; name: string; flag_emoji: string } | null;
+  nationalities: {
+    id: string;
+    name: string;
+    country_code: string | null;
+    flag_emoji: string;
+  } | null;
   entry_right_ids: string[];
   languages: string[];
   ports: {
@@ -206,8 +212,13 @@ export function AgentProfileSection({
           {profile.nationalities && (
             <div>
               <p className="text-xs text-muted-foreground">Nationality</p>
-              <p className="text-sm font-medium">
-                {profile.nationalities.flag_emoji} {profile.nationalities.name}
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <FlagIcon
+                  code={profile.nationalities.country_code}
+                  name={profile.nationalities.name}
+                  emoji={profile.nationalities.flag_emoji}
+                />
+                {profile.nationalities.name}
               </p>
             </div>
           )}

@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
+import { FlagIcon } from '@/components/flag-icon';
 import { useLookups } from '@/hooks/use-lookups';
 import type { Applicant, TabView } from './types';
 import { ExpandableText } from '@/components/expandable-text';
@@ -330,8 +331,13 @@ export function ApplicantCard({
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <h3 className="text-[15px] font-semibold tracking-[-0.3px]">
-                {profile?.nationalities?.flag_emoji && (
-                  <span className="mr-1">{profile.nationalities.flag_emoji}</span>
+                {profile?.nationalities && (
+                  <FlagIcon
+                    code={profile.nationalities.country_code}
+                    name={profile.nationalities.name}
+                    emoji={profile.nationalities.flag_emoji}
+                    className="mr-1"
+                  />
                 )}
                 {profile?.display_name ?? 'Unknown'}
                 {profile?.deck_name && (

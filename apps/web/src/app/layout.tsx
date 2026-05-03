@@ -6,6 +6,12 @@ import { PushToast } from '@/components/push-toast';
 import { ThemeProvider } from '@/components/theme-provider';
 import { THEME_COLOR_DARK } from '@/lib/theme-colors';
 import './globals.css';
+// flag-icons registers .fi / .fi-{cc} CSS classes that paint per-country
+// SVG flags via background-image. Loaded once here so any descendant can
+// render via <FlagIcon code="…" />. Replaces the OS-native emoji flag
+// rendering which fails on Windows (regional indicators fall back to
+// "ZA" / "GB" / etc. as plain letters).
+import 'flag-icons/css/flag-icons.min.css';
 
 const geist = localFont({
   src: [

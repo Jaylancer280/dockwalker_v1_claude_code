@@ -48,7 +48,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           yacht_roles:primary_role_id(name, department),
           experience_brackets:experience_bracket_id(label),
           ports:location_port_id(name, cities(name, regions(name))),
-          nationalities:nationality_id(name, flag_emoji)
+          nationalities:nationality_id(name, country_code, flag_emoji)
         )
       `,
       )
@@ -78,7 +78,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       { start_date: string; end_date: string | null; is_current: boolean }[]
     > = {};
     const bundles: BundleMap = {};
-    const nationalityFlagMap = new Map<string, string>(); // id → flag_emoji
+    // id → { country_code, flag_emoji } so the response can carry both
+    // the new ISO code (for the FlagIcon SVG renderer) and the legacy
+    // emoji (still surfaced for any caller that hasn't migrated).
+    const nationalityFlagMap = new Map<string, { country_code: string; flag_emoji: string }>();
 
     if (crewIds.length > 0) {
       // Collect every nationality_id referenced by any applicant so we can
@@ -111,9 +114,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         allNatIds.size > 0
           ? serviceClient
               .from('nationalities')
-              .select('id, flag_emoji')
+              .select('id, country_code, flag_emoji')
               .in('id', Array.from(allNatIds))
-          : Promise.resolve({ data: [] as { id: string; flag_emoji: string }[] }),
+          : Promise.resolve({
+              data: [] as { id: string; country_code: string; flag_emoji: string }[],
+            }),
       ]);
 
       for (const se of shoreRes.data ?? []) {
@@ -144,8 +149,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         bundles[row.bundle_cert_id].push(row.component_cert_id);
       }
 
-      for (const n of (natRes.data as { id: string; flag_emoji: string }[] | null) ?? []) {
-        nationalityFlagMap.set(n.id, n.flag_emoji);
+      for (const n of (natRes.data as
+        | { id: string; country_code: string; flag_emoji: string }[]
+        | null) ?? []) {
+        nationalityFlagMap.set(n.id, {
+          country_code: n.country_code,
+          flag_emoji: n.flag_emoji,
+        });
       }
     }
 
@@ -330,16 +340,30 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         languages: profile?.languages ?? [],
         nationality_name: profile?.nationalities?.name ?? null,
         nationality_flag: profile?.nationalities?.flag_emoji ?? null,
-        // Full ordered set of flags — multi-nationality. Falls back to
-        // single nationality_id flag if nationality_ids is empty.
+        nationality_code: profile?.nationalities?.country_code ?? null,
+        // Full ordered set of flag emojis — multi-nationality. Falls back
+        // to single nationality_id flag if nationality_ids is empty.
+        // Kept for backwards compat; new renderers should use
+        // nationality_codes instead.
         nationality_flags: (() => {
           const ids = (profile?.nationality_ids as string[] | null | undefined) ?? [];
           if (ids.length > 0) {
             return ids
-              .map((id) => nationalityFlagMap.get(id))
+              .map((id) => nationalityFlagMap.get(id)?.flag_emoji)
               .filter((f): f is string => Boolean(f));
           }
           return profile?.nationalities?.flag_emoji ? [profile.nationalities.flag_emoji] : [];
+        })(),
+        // ISO 3166-1 alpha-2 codes — same order as nationality_flags.
+        // Drives the FlagIcon SVG renderer (Windows-safe).
+        nationality_codes: (() => {
+          const ids = (profile?.nationality_ids as string[] | null | undefined) ?? [];
+          if (ids.length > 0) {
+            return ids
+              .map((id) => nationalityFlagMap.get(id)?.country_code)
+              .filter((c): c is string => Boolean(c));
+          }
+          return profile?.nationalities?.country_code ? [profile.nationalities.country_code] : [];
         })(),
         port_name: profile?.ports?.name ?? null,
         city_name: profile?.ports?.cities?.name ?? null,

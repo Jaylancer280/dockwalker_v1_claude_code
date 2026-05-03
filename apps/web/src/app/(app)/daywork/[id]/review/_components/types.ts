@@ -12,7 +12,7 @@ export interface ApplicantProfile {
   certification_ids: string[];
   languages: string[];
   vessel_size_exposure_ids: string[];
-  nationalities: { name: string; flag_emoji: string } | null;
+  nationalities: { name: string; country_code: string | null; flag_emoji: string } | null;
   smoker: boolean | null;
   visible_tattoos: boolean | null;
 }
@@ -70,7 +70,7 @@ export interface AvailableCrew {
     cities: { name: string; regions: { name: string } };
   } | null;
   available_days: number;
-  nationalities: { name: string; flag_emoji: string } | null;
+  nationalities: { name: string; country_code: string | null; flag_emoji: string } | null;
   shore_experience_categories: string[];
 }
 
