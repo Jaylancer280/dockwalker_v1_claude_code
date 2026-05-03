@@ -13,13 +13,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { user, supabase } = guard.value;
 
+    // B-005: SELECT must mirror POST/PATCH writable fields so edit-mode
+    // pre-fill rehydrates everything. `required_languages` was missing,
+    // so re-opening a template with languages set showed the languages
+    // chip cleared — and re-saving without re-picking languages
+    // discarded them.
     const { data: template, error } = await supabase
       .from('daywork_templates')
       .select(
         `
         id, name, role_id, location_port_id,
-        working_days, required_certification_ids, experience_bracket_id,
-        day_rate, currency, meals, notes, positions_available, permanent_opportunity
+        working_days, required_certification_ids, required_languages,
+        experience_bracket_id, day_rate, currency, meals, notes,
+        positions_available, permanent_opportunity
       `,
       )
       .eq('id', id)

@@ -13,14 +13,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   try {
     const { user, supabase } = guard.value;
 
+    // B-005: select must mirror POST's insertable field set so edit-mode
+    // pre-fill rehydrates every field. Original list dropped
+    // required_languages, contract_type, contract_details, description,
+    // meals, and positions_available, so editing those fields silently
+    // discarded user input on save (PATCH was also missing them).
     const { data: template, error } = await supabase
       .from('permanent_templates')
       .select(
         `
         id, template_name, vessel_id, role_id, port_id,
         start_date, salary_min, salary_max, salary_currency, salary_period,
-        live_aboard, required_certification_ids, experience_bracket_id,
-        shortlist_cap, notes
+        live_aboard, required_certification_ids, required_languages,
+        experience_bracket_id, shortlist_cap, notes,
+        contract_type, contract_details, description, meals,
+        positions_available
       `,
       )
       .eq('id', id)
@@ -66,7 +73,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
     }
 
-    // Build update object with only provided fields
+    // Build update object with only provided fields. B-005: this set must
+    // match the POST handler in /api/permanent/templates/route.ts so all
+    // form fields round-trip on edit. Missing handlers here used to drop
+    // required_languages / contract_type / contract_details / description
+    // / meals / positions_available silently — PATCH returned 200 success
+    // with no actual change to those columns.
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (body.templateName !== undefined)
       updates.template_name =
@@ -82,10 +94,17 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (body.liveAboard !== undefined) updates.live_aboard = body.liveAboard;
     if (body.requiredCertificationIds !== undefined)
       updates.required_certification_ids = body.requiredCertificationIds;
+    if (body.requiredLanguages !== undefined) updates.required_languages = body.requiredLanguages;
     if (body.experienceBracketId !== undefined)
       updates.experience_bracket_id = body.experienceBracketId;
     if (body.shortlistCap !== undefined) updates.shortlist_cap = body.shortlistCap;
     if (body.notes !== undefined) updates.notes = body.notes;
+    if (body.contractType !== undefined) updates.contract_type = body.contractType;
+    if (body.contractDetails !== undefined) updates.contract_details = body.contractDetails;
+    if (body.description !== undefined) updates.description = body.description;
+    if (body.meals !== undefined) updates.meals = body.meals;
+    if (body.positionsAvailable !== undefined)
+      updates.positions_available = body.positionsAvailable;
 
     const { error } = await supabase
       .from('permanent_templates')
