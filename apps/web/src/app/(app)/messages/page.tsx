@@ -16,6 +16,7 @@ import { useSafeFetch } from '@/hooks/use-safe-fetch';
 import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { createClient } from '@/lib/supabase/client';
 import { ConsentPromptsSection } from '@/components/references/consent-prompts-section';
+import { ShortlistBundleRow } from './_components/shortlist-bundle-row';
 
 interface ConsentPrompt {
   kind: 'reference_invitation' | 'reference_contact';
@@ -51,9 +52,12 @@ interface Conversation {
   role: 'crew' | 'employer';
   dayworks: { yacht_roles: { name: string } | null; ports: { name: string } | null } | null;
   permanent_postings: {
+    id: string;
     yacht_roles: { name: string } | null;
     ports: { name: string } | null;
+    vessels: { name: string } | null;
   } | null;
+  unread_count?: number;
   profiles: { display_name: string; avatar_url: string | null } | null;
   last_message: {
     content: string;
@@ -139,6 +143,71 @@ export default function MessagesPage() {
 
   const current = tab === 'active' ? active : history;
 
+  // Group permanent shortlist chats by posting. Active tab bundles
+  // phase='shortlist' rows; History tab bundles phase='closed' rows
+  // (cascade-closed siblings + WITHDRAWN/REJECTED/CANCELLED closures).
+  // Singletons still bundle — consistent UX, no special-case. Non-shortlist
+  // permanent + daywork conversations stay as flat rows.
+  type RenderItem =
+    | { kind: 'flat'; conv: Conversation; sortKey: string }
+    | {
+        kind: 'bundle';
+        postingId: string;
+        roleName: string | null;
+        vesselName: string | null;
+        portName: string | null;
+        children: Conversation[];
+        sortKey: string;
+        hasUnread: boolean;
+        unreadCount: number;
+      };
+
+  const renderItems = useMemo<RenderItem[]>(() => {
+    const flatRows: RenderItem[] = [];
+    const bundles = new Map<string, Conversation[]>();
+    for (const c of current) {
+      const inShortlistGroup =
+        !!c.permanent_posting_id && (c.phase === 'shortlist' || c.phase === 'closed');
+      if (inShortlistGroup && c.permanent_posting_id) {
+        const list = bundles.get(c.permanent_posting_id) ?? [];
+        list.push(c);
+        bundles.set(c.permanent_posting_id, list);
+      } else {
+        const sortKey = c.last_message?.created_at ?? c.start_date;
+        flatRows.push({ kind: 'flat', conv: c, sortKey });
+      }
+    }
+
+    const bundleRows: RenderItem[] = [];
+    for (const [postingId, children] of bundles) {
+      // Inside a bundle, sort children by recency too — fresh activity surfaces first.
+      children.sort((a, b) => {
+        const aT = a.last_message?.created_at ?? a.start_date;
+        const bT = b.last_message?.created_at ?? b.start_date;
+        return bT.localeCompare(aT);
+      });
+      const head = children[0];
+      const sortKey = head.last_message?.created_at ?? head.start_date;
+      const unreadCount = children.reduce(
+        (n, c) => n + ((unreadMap.get(c.id) ?? 0) > 0 ? 1 : 0),
+        0,
+      );
+      bundleRows.push({
+        kind: 'bundle',
+        postingId,
+        roleName: head.permanent_postings?.yacht_roles?.name ?? null,
+        vesselName: head.permanent_postings?.vessels?.name ?? null,
+        portName: head.permanent_postings?.ports?.name ?? null,
+        children,
+        sortKey,
+        hasUnread: unreadCount > 0,
+        unreadCount,
+      });
+    }
+
+    return [...flatRows, ...bundleRows].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+  }, [current, unreadMap]);
+
   const prefersReducedMotion = useMemo(
     () =>
       typeof window !== 'undefined' &&
@@ -204,20 +273,14 @@ export default function MessagesPage() {
           />
         )}
 
-        {current.map((conv, index) => (
-          <motion.div
-            key={conv.id}
-            initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
-          >
-            <Link href={`/messages/${conv.id}`}>
+        {renderItems.map((item, index) => {
+          const renderRow = (conv: Conversation, opts?: { hideShortlistBadge?: boolean }) => (
+            <Link key={conv.id} href={`/messages/${conv.id}`}>
               <div
                 className={`flex items-start gap-3 rounded-[14px] border border-[var(--border)] bg-[var(--card)] p-3 hover:border-[var(--border-hi)] ${
                   tab === 'history' ? 'opacity-75' : ''
                 }`}
               >
-                {/* Avatar + unread dot */}
                 <div className="relative shrink-0">
                   <Avatar
                     src={conv.profiles?.avatar_url ?? null}
@@ -230,7 +293,6 @@ export default function MessagesPage() {
                 </div>
 
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  {/* Name + unread + status */}
                   <div className="flex items-center justify-between gap-2">
                     <span
                       className={`text-[15px] tracking-[-0.3px] truncate ${(unreadMap.get(conv.id) ?? 0) > 0 ? 'font-bold' : 'font-semibold'}`}
@@ -238,11 +300,7 @@ export default function MessagesPage() {
                       {conv.profiles?.display_name ?? 'Unknown'}
                     </span>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      {/* B-011: distinguish pre-selection chats so the
-                          inbox doesn't conflate them with active engagements.
-                          Sorting (last-message timestamp) keeps related
-                          shortlist chats clustered together by recency. */}
-                      {conv.phase === 'shortlist' && (
+                      {!opts?.hideShortlistBadge && conv.phase === 'shortlist' && (
                         <Badge variant="secondary" className="text-[10px]">
                           Pre-selection
                         </Badge>
@@ -269,7 +327,6 @@ export default function MessagesPage() {
                     </div>
                   </div>
 
-                  {/* Job context */}
                   <div className="flex items-center gap-2 text-[13px] text-[var(--muted-foreground)]">
                     {(() => {
                       const roleName =
@@ -302,7 +359,6 @@ export default function MessagesPage() {
                     </span>
                   </div>
 
-                  {/* Post replacement CTA for cancelled daywork engagements (employer only) */}
                   {conv.status === 'cancelled' && conv.role === 'employer' && conv.daywork_id && (
                     <Link
                       href={`/daywork/post?fromDaywork=${conv.daywork_id}&replacementDates=true`}
@@ -313,7 +369,6 @@ export default function MessagesPage() {
                     </Link>
                   )}
 
-                  {/* Last message preview */}
                   {conv.last_message && (
                     <p className="truncate text-[13px] text-[var(--muted-foreground)]">
                       {conv.last_message.content}
@@ -325,8 +380,35 @@ export default function MessagesPage() {
                 </div>
               </div>
             </Link>
-          </motion.div>
-        ))}
+          );
+
+          return (
+            <motion.div
+              key={item.kind === 'flat' ? item.conv.id : item.postingId}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: index * 0.05 }}
+            >
+              {item.kind === 'flat' ? (
+                renderRow(item.conv)
+              ) : (
+                <ShortlistBundleRow
+                  postingId={item.postingId}
+                  roleName={item.roleName}
+                  vesselName={item.vesselName}
+                  portName={item.portName}
+                  childCount={item.children.length}
+                  hasUnread={item.hasUnread}
+                  unreadCount={item.unreadCount}
+                  lastActivity={item.sortKey}
+                  prefersReducedMotion={prefersReducedMotion}
+                >
+                  {item.children.map((c) => renderRow(c, { hideShortlistBadge: true }))}
+                </ShortlistBundleRow>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
     </main>
   );

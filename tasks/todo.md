@@ -9,9 +9,100 @@ _B-011 (Permanent shortlist chat) shipped end-to-end across 7 commits. Migration
 
 ### B-011 follow-ups (not blocking)
 
-- [ ] True visual grouping of shortlist chats by posting in employer inbox (currently flat list with "Pre-selection" badge, sorted by recency). Spec called for grouped-by-job; flat-with-badge is the v1 implementation.
 - [ ] E2E Playwright coverage of the shortlist-chat happy path: shortlist → open chat → message exchange → SELECT → verify warm system message in other shortlist chats.
 - [ ] Stress test the SELECTED cascade with 5+ parallel shortlist chats to verify ON CONFLICT path on retries + race-guard behaviour.
+
+### B-011 follow-up — Inbox bundling for shortlist chats (planned 2026-05-03, shipped Stage 235b)
+
+**Why:** Employers/agencies can shortlist up to 8 candidates per posting; a multi-posting agency easily ends up with 24+ shortlist threads competing with daywork + active permanent conversations. The "Return to shortlist" button (Stage 235) helps escape an individual chat; bundling helps discover them from the inbox in the first place. See `memory/project_shortlist_bundle.md` for context.
+
+**User-locked design:**
+
+- Bundle even singletons (count = 1 still renders as a collapsed parent — consistent UX, no special-case)
+- Default state collapsed (compact at scale)
+- Permanent shortlist-phase chats only — daywork is intentionally excluded per CLAUDE.md; non-shortlist conversations stay flat
+- Shortlist chats are employer/agent-only by definition (crew never sees `phase='shortlist'` rows)
+
+#### Stress test — design questions resolved
+
+1. **Sort order interleaving with flat rows.** Bundles sit in the same list as flat daywork/permanent rows, sorted by recency. Bundle `last_activity = max(child.last_message.created_at)`. New message in any child → whole bundle jumps to top. Within an expanded bundle, children sort by their own last_message DESC.
+
+2. **Avatar in the parent row.** The current row uses the other party's avatar. A bundle has up to 8 different "other parties." Use the **role's epaulette badge** as the parent's identity glyph (already integrated in the row template at `messages/page.tsx:282`). Inside the expanded children, the existing per-candidate avatar pattern stands.
+
+3. **Click target on the parent.** Tap = expand/collapse, NOT navigate. Use a chevron icon that rotates on toggle. Children retain their existing tap-to-navigate behavior. No accidental nav from parent — distinct affordance.
+
+4. **What happens on `PERMANENT.SELECTED`?** The selected candidate's chat flips `phase='shortlist'` → `phase='active'` and leaves the bundle (renders as a flat row in Active tab). Sibling shortlist chats flip `phase='closed'` `outcome='role_filled'` and leave the Active tab entirely (status='closed' → History tab). Bundle then either disappears (no more `phase='shortlist'` chats on that posting) or re-renders with whatever's left. **Bundle filter must be `phase='shortlist'` AND `status='active'`** — closed shortlist chats don't belong in the active bundle.
+
+5. **History-tab bundling.** Apply the same grouping in History (closed shortlist chats grouped by their posting), so an agency reviewing past activity sees "all 7 of my closed Deckhand · M/Y Serenity chats" together. Singletons still bundle there too. Selected-then-completed engagements appear as separate flat rows (no longer phase='shortlist').
+
+6. **Unread count display on parent.** Two metrics matter: (a) total unread messages across the bundle, (b) number of children with at least one unread. Glanceable answer is (b) — `(3 of 8 unread)` or just bold parent + a count badge. Implementation: use the existing `get_unread_counts` RPC output, sum on the client. Parent gets bold name when ≥1 child has unread, count badge `(N)` shows total candidates regardless.
+
+7. **Posting context in the parent label.** Need role + vessel for the label ("Deckhand · M/Y Serenity (8)"). Role name is already joined; vessel name is NOT. **Extend the API** to left-join `permanent_postings(vessels(name))` so the bundle parent has its label. NDA vessels: per the existing display-mask precedent, employers always see their own vessel's name (NDA hides it from outsiders, not the poster) — no extra masking needed.
+
+8. **Default-collapsed persistence.** Reset to default-collapsed each session is cleanest — no per-bundle state to track. Ship that. Power-user "remember my expand state" can land in a v2 if asked for; defer.
+
+9. **Realtime.** Inbox currently does not subscribe to messages realtime — new messages don't auto-update the list. Bundling inherits this: open inbox, see snapshot, refresh page to see new activity. Realtime is a separate stream of work. Note in the commit message and don't promise auto-update.
+
+10. **Performance.** Inbox tops out at ~50 conversations in practice (active engagements + active permanents + shortlist chats). Grouping is O(n) in TS, n is small. The added vessels join is one LEFT JOIN, no N+1. Default-collapsed means the rendered DOM is _smaller_ than today's flat list when there are many shortlist chats.
+
+11. **Edge: posting deleted but engagement row remains.** Postings flip status, never hard-delete (00132 made the FK `ON DELETE RESTRICT`). The join can't return null in practice. If it ever does (defensive): treat the orphan as a flat row, don't try to bundle. Guard at the grouping step.
+
+12. **Edge: agent hat.** Agents post permanent positions and can shortlist. Same UX as employer — they hit the same inbox surface. No agent-specific branch needed.
+
+13. **Edge: employer in negotiation, shortlist closed, more applicants land.** Posting status='in_negotiation' means PERMANENT.SHORTLIST_CHAT_OPENED is no longer accepted (00136 race-guard checks status='active'). Existing shortlist chats stay open until SELECTED cascade closes them. Bundle keeps rendering them until then. No new chats can start. Behavior is correct without any extra work.
+
+14. **Edge: bulk SELECTED cascade — 7 sibling chats close in one transaction.** All 7 flip to status='closed', drop out of Active tab on next fetch, regroup in History. The selected chat goes to a flat row in Active. Bundle in Active either gone or smaller. No client-side state to clean up because we don't track expanded state across fetches.
+
+15. **a11y.** Parent row needs `role="button"` + `aria-expanded` + space/enter handling. Chevron rotation should respect `prefers-reduced-motion` (the page already checks this at `messages/page.tsx:142`).
+
+#### Implementation checklist
+
+**API (`apps/web/src/app/api/messages/route.ts`)**
+
+- [x] Extend both `select` strings to include `permanent_postings(vessels(name))` and `permanent_postings(id)` so the response carries posting id + vessel name (role + port already there). Keep daywork joins untouched.
+- [x] Update the `EngagementRow` / response type to expose `permanent_postings.vessels.name` and `permanent_postings.id` to the client.
+- [x] No new tests for the API — the response shape change is additive; existing tests pass through.
+
+**Inbox page (`apps/web/src/app/(app)/messages/page.tsx`)**
+
+- [x] Extend `Conversation` interface — add `permanent_postings.vessels.name` and `id` fields.
+- [x] Add a derived structure (between `active`/`history` filters and the render): split each tab's list into `{ flatRows: Conversation[], shortlistBundles: Map<postingId, Conversation[]> }`.
+  - Iterate the tab list once.
+  - If `c.phase === 'shortlist'` AND `c.permanent_posting_id`, push into the corresponding bundle entry.
+  - Else push into flatRows.
+  - For ordering: compute each bundle's `last_activity = max(child.last_message?.created_at ?? child.start_date)`. Build a unified renderable list: `{ kind: 'flat', conv } | { kind: 'bundle', postingId, children, last_activity, label, role, vessel }`. Sort by `last_activity` DESC.
+- [x] New component `_components/shortlist-bundle-row.tsx`:
+  - Props: `{ postingId, role, vessel, children: Conversation[], unreadMap }`.
+  - State: `useState(expanded: false)`.
+  - Header row: epaulette badge (role) + role name + middot + vessel name + count `(N)` + chevron, last-activity timestamp on the right. `aria-expanded`, `role="button"`, space/enter toggles. Bold name + dot indicator when any child has unread.
+  - Body (when expanded): map children to existing row JSX, slightly inset with a left border. Use `AnimatePresence` + height animation, respecting reduced-motion.
+  - No "Pre-selection" badge on individual children inside the bundle — the bundle context already says it. Keep the badge only for any orphan flat rows (defensive — shouldn't happen in practice).
+- [x] Replace the current map-over-`current` block with a map-over the unified list. `kind === 'flat'` renders the existing JSX; `kind === 'bundle'` renders `<ShortlistBundleRow>`.
+- [x] Reduced-motion: chevron rotation uses `transition` only when `!prefersReducedMotion`.
+
+**Tests (`apps/web/__tests__/components/messages-inbox.test.tsx` or new file)**
+
+- [x] Renders a bundle parent with role + vessel + count when ≥1 shortlist chat exists on a posting.
+- [x] Singleton bundles (count=1) still render as a collapsed parent.
+- [x] Default state is collapsed — children not visible on initial render.
+- [x] Tap parent → children appear; tap again → hidden.
+- [x] Bundle parent shows unread "{N} of {N}" + dot indicator when any child has unread.
+- [x] Null-fallback labels (Permanent role · Vessel TBC) when role/vessel aren't joined.
+- [ ] Mixed-inbox sort assertion (bundle vs flat by recency) — covered by the in-page useMemo logic; standalone integration test deferred (would require building a full messages page mount with API mocks).
+
+**Docs**
+
+- [x] `apps/web/README.md`: extend the messages API documentation to mention the vessel join + bundle response.
+- [x] `BUILD_STATE.md`: append a stage entry (Stage 235b).
+- [ ] `dockwalker_mission.md` already calls out shortlist chats as a C2 capability — flag in the close step if the wording needs a human edit to reflect "grouped by posting".
+
+**Done when:**
+
+- Type-check + lint clean across `turbo run type-check` and `turbo run lint`
+- Existing 1516 tests still pass; new bundle tests pass
+- Manual smoke: log in as employer with ≥1 shortlist chat → see the bundle in Active tab, expand it, navigate into a child, return to inbox, bundle is collapsed again.
+- Manual smoke: log in as crew → no bundle visible (shortlist chats don't reach crew API response).
+- No migration needed — purely client + a one-line API select extension.
 
 ## Fix plan — Bug intake 2026-05-02
 
