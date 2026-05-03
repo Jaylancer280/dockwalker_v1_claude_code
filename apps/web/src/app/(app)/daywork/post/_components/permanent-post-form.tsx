@@ -130,7 +130,14 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   // and the permanent POST is skipped — only the template API is called.
   const initialMode = searchParams.get('mode');
   const isEditingTemplate = initialMode === 'edit';
-  const editingTemplateId = isEditingTemplate ? (searchParams.get('templateId') ?? null) : null;
+  // Edit-target id rides on the `initialTemplateId` prop (parent page reads
+  // ?permanentTemplateId= and forwards it). Reading `searchParams.get(
+  // 'templateId')` here was a stale name from the daywork side and silently
+  // resolved to null on the permanent edit URL — making the form fall back
+  // to POST /api/permanent/templates which hit the Free-tier cap of 1 and
+  // surfaced "Template limit reached" while trying to *edit* the only
+  // existing template.
+  const editingTemplateId = isEditingTemplate ? (initialTemplateId ?? null) : null;
   const [templateMode, setTemplateMode] = useState(initialMode === 'template' || isEditingTemplate);
   const [templateName, setTemplateName] = useState('');
 

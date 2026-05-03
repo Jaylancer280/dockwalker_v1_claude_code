@@ -28,7 +28,7 @@ export function UnderlineTabs({
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
-          className={`inline-flex min-w-fit flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+          className={`inline-flex min-w-fit flex-1 items-center justify-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
             value === opt.value
               ? 'border-[var(--primary)] text-[var(--primary)]'
               : 'border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)]'
