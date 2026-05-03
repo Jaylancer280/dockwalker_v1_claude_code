@@ -423,15 +423,46 @@ async function resolveBody(
 
     case 'PERMANENT.SHORTLIST_CHAT_OPENED': {
       // B-011: pre-selection chat opt-in. Body stays neutral — chat is a
-      // vetting conversation, not a placement signal — but encouraging
-      // enough to prompt a reply.
+      // vetting conversation, not a placement signal — but rich enough to
+      // give the crew the same context they'd see on the posting card.
+      // Captain name is fetched from the posting's employer_person_id so
+      // the body reads "{Name} would like to chat" instead of a generic
+      // "Captain wants to chat".
       if (!postingId) return null;
-      const info = await getPermanentPostingInfo(sc, postingId);
+      const ppResult = await sc
+        .from('permanent_postings')
+        .select(
+          'employer_person_id, salary_min, salary_max, salary_currency, salary_period, vessels:vessel_id(name, vessel_type, nda_flag), ports:port_id(name)',
+        )
+        .eq('id', postingId)
+        .single();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pp = ppResult.data as any;
+      const [info, captainName] = await Promise.all([
+        getPermanentPostingInfo(sc, postingId),
+        pp?.employer_person_id
+          ? getDisplayName(sc, pp.employer_person_id as string)
+          : Promise.resolve('The captain'),
+      ]);
       if (!info) return null;
+      const vesselName = pp?.vessels?.nda_flag
+        ? 'NDA Vessel'
+        : vesselLabel(pp?.vessels?.vessel_type, pp?.vessels?.name ?? 'Vessel');
+      const portName = pp?.ports?.name ?? 'Port TBC';
+      const sym = currencySymbol(pp?.salary_currency ?? 'EUR');
+      const salary =
+        pp?.salary_min && pp?.salary_max
+          ? pp.salary_min === pp.salary_max
+            ? `${sym}${pp.salary_min}/${pp.salary_period ?? 'month'}`
+            : `${sym}${pp.salary_min}–${sym}${pp.salary_max}/${pp.salary_period ?? 'month'}`
+          : null;
       return {
         text:
-          `💬 <b>Captain wants to chat — ${escapeHtml(info.role_name)}</b>\n\n` +
-          `The captain hiring for this role would like to ask a few questions before deciding.\n\n` +
+          `💬 <b>${escapeHtml(captainName)} would like to chat — ${escapeHtml(info.role_name)}</b>\n\n` +
+          `⚓ ${escapeHtml(vesselName)}\n` +
+          `📍 ${escapeHtml(portName)}` +
+          (salary ? `\n💶 ${escapeHtml(salary)}` : '') +
+          `\n\nA few questions before they decide. Replying doesn't commit you to the role.\n\n` +
           `Ref: ${escapeHtml(info.job_number)}` +
           cta(`${SITE_URL}/messages/${engagementId ?? ''}`, 'Open chat'),
       };

@@ -82,8 +82,9 @@ export function ContactReferenceDialog({
           <DialogHeader>
             <DialogTitle>Contact {refereeDisplayName}</DialogTitle>
             <DialogDescription>
-              {refereeDisplayName} can accept (opens a chat) or decline (silent — you won&apos;t be
-              told either way).
+              We&apos;ll notify {refereeDisplayName}. If they accept, a chat opens between you. If
+              they decline or don&apos;t reply, you won&apos;t be notified — declines stay private
+              so referees feel safe being honest.
             </DialogDescription>
           </DialogHeader>
 
@@ -114,13 +115,20 @@ export function ContactReferenceDialog({
                   </span>
                 </p>
               </div>
-              {/* H-3 inline hint */}
+              {/* H-3 inline hint. Three states:
+                   - Pro (remainingMonthly === null): unlimited.
+                   - Free with a known count: show the specific number.
+                   - Unknown (undefined — call site didn't pass it): show the
+                     budget shape generically, never claim "0 remaining" since
+                     that misleads users who haven't sent any requests. */}
               <p className="rounded-md border border-border bg-[var(--surface)] p-2 text-xs text-muted-foreground">
                 {isPro
                   ? 'Employer Pro · unlimited contact requests.'
-                  : `You have ${remainingMonthly ?? 0} contact request${
-                      (remainingMonthly ?? 0) === 1 ? '' : 's'
-                    } remaining this month. Each one is consumed only when the referee accepts.`}
+                  : typeof remainingMonthly === 'number'
+                    ? `You have ${remainingMonthly} contact request${
+                        remainingMonthly === 1 ? '' : 's'
+                      } remaining this month. Each is consumed only when the referee accepts.`
+                    : 'Free plan · up to 5 accepted contacts per 30 days. Requests are only counted once the referee accepts.'}
               </p>
               <DialogFooter className="flex gap-2 sm:gap-0">
                 <Button variant="outline" onClick={() => handleClose(false)}>
@@ -143,13 +151,13 @@ export function ContactReferenceDialog({
         description={
           <>
             <p>
-              We&apos;ll notify {refereeDisplayName}. They can accept (opens a chat) or decline
-              (silent — you won&apos;t be told).
+              We&apos;ll notify {refereeDisplayName}. If they accept, a chat opens between you. If
+              they decline or don&apos;t reply, you won&apos;t hear back — declines stay private.
             </p>
-            {!isPro && (
+            {!isPro && typeof remainingMonthly === 'number' && (
               <p className="text-xs">
-                This will use 1 of your remaining {remainingMonthly ?? 0} contact requests this
-                month. Upgrade to Employer Pro for unlimited.
+                This will use 1 of your remaining {remainingMonthly} contact requests this month.
+                Upgrade to Employer Pro for unlimited.
               </p>
             )}
             {question.trim().length > 0 && (

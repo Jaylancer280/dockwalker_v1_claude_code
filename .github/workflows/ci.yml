@@ -160,14 +160,14 @@ jobs:
     name: Playwright E2E
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    # Audit P1-I2 (T-1): Playwright job runs on every push but currently
-    # does NOT block deploy-migrations. The baseline screenshots + spec
-    # auth flows haven't been refreshed since the testing-agent's last
-    # full run on 2026-03-27 (schema v122; we're now at v133), so
-    # initial runs will surface stale snapshots, not real regressions.
-    # Once a clean baseline run lands and the registry is current, flip
-    # `continue-on-error` off and add `playwright` to deploy-migrations
-    # `needs:`.
+    # Disabled 2026-05-03 to stop wasting CI minutes — baseline screenshots
+    # + spec auth flows are stale (last refreshed 2026-03-27 at schema v122,
+    # we're now at v136) and the suite is not gating anything. Re-enable by
+    # flipping this `if:` to `if: true` (or removing it) once the baseline
+    # is rebuilt and the registry is current.
+    if: false
+    # Note: when re-enabling, also flip `continue-on-error` off and add
+    # `playwright` to deploy-migrations `needs:` (Audit P1-I2 / T-1).
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
