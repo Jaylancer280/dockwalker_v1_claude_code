@@ -66,7 +66,12 @@ export function DiscoverHeader({
               {hasActiveFilters && <span className="ml-1 text-xs">(active)</span>}
             </Button>
           )}
-          <span className="md:hidden">
+          {/* Extra ml on mobile so the bell's badge doesn't visually crash
+              into the SegmentedToggle's right pill. The toggle wraps in a
+              flex-1 container that stretches to fill width, so the default
+              gap-1.5 isn't enough headroom for the absolutely-positioned
+              -top-1 -right-1 badge. */}
+          <span className="ml-2 md:hidden md:ml-0">
             <NotificationBell />
           </span>
         </div>

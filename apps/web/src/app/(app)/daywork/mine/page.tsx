@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Plus,
   Calendar,
@@ -60,6 +60,7 @@ import { ExpandableText } from '@/components/expandable-text';
 
 export default function MyPostingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const prefs = usePreferences();
   const { showSuccess, showError } = useToast();
   const [mineMode, setMineMode] = useState<'daywork' | 'permanent'>(() => {
@@ -93,11 +94,27 @@ export default function MyPostingsPage() {
   const roles = lookups.roles;
   const [isAgent, setIsAgent] = useState(false);
 
+  // B-005: URL params take precedence over storage on mount. Lets entry
+  // points like "Post from a template" deep-link straight to the templates
+  // tab on the right sub-section. Daywork-side tab state lives here; the
+  // permanent section reads ?tab= itself.
   useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const typeParam = searchParams.get('type');
+    if (typeParam === 'permanent' || typeParam === 'daywork') {
+      setMineMode(typeParam);
+    }
+    if (typeParam !== 'permanent' && isMyJobsTab(tabParam)) {
+      // Daywork tab from URL — only when the user is (or just landed on)
+      // the daywork sub-section, otherwise the param belongs to permanent.
+      setCurrentTab(tabParam);
+      return;
+    }
     const storedTab = window.sessionStorage.getItem(MY_JOBS_TAB_STORAGE_KEY);
     if (isMyJobsTab(storedTab)) {
       setCurrentTab(storedTab);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -105,8 +105,14 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   const [experienceBracketId, setExperienceBracketId] = useState(
     (draft?.experienceBracketId as string) ?? 'any',
   );
-  const [shortlistCap, setShortlistCap] = useState((draft?.shortlistCap as string) ?? '5');
-  const [shortlistMax, setShortlistMax] = useState(20);
+  const [shortlistCap, setShortlistCap] = useState((draft?.shortlistCap as string) ?? '3');
+  // Tier-aware ceiling for the shortlistCap input. Free=3, Employer Pro=8 —
+  // matches the server-side clamp in /api/permanent/[id]/applicants/[crewId]
+  // /shortlist (Math.min(posting.shortlist_cap, tierMax)). Without this gate
+  // the input let Free users type 20 while the server silently capped at 3,
+  // making the crew-side "0/3 shortlisted" badge look broken. Default to
+  // 3 so the form is conservative until the billing fetch resolves.
+  const [shortlistMax, setShortlistMax] = useState(3);
   const [notes, setNotes] = useState((draft?.notes as string) ?? '');
   const [contractType, setContractType] = useState((draft?.contractType as string) ?? 'permanent');
   const [contractDetails, setContractDetails] = useState((draft?.contractDetails as string) ?? '');
@@ -163,16 +169,23 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch billing status for shortlist cap
+  // Fetch billing status for shortlist cap. Once we know the tier, also
+  // clamp any draft/template-restored shortlistCap that exceeds it — a
+  // Free user resuming a draft they typed at 20 would otherwise submit 20
+  // while the server silently reduces to 3, which makes the form lie.
   useEffect(() => {
     void (async () => {
       const res = await safeFetch<{ plan?: string; status?: string }>('/api/billing/status');
-      if (res.ok) {
-        const isProEmployer =
-          (res.data.status === 'active' || res.data.status === 'trialing') &&
-          res.data.plan === 'employer_pro';
-        setShortlistMax(isProEmployer ? 8 : 3);
-      }
+      if (!res.ok) return;
+      const isProEmployer =
+        (res.data.status === 'active' || res.data.status === 'trialing') &&
+        res.data.plan === 'employer_pro';
+      const max = isProEmployer ? 8 : 3;
+      setShortlistMax(max);
+      setShortlistCap((prev) => {
+        const n = parseInt(prev, 10);
+        return Number.isFinite(n) && n > max ? String(max) : prev;
+      });
     })();
   }, []);
 
@@ -307,7 +320,10 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
 
     showSuccess(editingTemplateId ? 'Template updated' : 'Template saved');
     sessionStorage.removeItem('dockwalker:permanent-post-draft');
-    router.push('/daywork/mine?tab=templates');
+    // B-005: include type=permanent so the parent /daywork/mine page lands
+    // on the Permanent sub-section (otherwise it defaults to Daywork via
+    // localStorage and the redirect feels broken).
+    router.push('/daywork/mine?type=permanent&tab=templates');
   }
 
   async function handleSubmit() {
@@ -471,6 +487,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           setStartDate={setStartDate}
           onRequestCreateVessel={saveFormAndCreateVessel}
           onVesselNameChange={setVesselDisplayName}
+          isTemplateMode={templateMode}
         />
 
         <SalarySection
@@ -483,6 +500,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           salaryPeriod={salaryPeriod}
           setSalaryPeriod={setSalaryPeriod}
           salaryPreview={salaryPreview}
+          isTemplateMode={templateMode}
         />
 
         <ContractTermsSection
@@ -513,6 +531,7 @@ export function PermanentPostForm({ onBack, initialTemplateId }: PermanentPostFo
           experienceBrackets={experienceBrackets}
           experienceBracketId={experienceBracketId}
           setExperienceBracketId={setExperienceBracketId}
+          isTemplateMode={templateMode}
         />
 
         {/* B-005: bottom save-as-template block removed; toggle now lives at

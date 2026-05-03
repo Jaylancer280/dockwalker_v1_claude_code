@@ -456,9 +456,10 @@ function DayworkPostForm() {
       showSuccess(editingTemplateId ? 'Template updated' : 'Template saved');
       // B-005: handleSaveTemplate is ONLY reached from template-mode now
       // (the dual "save AND post" path was removed). Route the user back to
-      // the templates tab where they can see the result.
+      // the templates tab where they can see the result. type=daywork is
+      // explicit so URL behaviour is symmetric with the permanent flow.
       sessionStorage.removeItem('dockwalker:daywork-post-draft');
-      router.push('/daywork/mine?tab=templates');
+      router.push('/daywork/mine?type=daywork&tab=templates');
       return;
     }
     if (result.error === 'template_limit_reached') {

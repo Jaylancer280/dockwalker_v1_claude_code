@@ -43,6 +43,9 @@ export interface RoleLocationSectionProps {
   setStartDate: (v: string) => void;
   onRequestCreateVessel: () => void;
   onVesselNameChange?: (name: string) => void;
+  /** B-005: in template-mode the form bypasses the required-field gate
+   *  (partial templates are valid) so the asterisks become misleading. */
+  isTemplateMode?: boolean;
 }
 
 export function RoleLocationSection({
@@ -57,14 +60,14 @@ export function RoleLocationSection({
   setStartDate,
   onRequestCreateVessel,
   onVesselNameChange,
+  isTemplateMode = false,
 }: RoleLocationSectionProps) {
+  const req = !isTemplateMode;
   return (
     <>
       {/* Vessel */}
       <div>
-        <Label>
-          Vessel <span className="text-destructive">*</span>
-        </Label>
+        <Label>Vessel {req && <span className="text-destructive">*</span>}</Label>
         <VesselSelector
           value={vesselId}
           onValueChange={setVesselId}
@@ -75,9 +78,7 @@ export function RoleLocationSection({
 
       {/* Role */}
       <div>
-        <Label>
-          Role <span className="text-destructive">*</span>
-        </Label>
+        <Label>Role {req && <span className="text-destructive">*</span>}</Label>
         <HierarchicalPills
           groups={rolesToGroups(
             roles.filter((r): r is typeof r & { department: string } => !!r.department),
@@ -90,9 +91,7 @@ export function RoleLocationSection({
 
       {/* Location */}
       <div>
-        <Label>
-          Location (port/marina) <span className="text-destructive">*</span>
-        </Label>
+        <Label>Location (port/marina) {req && <span className="text-destructive">*</span>}</Label>
         <LocationPicker
           mode="port-required"
           value={locationPortId ? { portId: locationPortId } : null}
@@ -102,9 +101,7 @@ export function RoleLocationSection({
 
       {/* Start date */}
       <div>
-        <Label>
-          Start date <span className="text-destructive">*</span>
-        </Label>
+        <Label>Start date {req && <span className="text-destructive">*</span>}</Label>
         <DateInput value={startDate} onChange={setStartDate} />
         <p className="mt-1 text-xs text-muted-foreground">
           Past dates are allowed — they display as &quot;ASAP&quot; on cards.
@@ -218,11 +215,25 @@ export function ContractTermsSection({
             min={1}
             max={shortlistMax}
             value={shortlistCap}
-            onChange={(e) => setShortlistCap(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === '') {
+                setShortlistCap('');
+                return;
+              }
+              const n = parseInt(raw, 10);
+              if (!Number.isFinite(n)) return;
+              // Hard-clamp at the tier ceiling so the input never holds a
+              // value the server would silently reduce. Below 1 also clamps
+              // to 1 — input min handles arrow keys, this catches paste.
+              setShortlistCap(String(Math.min(Math.max(n, 1), shortlistMax)));
+            }}
             className="w-24"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            Maximum candidates on your shortlist (1-{shortlistMax}).
+            Maximum candidates on your shortlist (1-{shortlistMax}
+            {shortlistMax === 3 ? ' on Free' : ''}
+            {shortlistMax === 8 ? ' on Employer Pro' : ''}).
           </p>
         </div>
       </div>
@@ -281,6 +292,8 @@ export interface SalarySectionProps {
   salaryPeriod: string;
   setSalaryPeriod: (v: string) => void;
   salaryPreview: string | null;
+  /** B-005: see RoleLocationSection. */
+  isTemplateMode?: boolean;
 }
 
 export function SalarySection({
@@ -293,6 +306,7 @@ export function SalarySection({
   salaryPeriod,
   setSalaryPeriod,
   salaryPreview,
+  isTemplateMode = false,
 }: SalarySectionProps) {
   const isRange = salaryMax !== '' && salaryMax !== salaryMin;
   const [showRange, setShowRange] = useState(isRange);
@@ -300,9 +314,7 @@ export function SalarySection({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <Label>
-          Salary <span className="text-destructive">*</span>
-        </Label>
+        <Label>Salary {!isTemplateMode && <span className="text-destructive">*</span>}</Label>
         <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <input
             type="checkbox"
@@ -384,6 +396,8 @@ export interface RequirementsSectionProps {
   experienceBrackets: LookupItem[];
   experienceBracketId: string;
   setExperienceBracketId: (v: string) => void;
+  /** B-005: see RoleLocationSection. */
+  isTemplateMode?: boolean;
 }
 
 export function RequirementsSection({
@@ -394,13 +408,14 @@ export function RequirementsSection({
   experienceBrackets,
   experienceBracketId,
   setExperienceBracketId,
+  isTemplateMode = false,
 }: RequirementsSectionProps) {
   return (
     <>
       {/* Certifications */}
       <div>
         <Label>
-          Required certifications <span className="text-destructive">*</span>
+          Required certifications {!isTemplateMode && <span className="text-destructive">*</span>}
         </Label>
         {/* "None required" toggle — mutually exclusive with cert selections */}
         <div className="mb-1.5">

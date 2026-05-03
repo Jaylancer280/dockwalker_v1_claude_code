@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MapPin, Briefcase, Ship, Trash2, Pencil, Plus } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,7 @@ function formatStartDate(dateStr: string) {
 
 export function PermanentMineSection() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showSuccess, showError } = useToast();
 
   const [postings, setPostings] = useState<Posting[]>([]);
@@ -53,6 +54,24 @@ export function PermanentMineSection() {
     if (typeof window === 'undefined') return 'active';
     return (sessionStorage.getItem('dw-perm-mine-tab') as Tab) || 'active';
   });
+
+  // B-005: URL ?tab= takes precedence over sessionStorage on mount. Lets
+  // entry points like "Post from a template" land here on the templates
+  // tab even if the user previously parked on Active.
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (
+      tabParam === 'active' ||
+      tabParam === 'in_negotiation' ||
+      tabParam === 'filled' ||
+      tabParam === 'cancelled' ||
+      tabParam === 'templates'
+    ) {
+      setTab(tabParam);
+      sessionStorage.setItem('dw-perm-mine-tab', tabParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -194,11 +213,18 @@ export function PermanentMineSection() {
                   {[t.yacht_roles?.name, t.ports?.name].filter(Boolean).join(' · ') ||
                     'Partial template — tap Edit to fill in more fields'}
                 </p>
-                {t.salary_min != null && (
-                  <p className="text-xs text-primary">
-                    {formatSalary(t.salary_min, t.salary_max, t.salary_currency, t.salary_period)}
-                  </p>
-                )}
+                {/* B-005: salary block requires ALL four fields. Partial-save
+                    (mig 00134) means any of min/max/currency/period can be
+                    null on a half-built template — formatSalary calls
+                    .toLocaleString() on max which throws on null. */}
+                {t.salary_min != null &&
+                  t.salary_max != null &&
+                  t.salary_currency &&
+                  t.salary_period && (
+                    <p className="text-xs text-primary">
+                      {formatSalary(t.salary_min, t.salary_max, t.salary_currency, t.salary_period)}
+                    </p>
+                  )}
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button
                     size="sm"
