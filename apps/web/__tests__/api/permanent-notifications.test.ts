@@ -30,14 +30,21 @@ const mockFromImpl = vi.fn();
 const mockRpc = vi.fn();
 const mockAuth = { admin: { getUserById: vi.fn().mockResolvedValue({ data: { user: { email: 'test@test.com' } } }) } };
 
-// Wrapper that auto-handles user_preferences and notifications.insert
+// Wrapper that auto-handles user_preferences, notifications.insert, and
+// the recipient-hat lookup (`persons.current_hat`) the dispatcher does
+// before inserting notifications. The hat lookup defaults to 'crew' —
+// it only affects the notification's role_context column, not whether
+// the test's sendPushToUser assertion fires.
 const mockFrom = vi.fn((...args: unknown[]) => {
   const table = args[0] as string;
   if (table === 'user_preferences') {
     return chain(null); // No preferences = use defaults (all enabled)
   }
+  if (table === 'persons') {
+    return chain({ current_hat: 'crew' });
+  }
   if (table === 'notifications') {
-    return { insert: vi.fn().mockReturnValue({ then: vi.fn().mockReturnValue({ catch: vi.fn() }) }) };
+    return { insert: vi.fn().mockResolvedValue({ error: null }) };
   }
   return mockFromImpl(...args);
 });
@@ -56,6 +63,7 @@ function chain(data: any) {
   c.neq = vi.fn().mockReturnValue(c);
   c.in = vi.fn().mockReturnValue(c);
   c.single = vi.fn().mockResolvedValue({ data });
+  c.maybeSingle = vi.fn().mockResolvedValue({ data });
   return c;
 }
 

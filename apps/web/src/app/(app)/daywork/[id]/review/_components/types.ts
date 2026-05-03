@@ -72,6 +72,11 @@ export interface AvailableCrew {
   available_days: number;
   nationalities: { name: string; country_code: string | null; flag_emoji: string } | null;
   shore_experience_categories: string[];
+  /** Proximity bucket from the available-crew matcher. Drives the
+   *  Same-port / Same-city / Same-region pill on the card; the
+   *  underlying haversine distance is intentionally hidden so the
+   *  ranking communicates without false precision. */
+  proximity?: 'same-port' | 'same-city' | 'same-region';
 }
 
 export type TabView = 'applicants' | 'shortlist' | 'available';

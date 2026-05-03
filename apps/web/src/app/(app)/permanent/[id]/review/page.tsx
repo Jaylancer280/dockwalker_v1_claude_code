@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import { useLookups } from '@/hooks/use-lookups';
 import { vesselSizeRange } from '@dockwalker/shared';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Loader2, User, AlertCircle, Star, X, MessageSquarePlus } from 'lucide-react';
 import { ContactReferencesButton } from '@/components/references/contact-references-button';
 import Link from 'next/link';
@@ -100,8 +100,19 @@ function daysAgo(dateStr: string) {
 }
 
 export default function PermanentReviewPage() {
+  return (
+    <Suspense>
+      <PermanentReviewContent />
+    </Suspense>
+  );
+}
+
+function PermanentReviewContent() {
   const { id: postingId } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialTab: 'applicants' | 'shortlisted' =
+    searchParams.get('tab') === 'shortlisted' ? 'shortlisted' : 'applicants';
   const { showSuccess, showError } = useToast();
   const lookups = useLookups();
   const sizeBandRanges = useMemo(() => {
@@ -118,7 +129,7 @@ export default function PermanentReviewPage() {
   const [shortlistCount, setShortlistCount] = useState(0);
   const [postingStatus, setPostingStatus] = useState('active');
   const [selectedCrewId, setSelectedCrewId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'applicants' | 'shortlisted'>('applicants');
+  const [activeTab, setActiveTab] = useState<'applicants' | 'shortlisted'>(initialTab);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [selectConfirm, setSelectConfirm] = useState<Applicant | null>(null);

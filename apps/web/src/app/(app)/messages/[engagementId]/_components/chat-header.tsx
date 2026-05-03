@@ -12,6 +12,7 @@ import {
   MoreVertical,
   Phone,
   Flag,
+  Star,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -145,6 +146,17 @@ export function ChatHeader({
                   <Flag className="h-4 w-4" />
                   Report user
                 </button>
+
+                {isShortlistPhase && isEmployer && permPostingId && (
+                  <Link
+                    href={`/permanent/${permPostingId}/review?tab=shortlisted`}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-sm hover:bg-[var(--accent-lo)]"
+                    onClick={() => setShowActionMenu(false)}
+                  >
+                    <Star className="h-4 w-4" />
+                    Return to shortlist
+                  </Link>
+                )}
 
                 {/* B-011: shortlist-phase chats suppress all lifecycle
                     actions. View profile + Report user above this block

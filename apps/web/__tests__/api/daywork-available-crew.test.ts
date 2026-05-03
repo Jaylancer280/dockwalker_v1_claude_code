@@ -26,8 +26,10 @@ const makeParams = (id: string) => ({ params: Promise.resolve({ id }) });
 const makeReq = (query = '') =>
   new Request(`http://localhost/api/daywork/d1/available-crew${query}`);
 
-// Per-table mock helpers — each returns a one-shot chain matching the terminal
-// method the route uses for that table.
+// Per-table mock helpers — each returns a one-shot chain matching the
+// terminal method the route uses for that table. Updated for the
+// region-scoped + distance-sorted matcher (00138 / "available crew
+// hybrid scope" change).
 
 function mockDaywork(data: Record<string, unknown> | null) {
   mockFromAuth.mockReturnValueOnce({
@@ -39,22 +41,52 @@ function mockDaywork(data: Record<string, unknown> | null) {
   });
 }
 
-function mockPort(data: { city_id: string } | null) {
+/** Origin port lookup — now also embeds the city's region_id and the
+ *  port's lat/lng coords. Pass null for coords to exercise the
+ *  no-coords fallback path. */
+function mockOriginPort(data: {
+  city_id: string;
+  latitude: number | null;
+  longitude: number | null;
+  region_id: string | null;
+} | null) {
   mockFromAuth.mockReturnValueOnce({
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({ data }),
+        single: vi.fn().mockResolvedValue({
+          data: data
+            ? {
+                city_id: data.city_id,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                cities: data.region_id ? { region_id: data.region_id } : null,
+              }
+            : null,
+        }),
       }),
     }),
   });
 }
 
-function mockAvailability(rows: Array<Record<string, unknown>>) {
-  // .select().eq().eq().gte().lte().gt()
-  const terminal = vi.fn().mockResolvedValue({ data: rows });
+/** Region cities lookup — only fires when the origin port has a
+ *  region_id. Pass an empty array to short-circuit back to city-only. */
+function mockRegionCities(rows: Array<{ id: string }>) {
   mockFromAuth.mockReturnValueOnce({
     select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data: rows }),
+    }),
+  });
+}
+
+/** availability_windows query — moved to serviceClient (employer can't
+ *  read other crew's availability under RLS without the service-client
+ *  bypass; the matcher legitimately needs to discover non-applicants). */
+function mockAvailability(rows: Array<Record<string, unknown>>) {
+  // .select().in().eq().gte().lte().gt()
+  const terminal = vi.fn().mockResolvedValue({ data: rows });
+  mockFromService.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           gte: vi.fn().mockReturnValue({
             lte: vi.fn().mockReturnValue({
@@ -68,8 +100,6 @@ function mockAvailability(rows: Array<Record<string, unknown>>) {
 }
 
 function mockExclusionPair(applicationsRows: unknown[], invitationsRows: unknown[]) {
-  // Two .from() calls in Promise.all — order in route: applications first, then daywork_invitations.
-  // Both: .select().eq().in()
   const buildChain = (rows: unknown[]) => ({
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
@@ -82,7 +112,6 @@ function mockExclusionPair(applicationsRows: unknown[], invitationsRows: unknown
 }
 
 function mockSubscriptions(rows: Array<{ person_id: string }>) {
-  // .select().in().eq().in()
   mockFromService.mockReturnValueOnce({
     select: vi.fn().mockReturnValue({
       in: vi.fn().mockReturnValue({
@@ -95,12 +124,23 @@ function mockSubscriptions(rows: Array<{ person_id: string }>) {
 }
 
 function mockInvitationCount(count: number) {
-  // .select(_, { count, head }).eq().eq() — terminal returns { count }
   mockFromAuth.mockReturnValueOnce({
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
         eq: vi.fn().mockResolvedValue({ count }),
       }),
+    }),
+  });
+}
+
+/** Port coords lookup — fires only when at least one candidate has a
+ *  pinned port_id on their availability window. */
+function mockPortCoords(
+  rows: Array<{ id: string; latitude: number | null; longitude: number | null }>,
+) {
+  mockFromAuth.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ data: rows }),
     }),
   });
 }
@@ -153,8 +193,6 @@ const proCrewProfile = {
 
 describe('GET /api/daywork/:id/available-crew — monetization invariant (B-010)', () => {
   beforeEach(() => {
-    // mockReset (not clearAllMocks) so any unconsumed mockReturnValueOnce
-    // from a previous test doesn't bleed into this one's queue.
     mockFromAuth.mockReset();
     mockFromService.mockReset();
     mockRequireDomainUser.mockReset();
@@ -163,14 +201,32 @@ describe('GET /api/daywork/:id/available-crew — monetization invariant (B-010)
 
   it('surfaces a Crew Pro crew with current availability + role mismatch when allRoles=true', async () => {
     mockDaywork(baseDaywork);
-    mockPort({ city_id: 'city-1' });
+    mockOriginPort({ city_id: 'city-1', latitude: 43.5, longitude: 7.1, region_id: 'region-1' });
+    mockRegionCities([{ id: 'city-1' }, { id: 'city-2' }]);
     mockAvailability([
-      { person_id: 'crew-pro-1', date: '2026-05-16', city_id: 'city-1', not_available: false },
-      { person_id: 'crew-pro-1', date: '2026-05-17', city_id: 'city-1', not_available: false },
+      {
+        person_id: 'crew-pro-1',
+        date: '2026-05-16',
+        city_id: 'city-1',
+        port_id: 'port-1',
+        not_available: false,
+        created_at: '2026-05-10T00:00:00Z',
+      },
+      {
+        person_id: 'crew-pro-1',
+        date: '2026-05-17',
+        city_id: 'city-1',
+        port_id: 'port-1',
+        not_available: false,
+        created_at: '2026-05-10T00:00:00Z',
+      },
     ]);
-    mockExclusionPair([], []); // no existing apps, no existing invitations
-    mockSubscriptions([{ person_id: 'crew-pro-1' }]); // pro
+    mockExclusionPair([], []);
+    mockSubscriptions([{ person_id: 'crew-pro-1' }]);
     mockInvitationCount(0);
+    // Candidate has port_id=port-1 → port coords fetch fires (single
+    // batch). No centroid path because every candidate has a port pin.
+    mockPortCoords([{ id: 'port-1', latitude: 43.5, longitude: 7.1 }]);
     mockProfiles([proCrewProfile]);
     mockShoreExperiences([]);
 
@@ -183,18 +239,28 @@ describe('GET /api/daywork/:id/available-crew — monetization invariant (B-010)
       person_id: 'crew-pro-1',
       available_days: 2,
       primary_role_id: 'role-engineer',
+      proximity: 'same-port',
     });
   });
 
   it('hides the same Crew Pro crew when allRoles=false because role mismatches the posting', async () => {
     mockDaywork(baseDaywork);
-    mockPort({ city_id: 'city-1' });
+    mockOriginPort({ city_id: 'city-1', latitude: 43.5, longitude: 7.1, region_id: 'region-1' });
+    mockRegionCities([{ id: 'city-1' }]);
     mockAvailability([
-      { person_id: 'crew-pro-1', date: '2026-05-16', city_id: 'city-1', not_available: false },
+      {
+        person_id: 'crew-pro-1',
+        date: '2026-05-16',
+        city_id: 'city-1',
+        port_id: 'port-1',
+        not_available: false,
+        created_at: '2026-05-10T00:00:00Z',
+      },
     ]);
     mockExclusionPair([], []);
     mockSubscriptions([{ person_id: 'crew-pro-1' }]);
     mockInvitationCount(0);
+    mockPortCoords([{ id: 'port-1', latitude: 43.5, longitude: 7.1 }]);
     mockProfiles([proCrewProfile]);
     mockShoreExperiences([]);
 
@@ -207,14 +273,22 @@ describe('GET /api/daywork/:id/available-crew — monetization invariant (B-010)
 
   it('hides a non-Pro crew even when role matches and availability is current', async () => {
     mockDaywork(baseDaywork);
-    mockPort({ city_id: 'city-1' });
+    mockOriginPort({ city_id: 'city-1', latitude: 43.5, longitude: 7.1, region_id: 'region-1' });
+    mockRegionCities([{ id: 'city-1' }]);
     mockAvailability([
-      { person_id: 'free-crew-1', date: '2026-05-16', city_id: 'city-1', not_available: false },
+      {
+        person_id: 'free-crew-1',
+        date: '2026-05-16',
+        city_id: 'city-1',
+        port_id: 'port-1',
+        not_available: false,
+        created_at: '2026-05-10T00:00:00Z',
+      },
     ]);
     mockExclusionPair([], []);
-    mockInvitationCount(0); // route fetches invitation count before the proEligibleIds early-return
-    mockSubscriptions([]); // no pro subs — serviceClient
-    // Route returns early after the count call — no profiles / shore_experiences fetch.
+    mockSubscriptions([]); // no pro subs — filter to 0 candidates
+    mockInvitationCount(0);
+    // Route returns early after the count call — no further mocks needed.
 
     const res = await GET(makeReq(), makeParams('d1'));
     const body = await res.json();

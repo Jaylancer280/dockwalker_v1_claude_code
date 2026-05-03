@@ -17,6 +17,7 @@ interface TierConfig {
   planId: 'crew_pro' | 'employer_pro';
   proLabel: string;
   proPrice: string;
+  proTagline: string;
   freeFeatures: string[];
   proFeatures: string[];
 }
@@ -25,18 +26,17 @@ const CREW_TIER: TierConfig = {
   planId: 'crew_pro',
   proLabel: 'Crew Pro',
   proPrice: '€4.99/month',
+  proTagline: 'Be findable by captains in the same port or city.',
   freeFeatures: [
-    '10 Docky questions/month',
-    'General MCA guidance',
-    '3 daywork + 1 permanent template',
-    '1 reference per experience',
+    'Apply to every job — full feature parity',
+    '10 Docky AI questions per month, general MCA guidance',
+    '1 reference per experience visible on your profile',
   ],
   proFeatures: [
-    '500 Docky questions/month',
-    'Personalised career advice — Docky reads your profile',
-    'Get discovered by employers — appear in proactive search alongside applying directly',
-    '5 daywork + 2 permanent templates',
-    'Up to 3 references per experience',
+    'Show up in employers’ proactive crew search alongside your applications — 2x your shot at every posting',
+    '500 Docky AI questions per month, personalised — reads your role, certs and sea-time',
+    'Up to 3 references per experience visible on your profile',
+    'Everything in Free',
   ],
 };
 
@@ -44,15 +44,18 @@ const EMPLOYER_TIER: TierConfig = {
   planId: 'employer_pro',
   proLabel: 'Employer Pro',
   proPrice: '€14.99/month',
+  proTagline: 'Hire faster: bigger shortlists, no template limits, unlimited reference checks.',
   freeFeatures: [
-    '3 daywork + 1 permanent template',
-    'Shortlist up to 3 candidates',
-    'Reach out to references — 5 contacts per 30 days (10 pending)',
+    'Post unlimited jobs — daywork and permanent',
+    '3 daywork posting templates, 1 permanent',
+    'Shortlist up to 3 candidates per posting',
+    'Reference contacts — 5 accepted per 30 days (10 pending at a time)',
   ],
   proFeatures: [
-    'Unlimited templates',
-    'Shortlist up to 8 candidates',
-    'Unlimited reference outreach',
+    'Shortlist up to 8 candidates per posting — keep more strong applicants in play',
+    'Unlimited daywork and permanent posting templates',
+    'Unlimited reference outreach — no monthly or pending caps',
+    'Everything in Free',
   ],
 };
 
@@ -182,7 +185,8 @@ function BillingContent() {
                 </span>
               )}
             </div>
-            <p className="mb-3 text-sm text-muted-foreground">{tier.proPrice}</p>
+            <p className="text-sm text-muted-foreground">{tier.proPrice}</p>
+            <p className="mb-3 mt-1 text-sm font-medium">{tier.proTagline}</p>
             <ul className="mb-5 flex flex-col gap-2">
               {tier.proFeatures.map((f) => (
                 <li key={f} className="flex items-center gap-2 text-sm">

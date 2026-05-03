@@ -572,7 +572,10 @@ async function resolveBody(
     case 'ENGAGEMENT.CANCELLED_BY_CREW':
     case 'ENGAGEMENT.CANCELLED_BY_EMPLOYER':
     case 'ENGAGEMENT.POSTPONEMENT_PROPOSED':
+    case 'ENGAGEMENT.POSTPONEMENT_ACCEPTED':
+    case 'ENGAGEMENT.POSTPONEMENT_REJECTED':
     case 'ENGAGEMENT.COMPLETION_CONFIRMED':
+    case 'ENGAGEMENT.COMPLETION_DISPUTED':
     case 'CHECKLIST.SET': {
       const eid = engagementId ?? (payload.engagement_id as string);
       if (!eid) return null;
@@ -582,7 +585,10 @@ async function resolveBody(
         'ENGAGEMENT.CANCELLED_BY_CREW': '🛑 Engagement cancelled by crew',
         'ENGAGEMENT.CANCELLED_BY_EMPLOYER': '🛑 Engagement cancelled by employer',
         'ENGAGEMENT.POSTPONEMENT_PROPOSED': '📅 Postponement proposed',
+        'ENGAGEMENT.POSTPONEMENT_ACCEPTED': '📅 Date change accepted',
+        'ENGAGEMENT.POSTPONEMENT_REJECTED': '📅 Date change rejected',
         'ENGAGEMENT.COMPLETION_CONFIRMED': '🏁 Engagement complete',
+        'ENGAGEMENT.COMPLETION_DISPUTED': '⚠️ Completion disputed',
         'CHECKLIST.SET': '📋 Pre-arrival checklist updated',
       };
       const title = titleMap[eventType] ?? 'Engagement update';

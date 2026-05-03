@@ -307,6 +307,29 @@ export function AvailableCrewCard({
                 {crew.ports.name}
                 {crew.ports.cities?.name && `, ${crew.ports.cities.name}`}
               </span>
+              {/* Proximity pill — bucket from the available-crew matcher.
+                  Same-port wins (distance ~0); same-city is the most
+                  common visible bucket; same-region surfaces crew
+                  willing to commute within the same maritime hub. The
+                  list is already ordered closest-first; the pill just
+                  removes "why is X above Y" ambiguity. */}
+              {crew.proximity && (
+                <span
+                  className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${
+                    crew.proximity === 'same-port'
+                      ? 'bg-[var(--success-lo)] text-[var(--success)]'
+                      : crew.proximity === 'same-city'
+                        ? 'bg-[var(--accent-lo)] text-[var(--accent)]'
+                        : 'bg-[var(--surface)] text-muted-foreground'
+                  }`}
+                >
+                  {crew.proximity === 'same-port'
+                    ? 'Same port'
+                    : crew.proximity === 'same-city'
+                      ? 'Same city'
+                      : 'Same region'}
+                </span>
+              )}
             </div>
           )}
 

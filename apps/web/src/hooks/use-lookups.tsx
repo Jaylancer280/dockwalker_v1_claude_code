@@ -78,7 +78,14 @@ const LookupsContext = createContext<LookupsData>(defaultLookups);
 // Bump cache version when the lookup shape changes so stale clients drop the
 // old payload cleanly. v3 renames visaTypes → entryRights (category-aware).
 // v5 adds bundleMap (cert bundle expansion for discover cards).
-const CACHE_KEY = 'dw-lookups-v5';
+// Bumped 2026-05-03 — clients with v5 caches written before the
+// bundleMap was reliably populated would silently fall back to `{}`
+// (see `cached.bundleMap ?? {}` below). Result: STCW 95 holders
+// hit "Missing certifications: Elementary First Aid (A-VI/1-3)"
+// because expandCertCoverage with an empty map can't expand bundles
+// into their components. v6 forces a fresh fetch of the lookups
+// including certification_components.
+const CACHE_KEY = 'dw-lookups-v6';
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface CachedLookups {

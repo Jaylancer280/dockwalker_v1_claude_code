@@ -322,14 +322,11 @@ export function PermanentMineSection() {
                 </span>
               </div>
 
-              {/* Counts */}
+              {/* Counts. Applicant count moved onto the Review applicants
+                  button itself (see Actions below) so it doesn't disappear
+                  in the muted row above; shortlist count stays here. */}
               {(p.status === 'active' || p.status === 'in_negotiation') && (
                 <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-                  {p.applicant_count > 0 && (
-                    <span>
-                      {p.applicant_count} applicant{p.applicant_count !== 1 ? 's' : ''}
-                    </span>
-                  )}
                   <span>
                     {p.shortlist_count}/{p.shortlist_cap} shortlisted
                   </span>
@@ -364,7 +361,7 @@ export function PermanentMineSection() {
                 {p.status === 'active' && (
                   <>
                     <Button size="sm" onClick={() => router.push(`/permanent/${p.id}/review`)}>
-                      Review applicants
+                      Review applicants{p.applicant_count > 0 ? ` (${p.applicant_count})` : ''}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setCancelId(p.id)}>
                       Cancel

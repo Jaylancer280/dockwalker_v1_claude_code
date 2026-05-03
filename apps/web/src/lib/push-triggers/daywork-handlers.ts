@@ -324,3 +324,105 @@ export async function handleChecklist(
     },
   ];
 }
+
+/**
+ * ENGAGEMENT.COMPLETION_CONFIRMED — crew confirms the employer's "mark
+ * complete". Notify the employer so they know the engagement closed
+ * cleanly. Without this case the event was falling through to the
+ * router default and producing zero notifications across every channel.
+ */
+export async function handleCompletionConfirmed(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+  actorPersonId: string,
+): Promise<NotifyContext[]> {
+  const engagementId = payload.engagement_id as string | undefined;
+  // The aggregate_id for COMPLETION_CONFIRMED is the engagement_id when
+  // payload omits it (older shape). Fall back to that.
+  const eid = engagementId ?? (payload.aggregate_id as string | undefined);
+  if (!eid) return [];
+  const engagement = await getEngagementParties(sc, eid);
+  if (!engagement) return [];
+
+  // Notify the OTHER party — the actor is the confirmer (crew), so
+  // ping the employer. Mirror logic for any future symmetric flow by
+  // checking who the actor is.
+  const isActorCrew = engagement.crew_person_id === actorPersonId;
+  const recipientId = isActorCrew ? engagement.employer_person_id : engagement.crew_person_id;
+  const recipientHat: 'crew' | 'employer' = isActorCrew ? 'employer' : 'crew';
+
+  const jobNumber = await getJobNumber(sc, engagement.daywork_id);
+  return [
+    {
+      recipientPersonId: recipientId,
+      roleContext: recipientHat,
+      notification: {
+        title: 'Completion confirmed',
+        body: `Both sides have confirmed completion for ${jobNumber}.`,
+        data: { screen: 'chat', engagementId: eid },
+      },
+    },
+  ];
+}
+
+/**
+ * ENGAGEMENT.COMPLETION_DISPUTED — crew disputes the employer's
+ * "mark complete". Notify the employer so they can resolve.
+ */
+export async function handleCompletionDisputed(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+): Promise<NotifyContext[]> {
+  const engagementId = payload.engagement_id as string | undefined;
+  const eid = engagementId ?? (payload.aggregate_id as string | undefined);
+  if (!eid) return [];
+  const engagement = await getEngagementParties(sc, eid);
+  if (!engagement) return [];
+
+  const jobNumber = await getJobNumber(sc, engagement.daywork_id);
+  return [
+    {
+      recipientPersonId: engagement.employer_person_id,
+      roleContext: 'employer',
+      notification: {
+        title: 'Completion disputed',
+        body: `The crew disputed the completion of ${jobNumber}. Open the chat to resolve.`,
+        data: { screen: 'chat', engagementId: eid },
+      },
+    },
+  ];
+}
+
+/**
+ * ENGAGEMENT.POSTPONEMENT_ACCEPTED / POSTPONEMENT_REJECTED — the OTHER
+ * party (typically the crew) responds to the employer's proposed date
+ * change. Notify the employer (the proposer) so they know the new dates
+ * stuck or the engagement just got cancelled. Body copy diverges per
+ * eventType — passed in so one handler covers both.
+ */
+export async function handlePostponementResolved(
+  sc: SupabaseClient,
+  payload: Record<string, unknown>,
+  eventType: string,
+): Promise<NotifyContext[]> {
+  const engagementId = payload.engagement_id as string | undefined;
+  if (!engagementId) return [];
+  const engagement = await getEngagementParties(sc, engagementId);
+  if (!engagement) return [];
+
+  const jobNumber = await getJobNumber(sc, engagement.daywork_id);
+  const accepted = eventType === 'ENGAGEMENT.POSTPONEMENT_ACCEPTED';
+  return [
+    {
+      recipientPersonId: engagement.employer_person_id,
+      roleContext: 'employer',
+      notification: {
+        title: accepted ? 'Date change accepted' : 'Date change rejected',
+        body: accepted
+          ? `Crew accepted your proposed date change for ${jobNumber}. New dates are now in effect.`
+          : `Crew rejected your proposed date change for ${jobNumber} — engagement cancelled.`,
+        data: { screen: 'chat', engagementId },
+      },
+    },
+  ];
+}

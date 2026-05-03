@@ -37,6 +37,9 @@ function getPushPreferenceKey(
     case 'ENGAGEMENT.WORK_STARTED':
     case 'ENGAGEMENT.WORK_STARTED_CONFIRMED':
     case 'ENGAGEMENT.COMPLETION_CONFIRMED':
+    case 'ENGAGEMENT.COMPLETION_DISPUTED':
+    case 'ENGAGEMENT.POSTPONEMENT_ACCEPTED':
+    case 'ENGAGEMENT.POSTPONEMENT_REJECTED':
     case 'CHECKLIST.SET':
       return 'push_reminders';
     default:
@@ -69,21 +72,51 @@ export function notifyOnEvent(
         // Skip system messages for all external channels
         if (eventType === 'MESSAGE.SENT' && payload.is_system) continue;
 
-        // 1. In-app notification — always fires
+        // 1. In-app notification — always fires.
+        // role_context: prefer the recipient's *current* hat over the
+        // handler's hardcoded value. /api/notifications/count splits the
+        // bell badge into currentHat / altHat buckets via
+        // role_context = currentHat — a notification handler that
+        // hardcoded 'crew' (e.g. REFERENCE.CONTACT_REQUESTED) was
+        // landing in the alt bucket whenever the recipient happened to
+        // be on the employer hat, so the bell never lit up and the user
+        // assumed the request never sent. By using the recipient's hat
+        // the badge always reflects the current view; the handler value
+        // remains the fallback for cases where the lookup races / hat
+        // is null. Insert errors no longer swallowed.
         const notifType = mapEventToNotificationType(eventType);
         if (notifType) {
           const deepLink = resolveDeepLink(eventType, payload);
-          serviceClient
-            .from('notifications')
-            .insert({
-              person_id: ctx.recipientPersonId,
-              type: notifType,
-              title: ctx.notification.title,
-              body: ctx.notification.body,
-              deep_link: deepLink,
-              role_context: ctx.roleContext,
-            })
-            .then(() => {});
+          let role = ctx.roleContext;
+          try {
+            const { data: person } = await serviceClient
+              .from('persons')
+              .select('current_hat')
+              .eq('id', ctx.recipientPersonId)
+              .maybeSingle();
+            const hat = (person as { current_hat?: string | null } | null)?.current_hat;
+            if (hat === 'crew' || hat === 'employer' || hat === 'agent') role = hat;
+          } catch {
+            // Fall back to the handler's roleContext if the lookup fails.
+          }
+          const { error: insertErr } = await serviceClient.from('notifications').insert({
+            person_id: ctx.recipientPersonId,
+            type: notifType,
+            title: ctx.notification.title,
+            body: ctx.notification.body,
+            deep_link: deepLink,
+            role_context: role,
+          });
+          if (insertErr) {
+            Sentry.captureException(insertErr, {
+              extra: {
+                context: 'notifyOnEvent in-app insert',
+                eventType,
+                recipientPersonId: ctx.recipientPersonId,
+                role,
+              },
+            });
+          }
         }
 
         // 2. Check push preference for this event category

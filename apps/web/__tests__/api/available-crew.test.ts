@@ -52,30 +52,93 @@ function mockDaywork(data: Record<string, unknown> | null) {
   });
 }
 
-// Helper: mock port query
-function mockPort(data: Record<string, unknown> | null) {
+// Helper: mock origin port query — now returns lat/lng + cities.region_id
+// for the region-scoped matcher (00138 / hybrid scope change). The
+// `cities:city_id(region_id)` embed renders as a nested object in the
+// response.
+function mockPort(
+  data:
+    | { city_id: string; latitude?: number | null; longitude?: number | null; region_id?: string | null }
+    | null,
+) {
+  const shaped = data
+    ? {
+        city_id: data.city_id,
+        latitude: data.latitude ?? 43.5,
+        longitude: data.longitude ?? 7.1,
+        cities: data.region_id ? { region_id: data.region_id } : { region_id: 'region-default' },
+      }
+    : null;
   mockFromAuth.mockReturnValueOnce({
     select: vi.fn().mockReturnValue({
       eq: vi.fn().mockReturnValue({
-        single: vi.fn().mockResolvedValue({ data }),
+        single: vi.fn().mockResolvedValue({ data: shaped }),
       }),
     }),
   });
 }
 
-// Helper: mock availability_windows query
-function mockAvailWindows(data: Record<string, unknown>[]) {
+// Helper: region cities lookup. Fires whenever the origin port has a
+// region_id (which our default mockPort always does). At minimum
+// returns the originating city.
+function mockRegionCities(rows: Array<{ id: string }> = [{ id: 'city-1' }]) {
   mockFromAuth.mockReturnValueOnce({
     select: vi.fn().mockReturnValue({
-      eq: vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data: rows }),
+    }),
+  });
+}
+
+// Helper: availability_windows query — moved to serviceClient (employer
+// can't read other crew's rows under RLS without the bypass; the
+// matcher legitimately needs to discover non-applicants). Now queries
+// with `.in('city_id', regionCityIds)` instead of `.eq()`.
+//
+// Each row needs `port_id` and `created_at` for the new aggregation +
+// tiebreak chain. Tests that don't care can omit them; we backfill.
+function mockAvailWindows(data: Record<string, unknown>[]) {
+  const shaped = data.map((row) => ({
+    port_id: null,
+    created_at: '2026-05-10T00:00:00Z',
+    ...row,
+  }));
+  mockServiceFrom.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           gte: vi.fn().mockReturnValue({
             lte: vi.fn().mockReturnValue({
-              gt: vi.fn().mockResolvedValue({ data }),
+              gt: vi.fn().mockResolvedValue({ data: shaped }),
             }),
           }),
         }),
       }),
+    }),
+  });
+}
+
+// Helper: optional batch lookup for candidate port coords (only fires
+// when at least one candidate has a pinned port_id in their availability
+// rows). Tests using crew with no port_id can skip this entirely.
+function mockPortCoords(
+  rows: Array<{ id: string; latitude: number | null; longitude: number | null }> = [],
+) {
+  mockFromAuth.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ data: rows }),
+    }),
+  });
+}
+
+// Helper: city centroid lookup (only fires when a candidate has no
+// port_id pinned — the route uses the average of their city's port
+// coords as a fallback anchor).
+function mockCityCentroidPorts(
+  rows: Array<{ city_id: string; latitude: number | null; longitude: number | null }> = [],
+) {
+  mockFromAuth.mockReturnValueOnce({
+    select: vi.fn().mockReturnValue({
+      in: vi.fn().mockResolvedValue({ data: rows }),
     }),
   });
 }
@@ -145,14 +208,20 @@ const baseDaywork = {
 
 describe('GET /api/daywork/:id/available-crew', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // mockReset (not clearAllMocks) on both — clearAllMocks leaves
+    // queued mockReturnValueOnce in place across tests, which corrupts
+    // the per-table mock chain when the new region-scoped flow adds
+    // extra calls.
+    mockFromAuth.mockReset();
     mockServiceFrom.mockReset();
+    mockRequireDomainUser.mockReset();
   });
 
   it('returns crew with availability overlap in same city', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
       { person_id: 'c1', date: '2026-04-02', city_id: 'city-1', not_available: false },
@@ -161,6 +230,11 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockExclusions([], []);
     mockProSubs(['c1']);
     mockInvitationCount(0);
+    // No port pin in availWindows → only the city-centroid lookup
+    // fires (and resolves empty since these tests don't care about
+    // distance ordering — distance becomes Infinity, candidates fall
+    // through to position-by-tiebreak).
+    mockCityCentroidPorts([]);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
     ]);
@@ -181,6 +255,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
       { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },
@@ -189,6 +264,11 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockExclusions([{ crew_person_id: 'c1' }], []);
     mockProSubs(['c2']);
     mockInvitationCount(0);
+    // No port pin in availWindows → only the city-centroid lookup
+    // fires (and resolves empty since these tests don't care about
+    // distance ordering — distance becomes Infinity, candidates fall
+    // through to position-by-tiebreak).
+    mockCityCentroidPorts([]);
     mockProfiles([
       { person_id: 'c2', display_name: 'Crew Two', primary_role_id: 'role-deckhand' },
     ]);
@@ -204,6 +284,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
       { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },
@@ -212,6 +293,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockExclusions([], [{ crew_person_id: 'c2' }]);
     mockProSubs(['c1']);
     mockInvitationCount(1);
+    mockCityCentroidPorts([]);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
     ]);
@@ -228,6 +310,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     // u1 (employer) has availability — should be excluded
     mockAvailWindows([
       { person_id: 'u1', date: '2026-04-01', city_id: 'city-1', not_available: false },
@@ -236,6 +319,11 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockExclusions([], []);
     mockProSubs(['c1']);
     mockInvitationCount(0);
+    // No port pin in availWindows → only the city-centroid lookup
+    // fires (and resolves empty since these tests don't care about
+    // distance ordering — distance becomes Infinity, candidates fall
+    // through to position-by-tiebreak).
+    mockCityCentroidPorts([]);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
     ]);
@@ -243,6 +331,9 @@ describe('GET /api/daywork/:id/available-crew', () => {
 
     const res = await GET(new Request('http://localhost'), makeParams('d1'));
     const body = await res.json();
+    if (res.status !== 200) {
+      throw new Error(`route returned ${res.status}: ${JSON.stringify(body)}`);
+    }
     expect(body.crew).toHaveLength(1);
     expect(body.crew[0].person_id).toBe('c1');
   });
@@ -251,6 +342,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
       { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },
@@ -258,6 +350,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockExclusions([], []);
     mockProSubs(['c1', 'c2']);
     mockInvitationCount(0);
+    mockCityCentroidPorts([]);
     // c1 matches role, c2 does not
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
@@ -275,6 +368,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
       { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },
@@ -282,6 +376,11 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockExclusions([], []);
     mockProSubs(['c1', 'c2']);
     mockInvitationCount(0);
+    // No port pin in availWindows → only the city-centroid lookup
+    // fires (and resolves empty since these tests don't care about
+    // distance ordering — distance becomes Infinity, candidates fall
+    // through to position-by-tiebreak).
+    mockCityCentroidPorts([]);
     mockProfiles([
       { person_id: 'c1', display_name: 'Crew One', primary_role_id: 'role-deckhand' },
       { person_id: 'c2', display_name: 'Crew Two', primary_role_id: 'role-engineer' },
@@ -326,6 +425,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
     ]);
@@ -343,6 +443,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
     ]);
@@ -360,6 +461,7 @@ describe('GET /api/daywork/:id/available-crew', () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
     mockDaywork(baseDaywork);
     mockPort({ city_id: 'city-1' });
+    mockRegionCities();
     mockAvailWindows([
       { person_id: 'c1', date: '2026-04-01', city_id: 'city-1', not_available: false },
       { person_id: 'c2', date: '2026-04-01', city_id: 'city-1', not_available: false },

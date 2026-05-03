@@ -19,15 +19,29 @@ export function BottomSheet({
 
   const sheetRef = useRef<HTMLDivElement>(null);
 
+  // Hold the latest onClose in a ref so the effect below can read it
+  // without listing onClose as a dependency. Parents commonly pass an
+  // inline `() => setX(false)` arrow that gets a fresh reference every
+  // render — if onClose was a real dep, the effect would re-run on
+  // every parent render (e.g. the messages page polls context every
+  // 5s), `sheetRef.current?.focus()` would steal focus from any input
+  // the user was typing in, and the user'd lose ~3 chars of typing
+  // each cycle. Same problem broke scroll-wheel time pickers — the
+  // sheet kept yanking focus away from the column.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     }
     document.addEventListener('keydown', handleKeyDown);
     sheetRef.current?.focus();
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

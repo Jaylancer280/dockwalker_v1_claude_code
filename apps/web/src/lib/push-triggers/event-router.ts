@@ -13,6 +13,9 @@ import {
   handleCancelledByEmployer,
   handleDayworkCompleted,
   handlePostponement,
+  handlePostponementResolved,
+  handleCompletionConfirmed,
+  handleCompletionDisputed,
   handleChecklist,
 } from './daywork-handlers';
 import {
@@ -84,6 +87,16 @@ export async function resolveNotification(
 
     case 'ENGAGEMENT.POSTPONEMENT_PROPOSED':
       return handlePostponement(sc, payload);
+
+    case 'ENGAGEMENT.POSTPONEMENT_ACCEPTED':
+    case 'ENGAGEMENT.POSTPONEMENT_REJECTED':
+      return handlePostponementResolved(sc, payload, eventType);
+
+    case 'ENGAGEMENT.COMPLETION_CONFIRMED':
+      return handleCompletionConfirmed(sc, payload, actorPersonId);
+
+    case 'ENGAGEMENT.COMPLETION_DISPUTED':
+      return handleCompletionDisputed(sc, payload);
 
     case 'CHECKLIST.SET':
       return handleChecklist(sc, payload);

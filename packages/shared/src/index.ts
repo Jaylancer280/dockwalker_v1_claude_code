@@ -45,3 +45,5 @@ export {
 } from './cert-matching';
 
 export { type SizeBandRange, vesselSizeRange } from './vessel-size';
+
+export { haversineKm, pointsCentroid } from './distance';

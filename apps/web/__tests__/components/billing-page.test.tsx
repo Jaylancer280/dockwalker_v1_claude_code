@@ -29,8 +29,8 @@ describe('BillingPage', () => {
     const freeCard = await screen.findByText('Free');
     expect(freeCard).toBeDefined();
     expect(screen.getByText('Crew Pro')).toBeDefined();
-    expect(screen.getByText('10 Docky questions/month')).toBeDefined();
-    expect(screen.getByText('500 Docky questions/month')).toBeDefined();
+    expect(screen.getByText(/10 Docky AI questions per month/)).toBeDefined();
+    expect(screen.getByText(/500 Docky AI questions per month/)).toBeDefined();
   });
 
   it('renders employer tier plan cards for employer hat', async () => {
@@ -45,7 +45,7 @@ describe('BillingPage', () => {
     const freeCard = await screen.findByText('Free');
     expect(freeCard).toBeDefined();
     expect(screen.getByText('Employer Pro')).toBeDefined();
-    expect(screen.getByText('Unlimited templates')).toBeDefined();
+    expect(screen.getByText(/Unlimited.*posting templates/)).toBeDefined();
   });
 
   it('shows "Current plan" badge on Free card when no subscription', async () => {

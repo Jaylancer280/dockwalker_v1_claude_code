@@ -14,6 +14,10 @@ export function mapEventToNotificationType(eventType: string): string | null {
     'ENGAGEMENT.WORK_STARTED': 'work_started',
     'ENGAGEMENT.WORK_STARTED_CONFIRMED': 'work_started_confirmed',
     'ENGAGEMENT.POSTPONEMENT_PROPOSED': 'postponement_proposed',
+    'ENGAGEMENT.POSTPONEMENT_ACCEPTED': 'postponement_accepted',
+    'ENGAGEMENT.POSTPONEMENT_REJECTED': 'postponement_rejected',
+    'ENGAGEMENT.COMPLETION_CONFIRMED': 'completion_confirmed',
+    'ENGAGEMENT.COMPLETION_DISPUTED': 'completion_disputed',
     'CHECKLIST.SET': 'checklist_updated',
     'PERMANENT.APPLIED': 'permanent_application_received',
     'PERMANENT.SHORTLISTED': 'permanent_shortlisted',
@@ -58,6 +62,10 @@ export function resolveDeepLink(
     case 'ENGAGEMENT.CANCELLED_BY_EMPLOYER':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'ENGAGEMENT.POSTPONEMENT_PROPOSED':
+    case 'ENGAGEMENT.POSTPONEMENT_ACCEPTED':
+    case 'ENGAGEMENT.POSTPONEMENT_REJECTED':
+    case 'ENGAGEMENT.COMPLETION_CONFIRMED':
+    case 'ENGAGEMENT.COMPLETION_DISPUTED':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;
     case 'CHECKLIST.SET':
       return payload.engagement_id ? `/messages/${payload.engagement_id}` : null;

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
   CheckCircle,
@@ -7,6 +8,7 @@ import {
   XCircle,
   User,
   Flag,
+  Star,
 } from 'lucide-react';
 import type { EngagementContext } from './types';
 
@@ -80,6 +82,15 @@ export function ChatSidebarActions({
         <Flag className="h-4 w-4" />
         Report user
       </Button>
+
+      {isShortlistPhase && isEmployer && permPostingId && (
+        <Button asChild variant="outline" size="sm" className="justify-start gap-2">
+          <Link href={`/permanent/${permPostingId}/review?tab=shortlisted`}>
+            <Star className="h-4 w-4" />
+            Return to shortlist
+          </Link>
+        </Button>
+      )}
 
       {/* B-011: shortlist-phase chats hide all lifecycle actions; only
           View profile + Report user remain. Shortlist-specific actions
