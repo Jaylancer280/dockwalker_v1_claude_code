@@ -166,7 +166,13 @@ function DayworkPostForm() {
   const [locationPortId, setLocationPortId] = useState((draft?.locationPortId as string) ?? '');
   const [startDate, setStartDate] = useState((draft?.startDate as string) ?? '');
   const [endDate, setEndDate] = useState((draft?.endDate as string) ?? '');
-  const todayISO = new Date().toISOString().slice(0, 10);
+  // Local-time today — using toISOString() drops a day for east-of-UTC
+  // users (Türkiye, UAE, etc.) and lets "yesterday" pass form validation
+  // even though the server treats it as a past date.
+  const todayISO = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
   const [workingDayDates, setWorkingDayDates] = useState<string[]>(
     (draft?.workingDayDates as string[]) ?? [],
   );
@@ -205,9 +211,16 @@ function DayworkPostForm() {
     const s = new Date(startDate + 'T00:00:00');
     const e = new Date(endDate + 'T00:00:00');
     if (e < s) return;
+    // Local-date format — toISOString() converts back through UTC and
+    // drops a day for east-of-UTC users (matches the WorkingDayCalendar
+    // fix). Without this, the auto-init wrote dates one day before the
+    // user's selected range.
     const dates: string[] = [];
     for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-      dates.push(d.toISOString().slice(0, 10));
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      dates.push(`${y}-${m}-${dd}`);
     }
     // Only re-initialise if the range changed (not on every render)
     setWorkingDayDates((prev) => {

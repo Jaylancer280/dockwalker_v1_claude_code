@@ -11,13 +11,24 @@ interface WorkingDayCalendarProps {
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+/** Format a Date as YYYY-MM-DD using its local-time fields. Avoids the
+ *  toISOString() trap where east-of-UTC users lose a day on conversion
+ *  (a date constructed at local midnight has a UTC instant earlier in
+ *  the prior day, and slicing toISOString returns that prior day). */
+function toLocalISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 /** Generate all dates (YYYY-MM-DD) between start and end inclusive. */
 function dateRange(start: string, end: string): string[] {
   const dates: string[] = [];
   const s = new Date(start + 'T00:00:00');
   const e = new Date(end + 'T00:00:00');
   for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-    dates.push(d.toISOString().slice(0, 10));
+    dates.push(toLocalISO(d));
   }
   return dates;
 }
@@ -46,7 +57,9 @@ export function WorkingDayCalendar({
 }: WorkingDayCalendarProps) {
   const allDates = useMemo(() => dateRange(startDate, endDate), [startDate, endDate]);
   const selectedSet = useMemo(() => new Set(selectedDates), [selectedDates]);
-  const todayISO = new Date().toISOString().slice(0, 10);
+  // Local-time today, same fix as the range generator — UTC slicing drops
+  // a day for east-of-UTC users and lets "yesterday" look selectable.
+  const todayISO = toLocalISO(new Date());
   const selectableDates = useMemo(
     () => allDates.filter((d) => d >= todayISO),
     [allDates, todayISO],
