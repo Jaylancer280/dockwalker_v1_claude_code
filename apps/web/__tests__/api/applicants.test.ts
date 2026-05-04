@@ -338,4 +338,182 @@ describe('GET /api/daywork/:id/applicants', () => {
     expect(body.applicants[0].available_days).toBe(0);
     expect(body.applicants[0].past_daywork_count).toBe(0);
   });
+
+  it('cert_extras: components used to satisfy a required bundle are NOT extras (Stage 235c)', async () => {
+    // Posting requires AEC 1+2 (the bundle). Applicant holds AEC 1 + AEC 2
+    // separately. After Stage 235c the route should:
+    //   - report cert_match.ok = true (symmetric direction)
+    //   - report cert_extras_ids = [] (the two components are actively
+    //     satisfying the bundle requirement, not over-qualification)
+    const AEC_BUNDLE = 'cert-bundle';
+    const AEC_1 = 'cert-aec-1';
+    const AEC_2 = 'cert-aec-2';
+
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    // daywork query — requires the bundle
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'd1',
+              poster_person_id: 'u1',
+              start_date: '2026-04-01',
+              end_date: '2026-04-05',
+              required_certification_ids: [AEC_BUNDLE],
+            },
+          }),
+        }),
+      }),
+    });
+    // applications query — applicant holds the two components separately
+    const apps = [
+      {
+        id: 'a1',
+        crew_person_id: 'c1',
+        status: 'applied',
+        created_at: '2026-03-01',
+        profiles: { certification_ids: [AEC_1, AEC_2] },
+      },
+    ];
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: apps, error: null }),
+          }),
+        }),
+      }),
+    });
+    // 4 parallel queries: availability, engagements, shore, bundles
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          gt: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      }),
+    });
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      }),
+    });
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
+    // certification_components — bundle map (the pivotal mock)
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockResolvedValue({
+        data: [
+          { bundle_cert_id: AEC_BUNDLE, component_cert_id: AEC_1 },
+          { bundle_cert_id: AEC_BUNDLE, component_cert_id: AEC_2 },
+        ],
+      }),
+    });
+
+    const res = await GET(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.applicants).toHaveLength(1);
+    expect(body.applicants[0].cert_match?.ok).toBe(true);
+    expect(body.applicants[0].cert_match?.missing_count).toBe(0);
+    // The two components actively satisfy the bundle — not extras.
+    expect(body.applicants[0].cert_extras_ids).toEqual([]);
+    expect(body.applicants[0].cert_extras).toBe(0);
+  });
+
+  it('cert_extras: partial component holding leaves bundle missing AND keeps the held component as extra', async () => {
+    // Posting requires AEC 1+2. Applicant only holds AEC 1. The bundle
+    // stays unsatisfied (1-of-2 doesn't pass `every`), AND because AEC 1
+    // alone doesn't cover the AEC 1+2 bundle requirement on its own
+    // (direction 1 needs the bundle holding), AEC 1 isn't directly used.
+    // Expected: cert_match.ok = false, cert_extras_ids = [] still (because
+    // direction-2 partial set means the candidate isn't qualified at all,
+    // and the route's logic treats AEC 1 as not covering anything).
+    // Actually: with partial coverage, the direction-2 check fails, and
+    // direction-1 (bundles[c]) returns undefined for AEC 1 (it's not a
+    // bundle). The component IS still in the candidate's set, but it's
+    // not contributing to a satisfied requirement. Per the route logic
+    // it stays in extras since it doesn't match any requirement directly
+    // or via either bundle direction.
+    const AEC_BUNDLE = 'cert-bundle';
+    const AEC_1 = 'cert-aec-1';
+    const AEC_2 = 'cert-aec-2';
+
+    mockRequireDomainUser.mockResolvedValue(guardOk());
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({
+            data: {
+              id: 'd1',
+              poster_person_id: 'u1',
+              start_date: '2026-04-01',
+              end_date: '2026-04-05',
+              required_certification_ids: [AEC_BUNDLE],
+            },
+          }),
+        }),
+      }),
+    });
+    const apps = [
+      {
+        id: 'a1',
+        crew_person_id: 'c1',
+        status: 'applied',
+        created_at: '2026-03-01',
+        profiles: { certification_ids: [AEC_1] },
+      },
+    ];
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            order: vi.fn().mockResolvedValue({ data: apps, error: null }),
+          }),
+        }),
+      }),
+    });
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          gt: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      }),
+    });
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: [] }),
+        }),
+      }),
+    });
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockReturnValue({
+        in: vi.fn().mockResolvedValue({ data: [] }),
+      }),
+    });
+    mockFromAuth.mockReturnValueOnce({
+      select: vi.fn().mockResolvedValue({
+        data: [
+          { bundle_cert_id: AEC_BUNDLE, component_cert_id: AEC_1 },
+          { bundle_cert_id: AEC_BUNDLE, component_cert_id: AEC_2 },
+        ],
+      }),
+    });
+
+    const res = await GET(new Request('http://localhost'), makeParams('d1'));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.applicants[0].cert_match?.ok).toBe(false);
+    expect(body.applicants[0].cert_match?.missing_count).toBe(1);
+    // AEC 1 alone does NOT satisfy the bundle, but it's still in the
+    // candidate's holdings — the route reports it as an extra because
+    // it's not contributing to any satisfied requirement.
+    expect(body.applicants[0].cert_extras_ids).toEqual([AEC_1]);
+  });
 });
