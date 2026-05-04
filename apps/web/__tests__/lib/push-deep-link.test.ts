@@ -1,9 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-
-vi.mock('@capacitor/core', () => ({
-  Capacitor: { isNativePlatform: () => false, getPlatform: () => 'web' },
-}));
-
+import { describe, it, expect } from 'vitest';
 import { resolveDeepLinkUrl } from '@/lib/push-notifications';
 
 describe('resolveDeepLinkUrl', () => {
