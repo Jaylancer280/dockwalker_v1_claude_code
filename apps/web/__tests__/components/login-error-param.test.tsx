@@ -8,8 +8,10 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => {
-    const { fill, priority, ...rest } = props;
-    return <img {...rest} />;
+    // Strip next/image-specific props so they don't bleed onto the DOM <img>.
+    const { fill: _fill, priority: _priority, alt, ...rest } = props;
+    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+    return <img alt={typeof alt === 'string' ? alt : ''} {...rest} />;
   },
 }));
 

@@ -18,6 +18,7 @@ vi.mock('@/lib/supabase/client', () => ({
 }));
 
 vi.mock('next/image', () => ({
+  // eslint-disable-next-line @next/next/no-img-element
   default: (props: { alt: string }) => <img alt={props.alt} />,
 }));
 
