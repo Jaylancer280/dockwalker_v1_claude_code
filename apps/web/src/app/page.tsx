@@ -30,8 +30,8 @@ export default function LandingPage() {
               Superyacht hiring, simplified.
             </p>
             <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-[var(--muted-foreground)] md:max-w-md md:text-[16px]">
-              Swipe through live daywork postings. Apply for permanent roles. Connect directly with
-              vessels — every job is publicly applyable, sorted by recency.
+              Browse live daywork postings. Apply for permanent roles. Connect directly with vessels
+              — every job is publicly applyable, sorted by recency.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center md:justify-start">
               <Button asChild size="lg" className="rounded-full px-8">
@@ -118,8 +118,8 @@ export default function LandingPage() {
                 Short-term daywork cover
               </h2>
               <p className="mt-1 text-[13px] text-[var(--muted-foreground)]">
-                Swipe through live postings and lock in 1-14 day engagements in seconds — no CV
-                uploads, no agency calls.
+                Browse live postings and lock in 1-14 day engagements in seconds — no CV uploads, no
+                agency calls.
               </p>
             </div>
           </div>

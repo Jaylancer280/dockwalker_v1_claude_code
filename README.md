@@ -1,6 +1,6 @@
 # DockWalker
 
-A hyper-focused, two-sided, real-time daywork hiring app for the superyacht industry. Crew seeking short-term work (1-14 day engagements) are matched with employers who need immediate cover via a Tinder-like swipe mechanic.
+A hyper-focused, two-sided, real-time hiring app for the superyacht industry. Crew browse short-term daywork (1-14 day engagements) and permanent positions in a tap-to-apply discovery feed; employers review applicants and shortlist candidates via a swipe-stack on the review page.
 
 For the full product mission, design principles, and assessment criteria, see [DockWalker Mission](./dockwalker_mission.md).
 
