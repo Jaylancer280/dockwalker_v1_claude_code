@@ -639,6 +639,10 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
 - **Voice calling — green-field re-add when prioritised.** Subsystem deleted 2026-04-30 per audit P0-4 (the dead-code stance was a launch-day liability — `pendingOffer` from another tab could flip a chat into ringing state with no decline path). Phone button in chat header keeps its Coming-Soon toast. When re-adding: (1) managed RTC provider, LiveKit Cloud preferred over hand-rolled WebRTC (SFU routing, call history, recording); (2) build behind a feature flag mirroring `CV_BUILDER_ENABLED`; (3) add `CALL.STARTED`/`CALL.ENDED` events to the ledger at the same time as the UI (the prior implementation only recorded `MESSAGE.SENT` — audit-trail gap); (4) browser QA matrix (Chrome/Firefox/Safari, glare resolution, network drops, backgrounded tab, multi-tab, offline user); (5) gate on `isPermanent && status === 'active'` for the call button.
 
+### React Compiler readiness
+
+- **Adopt the 4 React Compiler rules disabled in eslint.config.mjs.** When `eslint-config-next` bumped 16.1.6 → 16.2.4 alongside the next security patch (Round 5 minors, 2026-05-04), four new rules surfaced 26 pre-existing patterns across 12 files: `react-hooks/set-state-in-effect` (~17 occurrences — fetch-in-useEffect-then-setState pattern across pages), `react-hooks/static-components` (5 in `onboarding/page.tsx` defining components inside render), `react-hooks/refs` (3 — context provider value object + use-toast.ts), `react-hooks/immutability` (1 in `docky/page.tsx`). All currently `off`. Real fix is to migrate file-by-file; turn each rule back on as files are migrated. Most actionable target first: extract the 5 `onboarding/page.tsx` inline components to top-level (real anti-pattern, remounts on every render).
+
 ### Business logic / server-side
 
 - **Permanent crew withdrawal auto-revert** — employer should decide next step, not auto-revert.

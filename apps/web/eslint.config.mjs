@@ -28,6 +28,17 @@ const eslintConfig = defineConfig([
           destructuredArrayIgnorePattern: "^_",
         },
       ],
+      // Disabled when eslint-config-next bumped 16.1.6 → 16.2.4 alongside
+      // the next security patch (HTTP smuggling / CSRF advisories). 16.2's
+      // config newly enables React Compiler readiness rules that flagged
+      // 26 pre-existing patterns across 12 files — too broad a refactor
+      // to bundle with a security bump. Tracked as a deliberate
+      // React-Compiler-readiness pass; turn back on per-rule as files
+      // are migrated.
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/static-components": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/immutability": "off",
     },
   },
 ]);
