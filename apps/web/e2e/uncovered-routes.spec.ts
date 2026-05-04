@@ -100,9 +100,7 @@ crewTest.describe('Docky AI — Interaction', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Should show either "X of Y" usage or "Pro" badge
-    const hasUsage = await page.getByText(/of \d|pro|free/i).first().isVisible().catch(() => false);
-    // Screenshot captures the state for manual review
+    // Screenshot captures whether "X of Y" usage or "Pro" badge renders.
     await expect(page).toHaveScreenshot('docky-usage-state.png', { fullPage: true });
   });
 
@@ -111,10 +109,7 @@ crewTest.describe('Docky AI — Interaction', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Look for + or "New" button to create conversation
-    const newBtn = page.getByRole('button', { name: /new|add|\+/i }).first()
-      .or(page.locator('a[href*="/docky"]').filter({ hasText: /new|\+/i }).first());
-
+    // Screenshot captures the "+ New" button position for visual review.
     await expect(page).toHaveScreenshot('docky-new-conversation-btn.png', { fullPage: false });
   });
 });
@@ -128,11 +123,8 @@ crewTest.describe('Settings — Notification Toggles', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Should show notification preference toggles
-    const hasJobs = await page.getByText(/jobs|daywork/i).isVisible().catch(() => false);
-    const hasApplications = await page.getByText(/application/i).isVisible().catch(() => false);
-    const hasMessages = await page.getByText(/message/i).isVisible().catch(() => false);
-
+    // Screenshot captures whether notification preference toggles (jobs,
+    // applications, messages) render on the settings page.
     await expect(page).toHaveScreenshot('settings-notifications-section.png', { fullPage: true });
   });
 });
@@ -143,10 +135,8 @@ crewTest.describe('Settings — Preferences', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Should show unit preference dropdowns
-    const hasDistance = await page.getByText(/distance|km|miles|nautical/i).first().isVisible().catch(() => false);
-    const hasCurrency = await page.getByText(/currency|EUR|USD/i).first().isVisible().catch(() => false);
-
+    // Screenshot captures whether distance + currency unit preference
+    // dropdowns render on the settings page.
     await expect(page).toHaveScreenshot('settings-preferences-section.png', { fullPage: true });
   });
 });
@@ -160,9 +150,8 @@ crewTest.describe('Settings — Account Deletion Flow', () => {
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(1000);
 
-    const hasDanger = await page.getByText(/danger|delete.*account|deactivate/i).first().isVisible().catch(() => false);
-    const hasExport = await page.getByText(/export.*data/i).first().isVisible().catch(() => false);
-
+    // Screenshot captures the danger zone (delete account, export data) at
+    // the bottom of settings.
     await expect(page).toHaveScreenshot('settings-danger-zone.png', { fullPage: true });
   });
 });

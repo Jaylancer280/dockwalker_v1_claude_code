@@ -84,8 +84,7 @@ crewTest.describe('Discover — Permanent Feed Content', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(1000);
 
-      // PM-01 has €5,000-7,000/month — check salary format renders
-      const hasSalary = await page.getByText(/€.*month|\/month/i).first().isVisible().catch(() => false);
+      // Screenshot captures whether €X/month salary format renders — visual review.
       await expect(page).toHaveScreenshot('permanent-feed-cards.png', { fullPage: true });
     }
   });
@@ -99,9 +98,6 @@ agentTest.describe('Agent Market Feed — Filters', () => {
     await page.goto('/discover/market');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
-
-    const filterBtn = page.locator('[class*="filter"], button').filter({ hasText: /filter/i }).first()
-      .or(page.locator('svg').filter({ has: page.locator('[class*="sliders"]') }).first());
 
     // Try the filter icon in the header
     const headerFilter = page.locator('header button, header a').last();
@@ -243,8 +239,7 @@ employerTest.describe('My Jobs — Full Tab Navigation', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(1000);
 
-      // Should show at least the seeded template "Standard Deckhand - Antibes"
-      const hasTemplate = await page.getByText(/standard deckhand|antibes/i).first().isVisible().catch(() => false);
+      // Screenshot captures whether the seeded "Standard Deckhand - Antibes" template renders.
       await expect(page).toHaveScreenshot('my-jobs-templates-detail.png', { fullPage: true });
     }
   });

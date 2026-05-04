@@ -29,7 +29,7 @@ const crewTest = base.extend({
 // ============================================================
 employerTest.describe('Invalid URLs — Employer', () => {
   employerTest('invalid daywork ID shows error or 404', async ({ page }) => {
-    const response = await page.goto('/daywork/00000000-0000-0000-0000-000000000000/review');
+    await page.goto('/daywork/00000000-0000-0000-0000-000000000000/review');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
     // Should not show a white screen or unhandled error
@@ -59,7 +59,7 @@ crewTest.describe('Invalid URLs — Crew', () => {
   });
 
   crewTest('completely garbage URL under app routes', async ({ page }) => {
-    const response = await page.goto('/daywork/not-a-uuid/review');
+    await page.goto('/daywork/not-a-uuid/review');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
     await expect(page).toHaveScreenshot('error-garbage-url-crew.png', { fullPage: true });
@@ -153,12 +153,7 @@ employerTest.describe('Hat Switching — Employer to Crew', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // Look for the hat switcher component
-    const hatSwitcher = page.getByText(/crew|employer/i).filter({ hasText: /⇄|switch|↔/ }).first()
-      .or(page.locator('[class*="hat-switch"], [class*="hatSwitch"]').first())
-      .or(page.getByRole('button', { name: /crew/i }).first());
-
-    // Screenshot the page to see if hat switcher is visible
+    // Screenshot captures whether the hat switcher is visible — visual review.
     await expect(page).toHaveScreenshot('hat-switcher-employer-view.png', { fullPage: false });
   });
 

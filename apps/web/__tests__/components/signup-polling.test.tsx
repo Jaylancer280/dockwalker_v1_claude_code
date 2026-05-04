@@ -25,7 +25,7 @@ vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => {
     // Strip next/image-specific props so they don't bleed onto the DOM <img>.
     const { fill: _fill, priority: _priority, alt, ...rest } = props;
-    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+    // eslint-disable-next-line @next/next/no-img-element
     return <img alt={typeof alt === 'string' ? alt : ''} {...rest} />;
   },
 }));

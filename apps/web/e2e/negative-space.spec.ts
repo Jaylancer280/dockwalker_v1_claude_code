@@ -41,8 +41,6 @@ const unboardedTest = base.extend({
 const PM_CERT_GATED = '55555555-5555-5555-5555-555555555007'; // Requires Food Safety cert (e006)
 const DW_NDA = '44444444-4444-4444-4444-444444444002'; // NDA vessel (Phantom)
 const PM_NDA = '55555555-5555-5555-5555-555555555003'; // NDA vessel (Phantom), shortlisted
-const DW_APPLIED_PENDING = '44444444-4444-4444-4444-444444444004'; // Applied but not accepted — no messaging
-const PM_APPLIED_PENDING = '55555555-5555-5555-5555-555555555002'; // Applied but not selected — no messaging
 
 // ============================================================
 // 1. CERT HARD-GATE — Crew cannot apply to permanent job missing certs
@@ -53,13 +51,8 @@ crewTest.describe('Negative: Cert Hard-Gate (Permanent)', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1000);
 
-    // The page should show the posting but with a cert block indicator
-    // The Apply button should be disabled, absent, or show missing certs
-    const applyBtn = page.getByRole('button', { name: /apply/i });
-    const certBlock = page.getByText(/missing|required|cannot apply|blocked/i).first();
-    const foodSafetyCert = page.getByText(/food safety/i).first();
-
-    // Screenshot to verify the cert gate UI
+    // Screenshot captures the cert-gate UI (Apply button disabled, "missing"
+    // text, Food Safety cert highlighted) for visual review.
     await expect(page).toHaveScreenshot('neg-cert-gate-crew-pm07.png', { fullPage: true });
 
     // KNOWN ISSUE (SUG-001): The review page shows employer UI to crew.
