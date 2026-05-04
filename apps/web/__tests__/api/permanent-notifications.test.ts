@@ -67,11 +67,6 @@ function chain(data: any) {
   return c;
 }
 
-/** Chain that returns null (no row found) — used for user_preferences default */
-function emptyChain() {
-  return chain(null);
-}
-
 import { notifyOnEvent } from '@/lib/push-triggers';
 
 describe('Permanent notification triggers', () => {

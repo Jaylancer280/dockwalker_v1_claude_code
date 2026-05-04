@@ -51,7 +51,6 @@ export async function GET(request: Request) {
     const rows = vessels.map((v) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const flagStates = (v as any).flag_states as { name: string } | null | undefined;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { flag_states: _omit, ...rest } = v as Record<string, unknown>;
       return {
         ...rest,

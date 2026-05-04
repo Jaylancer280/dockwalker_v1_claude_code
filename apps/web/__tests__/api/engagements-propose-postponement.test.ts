@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextResponse } from 'next/server';
 
 const mockRequireDomainUser = vi.fn();
 vi.mock('@/lib/auth/require-domain-user', () => ({

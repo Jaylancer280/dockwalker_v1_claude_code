@@ -4,12 +4,10 @@ import { renderHook, act } from '@testing-library/react';
 type SubscribeCallback = (status: string) => void;
 type ChangeCallback = (payload: { new: unknown }) => void;
 
-let subscribeCallback: SubscribeCallback | null = null;
 let changeCallback: ChangeCallback | null = null;
 
 const mockRemoveChannel = vi.fn();
-const mockSubscribe = vi.fn().mockImplementation((cb: SubscribeCallback) => {
-  subscribeCallback = cb;
+const mockSubscribe = vi.fn().mockImplementation((_cb: SubscribeCallback) => {
   return { unsubscribe: vi.fn() };
 });
 const mockOn = vi.fn().mockImplementation(
@@ -32,7 +30,6 @@ import { useRealtimeMessages } from '@/hooks/use-realtime-messages';
 describe('useRealtimeMessages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    subscribeCallback = null;
     changeCallback = null;
   });
 

@@ -37,7 +37,7 @@ export function ContactReferenceDialog({
   refereeDisplayName,
   remainingMonthly,
 }: ContactReferenceDialogProps) {
-  const { showError, showSuccess } = useToast();
+  const { showSuccess } = useToast();
   const questionId = useId();
   const [question, setQuestion] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);

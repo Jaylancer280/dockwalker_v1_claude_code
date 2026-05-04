@@ -26,10 +26,10 @@ const service = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-// Seed data IDs
-const EMPLOYER_ID = '11111111-1111-1111-1111-111111111111'; // owns vessels
+// Seed data IDs (some present for fixture documentation only)
+const _EMPLOYER_ID = '11111111-1111-1111-1111-111111111111'; // owns vessels
 const CREW_ID = '22222222-2222-2222-2222-222222222222'; // has experience on NDA vessel
-const CREW2_ID = '77777777-7777-7777-7777-777777777777'; // no engagement or experience on NDA vessel
+const _CREW2_ID = '77777777-7777-7777-7777-777777777777'; // no engagement or experience on NDA vessel
 const VESSEL_SERENITY = '33333333-3333-3333-3333-333333333333'; // non-NDA, owned by employer
 const VESSEL_PHANTOM = '33333333-3333-3333-3333-333333333334'; // NDA, owned by employer
 const VESSEL_WANDERER = '33333333-3333-3333-3333-333333333335'; // non-NDA, owned by crew
@@ -91,7 +91,7 @@ describe('Non-NDA vessel access', () => {
 // ===========================================================================
 describe('NDA vessel restrictions', () => {
   it('crew2 (no engagement, no experience) cannot read NDA vessel', async () => {
-    const { data, error } = await crew2Client
+    const { data } = await crew2Client
       .from('vessels')
       .select('id, name')
       .eq('id', VESSEL_PHANTOM)

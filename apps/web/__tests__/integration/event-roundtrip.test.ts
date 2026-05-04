@@ -41,8 +41,6 @@ const DAYWORK_1_ID = '44444444-4444-4444-4444-444444444001';
 // Canonical lookup IDs (from 001_canonical_data.sql)
 const ROLE_CAPTAIN = 'd0000000-0000-0000-0000-000000000001';
 const PORT_VAUBAN = 'c0000000-0000-0000-0000-000000000001';
-const EXP_BRACKET_3 = 'f0000000-0000-0000-0000-000000000003';
-const CERT_STCW = 'e0000000-0000-0000-0000-000000000001';
 const SIZE_BAND_4 = 'f1000000-0000-0000-0000-000000000004';
 
 // ---------------------------------------------------------------------------
@@ -680,8 +678,6 @@ describe('Experience auto-derivation', () => {
   const EXP_ID_2 = crypto.randomUUID();
   const EXP_BRACKET_GREEN = 'f0000000-0000-0000-0000-000000000001';
   const EXP_BRACKET_6_12 = 'f0000000-0000-0000-0000-000000000002';
-  const SIZE_BAND_3 = 'f1000000-0000-0000-0000-000000000003';
-
   // Clean up before each test
   async function cleanExperiences() {
     await service.from('crew_experiences').delete().eq('person_id', CREW_ID);
@@ -1536,8 +1532,6 @@ describe('Checklist events', () => {
 // ===========================================================================
 describe('Invitation aggregate_type roundtrip', () => {
   const INV_DAYWORK_ID = '44444444-4444-4444-4444-444444444008';
-  const INV_ID = 'aaaa0000-0000-0000-0000-000000000099';
-
   it('DAYWORK.INVITED creates a pending invitation', async () => {
     // Clean up from previous runs
     await service.from('daywork_invitations').delete().eq('daywork_id', INV_DAYWORK_ID).eq('crew_person_id', CREW_ID);
@@ -1663,7 +1657,6 @@ describe('Permanent jobs roundtrip', () => {
   // Random UUIDs — re-runnable without db reset
   const PERM_POSTING_ID = crypto.randomUUID();
   const PERM_APP_ID = crypto.randomUUID();
-  const PERM_APP_ID_2 = crypto.randomUUID();
   const PERM_ENG_ID = crypto.randomUUID();
   let PERM_AGG: string;
 

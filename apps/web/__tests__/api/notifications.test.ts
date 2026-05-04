@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { GET as NotificationsGET } from '@/app/api/notifications/route';
 import { POST as ReadPOST } from '@/app/api/notifications/read/route';
 import { POST as ReadGroupPOST } from '@/app/api/notifications/read-group/route';
-import { GET as CountGET } from '@/app/api/notifications/count/route';
 import { POST as MessageReadPOST } from '@/app/api/messages/[engagementId]/read/route';
 
 const mockRequireDomainUser = vi.fn();

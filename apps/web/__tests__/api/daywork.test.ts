@@ -122,7 +122,7 @@ describe('POST /api/daywork', () => {
   it('returns 400 when dayRate is missing', async () => {
     mockRequireDomainUser.mockResolvedValue(guardOk());
 
-    const { dayRate: _, ...bodyWithoutDayRate } = validBody;
+    const { dayRate: _dayRate, ...bodyWithoutDayRate } = validBody;
     const res = await POST(makeRequest(bodyWithoutDayRate));
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -170,7 +170,7 @@ describe('POST /api/daywork', () => {
     setupFkMocks();
     mockRpc.mockResolvedValueOnce({ error: null });
 
-    const { currency: _, ...bodyWithoutCurrency } = validBody;
+    const { currency: _currency, ...bodyWithoutCurrency } = validBody;
     const res = await POST(makeRequest(bodyWithoutCurrency));
     expect(res.status).toBe(201);
     expect(mockRpc).toHaveBeenCalledWith(

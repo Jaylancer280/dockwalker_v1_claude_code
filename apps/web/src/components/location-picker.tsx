@@ -40,7 +40,6 @@ export interface LocationPickerProps {
   onValueChange: (value: LocationValue) => void;
   placeholder?: string;
   disabled?: boolean;
-  required?: boolean;
 }
 
 interface LabelCache {
@@ -68,7 +67,6 @@ export function LocationPicker({
   onValueChange,
   placeholder,
   disabled,
-  required,
 }: LocationPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -416,7 +414,6 @@ export function LocationPicker({
       type="button"
       onClick={() => setOpen(true)}
       disabled={disabled}
-      aria-required={required || undefined}
       aria-haspopup="dialog"
       aria-expanded={open}
       className="flex w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 dark:bg-input/30 dark:hover:bg-input/50"

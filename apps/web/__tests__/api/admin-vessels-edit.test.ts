@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextResponse } from 'next/server';
 import { PATCH } from '@/app/api/admin/vessels/[id]/route';
 
 const mockRequireAdmin = vi.fn();

@@ -16,7 +16,6 @@ vi.mock('@/lib/push-triggers', () => ({
 }));
 
 const mockFromAuth = vi.fn();
-const mockFromService = vi.fn();
 
 function guardOk(userId = 'emp1') {
   return {

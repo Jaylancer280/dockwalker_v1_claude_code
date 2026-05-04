@@ -687,7 +687,6 @@ function DayworkPostForm() {
               setLocationPortId(v.portId ?? '');
               clearFieldError('location');
             }}
-            required
           />
           {fieldErrors.location && (
             <p className="text-xs text-destructive">{fieldErrors.location}</p>

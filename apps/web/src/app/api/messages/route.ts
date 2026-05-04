@@ -143,7 +143,6 @@ export async function GET() {
         nowMs - endMs > OVERDUE_GRACE_MS;
 
       // Strip person_ids from response — not needed by frontend, prevents identity leaks
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { crew_person_id: _c, employer_person_id: _e, ...rest } = eng;
 
       return {

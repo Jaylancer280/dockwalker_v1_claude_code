@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextResponse } from 'next/server';
 import { GET } from '@/app/api/daywork/invitations/route';
 
 const mockRequireDomainUser = vi.fn();

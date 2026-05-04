@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { NextResponse } from 'next/server';
 import { GET } from '@/app/api/daywork/[id]/available-crew/route';
 
 const mockRequireDomainUser = vi.fn();
@@ -113,19 +112,6 @@ function mockAvailWindows(data: Record<string, unknown>[]) {
           }),
         }),
       }),
-    }),
-  });
-}
-
-// Helper: optional batch lookup for candidate port coords (only fires
-// when at least one candidate has a pinned port_id in their availability
-// rows). Tests using crew with no port_id can skip this entirely.
-function mockPortCoords(
-  rows: Array<{ id: string; latitude: number | null; longitude: number | null }> = [],
-) {
-  mockFromAuth.mockReturnValueOnce({
-    select: vi.fn().mockReturnValue({
-      in: vi.fn().mockResolvedValue({ data: rows }),
     }),
   });
 }

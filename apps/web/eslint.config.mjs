@@ -13,6 +13,23 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Treat `_`-prefixed args/vars as intentional skips. Used widely in
+  // test mocks where Supabase chain callbacks receive a table argument
+  // we don't read, and in destructuring patterns where one branch is
+  // unused. Without this opt-out we'd churn on cosmetic warnings.
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          destructuredArrayIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
