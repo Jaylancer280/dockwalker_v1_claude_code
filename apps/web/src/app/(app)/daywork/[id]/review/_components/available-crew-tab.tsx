@@ -2,9 +2,10 @@
 
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { hapticMedium, hapticLight } from '@/lib/haptics';
-import { MapPin, Award, Calendar, X, User, Send, Users } from 'lucide-react';
+import { MapPin, Award, Calendar, X, Send, Users, ExternalLink } from 'lucide-react';
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar } from '@/components/avatar';
 import { EpauletteBadge } from '@/components/epaulette-badge';
@@ -138,24 +139,34 @@ export function AvailableCrewTab({
         )}
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons — match the daywork applicants tab pattern
+          (full-width text buttons) instead of the legacy icon-only
+          circular swipe icons. Same affordance, but reads as actionable
+          text rather than an inscrutable red ✕ / green plane. */}
       {!availableLoading && topCard && visibleAvailable.length > 0 && (
-        <div className="flex items-center justify-center gap-6 pb-4">
-          <button
+        <div className="mx-auto flex w-full max-w-md gap-3 pb-4">
+          <Button
+            variant="destructive"
+            size="lg"
+            className="h-12 flex-1 text-sm"
             onClick={() => handlePass(topCard.person_id)}
             disabled={acting}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--destructive)] text-[var(--destructive)] transition-colors hover:bg-[var(--destructive)] hover:text-white disabled:opacity-50"
+            aria-label="Show next crew member"
           >
-            <X className="h-6 w-6" />
-          </button>
-          <button
+            <X className="mr-1.5 h-4 w-4" />
+            Show next
+          </Button>
+          <Button
+            size="lg"
+            className="h-12 flex-1 bg-[var(--success)] text-sm text-white hover:brightness-[1.08]"
             onClick={() => requestInvite(topCard)}
             disabled={acting || inviteLimitReached}
-            className="flex h-14 w-14 items-center justify-center rounded-full border-2 border-[var(--success)] text-[var(--success)] transition-colors hover:bg-[var(--success)] hover:text-white disabled:opacity-50"
+            aria-label={inviteLimitReached ? 'Invitation limit reached' : 'Invite this crew member'}
             title={inviteLimitReached ? 'Invitation limit reached' : 'Invite'}
           >
-            <Send className="h-6 w-6" />
-          </button>
+            <Send className="mr-1.5 h-4 w-4" />
+            Invite
+          </Button>
         </div>
       )}
 
@@ -266,17 +277,8 @@ export function AvailableCrewCard({
                 )}
                 {crew.display_name ?? 'Unknown'}
               </h3>
-              {!isPreview && onViewProfile && (
-                <button
-                  className="ml-auto p-2 -m-2 text-muted-foreground hover:text-primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewProfile(crew.person_id);
-                  }}
-                >
-                  <User className="h-4 w-4" />
-                </button>
-              )}
+              {/* View-profile affordance lives on the card footer (below)
+                  to fill the empty bottom area; header stays clean. */}
             </div>
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               <span>{crew.yacht_roles?.name ?? 'No primary role'}</span>
@@ -392,6 +394,25 @@ export function AvailableCrewCard({
         )}
 
         <div className="flex-1" />
+
+        {/* Footer — anchors a "View full profile" CTA at the bottom
+            so the fixed-height swipe stack doesn't render with dead
+            whitespace when the candidate's bio + cert/lang counts are
+            short. Mirrors the applicants card "Applied X days ago"
+            footer pattern. */}
+        {!isPreview && onViewProfile && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewProfile(crew.person_id);
+            }}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-[var(--border)] bg-[var(--surface)] py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:border-[var(--border-hi)] hover:text-foreground"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            View full profile
+          </button>
+        )}
       </div>
     </div>
   );
