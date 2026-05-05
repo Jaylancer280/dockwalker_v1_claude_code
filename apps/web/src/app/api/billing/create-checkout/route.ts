@@ -41,25 +41,31 @@ export async function POST(request: Request) {
 
     const origin = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
-    // Check for existing subscription row with stripe_customer_id
-    const { data: existingSub } = await supabase
+    // Look up existing customer_id from any of the user's rows. B-014: a
+    // single person can hold up to 3 rows (free + crew_pro + employer_pro)
+    // — all share the same stripe_customer_id, so any row is fine for the
+    // lookup. `.limit(1)` makes this multi-row-safe.
+    const { data: existingRows } = await supabase
       .from('subscriptions')
       .select('stripe_customer_id')
       .eq('person_id', user.id)
-      .single();
+      .limit(1);
+    const existingCustomerId = existingRows?.[0]?.stripe_customer_id;
 
     let customerId: string;
 
-    if (existingSub?.stripe_customer_id) {
-      customerId = existingSub.stripe_customer_id;
+    if (existingCustomerId) {
+      customerId = existingCustomerId;
     } else {
-      // Create Stripe customer
+      // Create Stripe customer + insert the 'free' anchor row.
       const customer = await stripe.customers.create({
         metadata: { person_id: user.id },
       });
       customerId = customer.id;
 
-      // Upsert subscription row with customer ID
+      // B-014: upsert key is (person_id, plan) so the 'free' anchor row
+      // never overwrites a pre-existing pro row (it just inserts the
+      // 'free' row if missing, idempotent otherwise).
       await serviceClient.from('subscriptions').upsert(
         {
           person_id: user.id,
@@ -68,7 +74,7 @@ export async function POST(request: Request) {
           status: 'active',
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'person_id' },
+        { onConflict: 'person_id,plan' },
       );
     }
 

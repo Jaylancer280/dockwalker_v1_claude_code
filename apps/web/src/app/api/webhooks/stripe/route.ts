@@ -40,14 +40,19 @@ export async function POST(request: Request) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
-        // Resolve person_id: session metadata (primary), then DB lookup by stripe_customer_id (fallback)
+        // Resolve person_id: session metadata (primary), then DB lookup by
+        // stripe_customer_id (fallback). B-014: customer_id may now appear
+        // on up to 3 rows per person (free + crew_pro + employer_pro), so
+        // `.limit(1).maybeSingle()` extracts any one row safely. The
+        // person_id is the same across all rows.
         let personId = session.metadata?.person_id;
         if (!personId) {
           const { data: existing } = await serviceClient
             .from('subscriptions')
             .select('person_id')
             .eq('stripe_customer_id', customerId)
-            .single();
+            .limit(1)
+            .maybeSingle();
           personId = existing?.person_id;
         }
 
@@ -58,6 +63,10 @@ export async function POST(request: Request) {
         const priceId = item?.price.id;
         const plan = mapPriceToPlan(priceId);
 
+        // B-014: upsert key is (person_id, plan) so a second checkout
+        // for a different plan inserts a new row instead of overwriting
+        // the existing pro tier. Re-subscribing to the same plan still
+        // updates that one row in place.
         await serviceClient.from('subscriptions').upsert(
           {
             person_id: personId,
@@ -78,7 +87,7 @@ export async function POST(request: Request) {
               : null,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'person_id' },
+          { onConflict: 'person_id,plan' },
         );
         break;
       }
