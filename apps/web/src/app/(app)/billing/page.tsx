@@ -7,9 +7,16 @@ import { LoadingSpinner } from '@/components/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { safeFetch } from '@/lib/safe-fetch';
 
+interface SubscriptionEntry {
+  status: string;
+  current_period_end: string | null;
+}
+
 interface BillingStatus {
-  plan: string | null;
-  status: string | null;
+  subscriptions: {
+    crew_pro: SubscriptionEntry | null;
+    employer_pro: SubscriptionEntry | null;
+  };
   current_hat: string | null;
 }
 
@@ -88,10 +95,18 @@ function BillingContent() {
   const hat = billing?.current_hat ?? 'crew';
   const tier = hat === 'crew' ? CREW_TIER : EMPLOYER_TIER;
 
-  const isActive = billing?.status === 'active' || billing?.status === 'trialing';
-  const isSubscribedToTier = isActive && billing?.plan === tier.planId;
-  const isSubscribedToOther =
-    isActive && billing?.plan && billing.plan !== tier.planId && billing.plan !== 'free';
+  // B-014 phase 2: per-plan map. Phase 4 will redesign to render both
+  // tier cards stacked; for now, keep the current "pick the tier card
+  // matching the active hat" logic but read from the new shape.
+  const tierEntry = billing?.subscriptions?.[tier.planId] ?? null;
+  const otherEntry =
+    billing?.subscriptions?.[tier.planId === 'crew_pro' ? 'employer_pro' : 'crew_pro'] ?? null;
+
+  const tierActive = tierEntry?.status === 'active' || tierEntry?.status === 'trialing';
+  const otherActive = otherEntry?.status === 'active' || otherEntry?.status === 'trialing';
+
+  const isSubscribedToTier = tierActive;
+  const isSubscribedToOther = otherActive && !tierActive;
 
   async function handleSubscribe() {
     setRedirecting(true);
@@ -149,7 +164,7 @@ function BillingContent() {
 
         {isSubscribedToOther && (
           <div className="rounded-lg bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-400">
-            You have an active {billing?.plan === 'crew_pro' ? 'Crew Pro' : 'Employer Pro'}{' '}
+            You have an active {billing?.subscriptions?.crew_pro ? 'Crew Pro' : 'Employer Pro'}{' '}
             subscription. Switch plans via &ldquo;Manage subscription&rdquo; below.
           </div>
         )}

@@ -9,6 +9,13 @@ type SubscriptionResult =
 /**
  * Check that the user has an active subscription matching the required plan exactly.
  * Crew Pro and Employer Pro are parallel tiers — one does not satisfy the other.
+ *
+ * B-014: queries are now keyed on `(person_id, plan)` since a single
+ * person can hold both Crew Pro and Employer Pro rows simultaneously.
+ * Each helper returns the row for the *requested* plan only; absence
+ * means the user has not subscribed to that tier (a separate active
+ * crew_pro subscription does not satisfy a required employer_pro check
+ * and vice versa).
  */
 export async function requireSubscription(
   supabase: SupabaseClient,
@@ -19,12 +26,12 @@ export async function requireSubscription(
     .from('subscriptions')
     .select('plan, status')
     .eq('person_id', personId)
-    .single();
+    .eq('plan', requiredPlan)
+    .maybeSingle();
 
-  const plan: SubscriptionPlan = data?.plan ?? 'free';
   const isActive = data?.status === 'active' || data?.status === 'trialing';
 
-  if (!isActive || plan !== requiredPlan) {
+  if (!isActive || data?.plan !== requiredPlan) {
     return {
       ok: false,
       response: NextResponse.json(
@@ -33,20 +40,25 @@ export async function requireSubscription(
       ),
     };
   }
-  return { ok: true, plan };
+  return { ok: true, plan: data.plan as SubscriptionPlan };
 }
 
 /**
  * Check if the user has any active Pro subscription (crew_pro or employer_pro).
+ *
+ * B-014: a person can now have rows for both pro tiers simultaneously,
+ * plus a `'free'` anchor row. The query filters to the two pro plans
+ * with active/trialing status; if either matches, the user has at
+ * least one active Pro subscription.
  */
 export async function hasAnyPro(supabase: SupabaseClient, personId: string): Promise<boolean> {
   const { data } = await supabase
     .from('subscriptions')
-    .select('plan, status')
+    .select('plan')
     .eq('person_id', personId)
-    .single();
+    .in('plan', ['crew_pro', 'employer_pro'])
+    .in('status', ['active', 'trialing'])
+    .limit(1);
 
-  if (!data) return false;
-  const isActive = data.status === 'active' || data.status === 'trialing';
-  return isActive && (data.plan === 'crew_pro' || data.plan === 'employer_pro');
+  return (data?.length ?? 0) > 0;
 }

@@ -17,11 +17,17 @@ describe('BillingPage', () => {
     vi.clearAllMocks();
   });
 
+  // B-014: status API returns per-tier map. `subscriptions: { crew_pro,
+  // employer_pro }` where each entry is `{ status, current_period_end } | null`.
+  const noSubs = (hat: 'crew' | 'employer') => ({
+    subscriptions: { crew_pro: null, employer_pro: null },
+    current_hat: hat,
+  });
+
   it('renders crew tier plan cards for crew hat', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () =>
-        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'crew' })),
+      text: () => Promise.resolve(JSON.stringify(noSubs('crew'))),
     });
 
     render(<BillingPage />);
@@ -36,8 +42,7 @@ describe('BillingPage', () => {
   it('renders employer tier plan cards for employer hat', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () =>
-        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'employer' })),
+      text: () => Promise.resolve(JSON.stringify(noSubs('employer'))),
     });
 
     render(<BillingPage />);
@@ -51,8 +56,7 @@ describe('BillingPage', () => {
   it('shows "Current plan" badge on Free card when no subscription', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () =>
-        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'crew' })),
+      text: () => Promise.resolve(JSON.stringify(noSubs('crew'))),
     });
 
     render(<BillingPage />);
@@ -67,7 +71,13 @@ describe('BillingPage', () => {
       ok: true,
       text: () =>
         Promise.resolve(
-          JSON.stringify({ plan: 'crew_pro', status: 'active', current_hat: 'crew' }),
+          JSON.stringify({
+            subscriptions: {
+              crew_pro: { status: 'active', current_period_end: null },
+              employer_pro: null,
+            },
+            current_hat: 'crew',
+          }),
         ),
     });
 
@@ -80,8 +90,7 @@ describe('BillingPage', () => {
   it('passes correct plan to checkout for employer hat', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      text: () =>
-        Promise.resolve(JSON.stringify({ plan: null, status: null, current_hat: 'employer' })),
+      text: () => Promise.resolve(JSON.stringify(noSubs('employer'))),
     });
 
     render(<BillingPage />);
