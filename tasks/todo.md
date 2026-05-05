@@ -7,6 +7,149 @@
 
 _B-011 (Permanent shortlist chat) shipped end-to-end across 7 commits. Migrations 00135 + 00136 land the schema column + apply_projection rewrite; API + UI + notifications + docs follow. Migration 00136 still needs `npx supabase db push` to the live remote. Bug-intake fix plan items B-001 → B-010 are still in flight per the section below._
 
+### B-014 — Dual subscriptions (Crew Pro + Employer Pro simultaneously) (planned 2026-05-05)
+
+**Why:** A person can switch hats (crew ↔ employer) but currently can only hold one Pro subscription. The schema enforces it via `subscriptions.person_id UNIQUE` (`supabase/migrations/00042_subscriptions.sql:13`), and the billing page uses a "Switch plans" framing to swap one tier for the other. This is an architectural artifact from before the dual-hat model, not a deliberate product decision. The user wants both tiers active at the same time — €4.99 + €14.99 = €19.98/mo total — billed independently, each cancellable independently. Stripe-side already supports it natively (multiple subscriptions per customer).
+
+**User-locked design:**
+
+- A person can hold any combination of `crew_pro` and `employer_pro` subscriptions independently
+- Each tier subscribes / cancels / refunds on its own; cancelling one never touches the other
+- Billing page renders both tier cards side-by-side, each with independent state
+- "Switch plans" framing is dropped entirely
+- `Free` is always implicit (the absence of an active pro row); we keep one `'free'` sentinel row per person to anchor the Stripe customer mapping
+- Stripe customer remains 1-per-person; that customer holds 0–2 active subscriptions
+
+#### Stress test — design questions resolved
+
+1. **Schema constraint shape.** Drop `UNIQUE(person_id)`. Drop `UNIQUE(stripe_customer_id)` (one customer can now anchor multiple rows). Add `UNIQUE(person_id, plan)` so each plan tier appears at most once per person. Add a partial `UNIQUE(stripe_subscription_id) WHERE stripe_subscription_id IS NOT NULL` so Stripe-side identity stays enforceable for pro rows but `'free'` rows (which have no sub_id) don't conflict.
+
+2. **The `'free'` row stays.** It's the Stripe customer-id anchor. Without it, the first checkout for a new user would have to either create a customer-only row or fetch from Stripe — both add complexity. Keeping the existing pattern means: per person there can be 1 `'free'` row (no sub_id) + 0 `crew_pro` row + 0 `employer_pro` row, ranging 1–3 rows total. The new `(person_id, plan)` UNIQUE prevents duplicates within each plan.
+
+3. **Webhook upsert key.** Today: `checkout.session.completed` upserts `onConflict: 'person_id'` (`apps/web/src/app/api/webhooks/stripe/route.ts:71`). After change: upsert `onConflict: 'person_id,plan'` so a second checkout for a different plan creates a new row instead of overwriting the first. `subscription.updated` and `subscription.deleted` already key on `stripe_subscription_id` — no change needed there.
+
+4. **Stripe customer mapping logic.** `create-checkout` today does: query existing row by `person_id`, reuse `stripe_customer_id` if found, else create new Stripe customer + insert row. After change: same lookup but allow any of the person's rows to provide the customer_id (use `.limit(1)` instead of `.single()`). All of a person's rows must share the same `stripe_customer_id` — enforced by the webhook + checkout creation paths writing it consistently.
+
+5. **`'free'` row preservation on first pro checkout.** Today: upsert `onConflict: 'person_id'` overwrites the `'free'` row's `plan` to `'crew_pro'`. After change: separate `(person_id, plan='free')` and `(person_id, plan='crew_pro')` rows must coexist. The webhook needs to: (a) keep / insert the `'free'` row if missing, (b) insert the `'crew_pro'` or `'employer_pro'` row separately. Cleanest: the `create-checkout` route ensures the `'free'` row exists (without overwriting plan), and the webhook only writes the pro row using `(person_id, plan)` as conflict key.
+
+6. **Status API contract change.** Today: `GET /api/billing/status` → `{ plan, status, current_period_end, current_hat }` (singular). After change: `{ subscriptions: { crew_pro: {status, current_period_end} | null, employer_pro: {status, current_period_end} | null }, current_hat }` (per-plan map). Map form is easier to consume in the UI than an array. Breaking change for any consumer; only the `/billing` page consumes it directly.
+
+7. **Billing page UI — render BOTH cards stacked.** Drop the `tier = hat === 'crew' ? CREW_TIER : EMPLOYER_TIER` selection logic entirely. Show: Free card on top (always, "always included"), then Crew Pro card (Subscribe / Manage / Cancelled-but-active-until-DATE), then Employer Pro card (same independent state). Drop the "Switch plans via Manage subscription" banner entirely. Drop the `isSubscribedToOther` flow. Each card derives its own state from its own per-plan entry in the status response.
+
+8. **The "Current plan" badge bug** (visible in user's earlier screenshot — Free card showed "Current plan" while user had Crew Pro active). With per-tier cards, "Current plan" badge attaches to whichever cards currently have `subscriptions[plan].status === 'active' || 'trialing'`. Free card never shows "Current plan" — it just says "Always included" or similar.
+
+9. **`requireSubscription` helper.** Today: `eq('person_id').single()`, returns the one row. After change: `eq('person_id').eq('plan', requiredPlan).maybeSingle()`, returns just the relevant plan's row. `hasAnyPro` becomes `eq('person_id').in('plan', ['crew_pro','employer_pro']).in('status', ['active','trialing']).limit(1)` then check existence. Helper signature unchanged — internal implementation only.
+
+10. **Downstream Pro-gate queries — no change.** The available-crew Pro filter already correctly says `eq('plan', 'crew_pro').in('status', ['active','trialing'])`. Each gate (Docky cap, references cap, shortlist cap, template cap, etc.) reads its specific `plan` filter — works identically on the new schema because each plan has its own row.
+
+11. **Account deactivation / data scrub.** `admin_delete_person` RPC at `supabase/migrations/00095:67` does `delete from public.subscriptions where person_id = target_id`. With multi-row state, this still cascades correctly (deletes all rows for that person). Stripe-side cleanup is the same — admin must cancel any active Stripe subscriptions before scrubbing (already in the admin runbook).
+
+12. **Migration data integrity.** Existing rows have at most 1 per person. The new `(person_id, plan)` UNIQUE is already satisfied by all existing data. No data rewrite, no down-time. The existing `(person_id)` UNIQUE just gets dropped.
+
+13. **Rollback.** Drop new constraints, restore `(person_id)` UNIQUE + `(stripe_customer_id)` UNIQUE. If any person has >1 row (the new state), rollback would fail on the unique constraint re-creation. Defensive: rollback prepends `DELETE FROM subscriptions WHERE id NOT IN (SELECT MIN(id) FROM subscriptions GROUP BY person_id)` to keep only the oldest row per person. **This is destructive — operators should be NOTICEd loudly before running.** Document in the rollback file's header comment.
+
+14. **Race condition on first-pro-checkout.** Two parallel checkouts (highly unlikely UX-wise, but defensively): person has `'free'` row, fires Crew Pro checkout AND Employer Pro checkout simultaneously. Both webhooks try to insert their respective `(person_id, plan)` row. With the new `(person_id, plan)` UNIQUE, both succeed independently. ✓
+
+15. **Failed payment / past_due on one plan.** Stripe sends `subscription.updated` with `status='past_due'` for the affected subscription only. Webhook updates the matching row by `stripe_subscription_id`. The other plan's row is untouched. Downstream gates on the past_due plan correctly reject (`status` not in `'active','trialing'`); the other plan keeps working. ✓
+
+16. **Customer portal — multi-sub UI.** Stripe customer portal natively shows all of a customer's subscriptions with per-sub manage controls. `/api/billing/create-portal` just creates a portal session keyed on the customer_id; Stripe handles the multi-sub display automatically. No code change.
+
+17. **Pricing page / billing card display states.** Per Pro card the possible states are: not subscribed (button: Subscribe), trialing (badge + Manage), active (badge + Manage), cancelled-but-still-in-period (Cancels DATE + Reactivate via Manage), past_due (warning badge + Update payment via Manage). UI needs all five.
+
+18. **Test fixture cascade.** Lots of mocks return `subscription.single()` shapes. Updating `requireSubscription` to use `.maybeSingle()` with a `plan` filter changes what those mocks need to return. ~9 test files need updates (listed below).
+
+#### Implementation checklist (phased — each phase committable independently)
+
+**Phase 1: Schema migration**
+
+- [ ] New migration `supabase/migrations/00139_subscriptions_dual_tier.sql`:
+  - `ALTER TABLE public.subscriptions DROP CONSTRAINT subscriptions_person_id_key;`
+  - `ALTER TABLE public.subscriptions DROP CONSTRAINT subscriptions_stripe_customer_id_key;`
+  - `ALTER TABLE public.subscriptions ADD CONSTRAINT subscriptions_person_plan_key UNIQUE (person_id, plan);`
+  - `CREATE UNIQUE INDEX subscriptions_stripe_subscription_id_key ON public.subscriptions (stripe_subscription_id) WHERE stripe_subscription_id IS NOT NULL;`
+  - `CREATE INDEX IF NOT EXISTS idx_subscriptions_person ON public.subscriptions (person_id);` (replaces fast lookup the dropped UNIQUE provided)
+- [ ] Rollback `supabase/rollbacks/00139_subscriptions_dual_tier.down.sql`:
+  - Defensive `DELETE FROM subscriptions WHERE id NOT IN (SELECT MIN(id) FROM subscriptions GROUP BY person_id);` (with `RAISE NOTICE` warning)
+  - Drop `(person_id, plan)` UNIQUE, drop the partial unique on stripe_subscription_id, drop the index
+  - Re-add `(person_id)` UNIQUE and `(stripe_customer_id)` UNIQUE
+- [ ] Apply via `npx supabase db push` to live remote
+- [ ] Update `BUILD_STATE.md` schema version + migration table; `supabase/README.md` migration table
+
+**Phase 2: Helper + status API rework**
+
+- [ ] `apps/web/src/lib/require-subscription.ts`:
+  - `requireSubscription`: change query to `.eq('person_id').eq('plan', requiredPlan).maybeSingle()`. Return same shape; signature unchanged.
+  - `hasAnyPro`: change to `.eq('person_id').in('plan', ['crew_pro','employer_pro']).in('status', ['active','trialing']).limit(1)`. Returns boolean as before.
+- [ ] `apps/web/src/app/api/billing/status/route.ts`:
+  - Query: `.eq('person_id').in('plan', ['crew_pro', 'employer_pro'])` (drop `.single()`)
+  - Build per-plan map: `{ subscriptions: { crew_pro, employer_pro }, current_hat }`
+  - Each entry is `{ status, current_period_end } | null`
+
+**Phase 3: Webhook + checkout rework**
+
+- [ ] `apps/web/src/app/api/webhooks/stripe/route.ts`:
+  - `checkout.session.completed`: change upsert key from `'person_id'` to `'person_id,plan'`. Determine plan from price_id mapping. Insert/update only the pro row, never touch the `'free'` row.
+  - `subscription.updated`: unchanged (keys on `stripe_subscription_id`)
+  - `subscription.deleted`: unchanged
+- [ ] `apps/web/src/app/api/billing/create-checkout/route.ts`:
+  - Existing-customer lookup: change `.single()` to `.limit(1)` (any row provides the customer_id)
+  - `'free'` row preservation: change upsert from `onConflict: 'person_id'` to `onConflict: 'person_id,plan'` with `plan: 'free'` explicit so it doesn't overwrite an existing pro row. Equivalent: insert `'free'` row only if no row exists for the person.
+
+**Phase 4: Billing page rewrite**
+
+- [ ] `apps/web/src/app/(app)/billing/page.tsx`:
+  - Update `BillingStatus` type to match new API shape (`subscriptions: { crew_pro, employer_pro }`)
+  - Drop `tier = hat === 'crew' ? CREW_TIER : EMPLOYER_TIER` selection
+  - Render three stacked cards: Free (always-included reference), Crew Pro (subscribe/manage state), Employer Pro (subscribe/manage state)
+  - Drop the "You have an active X subscription. Switch plans" banner entirely
+  - Each Pro card shows its own state badge: not subscribed / trialing / active / cancelled-with-grace / past_due
+  - "Manage" button always opens the same Stripe portal — Stripe shows all subs
+
+**Phase 5: Tests**
+
+- [ ] Update mock fixtures in:
+  - `apps/web/__tests__/api/billing-checkout.test.ts`
+  - `apps/web/__tests__/api/billing-portal.test.ts`
+  - `apps/web/__tests__/api/billing-status.test.ts`
+  - `apps/web/__tests__/components/billing-page.test.tsx`
+  - `apps/web/__tests__/api/webhooks-stripe.test.ts`
+  - `apps/web/__tests__/api/permanent-shortlist.test.ts`
+  - `apps/web/__tests__/api/references-routes.test.ts`
+  - `apps/web/__tests__/api/advisor-thread.test.ts`, `advisor-usage.test.ts`
+  - `apps/web/__tests__/api/permanent-templates.test.ts`, `daywork-templates.test.ts`
+- [ ] New tests asserting dual-sub behaviour:
+  - billing-status: returns both plans when both are active; returns only crew_pro when employer_pro never subscribed; returns null map when never subscribed at all
+  - webhooks-stripe: second checkout for a different plan inserts a new row, doesn't touch the existing pro row
+  - billing-page: renders both Pro cards stacked; "Subscribe" on Employer Pro fires when only Crew Pro is held
+  - require-subscription: `requireSubscription(crew_pro)` only checks the crew_pro row; doesn't accept employer_pro
+
+**Phase 6: Documentation + manual smoke**
+
+- [ ] `BUILD_STATE.md` stage entry (B-014)
+- [ ] `apps/web/README.md` billing section update (call out dual-tier support)
+- [ ] `tasks/post-cleanup-smoke-checklist.md` extension: 5 new smoke cases:
+  1. Subscribe to Crew Pro → both cards visible, Crew Pro shows Manage
+  2. With Crew Pro active, subscribe to Employer Pro → both cards show Manage independently
+  3. Cancel Employer Pro via Stripe portal → Employer Pro card shows "Cancels DATE", Crew Pro card unchanged
+  4. Available-crew filter still finds the user (Crew Pro active)
+  5. Permanent shortlist cap = 8 (Employer Pro active until cancelled)
+
+**Phase 7: Stripe price mapping audit**
+
+- [ ] Confirm `STRIPE_PRICE_CREW_PRO` and `STRIPE_PRICE_EMPLOYER_PRO` env vars are set in production
+- [ ] Confirm Stripe webhook signing secret is configured for the new event volume (multi-sub events)
+- [ ] Confirm Stripe customer portal is configured to allow per-subscription management (default is yes)
+
+**Done when:**
+
+- Migration 00139 applied to live; rollback file present and tested locally
+- `npx vitest run` zero regressions; new dual-sub tests pass
+- `npx turbo run type-check lint` clean
+- Manual smoke: a single test account holds both Crew Pro and Employer Pro simultaneously, both billing-page cards show "Manage", cancel one → other unchanged
+- `BUILD_STATE.md` stage entry written
+
+**Estimated effort:** ~½ day implementation + ~1 hour manual smoke + ~½ day test fixture updates. Phase 1 (migration) is the lowest-effort highest-blast-radius commit; treat it as its own deploy window.
+
 ### B-011 follow-ups (not blocking)
 
 - [ ] E2E Playwright coverage of the shortlist-chat happy path: shortlist → open chat → message exchange → SELECT → verify warm system message in other shortlist chats.
