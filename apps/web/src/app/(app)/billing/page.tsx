@@ -95,18 +95,20 @@ function BillingContent() {
   const hat = billing?.current_hat ?? 'crew';
   const tier = hat === 'crew' ? CREW_TIER : EMPLOYER_TIER;
 
-  // B-014 phase 2: per-plan map. Phase 4 will redesign to render both
-  // tier cards stacked; for now, keep the current "pick the tier card
-  // matching the active hat" logic but read from the new shape.
+  // B-014: per-plan map. The page renders the hat-specific tier card
+  // only — the OTHER hat's tier is surfaced as a hint footer below
+  // (see "Looking for X Pro?" panel). Per the dual-sub model, a person
+  // can independently hold both tiers, but each is subscribed/managed
+  // from its own hat to keep the surface focused.
   const tierEntry = billing?.subscriptions?.[tier.planId] ?? null;
-  const otherEntry =
-    billing?.subscriptions?.[tier.planId === 'crew_pro' ? 'employer_pro' : 'crew_pro'] ?? null;
+  const otherPlanId = tier.planId === 'crew_pro' ? 'employer_pro' : 'crew_pro';
+  const otherEntry = billing?.subscriptions?.[otherPlanId] ?? null;
 
   const tierActive = tierEntry?.status === 'active' || tierEntry?.status === 'trialing';
   const otherActive = otherEntry?.status === 'active' || otherEntry?.status === 'trialing';
 
-  const isSubscribedToTier = tierActive;
-  const isSubscribedToOther = otherActive && !tierActive;
+  const otherHatLabel = hat === 'crew' ? 'employer' : 'crew';
+  const otherTierLabel = otherPlanId === 'crew_pro' ? 'Crew Pro' : 'Employer Pro';
 
   async function handleSubscribe() {
     setRedirecting(true);
@@ -162,19 +164,17 @@ function BillingContent() {
           </div>
         )}
 
-        {isSubscribedToOther && (
-          <div className="rounded-lg bg-blue-500/10 px-4 py-3 text-sm text-blue-700 dark:text-blue-400">
-            You have an active {billing?.subscriptions?.crew_pro ? 'Crew Pro' : 'Employer Pro'}{' '}
-            subscription. Switch plans via &ldquo;Manage subscription&rdquo; below.
-          </div>
-        )}
-
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {/* Free plan */}
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Free</h2>
-              {!isSubscribedToTier && (
+              {/* B-014: "Current plan" only fires when the user has NO
+                  active pro tier of any kind. Previously this fell back
+                  to "user is not subscribed to THIS hat's tier", which
+                  mis-labelled Free as Current Plan when the user held the
+                  other hat's pro. */}
+              {!tierActive && !otherActive && (
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">
                   Current plan
                 </span>
@@ -194,7 +194,7 @@ function BillingContent() {
           <div className="rounded-xl border-2 border-primary bg-card p-5">
             <div className="mb-1 flex items-center justify-between">
               <h2 className="text-lg font-semibold">{tier.proLabel}</h2>
-              {isSubscribedToTier && (
+              {tierActive && (
                 <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
                   Current plan
                 </span>
@@ -210,7 +210,12 @@ function BillingContent() {
                 </li>
               ))}
             </ul>
-            {isSubscribedToTier ? (
+            {/* B-014: Subscribe / Manage are the only states. The old
+                "Switch plan" branch (when the user held the other hat's
+                pro) was dropped — with dual-sub support, you don't
+                switch, you add. The OTHER hat's tier is surfaced as a
+                hint footer below this card. */}
+            {tierActive ? (
               <Button
                 className="w-full"
                 variant="outline"
@@ -219,21 +224,31 @@ function BillingContent() {
               >
                 {redirecting ? 'Redirecting...' : 'Manage subscription'}
               </Button>
-            ) : isSubscribedToOther ? (
-              <Button
-                className="w-full"
-                variant="outline"
-                onClick={handleManage}
-                disabled={redirecting}
-              >
-                {redirecting ? 'Redirecting...' : 'Switch plan'}
-              </Button>
             ) : (
               <Button className="w-full" onClick={handleSubscribe} disabled={redirecting}>
                 {redirecting ? 'Redirecting...' : 'Subscribe'}
               </Button>
             )}
           </div>
+        </div>
+
+        {/* B-014: hint pointing to the other hat's tier. Two states:
+            - other-active: "you also have X — switch to manage there"
+            - other-not-active: "looking for X features? switch to subscribe"
+            Always visible (otherwise users don't discover the parallel tier).
+            Doesn't auto-switch hats — that's a separate UX gesture. */}
+        <div className="mt-2 rounded-lg border border-border bg-[var(--surface)] px-4 py-3 text-sm text-muted-foreground">
+          {otherActive ? (
+            <>
+              You also have <span className="font-medium text-foreground">{otherTierLabel}</span>{' '}
+              active. Switch to your {otherHatLabel} hat to manage that subscription.
+            </>
+          ) : (
+            <>
+              Looking for <span className="font-medium text-foreground">{otherTierLabel}</span>{' '}
+              features? Switch to your {otherHatLabel} hat to subscribe.
+            </>
+          )}
         </div>
       </div>
     </main>

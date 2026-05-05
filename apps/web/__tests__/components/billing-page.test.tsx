@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
@@ -11,6 +11,8 @@ const fetchMock = vi.fn() as any;
 globalThis.fetch = fetchMock;
 
 import BillingPage from '@/app/(app)/billing/page';
+
+afterEach(cleanup);
 
 describe('BillingPage', () => {
   beforeEach(() => {
@@ -98,5 +100,70 @@ describe('BillingPage', () => {
     // Verify the employer tier is shown
     await screen.findByText('Employer Pro');
     expect(screen.getAllByText('€14.99/month').length).toBeGreaterThan(0);
+  });
+
+  it('B-014: hint footer points to other hat when not subscribed there', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve(JSON.stringify(noSubs('crew'))),
+    });
+
+    render(<BillingPage />);
+
+    // On crew hat with no subs: hint should mention Employer Pro + employer hat.
+    await screen.findByText('Crew Pro');
+    expect(screen.getByText(/Looking for/)).toBeDefined();
+    expect(screen.getByText('Employer Pro')).toBeDefined();
+    expect(screen.getByText(/Switch to your employer hat to subscribe/)).toBeDefined();
+  });
+
+  it('B-014: hint footer points to other hat when ALREADY subscribed there', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            subscriptions: {
+              crew_pro: null,
+              employer_pro: { status: 'active', current_period_end: null },
+            },
+            current_hat: 'crew',
+          }),
+        ),
+    });
+
+    render(<BillingPage />);
+
+    // On crew hat with employer_pro active: hint should point to
+    // employer hat to manage. Different copy.
+    await screen.findByText('Crew Pro');
+    expect(screen.getByText(/You also have/)).toBeDefined();
+    expect(screen.getByText(/Switch to your employer hat to manage/)).toBeDefined();
+  });
+
+  it('B-014: Free card "Current plan" badge does NOT fire when other hat has Pro active', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            subscriptions: {
+              crew_pro: { status: 'active', current_period_end: null },
+              employer_pro: null,
+            },
+            current_hat: 'employer',
+          }),
+        ),
+    });
+
+    render(<BillingPage />);
+
+    // On employer hat with crew_pro active: previously the Free card
+    // mis-rendered "Current plan". After the fix, neither tierActive
+    // (employer_pro) nor Free should claim Current Plan; only the
+    // hint footer surfaces the other-hat subscription.
+    await screen.findByText('Employer Pro');
+    const badges = screen.queryAllByText('Current plan');
+    expect(badges.length).toBe(0);
   });
 });

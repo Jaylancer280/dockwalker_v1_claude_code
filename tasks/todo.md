@@ -95,15 +95,21 @@ _B-011 (Permanent shortlist chat) shipped end-to-end across 7 commits. Migration
   - Existing-customer lookup: change `.single()` to `.limit(1)` (any row provides the customer_id)
   - `'free'` row preservation: change upsert from `onConflict: 'person_id'` to `onConflict: 'person_id,plan'` with `plan: 'free'` explicit so it doesn't overwrite an existing pro row. Equivalent: insert `'free'` row only if no row exists for the person.
 
-**Phase 4: Billing page rewrite**
+**Phase 4: Billing page redirect — keep hat-specific card + add cross-hat hint footer (NOT a dual-card stack)**
 
-- [ ] `apps/web/src/app/(app)/billing/page.tsx`:
-  - Update `BillingStatus` type to match new API shape (`subscriptions: { crew_pro, employer_pro }`)
-  - Drop `tier = hat === 'crew' ? CREW_TIER : EMPLOYER_TIER` selection
-  - Render three stacked cards: Free (always-included reference), Crew Pro (subscribe/manage state), Employer Pro (subscribe/manage state)
-  - Drop the "You have an active X subscription. Switch plans" banner entirely
-  - Each Pro card shows its own state badge: not subscribed / trialing / active / cancelled-with-grace / past_due
-  - "Manage" button always opens the same Stripe portal — Stripe shows all subs
+User chose 2026-05-05 to keep the page hat-scoped rather than show both Pro cards stacked. Reason: the cards are big, and the page already serves users who are clearly thinking in one hat at a time (they tapped /billing on a specific hat). Cross-hat discovery moves to a footer hint instead.
+
+- [x] `apps/web/src/app/(app)/billing/page.tsx`:
+  - [x] Type updated to per-tier map (already done in phase 2)
+  - [x] Tier-by-hat selection KEPT (`tier = hat === 'crew' ? CREW_TIER : EMPLOYER_TIER`)
+  - [x] Drop the "You have an active X subscription. Switch plans" banner entirely (misleading after dual-sub support — you don't switch, you add)
+  - [x] Drop the "Switch plan" button branch — only Subscribe/Manage states remain on the Pro card
+  - [x] Fix Free card "Current plan" badge: previously fired when `!isSubscribedToTier` which mis-labelled Free when the user held the OTHER hat's pro. Now fires only when neither tier is active.
+  - [x] Add a cross-hat hint footer with two states:
+    - **other tier active**: "You also have {OtherTier} active. Switch to your {other} hat to manage that subscription."
+    - **other tier not active**: "Looking for {OtherTier} features? Switch to your {other} hat to subscribe."
+  - [x] Hint always visible (otherwise users don't discover the parallel tier)
+  - [x] No auto-hat-switch button — that's a separate UX gesture they already know
 
 **Phase 5: Tests**
 
