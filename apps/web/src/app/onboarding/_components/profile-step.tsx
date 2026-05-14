@@ -36,7 +36,6 @@ export interface ProfileStepProps {
   loading: boolean;
   error: string | null;
   lookupsLoading: boolean;
-  userEmail: string | null;
 
   // Shared profile fields
   displayName: string;
@@ -117,7 +116,6 @@ export interface ProfileStepProps {
   onSkip: () => void;
   onSubmitAgent: () => void;
   setError: (v: string | null) => void;
-  setSkipping: (v: boolean) => void;
 }
 
 function toggleArrayItem(arr: string[], id: string): string[] {
@@ -131,7 +129,6 @@ export function ProfileStep(props: ProfileStepProps) {
     loading,
     error,
     lookupsLoading,
-    userEmail,
     displayName,
     setDisplayName,
     avatarUrl,
@@ -191,7 +188,6 @@ export function ProfileStep(props: ProfileStepProps) {
     onSkip,
     onSubmitAgent,
     setError,
-    setSkipping,
   } = props;
 
   const isGreen = experienceLevel === 'green';
@@ -201,13 +197,25 @@ export function ProfileStep(props: ProfileStepProps) {
   return (
     <main className="flex min-h-svh flex-col items-start justify-start bg-background px-4 py-8">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-lg">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back
+          </button>
+          {/* Skip is crew-only — agents have to fill agency-specific
+              fields, so we don't surface a Skip path for them. */}
+          {isCrew && (
+            <button
+              onClick={onSkip}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Skip for now
+            </button>
+          )}
+        </div>
 
         <div>
           <h1 className="text-xl font-bold tracking-tight">
@@ -640,23 +648,6 @@ export function ProfileStep(props: ProfileStepProps) {
             </>
           )}
         </Button>
-
-        {isCrew && (
-          <button
-            onClick={() => {
-              const emailPrefix = userEmail?.split('@')[0] ?? 'User';
-              const autoName =
-                emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1).substring(0, 99);
-              setDisplayName(autoName);
-              setSkipping(true);
-              setError(null);
-              onSkip();
-            }}
-            className="mx-auto text-sm text-muted-foreground hover:text-foreground"
-          >
-            Skip for now
-          </button>
-        )}
       </div>
     </main>
   );

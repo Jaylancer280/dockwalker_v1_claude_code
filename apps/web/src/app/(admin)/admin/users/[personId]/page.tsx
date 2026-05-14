@@ -155,7 +155,11 @@ export default function AdminUserDetailPage() {
       mutate();
       router.refresh();
     } else {
-      showError('Failed to block user');
+      showError(res.error ?? 'Failed to block user');
+      // Refetch even on error — the action may have partially succeeded
+      // server-side (e.g. ledger event committed before a downstream step
+      // threw). Without this the dashboard stays stuck on stale state.
+      mutate();
     }
   }
 
@@ -173,7 +177,8 @@ export default function AdminUserDetailPage() {
       mutate();
       router.refresh();
     } else {
-      showError('Failed to unblock');
+      showError(res.error ?? 'Failed to unblock');
+      mutate();
     }
   }
 
@@ -193,7 +198,8 @@ export default function AdminUserDetailPage() {
       mutate();
       router.refresh();
     } else {
-      showError('Failed to restore user');
+      showError(res.error ?? 'Failed to restore user');
+      mutate();
     }
   }
 
@@ -206,7 +212,8 @@ export default function AdminUserDetailPage() {
       showSuccess('User deleted');
       router.push('/admin/users');
     } else {
-      showError('Failed to delete user');
+      showError(res.error ?? 'Failed to delete user');
+      mutate();
     }
   }
 

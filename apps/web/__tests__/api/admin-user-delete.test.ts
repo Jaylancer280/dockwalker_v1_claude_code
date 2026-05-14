@@ -11,6 +11,11 @@ vi.mock('@/lib/admin/log-action', () => ({
   logAdminAction: vi.fn().mockResolvedValue(undefined),
 }));
 
+const mockSentryCapture = vi.fn();
+vi.mock('@sentry/nextjs', () => ({
+  captureException: (...args: unknown[]) => mockSentryCapture(...args),
+}));
+
 const mockAppendEvents = vi.fn().mockResolvedValue(['evt-1', 'evt-2']);
 vi.mock('@dockwalker/db', () => ({
   appendEvents: (...args: unknown[]) => mockAppendEvents(...args),
@@ -121,20 +126,40 @@ describe('DELETE /api/admin/users/:personId (scrub + ban)', () => {
     expect(mockUpdateUserById).toHaveBeenCalledWith('u1', { ban_duration: '876000h' });
   });
 
-  it('returns 500 when auth ban fails', async () => {
+  it('still returns 200 when auth ban fails — scrub already committed, ban is best-effort', async () => {
+    // Regression guard: previously this returned 500, which left the admin
+    // dashboard showing a stale view of a user whose PERSON.DATA_SCRUBBED +
+    // PERSON.DEACTIVATED events had already committed irreversibly.
+    // PERSON.DEACTIVATED + the middleware's deactivated_at check is the
+    // primary login gate; the auth-side ban is defence-in-depth. A ban
+    // failure now goes to Sentry instead of failing the route.
     mockRequireAdmin.mockResolvedValue(adminOk());
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: { id: 'u1', is_admin: false, blocked_at: null } }),
+          single: vi
+            .fn()
+            .mockResolvedValue({ data: { id: 'u1', is_admin: false, blocked_at: null } }),
         }),
       }),
     });
-    mockUpdateUserById.mockResolvedValue({ error: { message: 'Auth error' } });
+    const banError = { message: 'Auth error' };
+    mockUpdateUserById.mockResolvedValue({ error: banError });
 
     const res = await DELETE(new Request('http://localhost'), makeParams('u1'));
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.error).toContain('auth ban failed');
+    expect(res.status).toBe(200);
+
+    // Ledger events still committed.
+    expect(mockAppendEvents).toHaveBeenCalledTimes(1);
+    // Ban failure captured to Sentry for ops visibility.
+    expect(mockSentryCapture).toHaveBeenCalledWith(
+      banError,
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          module: 'admin.delete-user',
+          step: 'auth_ban',
+        }),
+      }),
+    );
   });
 });

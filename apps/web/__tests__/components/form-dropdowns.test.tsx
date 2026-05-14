@@ -361,7 +361,7 @@ describe('Onboarding page — crew profile dropdowns', () => {
 
     // Navigate: Welcome → Identity → Experience fork → Green profile
     fireEvent.click(screen.getByText('Get started'));
-    fireEvent.click(screen.getByText("I'm Crew"));
+    fireEvent.click(screen.getByText('I work on yachts'));
     fireEvent.click(screen.getByText('New to yachting'));
 
     // Wait for lookups to load
@@ -400,7 +400,7 @@ describe('Onboarding page — crew profile dropdowns', () => {
 
     // Navigate: Welcome → Identity → Experience fork → Green profile
     fireEvent.click(screen.getByText('Get started'));
-    fireEvent.click(screen.getByText("I'm Crew"));
+    fireEvent.click(screen.getByText('I work on yachts'));
     fireEvent.click(screen.getByText('New to yachting'));
 
     await waitFor(() => {
@@ -550,7 +550,7 @@ describe('Canonical data item counts', () => {
 
     // Navigate: Welcome → Identity → Experience fork → Green profile
     fireEvent.click(screen.getByText('Get started'));
-    fireEvent.click(screen.getByText("I'm Crew"));
+    fireEvent.click(screen.getByText('I work on yachts'));
     fireEvent.click(screen.getByText('New to yachting'));
 
     await waitFor(() => {

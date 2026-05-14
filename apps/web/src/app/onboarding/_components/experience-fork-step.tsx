@@ -7,19 +7,30 @@ type ExperienceLevel = 'green' | 'experienced';
 export interface ExperienceForkStepProps {
   onBack: () => void;
   onSelect: (level: ExperienceLevel) => void;
+  onSkip?: () => void;
 }
 
-export function ExperienceForkStep({ onBack, onSelect }: ExperienceForkStepProps) {
+export function ExperienceForkStep({ onBack, onSelect, onSkip }: ExperienceForkStepProps) {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center bg-background px-4">
       <div className="flex w-full max-w-sm flex-col gap-6 md:max-w-lg">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Back
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back
+          </button>
+          {onSkip && (
+            <button
+              onClick={onSkip}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Skip for now
+            </button>
+          )}
+        </div>
 
         <div className="flex flex-col gap-2">
           <h1 className="text-xl font-bold tracking-tight">Your experience level</h1>

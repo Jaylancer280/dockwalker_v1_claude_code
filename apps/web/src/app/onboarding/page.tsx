@@ -253,6 +253,33 @@ export default function OnboardingPage() {
     setExperienceEntries((prev) => prev.filter((e) => e.key !== key));
   }
 
+  /**
+   * Skip the rest of profile-related onboarding and jump straight to the
+   * hat-selection step. Available on every crew screen from
+   * experience-fork onwards via a top-of-page "Skip for now" link.
+   *
+   * Anything the user has typed so far stays in orchestrator state and
+   * gets submitted with the final POST in `handleSubmit`. The only
+   * forced default is `displayName` — required by the API, so if the
+   * user skipped before filling it, we seed from their email prefix
+   * (matches the previous bottom-of-profile Skip behaviour). Once they
+   * pick a hat we submit and route them into the app.
+   *
+   * Not exposed to agents — they have to fill `agencyName` and a few
+   * other agency-only fields, and the profile step gates Skip on
+   * `isCrew` anyway.
+   */
+  function handleSkip() {
+    if (!displayName.trim()) {
+      const emailPrefix = userEmail?.split('@')[0] ?? 'User';
+      const autoName = emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1).substring(0, 99);
+      setDisplayName(autoName);
+    }
+    setSkipping(true);
+    setError(null);
+    setStep('hat');
+  }
+
   async function handleSubmit(hatOverride?: HatType) {
     if (submittingRef.current) return;
     submittingRef.current = true;
@@ -445,6 +472,7 @@ export default function OnboardingPage() {
         <ProgressDots />
         <ExperienceForkStep
           onBack={() => setStep('identity')}
+          onSkip={handleSkip}
           onSelect={(level) => {
             setExperienceLevel(level);
             setStep('profile');
@@ -464,7 +492,6 @@ export default function OnboardingPage() {
           loading={loading}
           error={error}
           lookupsLoading={lookupsLoading}
-          userEmail={userEmail}
           displayName={displayName}
           setDisplayName={setDisplayName}
           avatarUrl={avatarUrl}
@@ -521,10 +548,9 @@ export default function OnboardingPage() {
           entryRights={entryRights}
           onBack={() => setStep(identityType === 'crew' ? 'experience-fork' : 'identity')}
           onNext={() => setStep(experienceLevel === 'experienced' ? 'vessel-experience' : 'hat')}
-          onSkip={() => setStep('hat')}
+          onSkip={handleSkip}
           onSubmitAgent={() => handleSubmit()}
           setError={setError}
-          setSkipping={setSkipping}
         />
       </>
     );
@@ -546,6 +572,7 @@ export default function OnboardingPage() {
           addEntry={() => setExperienceEntries((prev) => [...prev, emptyExperienceEntry()])}
           onBack={() => setStep('profile')}
           onNext={() => setStep('hat')}
+          onSkip={handleSkip}
           setError={setError}
         />
       </>

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import { requireAdmin } from '@/lib/auth/require-admin';
 import { appendEvents, type AppendEventParams } from '@dockwalker/db';
 import type { EventPayloadMap } from '@dockwalker/types';
@@ -70,10 +71,17 @@ export async function DELETE(
     });
 
     if (banError) {
-      return NextResponse.json(
-        { error: `User scrubbed but auth ban failed: ${banError.message}` },
-        { status: 500 },
-      );
+      // Best-effort: PERSON.DEACTIVATED has already committed and middleware
+      // gates login on persons.deactivated_at as the primary mechanism. The
+      // auth ban is defence-in-depth — failing it shouldn't surface an
+      // error to the admin for a delete that did complete (the scrub is
+      // irreversible regardless). Earlier behaviour returned 500 here,
+      // which left the admin dashboard stuck on a stale view of a user
+      // whose profile had already been wiped server-side.
+      Sentry.captureException(banError, {
+        tags: { module: 'admin.delete-user', step: 'auth_ban' },
+        extra: { personId },
+      });
     }
 
     await logAdminAction(serviceClient, {
