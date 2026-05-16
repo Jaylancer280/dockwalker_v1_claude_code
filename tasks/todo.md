@@ -693,6 +693,145 @@ These are not code-level bugs; they are gaps in operational readiness, regulator
 
   **Acceptance:** every non-owner-scoped vessel read goes through one of the two RPCs; lint rule prevents regression.
 
+- [ ] **P1 — INFRA-1: Add explicit GRANTs to migration template before 2026-10-30 (Supabase Data API policy change).**
+
+  **Hard deadline:** 2026-10-30. Supabase emailed 2026-05-13 announcing that new tables created in the `public` schema will no longer be auto-exposed to the Data API by default. New projects flip 2026-05-30; all existing projects (DockWalker included) flip 2026-10-30. Every migration that creates a new public table after this date will silently break supabase-js / PostgREST / GraphQL access unless it includes explicit `GRANT` statements.
+
+  **Why DockWalker is affected:**
+  - The entire frontend + every API route uses `supabase-js` via `@/lib/supabase/client` and `@/lib/supabase/server`. The Data API is the primary access path — every page in `apps/web/src/app/**` hits `/rest/v1/` indirectly.
+  - All 139 existing migrations rely on Supabase's CURRENT auto-grant behavior: `create table public.<name>` → `alter table ... enable row level security` → `create policy ...`. There are zero `GRANT ... ON TABLE` statements anywhere in `supabase/migrations/` (verified by grep — the 6 migrations that contain the word `grant` are all `GRANT EXECUTE` on RPC functions, not table privileges).
+  - RLS policies alone are NOT sufficient. PostgREST checks table-level privileges BEFORE consulting RLS. Without a grant, the API returns `permission denied for table X` before RLS is even evaluated. This is the failure mode after 2026-10-30.
+  - Direct Postgres connection strings (psql / ORM / app-server) are not used anywhere in DockWalker — so the "not affected" path in the email does NOT apply to us.
+
+  **What is NOT affected:**
+  - All 139 existing tables. Per the email: _"existing tables keep their current grants."_ No retroactive change.
+  - Admin pages that use `createServiceClient()` (in `apps/web/src/lib/supabase/server.ts` and `/api/admin/**`). `service_role` bypasses RLS and has its own grant path that the policy change doesn't touch.
+  - Webhooks (`/api/webhooks/stripe`, future Telegram/WhatsApp) — they use service-role.
+  - The change applies only to NEW tables created AFTER 2026-10-30 in existing projects. We don't need to backfill grants on existing tables.
+
+  **What to do (in order):**
+  1. **Add a new invariant to `CLAUDE.md` § Core Architectural Invariants** (between "RLS on Every Table" and "Migrations Must Be Reversible" makes the most sense, or as a sub-bullet under RLS):
+
+     > **Every public table must include explicit GRANTs.** After 2026-10-30, Supabase no longer auto-grants table privileges in the `public` schema. Migrations that create new tables must include `grant ... on public.<name>` statements _before_ RLS policies. RLS without a grant fails closed: PostgREST returns 403 before the policy is consulted.
+
+     Make it part of documentation governance so the pre-commit `SKIP_DOCS_CHECK` flow catches any migration that adds a table without grants.
+
+  2. **Document the standard grant pattern** in `supabase/README.md` § Migration conventions:
+
+     ```sql
+     -- Required pattern for every new table in public schema:
+     create table public.<name> (...);
+     alter table public.<name> enable row level security;
+
+     -- Explicit grants (REQUIRED — Supabase auto-grant removed 2026-10-30):
+     grant select, insert, update, delete on public.<name> to authenticated;
+     grant usage, select on sequence public.<name>_<col>_seq to authenticated;  -- if the PK uses a sequence rather than gen_random_uuid()
+     grant select on public.<name> to anon;  -- ONLY if read by unauthenticated routes (jobs, cv, ref)
+
+     -- RLS policies as before — these now filter rows AFTER the grant lets the role in.
+     create policy ... ;
+     ```
+
+  3. **Role mapping cheat sheet for DockWalker** (add to `supabase/README.md`):
+     - `authenticated` — every logged-in user. Default grant for almost every table. RLS narrows what they can see.
+     - `anon` — unauthenticated visitors. Only used by:
+       - public job pages (`/jobs/[jobNumber]` → `dayworks`, `permanent_postings`, `yacht_roles`, `vessels` via `get_vessel_public` RPC, `ports`, `cities`, `regions`, `experience_brackets`, `vessel_size_bands`, `certifications`)
+       - public CV pages (`/cv/[handle]` → CV-related tables, currently locked)
+       - reference landing (`/ref/[token]` → `references` table, server-rendered)
+       - any future SEO surface
+       - Most lookup tables (`yacht_roles`, `ports`, `cities`, `regions`, `nationalities`, `entry_rights`, `certifications`, etc.) probably need anon read.
+     - `service_role` — bypasses everything. Used by admin routes + webhooks + reference notifications. **No explicit grant needed** — service_role is implicitly granted everything; the change does not affect it.
+
+  4. **Optional but recommended: lint rule.** Add a regex check to the pre-commit hook (or as a new test in `apps/web/__tests__/` runnable via `npm run check:migrations`) that scans `supabase/migrations/*.sql` for `create table public\.` without a matching `grant\s+\S+\s+on\s+(table\s+)?public\.<same-name>` in the same file. Cheap; prevents human error after the invariant lands. Suggested location: `scripts/check-migration-grants.mjs` invoked from `.husky/pre-commit` and the GH Action.
+
+  5. **No backfill needed.** Existing 139 tables already have grants — Supabase auto-granted them when the migrations originally ran. The remote database state is correct; only future migration AUTHORING needs to change.
+
+  **Rollback consideration:** Since the change is "add lines to new migrations," rollback files don't change — they `drop table` and the grants vanish with the table. No new rollback complexity.
+
+  **Acceptance:**
+  - [ ] `CLAUDE.md` updated with the GRANT invariant
+  - [ ] `supabase/README.md` updated with the standard pattern + role cheat sheet
+  - [ ] First new-table migration authored after this todo item is closed includes explicit grants (verify by reading the diff before `npx supabase db push`)
+  - [ ] Optionally: pre-commit lint rule shipped + passing
+  - [ ] Smoke test on the live remote: create a throwaway test table via migration with grants, query it from supabase-js with an `authenticated` JWT, confirm 200 response. Drop the test table.
+
+  **Effort estimate:** 30 min for the doc updates; 1-2 hr if shipping the lint rule. Effectively zero ongoing cost once codified.
+
+- [ ] **P1 — ADMIN-1: Auth-anchored admin user list — show abandoned-onboarding signups.**
+
+  **Problem:** `GET /api/admin/users` queries `from('profiles').select(..., persons!inner(...))`. The inner-join hides every auth user who hasn't completed onboarding — they exist in `auth.users` but have no `persons` or `profiles` row yet (both are created by `onboard_person` RPC at the end of the multi-step form via `POST /api/onboarding`). Google OAuth signups are disproportionately affected because (a) there's no email-verification gate filtering half-hearted signups, (b) one-click OAuth is a lower-commitment moment than email-confirm-then-log-in, (c) OAuth flows don't surface a "we've created your account, finish setup" success page nudging the user back. Net effect: admin sees an incomplete picture of real signups, can't measure onboarding conversion, can't outreach to abandoners, and can't detect fraud/automated signup patterns.
+
+  **Why it matters:** Admin dashboard is the single source of truth for the human side of ops. If half the signups are invisible, you can't (1) tell whether your acquisition is working, (2) tell whether onboarding is the friction killing conversion, (3) audit who got an account but never used it, (4) detect repeat email signups from blocked users. Pre-launch this is a measurement gap; post-launch it becomes an integrity problem.
+
+  **Sub-decisions resolved (read these before coding):**
+  1. **Anchor on `auth.admin.listUsers()`, not `profiles`.** PostgREST can't left-join from `auth.users` (separate schema, not exposed). The only way to "show everyone" is to call the Supabase Auth admin API as the primary query, then enrich with profile/persons data via a single `IN (...)` query. Reversal of current order.
+
+  2. **Sort + paginate via auth API where possible.** `listUsers({ page, perPage })` returns users ordered by `created_at desc` (auth.users default). Use the auth API's pagination for the page slice. For total count, `listUsers` returns `total` on recent supabase-js versions — if not available, fall back to a separate `select count(*) from auth.users` via `admin.listUsers({ perPage: 1 })` which still returns total.
+
+  3. **Search semantics: name AND email.** Currently search is `ilike` on `display_name`. After this change, also search auth email. Implementation: when `search` is supplied, fetch _all_ auth users (paginated internally to up to ~5000 to bound memory), filter by `email ILIKE %search%` OR `display_name ILIKE %search%` (after enrichment), then paginate in JS. Acceptable for the current user base; flag for revisit at ~5k+ users.
+
+  4. **Port filter excludes incomplete users.** `location_port_id` only exists on `profiles` — incomplete users have no port. When a port filter is active, treat incomplete users as filtered-out (they wouldn't match anyway). Make this consistent + obvious in the UI ("Port filter narrows to completed-onboarding users only").
+
+  5. **Status taxonomy gains "Incomplete onboarding".** Existing badges: Active (default), Blocked, Deleted (deactivated), Admin. New: `Incomplete onboarding` — render as muted secondary badge alongside email-confirmed status (Verified / Unverified). Visual treatment: row gets `opacity-75` similar to History tab in messages, so incomplete signups don't visually compete with real users.
+
+  6. **The detail page (`/admin/users/[personId]`) needs to handle auth-only users.** Current `GET /api/admin/users/:personId` returns 404 if `persons` row missing. Change: return a minimal payload `{ person: null, profile: null, subscription: null, eventCount: 0, auth_user: { id, email, created_at, email_confirmed_at, banned_until } }` so the detail page can render a stub view ("Signed up via Google · 2 days ago · never completed onboarding"). Existing sections (Profile / Notes / Reports / Event Timeline) hide when there's no persons row.
+
+  7. **Block / Unblock / Restore / Notes are DISABLED for incomplete users.** No persons row means: nothing to set `blocked_at` on, no engagements to cascade-cancel, no postings to hide, no notes FK target. The list and detail UI hide these buttons. Server-side, the routes can still return 400 ("User has not completed onboarding") for defence-in-depth.
+
+  8. **New action: "Discard incomplete signup".** For auth-only users, the admin's only meaningful action is to delete them entirely. New endpoint `DELETE /api/admin/users/[personId]/discard` (or branch the existing DELETE route) that calls `serviceClient.auth.admin.deleteUser(personId)` directly — no cascade, no events, no ledger writes. Logs to `admin_action_log` with a new `'discard_incomplete_signup'` action value (requires migration 0014X extending the action CHECK constraint). Use this when you want to clean up obvious dead signups.
+
+  9. **`admin_action_log.action` CHECK constraint extension.** Migration adds `'discard_incomplete_signup'` to the existing 8-value list. Migration 00133's constraint is `action text not null check (action in ('block_user', 'unblock_user', 'delete_user', 'restore_user', 'cancel_engagement', 'hide_posting', 'resolve_report', 'close_thread'))`. Add the new value with reversible rollback. ~20 lines of migration.
+
+  10. **List route also handles email enrichment more efficiently.** Currently `route.ts:47-59` makes a _second_ `auth.admin.listUsers()` call solely to map IDs → emails. With auth-anchored anchoring, the same call provides both the user list and the emails — one round-trip, not two. Pure cleanup but worth doing in the same diff.
+
+  **Files to touch:**
+  - `apps/web/src/app/api/admin/users/route.ts` — list rewrite (~40 lines diff, mostly +60 −20). The core change.
+  - `apps/web/src/app/api/admin/users/[personId]/route.ts` — GET (detail) handles auth-only state. DELETE branches: if `persons` row missing, call `auth.admin.deleteUser` directly + log as `'discard_incomplete_signup'`.
+  - `apps/web/src/app/api/admin/users/[personId]/block/route.ts` — early-return 400 "User has not completed onboarding" when persons row missing (defence-in-depth; UI hides the button).
+  - `apps/web/src/app/api/admin/users/[personId]/unblock/route.ts` — same.
+  - `apps/web/src/app/api/admin/users/[personId]/restore/route.ts` — same.
+  - `apps/web/src/app/api/admin/users/[personId]/notes/route.ts` — POST returns 400 if persons row missing (FK would fail anyway).
+  - `apps/web/src/app/(admin)/admin/users/page.tsx` — list UI: render incomplete rows with `opacity-75`, "Incomplete onboarding" badge, "Verified" / "Unverified" email badges, null `display_name` falls back to email-prefix.
+  - `apps/web/src/app/(admin)/admin/users/[personId]/page.tsx` — detail UI: hide Profile / Notes / Reports / Event Timeline when `persons` is null; show a minimal "Signed up via {provider} · {created_at}" stub with single "Discard signup" action.
+  - `apps/web/__tests__/api/admin-users-list.test.ts` — NEW file (does not exist today). Cover: auth-anchored list returns both completed + incomplete users, search matches across name and email, port filter excludes incomplete users, pagination works across multiple pages, total count reflects auth.users total.
+  - `apps/web/__tests__/api/admin-user-delete.test.ts` — extend with a "discards auth-only user without persons row" case.
+  - `apps/web/__tests__/api/admin-block.test.ts` — extend with a "rejects with 400 when persons row missing" case.
+  - `supabase/migrations/0014X_admin_action_log_discard_action.sql` — extend `action` CHECK constraint to include `'discard_incomplete_signup'`. Reversible rollback narrows the CHECK back, with a defensive UPDATE first that converts existing rows of the new action (if any) to a fallback value before re-asserting the constraint.
+
+  **Regression risks identified (stress-test of the plan):**
+  - **R1 — Detail page 404 from list:** if step 6 isn't done, clicking an incomplete user from the new list produces a 404 in the detail page. Mitigation: ship the detail-route change in the same PR as the list-route change. Add an explicit list-→-detail test in `admin-users-list.test.ts`.
+  - **R2 — Block/Unblock/Restore/Notes hidden in UI but routes still callable:** if a stale browser tab POSTs to /block for an auth-only user, current route would crash on the `persons.single()` query. The 400 guard in step 7 makes the failure deterministic + debuggable. Without the guard, the existing `null` check would still 404 — same fail-safe but worse error message. Either acceptable; the guard is cleaner.
+  - **R3 — `admin_action_log.action` CHECK fails when the new "discard" action is written before migration ships:** the migration MUST land before the route change. Same ordering rule as every other CHECK-extension migration. Lessons.md already covers this pattern (`New aggregate_type values need a CHECK constraint update`).
+  - **R4 — Search performance regression at scale:** JS-side filter across up to 5000 fetched auth users adds ~50-150ms per search. Acceptable pre-launch. Flag for revisit when user count crosses ~5k.
+  - **R5 — Email-confirmation-pending users:** auth users with `email_confirmed_at: null` are now visible. Decide: do we show them with an "Unverified email" badge (transparent), or filter them out (cleaner)? Recommend show — admin needs to see them for fraud detection.
+  - **R6 — Banned + no persons row:** edge case where an auth user is banned (e.g. by an admin manually in Supabase Dashboard) but has no persons row. Show them with both "Incomplete onboarding" and "Auth banned" badges. No code change beyond what step 5 already does.
+  - **R7 — Anonymous auth users:** Supabase supports anonymous sessions (no email). DockWalker doesn't use anon auth today, but the list shouldn't crash on them. Render with email = "(anonymous)" and treat as incomplete.
+  - **R8 — Existing `admin-user-delete.test.ts` "still returns 200 when auth ban fails" assertion:** the test mocks a persons row found via `from('persons').single()`. The new DELETE branch (auth-only path) doesn't run `from('persons')` at all. Existing test continues to pass — it tests the happy completed-onboarding path. New test adds the discard-incomplete path.
+  - **R9 — Race condition: user completes onboarding between `listUsers()` and `from('profiles').in(...)`:** harmless — the profile row exists by the time we query, so the enrichment finds it. Worst case: the row was created between the two calls and shows up as "Incomplete" momentarily; refresh fixes it. Not worth defending against.
+  - **R10 — `requireAdmin` flow unchanged:** the guard reads the calling admin's own persons row, not the target's. No change needed.
+  - **R11 — Stale `is_admin` check:** the list query embeds `persons!inner(... is_admin)` to render the Admin badge. After the change, `is_admin` is missing for incomplete users — they're not admins, so default to false in the UI. No regression; just one more null-safe render.
+  - **R12 — Existing `admin-notes.test.ts`:** if it mocks notes for a known persons row, the new 400 guard doesn't affect it. The new test in step 7 covers the negative path.
+  - **R13 — Audit/compliance: GDPR right-to-erasure for incomplete users:** an auth-only signup might exercise GDPR right-to-erasure. Today the data-scrub flow goes through `PERSON.DATA_SCRUBBED`, which requires a persons row. For auth-only users, the new "Discard" action (which calls `auth.admin.deleteUser` directly) is the GDPR escape hatch. Document in the runbook.
+
+  **MVP vs full scope:**
+  - **MVP (1-2 day implementation):** items 1, 2, 5, 6, 8 — list + detail + discard action. List shows everyone, detail handles auth-only, discard works. Hides block/unblock/restore buttons in UI for incomplete users but doesn't add server-side 400 guards yet. Acceptable as a first ship — the buttons are hidden so the server-side path isn't reachable from the app.
+  - **Full scope (+1 day):** items 3, 4, 7, 9, 10 — search across email, port filter exclusion message, server-side 400 guards on block/unblock/restore/notes, migration for new action value, second-call cleanup. Recommend doing in the same PR — small additional surface, big robustness gain.
+
+  **Acceptance:**
+  - [ ] `/admin/users` list shows all signups including pre-onboarding auth users
+  - [ ] Incomplete signups visually distinguished (opacity + badge)
+  - [ ] Clicking an incomplete user opens a stub detail page (not 404)
+  - [ ] "Discard incomplete signup" action removes the auth user cleanly
+  - [ ] `admin_action_log` records the discard event
+  - [ ] Search by email finds incomplete users; search by name finds completed users
+  - [ ] Block/Unblock/Restore/Notes hidden in UI for incomplete users
+  - [ ] Server-side routes return 400 with helpful message when called with an auth-only ID
+  - [ ] Pagination works across multiple pages with mixed completed + incomplete users
+  - [ ] All existing admin-user-delete + admin-block + admin-notes tests still pass
+  - [ ] New tests cover the auth-anchored list + discard action
+
+  **Effort estimate:** MVP is 1-2 day. Full scope is 2-3 days including the migration, tests, and UI polish.
+
 > **Sentry DSN, secrets rotation, and `.env.production.local` deletion** are tracked in `tasks/handoff-pre-launch.md` (P0-6 + P0-3). **Database rollback runbook** is shipped at `tasks/runbook.md`. **Playwright in CI** is wired (`continue-on-error: true` until baseline refresh).
 
 ---

@@ -8,18 +8,24 @@ import { Badge } from '@/components/ui/badge';
 
 interface UserRow {
   person_id: string;
-  display_name: string;
-  identity_type: string;
   email: string | null;
+  display_name: string | null;
+  identity_type: string | null;
+  location_port_id: string | null;
+  created_at: string | null;
+  onboarding_complete: boolean;
+  email_confirmed: boolean;
+  auth_banned: boolean;
   persons: {
     current_hat: string;
     is_admin: boolean;
     blocked_at: string | null;
     deactivated_at: string | null;
     last_event_at: string | null;
-  };
-  created_at: string;
+  } | null;
 }
+
+const PER_PAGE = 20;
 
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
@@ -34,9 +40,27 @@ export default function AdminUsersPage() {
 
   const users = data?.users ?? [];
   const total = data?.total ?? 0;
+  const isLastPage = page * PER_PAGE >= total;
+
+  function emailPrefix(email: string | null): string {
+    if (!email) return 'Unknown';
+    return email.split('@')[0];
+  }
 
   function statusBadges(user: UserRow) {
     const badges = [];
+    if (!user.onboarding_complete)
+      badges.push(
+        <Badge key="i" variant="secondary">
+          Incomplete onboarding
+        </Badge>,
+      );
+    if (!user.email_confirmed)
+      badges.push(
+        <Badge key="u" variant="outline">
+          Unverified
+        </Badge>,
+      );
     if (user.persons?.blocked_at)
       badges.push(
         <Badge key="b" variant="destructive">
@@ -50,14 +74,14 @@ export default function AdminUsersPage() {
         </Badge>,
       );
     if (user.persons?.is_admin) badges.push(<Badge key="a">Admin</Badge>);
-    return badges.length > 0 ? <div className="flex gap-1">{badges}</div> : null;
+    return badges.length > 0 ? <div className="flex flex-wrap gap-1">{badges}</div> : null;
   }
 
   return (
     <div>
       <h1 className="mb-4 text-2xl font-bold">Users</h1>
       <Input
-        placeholder="Search by name..."
+        placeholder="Search by name or email..."
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
@@ -69,7 +93,7 @@ export default function AdminUsersPage() {
         <p className="text-muted-foreground">Loading...</p>
       ) : (
         <>
-          <p className="mb-2 text-sm text-muted-foreground">{total} users</p>
+          <p className="mb-2 text-sm text-muted-foreground">{total} signups</p>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -84,15 +108,29 @@ export default function AdminUsersPage() {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.person_id} className="border-b hover:bg-muted/50">
+                <tr
+                  key={u.person_id}
+                  className={`border-b hover:bg-muted/50 ${
+                    u.onboarding_complete ? '' : 'opacity-60'
+                  }`}
+                >
                   <td className="py-2">
-                    <Link href={`/admin/users/${u.person_id}`} className="text-primary underline">
-                      {u.display_name}
-                    </Link>
+                    {u.onboarding_complete ? (
+                      <Link href={`/admin/users/${u.person_id}`} className="text-primary underline">
+                        {u.display_name ?? emailPrefix(u.email)}
+                      </Link>
+                    ) : (
+                      // No persons/profiles row yet — the detail page would
+                      // 404. Render plain text until ADMIN-1 PR2 wires the
+                      // detail page to handle auth-only users.
+                      <span className="text-muted-foreground">
+                        {u.display_name ?? emailPrefix(u.email)}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2 text-muted-foreground">{u.email ?? '—'}</td>
-                  <td className="py-2">{u.identity_type}</td>
-                  <td className="py-2">{u.persons?.current_hat}</td>
+                  <td className="py-2">{u.identity_type ?? '—'}</td>
+                  <td className="py-2">{u.persons?.current_hat ?? '—'}</td>
                   <td className="py-2">
                     {u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}
                   </td>
@@ -117,7 +155,7 @@ export default function AdminUsersPage() {
             <span className="px-2 py-1 text-sm text-muted-foreground">Page {page}</span>
             <button
               onClick={() => setPage((p) => p + 1)}
-              disabled={users.length < 20}
+              disabled={isLastPage}
               className="rounded border px-3 py-1 text-sm disabled:opacity-50"
             >
               Next
