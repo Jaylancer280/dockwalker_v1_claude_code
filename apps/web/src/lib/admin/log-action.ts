@@ -9,7 +9,8 @@ export type AdminAction =
   | 'cancel_engagement'
   | 'hide_posting'
   | 'resolve_report'
-  | 'close_thread';
+  | 'close_thread'
+  | 'discard_incomplete_signup';
 
 export interface LogAdminActionParams {
   adminPersonId: string;

@@ -20,7 +20,7 @@ interface UserDetail {
     deactivated_at: string | null;
     last_event_at: string | null;
     created_at: string;
-  };
+  } | null;
   profile: {
     display_name: string;
     deck_name: string | null;
@@ -32,6 +32,15 @@ interface UserDetail {
   } | null;
   subscription: { plan: string; status: string } | null;
   eventCount: number;
+  // Present only for auth-only signups (auth.users row, no
+  // persons/profiles — never finished onboarding).
+  auth_user?: {
+    id: string;
+    email: string | null;
+    created_at: string;
+    email_confirmed_at: string | null;
+    auth_banned: boolean;
+  };
 }
 
 interface EventRow {
@@ -70,10 +79,12 @@ export default function AdminUserDetailPage() {
   const [showUnblockDialog, setShowUnblockDialog] = useState(false);
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [blocking, setBlocking] = useState(false);
   const [unblocking, setUnblocking] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [blockReason, setBlockReason] = useState('');
   const [blockCategory, setBlockCategory] = useState('other');
   const [noteDraft, setNoteDraft] = useState('');
@@ -217,8 +228,80 @@ export default function AdminUserDetailPage() {
     }
   }
 
+  async function handleDiscard() {
+    setDiscarding(true);
+    // Reuses the DELETE endpoint — the route auto-detects an auth-only
+    // user (no persons row) and takes the discard branch
+    // (auth.admin.deleteUser, no cascade, no ledger writes).
+    const res = await safeFetch(`/api/admin/users/${personId}`, { method: 'DELETE' });
+    setDiscarding(false);
+    if (res.ok) {
+      setShowDiscardDialog(false);
+      showSuccess('Incomplete signup discarded');
+      router.push('/admin/users');
+    } else {
+      showError(res.error ?? 'Failed to discard signup');
+      mutate();
+    }
+  }
+
   if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
   if (!user) return <p className="text-destructive">User not found</p>;
+
+  // Auth-only signup: no persons/profiles row (never finished
+  // onboarding). Render a minimal stub with the single meaningful
+  // action — discard the auth row. Block / Unblock / Restore / Notes /
+  // Reports / Timeline are all N/A here (no persons row to act on).
+  if (!user.person) {
+    const au = user.auth_user;
+    const isAuthBanned = !!au?.auth_banned;
+    return (
+      <div className="max-w-2xl">
+        <Link href="/admin/users" className="text-sm text-primary underline">
+          ← Back to users
+        </Link>
+        <h1 className="mt-4 text-2xl font-bold">{au?.email ?? 'Unknown signup'}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Signed up {au?.created_at ? new Date(au.created_at).toLocaleString() : 'unknown'} · never
+          completed onboarding
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Badge variant="secondary">Incomplete onboarding</Badge>
+          {au && !au.email_confirmed_at && <Badge variant="outline">Unverified email</Badge>}
+          {isAuthBanned && <Badge variant="destructive">Auth banned</Badge>}
+        </div>
+        <div className="mt-6 rounded-lg border p-4 text-sm text-muted-foreground">
+          This account exists only in authentication — there is no profile, no events, and no
+          activity. Block, Unblock, Restore, and Notes don&apos;t apply. The only action is to
+          discard the signup, which removes the auth record entirely.
+        </div>
+        <Button variant="destructive" className="mt-4" onClick={() => setShowDiscardDialog(true)}>
+          Discard signup
+        </Button>
+
+        <AdminActionDialog
+          open={showDiscardDialog}
+          onOpenChange={setShowDiscardDialog}
+          title="Discard this incomplete signup?"
+          description={
+            <div className="flex flex-col gap-2">
+              <p>This permanently removes the authentication record for this signup.</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>The user can sign up again with the same email afterwards.</li>
+                <li>No profile, events, or activity exist to preserve — nothing is scrubbed.</li>
+                <li>Recorded in the admin action log for audit.</li>
+              </ul>
+              <p>Use this to clear out abandoned or junk signups.</p>
+            </div>
+          }
+          confirmLabel="Discard signup"
+          variant="destructive"
+          loading={discarding}
+          onConfirm={handleDiscard}
+        />
+      </div>
+    );
+  }
 
   const { person, profile, subscription, eventCount } = user;
   const isBlocked = !!person.blocked_at;

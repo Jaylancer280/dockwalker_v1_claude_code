@@ -25,14 +25,48 @@ export async function DELETE(
   }
 
   try {
-    const { data: target } = await serviceClient
+    // maybeSingle (not single) so we can definitively distinguish
+    // "no persons row" (data null, error null) from a transient query
+    // failure (error set). The discard branch deletes the auth user
+    // irreversibly — it must only fire when we're certain there's no
+    // persons row, never on a flaky read (stress-test risk R8/ADMIN-1).
+    const { data: target, error: targetError } = await serviceClient
       .from('persons')
       .select('id, is_admin, blocked_at')
       .eq('id', personId)
-      .single();
+      .maybeSingle();
+
+    if (targetError) {
+      return NextResponse.json({ error: targetError.message }, { status: 500 });
+    }
 
     if (!target) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      // Auth-only signup: an auth.users row with no persons/profiles
+      // (never finished onboarding). Nothing to scrub or cascade — the
+      // only meaningful action is to remove the auth row outright.
+      const { data: authLookup, error: authLookupError } =
+        await serviceClient.auth.admin.getUserById(personId);
+      if (authLookupError || !authLookup?.user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      const { error: deleteError } = await serviceClient.auth.admin.deleteUser(personId);
+      if (deleteError) {
+        return NextResponse.json(
+          { error: `Failed to discard signup: ${deleteError.message}` },
+          { status: 500 },
+        );
+      }
+
+      await logAdminAction(serviceClient, {
+        adminPersonId: adminPerson.id,
+        action: 'discard_incomplete_signup',
+        targetPersonId: null, // no persons row — FK would reject the id
+        reason: 'Incomplete signup discarded by DockWalker',
+        metadata: { auth_user_id: personId, email: authLookup.user.email ?? null },
+      });
+
+      return NextResponse.json({ success: true, discarded: true });
     }
 
     if (target.is_admin) {
@@ -125,7 +159,29 @@ export async function GET(
       ]);
 
     if (!person) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      // Auth-only signup (no persons/profiles row — never finished
+      // onboarding). Return a stub so the detail page can render a
+      // minimal view + Discard action instead of a 404.
+      const { data: authLookup, error: authLookupError } =
+        await serviceClient.auth.admin.getUserById(personId);
+      if (authLookupError || !authLookup?.user) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+      const au = authLookup.user;
+      const bannedUntilRaw = (au as { banned_until?: string | null }).banned_until ?? null;
+      return NextResponse.json({
+        person: null,
+        profile: null,
+        subscription: null,
+        eventCount: 0,
+        auth_user: {
+          id: au.id,
+          email: au.email ?? null,
+          created_at: au.created_at,
+          email_confirmed_at: au.email_confirmed_at ?? null,
+          auth_banned: bannedUntilRaw ? new Date(bannedUntilRaw).getTime() > Date.now() : false,
+        },
+      });
     }
 
     return NextResponse.json({
