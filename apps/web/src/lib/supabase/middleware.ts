@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { buildSanitizedApiHeaders } from '@/lib/auth/api-identity-headers';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -29,47 +30,45 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
 
-  // API routes: pass identity via request headers so auth guard can skip getUser()
+  // API routes: forward verified identity to the auth guards via headers so
+  // they can skip a duplicate getUser(). CRITICAL: the spoof-strip runs for
+  // EVERY /api request, authenticated or not. It previously sat inside
+  // `if (user)`, so an unauthenticated caller's forged x-user-id / x-person-id
+  // headers passed straight through to the guard fast-path and allowed full
+  // user impersonation (audit 2026-06-01 S1). buildSanitizedApiHeaders always
+  // strips the identity headers first, then re-applies them only when a session
+  // exists.
   if (path.startsWith('/api/')) {
-    if (user) {
-      // Strip any spoofed headers from the incoming request
-      const requestHeaders = new Headers(request.headers);
-      requestHeaders.delete('x-user-id');
-      requestHeaders.delete('x-person-id');
-      requestHeaders.delete('x-current-hat');
-      requestHeaders.delete('x-identity-type');
-      requestHeaders.delete('x-blocked');
-
-      // Set verified identity headers
-      requestHeaders.set('x-user-id', user.id);
-
-      // Try JWT claims for person identity (zero DB queries)
-      const meta = user.app_metadata as
-        | {
-            person_id?: string;
-            current_hat?: string;
-            identity_type?: string;
-            blocked?: boolean;
-          }
-        | undefined;
-      if (meta?.person_id && meta?.current_hat && meta?.identity_type) {
-        requestHeaders.set('x-person-id', meta.person_id);
-        requestHeaders.set('x-current-hat', meta.current_hat);
-        requestHeaders.set('x-identity-type', meta.identity_type);
-        if (meta.blocked === true) {
-          requestHeaders.set('x-blocked', 'true');
+    const meta = user?.app_metadata as
+      | {
+          person_id?: string;
+          current_hat?: string;
+          identity_type?: string;
+          blocked?: boolean;
         }
-      }
+      | undefined;
 
-      // Create new response with the modified request headers
-      supabaseResponse = NextResponse.next({
-        request: { headers: requestHeaders },
-      });
-      // Preserve cookies from the original response
-      const cookieHeader = request.headers.get('cookie');
-      if (cookieHeader) {
-        supabaseResponse.headers.set('cookie', cookieHeader);
-      }
+    const requestHeaders = buildSanitizedApiHeaders(
+      request.headers,
+      user
+        ? {
+            userId: user.id,
+            personId: meta?.person_id,
+            currentHat: meta?.current_hat,
+            identityType: meta?.identity_type,
+            blocked: meta?.blocked === true,
+          }
+        : null,
+    );
+
+    // Create new response with the sanitized request headers
+    supabaseResponse = NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+    // Preserve cookies from the original request (parity with prior behaviour)
+    const cookieHeader = request.headers.get('cookie');
+    if (cookieHeader) {
+      supabaseResponse.headers.set('cookie', cookieHeader);
     }
     return supabaseResponse;
   }

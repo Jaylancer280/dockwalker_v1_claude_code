@@ -113,4 +113,29 @@ describe('GET /auth/callback', () => {
     const res = await GET(makeRequest({ code: 'abc' }));
     expect(new URL(res.headers.get('location')!).pathname).toBe('/onboarding');
   });
+
+  // Audit 2026-06-01 S4 — open redirect via unvalidated `next` param.
+  it('rejects a userinfo open-redirect next param and stays same-origin', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+    const res = await GET(makeRequest({ code: 'abc', next: '@evil.com' }));
+    const location = new URL(res.headers.get('location')!);
+    expect(location.host).toBe('localhost:3000');
+    expect(location.pathname).toBe('/onboarding');
+  });
+
+  it('rejects a protocol-relative open-redirect next param', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+    const res = await GET(makeRequest({ code: 'abc', next: '//evil.com' }));
+    const location = new URL(res.headers.get('location')!);
+    expect(location.host).toBe('localhost:3000');
+    expect(location.pathname).toBe('/onboarding');
+  });
+
+  it('preserves a legitimate same-origin relative next param', async () => {
+    mockExchangeCodeForSession.mockResolvedValue({ error: null });
+    const res = await GET(makeRequest({ code: 'abc', next: '/ref/abc123' }));
+    const location = new URL(res.headers.get('location')!);
+    expect(location.host).toBe('localhost:3000');
+    expect(location.pathname).toBe('/ref/abc123');
+  });
 });

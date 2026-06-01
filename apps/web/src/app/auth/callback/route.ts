@@ -2,11 +2,16 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type { EmailOtpType } from '@supabase/supabase-js';
+import { safeRedirectPath } from '@/lib/auth/safe-redirect-path';
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/onboarding';
+  // Validate `next` against the same-origin allowlist before it is used as a
+  // redirect target. An unvalidated value (e.g. `?next=@evil.com`) becomes the
+  // URL authority in `${origin}${next}` and lands the freshly-authenticated
+  // user on an attacker host (audit 2026-06-01 S4 — open redirect).
+  const next = safeRedirectPath(searchParams.get('next')) ?? '/onboarding';
   // Lightweight referee signup (?referee=1) — after email confirmation,
   // run onboard_person with referee_only=true so the user has a minimal
   // profile when they land on /ref/[token]. The full onboarding flow is
