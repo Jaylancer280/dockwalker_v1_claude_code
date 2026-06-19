@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import localFont from 'next/font/local';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -6,6 +7,8 @@ import { PushToast } from '@/components/push-toast';
 import { ThemeProvider } from '@/components/theme-provider';
 import { THEME_COLOR_DARK } from '@/lib/theme-colors';
 import './globals.css';
+import FacebookPixel from './components/FacebookPixel';
+
 // flag-icons registers .fi / .fi-{cc} CSS classes that paint per-country
 // SVG flags via background-image. Loaded once here so any descendant can
 // render via <FlagIcon code="…" />. Replaces the OS-native emoji flag
@@ -87,10 +90,36 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <PushToast />
+          <FacebookPixel />
           {children}
           <Analytics />
           <SpeedInsights />
         </ThemeProvider>
+
+        <Script id="facebook-pixel" strategy="afterInteractive">
+          {`
+            !function(f,b,e,v,n,t,s)
+            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+            n.queue=[];t=b.createElement(e);t.async=!0;
+            t.src=v;s=b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t,s)}(window,document,'script',
+            'https://connect.facebook.net/en_US/fbevents.js');
+            fbq('init', '1918419872152010'); 
+            fbq('track', 'PageView');
+          `}
+        </Script>
+
+        <noscript>
+          <img
+            height="1"
+            width="1"
+            style={{ display: 'none' }}
+            src={`https://www.facebook.com/tr?id=1918419872152010&ev=PageView&noscript=1`}
+            alt=""
+          />
+        </noscript>
       </body>
     </html>
   );
